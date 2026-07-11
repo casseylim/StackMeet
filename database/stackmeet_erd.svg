@@ -1,0 +1,437 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="3300" viewBox="0 0 2600 3300">
+
+<defs>
+  <style>
+    .bg { fill: #eef2f5; }
+    .title { font: 800 34px Arial, sans-serif; fill: #202733; }
+    .subtitle { font: 400 16px Arial, sans-serif; fill: #657383; }
+    .box { fill: #ffffff; stroke: #cbd5df; stroke-width: 1.4; }
+    .head { fill: #16202c; }
+    .headText { font: 800 15px Arial, sans-serif; fill: #ffffff; }
+    .field { font: 12px Consolas, 'Courier New', monospace; fill: #202733; }
+    .pk { fill: #fff5d6; }
+    .fk { fill: #e8f2ff; }
+    .line { fill: none; stroke: #7b8794; stroke-width: 1.1; opacity: 0.62; }
+    .relTitle { font: 800 20px Arial, sans-serif; fill: #202733; }
+    .rel { font: 12px Consolas, 'Courier New', monospace; fill: #344253; }
+    .legend { font: 13px Arial, sans-serif; fill: #344253; }
+  </style>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L0,6 L9,3 z" fill="#7b8794" />
+  </marker>
+</defs>
+
+<rect class="bg" x="0" y="0" width="100%" height="100%"/>
+<text class="title" x="70" y="60">StackMeet Database ERD</text>
+<text class="subtitle" x="70" y="88">All tables, fields, and relationships. public_code is the user-facing Competition ID; id is the internal database key.</text>
+<rect x="70" y="105" width="18" height="18" fill="#fff5d6" stroke="#cbd5df"/><text class="legend" x="96" y="119">Primary key / unique public code</text>
+<rect x="330" y="105" width="18" height="18" fill="#e8f2ff" stroke="#cbd5df"/><text class="legend" x="356" y="119">Foreign key</text>
+<path class="line" marker-end="url(#arrow)" d="M 700 210.0 C 625.0 210.0, 625.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 210.0 C 630.0 210.0, 630.0 670.0, 590 670.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 210.0 C 635.0 210.0, 635.0 844.0, 590 844.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 590 1214.0 C 585.0 1214.0, 585.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 590 1214.0 C 590.0 1214.0, 590.0 1018.0, 590 1018.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 450.0 C 650.0 450.0, 650.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 712.0 C 655.0 712.0, 655.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 590 1432.0 C 605.0 1432.0, 605.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 1117.0 C 665.0 1117.0, 665.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 1117.0 C 625.0 1117.0, 625.0 1432.0, 590 1432.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1220 1117.0 C 1205.0 1117.0, 1205.0 450.0, 1220 450.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 700 1566.0 C 635.0 1566.0, 635.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1220 1566.0 C 1215.0 1566.0, 1215.0 450.0, 1220 450.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1220 1806.0 C 1220.0 1806.0, 1220.0 1566.0, 1220 1566.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1220 1806.0 C 1225.0 1806.0, 1225.0 1117.0, 1220 1117.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 970.0 309.0, 970.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 975.0 309.0, 975.0 1018.0, 590 1018.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 980.0 309.0, 980.0 670.0, 590 670.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 940.0 309.0, 940.0 844.0, 590 844.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 1260.0 309.0, 1260.0 450.0, 1220 450.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 1265.0 309.0, 1265.0 1117.0, 1220 1117.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 309.0 C 1270.0 309.0, 1270.0 1566.0, 1220 1566.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 960.0 714.0, 960.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1850 714.0 C 1855.0 714.0, 1855.0 309.0, 1850 309.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 970.0 714.0, 970.0 1018.0, 590 1018.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 975.0 714.0, 975.0 670.0, 590 670.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 980.0 714.0, 980.0 844.0, 590 844.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 1255.0 714.0, 1255.0 450.0, 1220 450.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 1260.0 714.0, 1260.0 1117.0, 1220 1117.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 714.0 C 1265.0 714.0, 1265.0 1566.0, 1220 1566.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1850 714.0 C 1900.0 714.0, 1900.0 494.0, 1960 494.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1850 1042.0 C 1850.0 1042.0, 1850.0 714.0, 1850 714.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 1282.0 C 965.0 1282.0, 965.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1330 1282.0 C 970.0 1282.0, 970.0 1018.0, 590 1018.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1960 254.0 C 1290.0 254.0, 1290.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1960 494.0 C 1295.0 494.0, 1295.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 2480 712.0 C 2460.0 712.0, 2460.0 494.0, 2480 494.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1960 941.0 C 1260.0 941.0, 1260.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 1960 1170.0 C 1265.0 1170.0, 1265.0 353.0, 590 353.0"/>
+<path class="line" marker-end="url(#arrow)" d="M 2480 1170.0 C 2475.0 1170.0, 2475.0 494.0, 2480 494.0"/>
+<rect class="box" x="70" y="140" width="520" height="426" rx="8"/>
+<rect class="head" x="70" y="140" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="166" width="520" height="8"/>
+<text class="headText" x="84" y="163">competitions</text>
+<rect class="pk" x="78" y="177" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="192">id PK</text>
+<rect class="pk" x="78" y="199" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="214">public_code UNIQUE</text>
+<text class="field" x="86" y="236">name</text>
+<text class="field" x="86" y="258">competition_type</text>
+<text class="field" x="86" y="280">start_date</text>
+<text class="field" x="86" y="302">end_date</text>
+<text class="field" x="86" y="324">kbs_logo_enabled</text>
+<text class="field" x="86" y="346">soc_enabled</text>
+<text class="field" x="86" y="368">prelim_times_mode</text>
+<text class="field" x="86" y="390">paperless_enabled</text>
+<text class="field" x="86" y="412">advance_individuals</text>
+<text class="field" x="86" y="434">advance_doubles</text>
+<text class="field" x="86" y="456">advance_cp_doubles</text>
+<text class="field" x="86" y="478">advance_relay</text>
+<text class="field" x="86" y="500">time_sheet_input_mode</text>
+<text class="field" x="86" y="522">created_at</text>
+<text class="field" x="86" y="544">updated_at</text>
+<rect class="box" x="70" y="600" width="520" height="140" rx="8"/>
+<rect class="head" x="70" y="600" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="626" width="520" height="8"/>
+<text class="headText" x="84" y="623">event_groups</text>
+<rect class="pk" x="78" y="637" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="652">id PK</text>
+<rect class="pk" x="78" y="659" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="674">code UNIQUE</text>
+<text class="field" x="86" y="696">name</text>
+<text class="field" x="86" y="718">sort_order</text>
+<rect class="box" x="70" y="774" width="520" height="140" rx="8"/>
+<rect class="head" x="70" y="774" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="800" width="520" height="8"/>
+<text class="headText" x="84" y="797">events</text>
+<rect class="pk" x="78" y="811" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="826">id PK</text>
+<rect class="pk" x="78" y="833" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="848">code UNIQUE</text>
+<text class="field" x="86" y="870">name</text>
+<text class="field" x="86" y="892">sort_order</text>
+<rect class="box" x="70" y="948" width="520" height="140" rx="8"/>
+<rect class="head" x="70" y="948" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="974" width="520" height="8"/>
+<text class="headText" x="84" y="971">stages</text>
+<rect class="pk" x="78" y="985" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1000">id PK</text>
+<rect class="pk" x="78" y="1007" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1022">code UNIQUE</text>
+<text class="field" x="86" y="1044">name</text>
+<text class="field" x="86" y="1066">sort_order</text>
+<rect class="box" x="70" y="1122" width="520" height="184" rx="8"/>
+<rect class="head" x="70" y="1122" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="1148" width="520" height="8"/>
+<text class="headText" x="84" y="1145">competition_stages</text>
+<rect class="pk" x="78" y="1159" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1174">competition_id PK/FK</text>
+<rect class="pk" x="78" y="1181" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1196">stage_id PK/FK</text>
+<text class="field" x="86" y="1218">enabled</text>
+<text class="field" x="86" y="1240">round_count</text>
+<text class="field" x="86" y="1262">sort_order</text>
+<text class="field" x="86" y="1284">notes</text>
+<rect class="box" x="70" y="1340" width="520" height="184" rx="8"/>
+<rect class="head" x="70" y="1340" width="520" height="34" rx="8"/>
+<rect class="head" x="70" y="1366" width="520" height="8"/>
+<text class="headText" x="84" y="1363">organizations</text>
+<rect class="pk" x="78" y="1377" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1392">id PK</text>
+<rect class="fk" x="78" y="1399" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1414">competition_id FK</text>
+<text class="field" x="86" y="1436">name</text>
+<text class="field" x="86" y="1458">country</text>
+<text class="field" x="86" y="1480">region</text>
+<rect class="pk" x="78" y="1487" width="504" height="20" rx="4"/>
+<text class="field" x="86" y="1502">UNIQUE competition+name</text>
+<rect class="box" x="700" y="140" width="520" height="140" rx="8"/>
+<rect class="head" x="700" y="140" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="166" width="520" height="8"/>
+<text class="headText" x="714" y="163">competition_events</text>
+<rect class="pk" x="708" y="177" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="192">competition_id PK/FK</text>
+<rect class="pk" x="708" y="199" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="214">event_group_id PK/FK</text>
+<rect class="pk" x="708" y="221" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="236">event_id PK/FK</text>
+<text class="field" x="716" y="258">enabled</text>
+<rect class="box" x="700" y="314" width="520" height="272" rx="8"/>
+<rect class="head" x="700" y="314" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="340" width="520" height="8"/>
+<text class="headText" x="714" y="337">divisions</text>
+<rect class="pk" x="708" y="351" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="366">id PK</text>
+<rect class="fk" x="708" y="373" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="388">competition_id FK</text>
+<text class="field" x="716" y="410">name</text>
+<text class="field" x="716" y="432">division_type</text>
+<text class="field" x="716" y="454">min_age</text>
+<text class="field" x="716" y="476">max_age</text>
+<text class="field" x="716" y="498">gender</text>
+<text class="field" x="716" y="520">special_category</text>
+<text class="field" x="716" y="542">sort_order</text>
+<rect class="pk" x="708" y="549" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="564">UNIQUE competition+name</text>
+<rect class="box" x="700" y="620" width="520" height="184" rx="8"/>
+<rect class="head" x="700" y="620" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="646" width="520" height="8"/>
+<text class="headText" x="714" y="643">division_cutoffs</text>
+<rect class="pk" x="708" y="657" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="672">id PK</text>
+<rect class="fk" x="708" y="679" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="694">competition_id FK</text>
+<text class="field" x="716" y="716">cutoff_group</text>
+<text class="field" x="716" y="738">cutoff_age</text>
+<text class="field" x="716" y="760">enabled</text>
+<rect class="pk" x="708" y="767" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="782">UNIQUE competition+group+age</text>
+<rect class="box" x="700" y="838" width="520" height="558" rx="8"/>
+<rect class="head" x="700" y="838" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="864" width="520" height="8"/>
+<text class="headText" x="714" y="861">stackers</text>
+<rect class="pk" x="708" y="875" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="890">id PK</text>
+<rect class="fk" x="708" y="897" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="912">competition_id FK</text>
+<text class="field" x="716" y="934">bib_code</text>
+<text class="field" x="716" y="956">first_name</text>
+<text class="field" x="716" y="978">last_name</text>
+<text class="field" x="716" y="1000">display_name</text>
+<text class="field" x="716" y="1022">native_name</text>
+<text class="field" x="716" y="1044">gender</text>
+<text class="field" x="716" y="1066">birth_date</text>
+<text class="field" x="716" y="1088">age_on_competition_day</text>
+<text class="field" x="716" y="1110">is_special</text>
+<rect class="fk" x="708" y="1117" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1132">organization_id FK</text>
+<rect class="fk" x="708" y="1139" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1154">division_id FK</text>
+<text class="field" x="716" y="1176">country</text>
+<text class="field" x="716" y="1198">region</text>
+<text class="field" x="716" y="1220">email</text>
+<text class="field" x="716" y="1242">phone</text>
+<text class="field" x="716" y="1264">paid</text>
+<text class="field" x="716" y="1286">checked_in</text>
+<text class="field" x="716" y="1308">notes</text>
+<text class="field" x="716" y="1330">created_at</text>
+<text class="field" x="716" y="1352">updated_at</text>
+<rect class="pk" x="708" y="1359" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1374">UNIQUE competition+bib_code</text>
+<rect class="box" x="700" y="1430" width="520" height="272" rx="8"/>
+<rect class="head" x="700" y="1430" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="1456" width="520" height="8"/>
+<text class="headText" x="714" y="1453">teams</text>
+<rect class="pk" x="708" y="1467" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1482">id PK</text>
+<rect class="fk" x="708" y="1489" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1504">competition_id FK</text>
+<text class="field" x="716" y="1526">team_code</text>
+<text class="field" x="716" y="1548">team_type</text>
+<text class="field" x="716" y="1570">name</text>
+<rect class="fk" x="708" y="1577" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1592">division_id FK</text>
+<text class="field" x="716" y="1614">country</text>
+<text class="field" x="716" y="1636">created_at</text>
+<text class="field" x="716" y="1658">updated_at</text>
+<rect class="pk" x="708" y="1665" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1680">UNIQUE competition+team_code</text>
+<rect class="box" x="700" y="1736" width="520" height="140" rx="8"/>
+<rect class="head" x="700" y="1736" width="520" height="34" rx="8"/>
+<rect class="head" x="700" y="1762" width="520" height="8"/>
+<text class="headText" x="714" y="1759">team_members</text>
+<rect class="pk" x="708" y="1773" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1788">team_id PK/FK</text>
+<rect class="pk" x="708" y="1795" width="504" height="20" rx="4"/>
+<text class="field" x="716" y="1810">stacker_id PK/FK</text>
+<text class="field" x="716" y="1832">member_order</text>
+<text class="field" x="716" y="1854">role</text>
+<rect class="box" x="1330" y="140" width="520" height="338" rx="8"/>
+<rect class="head" x="1330" y="140" width="520" height="34" rx="8"/>
+<rect class="head" x="1330" y="166" width="520" height="8"/>
+<text class="headText" x="1344" y="163">time_sheets</text>
+<rect class="pk" x="1338" y="177" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="192">id PK</text>
+<rect class="fk" x="1338" y="199" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="214">competition_id FK</text>
+<text class="field" x="1346" y="236">sheet_code</text>
+<rect class="fk" x="1338" y="243" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="258">stage_id FK</text>
+<rect class="fk" x="1338" y="265" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="280">event_group_id FK</text>
+<rect class="fk" x="1338" y="287" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="302">event_id FK</text>
+<rect class="fk" x="1338" y="309" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="324">division_id FK</text>
+<text class="field" x="1346" y="346">participant_type</text>
+<rect class="fk" x="1338" y="353" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="368">stacker_id FK</text>
+<rect class="fk" x="1338" y="375" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="390">team_id FK</text>
+<text class="field" x="1346" y="412">round_number</text>
+<text class="field" x="1346" y="434">status</text>
+<rect class="pk" x="1338" y="441" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="456">UNIQUE competition+sheet_code</text>
+<rect class="box" x="1330" y="512" width="520" height="404" rx="8"/>
+<rect class="head" x="1330" y="512" width="520" height="34" rx="8"/>
+<rect class="head" x="1330" y="538" width="520" height="8"/>
+<text class="headText" x="1344" y="535">results</text>
+<rect class="pk" x="1338" y="549" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="564">id PK</text>
+<rect class="fk" x="1338" y="571" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="586">competition_id FK</text>
+<rect class="fk" x="1338" y="593" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="608">time_sheet_id FK</text>
+<rect class="fk" x="1338" y="615" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="630">stage_id FK</text>
+<rect class="fk" x="1338" y="637" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="652">event_group_id FK</text>
+<rect class="fk" x="1338" y="659" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="674">event_id FK</text>
+<rect class="fk" x="1338" y="681" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="696">division_id FK</text>
+<text class="field" x="1346" y="718">participant_type</text>
+<rect class="fk" x="1338" y="725" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="740">stacker_id FK</text>
+<rect class="fk" x="1338" y="747" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="762">team_id FK</text>
+<text class="field" x="1346" y="784">penalty_seconds</text>
+<text class="field" x="1346" y="806">is_scratch</text>
+<text class="field" x="1346" y="828">official_time</text>
+<rect class="fk" x="1338" y="835" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="850">entered_by_user_id FK</text>
+<text class="field" x="1346" y="872">entered_at</text>
+<text class="field" x="1346" y="894">notes</text>
+<rect class="box" x="1330" y="950" width="520" height="184" rx="8"/>
+<rect class="head" x="1330" y="950" width="520" height="34" rx="8"/>
+<rect class="head" x="1330" y="976" width="520" height="8"/>
+<text class="headText" x="1344" y="973">result_attempts</text>
+<rect class="pk" x="1338" y="987" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="1002">id PK</text>
+<rect class="fk" x="1338" y="1009" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="1024">result_id FK</text>
+<text class="field" x="1346" y="1046">attempt_number</text>
+<text class="field" x="1346" y="1068">raw_time</text>
+<text class="field" x="1346" y="1090">is_scratch</text>
+<rect class="pk" x="1338" y="1097" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="1112">UNIQUE result+attempt</text>
+<rect class="box" x="1330" y="1168" width="520" height="228" rx="8"/>
+<rect class="head" x="1330" y="1168" width="520" height="34" rx="8"/>
+<rect class="head" x="1330" y="1194" width="520" height="8"/>
+<text class="headText" x="1344" y="1191">leaderboard_settings</text>
+<rect class="pk" x="1338" y="1205" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="1220">competition_id PK/FK</text>
+<text class="field" x="1346" y="1242">display_type</text>
+<rect class="fk" x="1338" y="1249" width="504" height="20" rx="4"/>
+<text class="field" x="1346" y="1264">stage_id FK</text>
+<text class="field" x="1346" y="1286">background_color</text>
+<text class="field" x="1346" y="1308">progress_color</text>
+<text class="field" x="1346" y="1330">pause_seconds</text>
+<text class="field" x="1346" y="1352">result_limit</text>
+<text class="field" x="1346" y="1374">logo_path</text>
+<rect class="box" x="1960" y="140" width="520" height="228" rx="8"/>
+<rect class="head" x="1960" y="140" width="520" height="34" rx="8"/>
+<rect class="head" x="1960" y="166" width="520" height="8"/>
+<text class="headText" x="1974" y="163">competition_access_codes</text>
+<rect class="pk" x="1968" y="177" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="192">id PK</text>
+<rect class="fk" x="1968" y="199" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="214">competition_id FK</text>
+<text class="field" x="1976" y="236">access_level</text>
+<text class="field" x="1976" y="258">password_hash</text>
+<text class="field" x="1976" y="280">active</text>
+<text class="field" x="1976" y="302">created_at</text>
+<text class="field" x="1976" y="324">updated_at</text>
+<rect class="pk" x="1968" y="331" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="346">UNIQUE competition+access</text>
+<rect class="box" x="1960" y="402" width="520" height="184" rx="8"/>
+<rect class="head" x="1960" y="402" width="520" height="34" rx="8"/>
+<rect class="head" x="1960" y="428" width="520" height="8"/>
+<text class="headText" x="1974" y="425">users</text>
+<rect class="pk" x="1968" y="439" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="454">id PK</text>
+<rect class="fk" x="1968" y="461" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="476">competition_id FK</text>
+<text class="field" x="1976" y="498">display_name</text>
+<text class="field" x="1976" y="520">access_level</text>
+<text class="field" x="1976" y="542">is_active</text>
+<text class="field" x="1976" y="564">created_at</text>
+<rect class="box" x="1960" y="620" width="520" height="184" rx="8"/>
+<rect class="head" x="1960" y="620" width="520" height="34" rx="8"/>
+<rect class="head" x="1960" y="646" width="520" height="8"/>
+<text class="headText" x="1974" y="643">user_sessions</text>
+<rect class="pk" x="1968" y="657" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="672">id PK</text>
+<rect class="fk" x="1968" y="679" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="694">user_id FK</text>
+<text class="field" x="1976" y="716">last_active_at</text>
+<text class="field" x="1976" y="738">platform</text>
+<text class="field" x="1976" y="760">browser</text>
+<text class="field" x="1976" y="782">ip_address</text>
+<rect class="box" x="1960" y="838" width="520" height="206" rx="8"/>
+<rect class="head" x="1960" y="838" width="520" height="34" rx="8"/>
+<rect class="head" x="1960" y="864" width="520" height="8"/>
+<text class="headText" x="1974" y="861">notifications</text>
+<rect class="pk" x="1968" y="875" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="890">id PK</text>
+<rect class="fk" x="1968" y="897" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="912">competition_id FK</text>
+<text class="field" x="1976" y="934">title</text>
+<text class="field" x="1976" y="956">body</text>
+<text class="field" x="1976" y="978">source</text>
+<text class="field" x="1976" y="1000">is_read</text>
+<text class="field" x="1976" y="1022">created_at</text>
+<rect class="box" x="1960" y="1078" width="520" height="184" rx="8"/>
+<rect class="head" x="1960" y="1078" width="520" height="34" rx="8"/>
+<rect class="head" x="1960" y="1104" width="520" height="8"/>
+<text class="headText" x="1974" y="1101">paperwork_jobs</text>
+<rect class="pk" x="1968" y="1115" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="1130">id PK</text>
+<rect class="fk" x="1968" y="1137" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="1152">competition_id FK</text>
+<text class="field" x="1976" y="1174">paperwork_type</text>
+<text class="field" x="1976" y="1196">options_json</text>
+<rect class="fk" x="1968" y="1203" width="504" height="20" rx="4"/>
+<text class="field" x="1976" y="1218">generated_by_user_id FK</text>
+<text class="field" x="1976" y="1240">generated_at</text>
+<text class="relTitle" x="70" y="1950">Relationship List</text>
+<text class="rel" x="70" y="1978">01. competition_events.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2000">02. competition_events.event_group_id -> event_groups.id</text>
+<text class="rel" x="70" y="2022">03. competition_events.event_id -> events.id</text>
+<text class="rel" x="70" y="2044">04. competition_stages.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2066">05. competition_stages.stage_id -> stages.id</text>
+<text class="rel" x="70" y="2088">06. divisions.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2110">07. division_cutoffs.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2132">08. organizations.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2154">09. stackers.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2176">10. stackers.organization_id -> organizations.id</text>
+<text class="rel" x="70" y="2198">11. stackers.division_id -> divisions.id</text>
+<text class="rel" x="70" y="2220">12. teams.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2242">13. teams.division_id -> divisions.id</text>
+<text class="rel" x="70" y="2264">14. team_members.team_id -> teams.id</text>
+<text class="rel" x="70" y="2286">15. team_members.stacker_id -> stackers.id</text>
+<text class="rel" x="70" y="2308">16. time_sheets.competition_id -> competitions.id</text>
+<text class="rel" x="70" y="2330">17. time_sheets.stage_id -> stages.id</text>
+<text class="rel" x="70" y="2352">18. time_sheets.event_group_id -> event_groups.id</text>
+<text class="rel" x="890" y="1978">19. time_sheets.event_id -> events.id</text>
+<text class="rel" x="890" y="2000">20. time_sheets.division_id -> divisions.id</text>
+<text class="rel" x="890" y="2022">21. time_sheets.stacker_id -> stackers.id</text>
+<text class="rel" x="890" y="2044">22. time_sheets.team_id -> teams.id</text>
+<text class="rel" x="890" y="2066">23. results.competition_id -> competitions.id</text>
+<text class="rel" x="890" y="2088">24. results.time_sheet_id -> time_sheets.id</text>
+<text class="rel" x="890" y="2110">25. results.stage_id -> stages.id</text>
+<text class="rel" x="890" y="2132">26. results.event_group_id -> event_groups.id</text>
+<text class="rel" x="890" y="2154">27. results.event_id -> events.id</text>
+<text class="rel" x="890" y="2176">28. results.division_id -> divisions.id</text>
+<text class="rel" x="890" y="2198">29. results.stacker_id -> stackers.id</text>
+<text class="rel" x="890" y="2220">30. results.team_id -> teams.id</text>
+<text class="rel" x="890" y="2242">31. results.entered_by_user_id -> users.id</text>
+<text class="rel" x="890" y="2264">32. result_attempts.result_id -> results.id</text>
+<text class="rel" x="890" y="2286">33. leaderboard_settings.competition_id -> competitions.id</text>
+<text class="rel" x="890" y="2308">34. leaderboard_settings.stage_id -> stages.id</text>
+<text class="rel" x="890" y="2330">35. competition_access_codes.competition_id -> competitions.id</text>
+<text class="rel" x="890" y="2352">36. users.competition_id -> competitions.id</text>
+<text class="rel" x="1710" y="1978">37. user_sessions.user_id -> users.id</text>
+<text class="rel" x="1710" y="2000">38. notifications.competition_id -> competitions.id</text>
+<text class="rel" x="1710" y="2022">39. paperwork_jobs.competition_id -> competitions.id</text>
+<text class="rel" x="1710" y="2044">40. paperwork_jobs.generated_by_user_id -> users.id</text>
+</svg>

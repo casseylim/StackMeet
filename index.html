@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StackTrack Style Manager</title>
+    <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
+    <link rel="apple-touch-icon" href="assets/stackmeet-logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard" data-route="dashboard">
+          <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
+          <span>
+            <strong>StackMeet</strong>
+            <small>Competition Control</small>
+          </span>
+        </a>
+        <nav id="nav"></nav>
+        <div class="sidebar-card">
+          <span>Local mode</span>
+          <strong>Saved in this browser</strong>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="competitionType">Sanctioned Tournament</p>
+            <h1 id="pageTitle">Dashboard</h1>
+          </div>
+          <div class="top-actions">
+            <button id="exportXmlBtn" class="ghost" type="button">Export XML</button>
+            <label class="ghost file-action" for="importXmlInput">Import XML</label>
+            <input id="importXmlInput" class="visually-hidden" type="file" accept=".xml,text/xml,application/xml" />
+            <button id="resetBtn" class="ghost danger" type="button">Reset Demo</button>
+          </div>
+        </header>
+
+        <section class="hero" id="dashboardHero">
+          <img src="assets/competition-banner.png" alt="Sport stacking competition table" />
+          <div class="hero-content">
+            <p>Seremban Junction Sport Stacking Challenge</p>
+            <h2>Run registration, print preparation, data entry, results, and leaderboards from one place.</h2>
+          </div>
+        </section>
+
+        <main id="view"></main>
+      </div>
+    </div>
+
+    <template id="dashboardView">
+      <section class="metric-grid">
+        <article><span>Stackers</span><strong data-metric="stackers"></strong><small data-metric="gender"></small></article>
+        <article><span>Doubles Teams</span><strong data-metric="doubles"></strong><small>completed teams</small></article>
+        <article><span>Divisions</span><strong data-metric="divisions"></strong><small>active award groups</small></article>
+        <article><span>Fastest Official</span><strong data-metric="fastest"></strong><small>all events</small></article>
+      </section>
+      <section class="split">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Tournament Snapshot</h2>
+          </div>
+          <div id="snapshot"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Notifications</h2>
+            <button class="text-button" data-action="mark-read" type="button">Mark All Read</button>
+          </div>
+          <div id="notificationList"></div>
+        </article>
+      </section>
+    </template>
+
+    <template id="settingsView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>StackTrack Settings</h2>
+          <button class="primary" data-action="save-settings" type="button">Save Settings</button>
+        </div>
+        <div class="form-grid">
+          <label>Tournament Name<input id="settingName" /></label>
+          <label>Type<select id="settingType"><option>Sanctioned</option><option>Recreational</option><option>Online</option></select></label>
+          <label>Start Date<input id="settingStart" type="date" /></label>
+          <label>End Date<input id="settingEnd" type="date" /></label>
+          <label>KBS Logo<select id="settingKbsLogo"><option value="No">No</option><option value="Yes">Yes</option></select></label>
+          <label>Prelim Rounds<select id="settingPrelims"><option value="0">0 Round</option><option value="1">1 Round</option></select></label>
+          <label>Final Rounds<select id="settingFinals"><option value="1">1 Round</option></select></label>
+          <label>SOC<select id="settingSoc"><option value="Yes">Yes</option><option value="No">No</option></select></label>
+          <label>Prelim Times Data Entry<select id="settingPrelimTimes"><option value="best">Best</option><option value="all">All</option></select></label>
+          <label>Paperless Entry<select id="settingPaperless"><option value="Yes">Yes</option><option value="No">No</option></select></label>
+          <label>Language<select id="settingLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
+          <label>Advance Individuals<input id="settingAdvanceIndividuals" type="number" min="0" /></label>
+          <label>Advance Doubles<input id="settingAdvanceDoubles" type="number" min="0" /></label>
+          <label>Advance C/P Doubles<input id="settingAdvanceCpDoubles" type="number" min="0" /></label>
+          <label>Advance Timed Relay<input id="settingAdvanceRelay" type="number" min="0" /></label>
+          <label>Time Sheets Input<select id="settingTimeSheetInput"><option value="blank">blank</option></select></label>
+        </div>
+        <p class="muted">Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.</p>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Events</h2>
+          <button class="primary" data-action="save-events" type="button">Save Events</button>
+        </div>
+        <div id="eventMatrix" class="check-grid"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Divisions</h2>
+          <button class="primary" data-action="save-divisions" type="button">Save Divisions</button>
+        </div>
+        <p class="muted">Tick the age where a division should end. Skipped ages are grouped into the next selected age.</p>
+        <div id="divisionCutoffs" class="division-grid"></div>
+        <div class="panel-subhead">
+          <h3>Generated Divisions</h3>
+          <button class="ghost" data-action="add-division" type="button">Add Custom Division</button>
+        </div>
+        <div id="divisionList" class="tag-editor"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Leader Board</h2>
+          <button class="primary" data-action="save-leaderboard" type="button">Save Display</button>
+        </div>
+        <div class="form-grid">
+          <label>Type<select id="leaderType"><option>Divisional Results</option><option>Overall Results</option><option>SOC</option><option>Tournament Logo</option></select></label>
+          <label>Stage<select id="leaderStage"><option>Prelims</option><option>Finals</option></select></label>
+          <label>Background<select id="leaderBg"><option>Black</option><option>White</option></select></label>
+          <label>Progress Color<select id="leaderColor"><option>Blue</option><option>Red</option><option>Green</option></select></label>
+          <label>Pause Time<select id="leaderPause"><option>5 seconds</option><option>8 seconds</option><option>10 seconds</option><option>15 seconds</option></select></label>
+          <label>Results Limit<input id="leaderLimit" type="number" min="3" max="50" /></label>
+        </div>
+      </section>
+    </template>
+
+    <template id="languageView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Language Translation Setup</h2>
+          <button class="primary" data-action="save-language" type="button">Save Language</button>
+        </div>
+        <div class="form-grid">
+          <label>Active Language<select id="languageActive"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
+          <label>Search Translation<input id="languageSearch" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
+        </div>
+        <div class="table-wrap language-table no-auto-translate"><table><thead><tr><th>English</th><th>Bahasa Malaysia</th></tr></thead><tbody id="languageRows"></tbody></table></div>
+      </section>
+    </template>
+
+    <template id="stackersView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Individuals</h2>
+          <div class="button-row">
+            <button class="ghost" data-action="print-stacker-sheet" id="printStackerSheetBtn" type="button" hidden>Print Time Sheet</button>
+            <button class="ghost" data-action="cancel-stacker-edit" id="cancelStackerEdit" type="button" hidden>Cancel Edit</button>
+            <button class="primary" data-action="add-stacker" id="saveStackerBtn" type="button">Save Stacker</button>
+          </div>
+        </div>
+        <div id="stackerMessage" class="message" hidden></div>
+        <div id="deleteStackerConfirm" class="confirm-box" hidden>
+          <div>
+            <strong id="deleteStackerTitle">Delete stacker?</strong>
+            <p id="deleteStackerText" class="muted"></p>
+          </div>
+          <div class="button-row">
+            <button class="ghost" data-action="cancel-delete-stacker" type="button">Cancel</button>
+            <button class="danger-button" data-action="confirm-delete-stacker" type="button">Delete</button>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>Name<input id="stName" placeholder="Stacker name" /></label>
+          <label>Gender<select id="stGender"><option>M</option><option>F</option></select></label>
+          <label>Date Of Birth<input id="stDob" type="date" /></label>
+          <label>Age<input id="stAge" readonly placeholder="Auto" /></label>
+          <label>Generated Division<input id="stDivision" readonly placeholder="Enter DOB to preview" /></label>
+          <label class="checkbox-field"><input id="stSpecial" type="checkbox" /> <span>Special / Disability</span></label>
+          <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
+          <label>Organization<input id="stOrg" placeholder="School or club" /></label>
+          <label>Country<select id="stCountry"></select></label>
+          <label>Region<input id="stRegion" placeholder="State / region" /></label>
+          <label>Email<input id="stEmail" type="email" placeholder="Optional" /></label>
+          <label>Phone<input id="stPhone" placeholder="Optional" /></label>
+          <label>Paid<select id="stPaid"><option>Yes</option><option>No</option></select></label>
+          <label>Checked In<select id="stCheckedIn"><option>Yes</option><option>No</option></select></label>
+        </div>
+        <div id="stDoublesInfo" class="info-strip" hidden></div>
+        <div class="toolbar">
+          <input id="stackerSearch" type="search" placeholder="Search stackers" />
+          <select id="stackerDivisionFilter"></select>
+          <label class="ghost file-action" for="stackerCsvInput">Import Stackers CSV</label>
+          <input id="stackerCsvInput" class="visually-hidden" type="file" accept=".csv,text/csv" />
+        </div>
+        <div class="table-wrap"><table><thead><tr><th><button class="sort-button" data-action="sort-stackers" data-sort-key="id" type="button">ID</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="name" type="button">Name</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="gender" type="button">Gender</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="special" type="button">Special</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="org" type="button">Organization</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="division" type="button">Division</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="country" type="button">Country</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="paid" type="button">Paid</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="checkedIn" type="button">Check-In</button></th><th>Time Sheet</th><th></th></tr></thead><tbody id="stackerRows"></tbody></table></div>
+      </section>
+    </template>
+
+    <template id="doublesView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Doubles</h2>
+          <div class="button-row">
+            <button class="ghost" data-action="cancel-double-edit" id="cancelDoubleEdit" type="button" hidden>Cancel Edit</button>
+            <button class="primary" data-action="add-double" id="saveDoubleBtn" type="button">Add Team</button>
+          </div>
+        </div>
+        <div id="doubleMessage" class="message" hidden></div>
+        <div class="form-grid">
+          <label>Generated Type<input id="doubleType" readonly value="Normal Doubles" /></label>
+          <label>Status<select id="doubleStatus"><option value="complete">Complete</option><option value="pending">Need Partner</option></select></label>
+          <label>Search Stacker / Child<input id="doubleOneSearch" placeholder="Name or stacker ID" /></label>
+          <label>Stacker / Child<select id="doubleOne"></select></label>
+          <label>Search Registered Partner<input id="doubleTwoSearch" placeholder="Name or stacker ID" /></label>
+          <label>Registered Partner<select id="doubleTwo"></select></label>
+          <label>Parent / Guardian<input id="doubleParentName" placeholder="External parent / guardian name" /></label>
+          <label>Custom Division<input id="doubleDivision" placeholder="Auto if blank" /></label>
+          <div id="doubleWarning" class="inline-warning" hidden></div>
+        </div>
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-action="switch-doubles-tab" data-doubles-tab="completed" type="button">Completed</button>
+          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="incomplete" type="button">Incomplete</button>
+          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="all" type="button">All</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th><th>Division</th><th>Location</th><th></th></tr></thead><tbody id="doubleRows"></tbody></table></div>
+      </section>
+    </template>
+
+    <template id="relayView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Relay Teams</h2>
+          <div class="button-row">
+            <button class="ghost" data-action="cancel-relay-edit" id="cancelRelayEdit" type="button" hidden>Cancel Edit</button>
+            <button class="primary" data-action="add-relay" id="saveRelayBtn" type="button">Add Team</button>
+          </div>
+        </div>
+        <div id="relayMessage" class="message" hidden></div>
+        <div class="form-grid">
+          <label>Team Name<input id="relayName" placeholder="Relay team name" required /></label>
+          <label>Custom Division<input id="relayDivision" placeholder="Auto if blank" /></label>
+          <label>Team Coordinator<input id="relayCoordinator" placeholder="Coordinator name" /></label>
+          <label>Coordinator Email<input id="relayEmail" type="email" placeholder="Optional" /></label>
+          <label>Coordinator Phone<input id="relayPhone" placeholder="Optional" /></label>
+          <label>Location<input id="relayRegion" placeholder="State / region" /></label>
+          <div id="relayWarning" class="inline-warning" hidden></div>
+        </div>
+        <div class="relay-member-grid" id="relayMemberGrid"></div>
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-action="switch-relay-tab" data-relay-tab="completed" type="button">Completed</button>
+          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="incomplete" type="button">Incomplete</button>
+          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="all" type="button">All</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Team Name</th><th>Stackers</th><th># Stackers</th><th>Status</th><th>Division</th><th>Location</th><th></th></tr></thead><tbody id="relayRows"></tbody></table></div>
+      </section>
+    </template>
+
+    <template id="paperworkView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Print Center</h2>
+        </div>
+        <div class="form-grid print-range-controls">
+          <label>From Stacker<select id="printRangeFrom"></select></label>
+          <label>To Stacker<select id="printRangeTo"></select></label>
+        </div>
+        <div class="paper-grid">
+          <button data-action="paperwork" data-type="packets" type="button">All Packets</button>
+          <button data-action="paperwork" data-type="badges" type="button">Name Badges</button>
+          <button data-action="paperwork" data-type="individual-prelim" type="button">Individual Time Sheets</button>
+          <button data-action="paperwork" data-type="doubles-prelim" type="button">Doubles Time Sheets</button>
+          <button data-action="paperwork" data-type="relay-prelim" type="button">Relay Time Sheets</button>
+          <button data-action="paperwork" data-type="finals" type="button">Final Time Sheets</button>
+          <button data-action="paperwork" data-type="finals-individual" type="button">Individual Finals</button>
+          <button data-action="paperwork" data-type="finals-doubles" type="button">Doubles Finals</button>
+          <button data-action="paperwork" data-type="finals-relay" type="button">Relay Finals</button>
+          <button data-action="paperwork" data-type="soc" type="button">SOC Packet</button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Head To Head Brackets</h2>
+          <button class="primary" data-action="build-bracket" type="button">Build Brackets</button>
+        </div>
+        <div class="form-grid">
+          <label>Type<select id="bracketType"><option>Relay</option><option>Individual</option><option>Blank 4</option><option>Blank 8</option><option>Blank 16</option><option>Blank 32</option></select></label>
+          <label>Event<select id="bracketEvent"><option>3-3-3</option><option>3-6-3</option><option>Cycle</option></select></label>
+          <label>Elimination<select id="bracketElim"><option>Single</option><option>Double</option></select></label>
+          <label>Seeding<select id="bracketSeed"><option>Prelims</option><option>Random</option><option>Blank With Seed #</option><option>Blank No Seed #</option></select></label>
+        </div>
+      </section>
+      <section class="panel print-panel" id="paperOutput"></section>
+    </template>
+
+    <template id="awardsView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Awards Planner</h2>
+          <button class="primary" data-action="save-awards" type="button">Save Awards Plan</button>
+        </div>
+        <p class="muted">Plan trophies and medals from active divisions, event categories, and selected overall awards before registration is complete.</p>
+        <div class="award-config-grid">
+          <article class="award-config-card">
+            <h3>Individual Division</h3>
+            <label>Places To Award<select id="awardIndividualPlaces"></select></label>
+            <div class="award-place-grid" id="awardIndividualItems"></div>
+          </article>
+          <article class="award-config-card">
+            <h3>Doubles</h3>
+            <label>Places To Award<select id="awardDoublesPlaces"></select></label>
+            <div class="award-place-grid" id="awardDoublesItems"></div>
+          </article>
+          <article class="award-config-card">
+            <h3>Relay Teams</h3>
+            <label>Places To Award<select id="awardRelayPlaces"></select></label>
+            <label>Awards Per Team<select id="awardRelayUnits"><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></label>
+            <div class="award-place-grid" id="awardRelayItems"></div>
+          </article>
+        </div>
+        <div class="award-config-grid award-overall-grid" id="awardOverallConfig"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Awards Summary</h2>
+          <button class="ghost" data-action="export-awards-csv" type="button">Export CSV</button>
+        </div>
+        <div id="awardTotals" class="metric-grid"></div>
+        <div class="table-wrap"><table><thead><tr><th>Award Group</th><th>Basis</th><th>Places</th><th>Item</th><th>Quantity</th></tr></thead><tbody id="awardRows"></tbody></table></div>
+      </section>
+    </template>
+
+    <template id="competitionView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 id="entryHeading">Individual Prelim Entry</h2>
+        </div>
+        <div class="form-grid competition-mode-grid">
+          <label>Stage<select id="resultStage"><option>Prelims</option><option>Finals</option><option>SOC</option></select></label>
+          <label id="entryTypeField" hidden>Entry Type<select id="entryType"><option>Individual</option><option>Doubles</option><option>Relay</option></select></label>
+        </div>
+
+        <div id="prelimEntryPanel">
+          <div id="prelimEntryMessage" class="message" hidden></div>
+          <div class="prelim-lookup-row">
+            <label>Time Sheet / Participant ID<input id="timeSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="12 / 23 / 34" /></label>
+            <button class="ghost" data-action="lookup-prelim-participant" type="button">Find Participant</button>
+            <button class="text-button" data-action="clear-prelim-entry" type="button">Clear</button>
+          </div>
+          <article id="prelimStackerSummary" class="prelim-stacker-summary" hidden></article>
+          <div id="prelimEventGrid" class="prelim-event-grid" hidden>
+            <label data-prelim-event="3-3-3">3-3-3 Best Time<input id="prelim333" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="3.145 / 999" /></label>
+            <label data-prelim-event="3-6-3">3-6-3 Best Time<input id="prelim363" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="4.276 / 999" /></label>
+            <label data-prelim-event="Cycle">Cycle Best Time<input id="prelimCycle" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="8.512 / 999" /></label>
+          </div>
+          <div id="prelimSaveActions" class="competition-entry-actions" hidden>
+            <button class="primary" data-action="save-prelim-results" type="button">Save Prelim Times</button>
+          </div>
+        </div>
+
+        <div id="advancedEntryPanel" hidden>
+          <div id="finalEntryMessage" class="message" hidden></div>
+          <div class="prelim-lookup-row">
+            <label>Final Sheet ID<input id="finalSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="1.15 / 215 / 34" /></label>
+            <button class="ghost" data-action="lookup-final-sheet" type="button">Find Sheet</button>
+            <button class="text-button" data-action="clear-final-sheet" type="button">Clear</button>
+          </div>
+          <div class="form-grid result-grid">
+            <label>Final Sheet<select id="finalSheetSelect"></select></label>
+          </div>
+          <article id="finalSheetSummary" class="prelim-stacker-summary" hidden></article>
+          <div id="finalSheetTableWrap" class="table-wrap final-entry-table-wrap" hidden>
+            <table class="final-entry-table">
+              <thead><tr><th>Rank</th><th>Stacker / Team</th><th>Prelims</th><th>Attempt 1</th><th>Attempt 2</th><th>Attempt 3</th><th>Best Time</th><th>Place</th></tr></thead>
+              <tbody id="finalSheetRows"></tbody>
+            </table>
+          </div>
+          <div id="finalSaveActions" class="competition-entry-actions" hidden>
+            <button class="primary" data-action="save-final-results" type="button">Save Final Sheet</button>
+            <button class="ghost" data-action="print-final-sheet" type="button">Print Final Sheet</button>
+          </div>
+          <div id="finalMissingSummary" class="missing-groups"></div>
+        </div>
+      </section>
+      <section class="split">
+        <article class="panel" id="prelimMissingPanel">
+          <div class="panel-head"><h2>Missing Times</h2></div>
+          <div id="missingTimes"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><h2>Recent Results</h2></div>
+          <div class="table-wrap"><table><thead><tr><th>Stage</th><th>Name</th><th>Event</th><th>Best</th><th>Penalty</th><th></th></tr></thead><tbody id="resultRows"></tbody></table></div>
+        </article>
+      </section>
+    </template>
+
+    <template id="reportsView">
+      <div class="report-tabs no-print">
+        <button class="report-tab" data-action="switch-report-tab" data-report-tab="competition" type="button">Competition</button>
+        <button class="report-tab" data-action="switch-report-tab" data-report-tab="admin" type="button">Admin</button>
+      </div>
+      <section class="panel report-section" data-report-section="competition">
+        <div class="panel-head">
+          <h2>Competition Reports</h2>
+        </div>
+        <div class="report-filters">
+          <label>Common Reports<select id="competitionReportPreset"><option value="">Select</option><option value="individual_prelim_div">Individual Prelim Results By Division</option><option value="doubles_prelim_div">Doubles Prelim Results By Division</option><option value="relay_prelim_div">Relay Prelim Results By Division</option><option value="individual_finals_div">Individual Finals Results By Division</option><option value="doubles_finals_div">Doubles Finals Results By Division</option><option value="relay_finals_div">Relay Finals Results By Division</option><option value="female_soc">Female SOC Qualifiers</option><option value="male_soc">Male SOC Qualifiers</option><option value="doubles_soc">Doubles SOC Qualifiers</option><option value="relay_soc">Relay SOC Qualifiers</option><option value="top3_female_allaround">Top 3 Female All-Around</option><option value="top3_male_allaround">Top 3 Male All-Around</option><option value="top3_doubles_cycle">Top 3 Doubles Cycle</option><option value="top3_relay_363">Top 3 Relay 3-6-3</option><option value="ss_top3_allaround">SS Top 3 All-Around</option><option value="ss_top3_male_allaround">SS Top 3 Male All-Around</option><option value="ss_top3_female_allaround">SS Top 3 Female All-Around</option><option value="export_json">All Results JSON</option><option value="export_csv">All Results CSV</option></select></label>
+          <label>Stage<select id="competitionStage"><option value="prelims">Prelims</option><option value="finals">Finals</option><option value="all">Finals + SOC</option></select></label>
+          <label>Type<select id="competitionTypeReport"><option value="i">Individuals</option><option value="d">Doubles</option><option value="r">Timed Relay</option></select></label>
+          <label>Divisions<select id="competitionDivision"></select></label>
+          <label>Events<select id="competitionEvent"><option value="all">All (With All Around)</option><option value="all-min">All (Without All Around)</option><option value="3-3-3">3-3-3</option><option value="3-6-3">3-6-3</option><option value="cycle">Cycle</option><option value="all-around">All Around</option></select></label>
+          <label>Limit<select id="competitionLimit"></select></label>
+          <label>Gender<div class="inline-filter"><select id="competitionGenderOp"><option value="=">=</option><option value="!=">!=</option></select><select id="competitionGender"><option value="">Any</option><option value="M">M</option><option value="F">F</option></select></div></label>
+          <label>Special Stackers<select id="competitionSpecialMode"><option value="combined">Combined</option><option value="normal">Normal Only</option><option value="special">Special Only</option><option value="separate">Separate Normal / Special</option></select></label>
+          <label>Country<div class="inline-filter"><select id="competitionCountryOp"><option value="=">=</option><option value="!=">!=</option></select><select id="competitionCountry"></select></div></label>
+          <label>Region<div class="inline-filter"><select id="competitionRegionOp"><option value="=">=</option><option value="!=">!=</option></select><select id="competitionRegion"></select></div></label>
+          <label>Org<div class="inline-filter"><select id="competitionOrgOp"><option value="=">=</option><option value="!=">!=</option></select><select id="competitionOrg"></select></div></label>
+          <label>Highlight Finals<select id="competitionHighlight"><option value="no">No</option><option value="yes" selected>Yes</option></select></label>
+          <button class="primary" data-action="run-competition-report" type="button">Build Results</button>
+        </div>
+      </section>
+      <section class="panel report-section" data-report-section="competition" id="competitionReportOutput"></section>
+      <section class="panel report-section" data-report-section="admin">
+        <div class="panel-head">
+          <h2>Admin Reports</h2>
+        </div>
+        <div class="report-filters">
+          <label>Common Reports<select id="commonReport"><option value="">Select</option><option value="div_counts">All Division Counts</option><option value="all_individuals">All Individuals</option><option value="paid_status">Paid / Not Paid</option><option value="all_doubles">All Doubles</option><option value="not_doubles">Not On Doubles</option><option value="all_relay">All Relay Teams</option><option value="not_relay">Not On Relay</option></select></label>
+          <label>Type<select id="reportType"><option value="individuals">Individuals</option><option value="doubles">Doubles</option><option value="timed-relay">Timed Relay</option><option value="results">Results</option><option value="division-counts">Division Counts</option></select></label>
+          <label>Country<div class="inline-filter"><select id="reportCountryOp"><option value="=">=</option><option value="!=">!=</option></select><select id="reportCountry"></select></div></label>
+          <label>Region<div class="inline-filter"><select id="reportRegionOp"><option value="=">=</option><option value="!=">!=</option></select><select id="reportRegion"></select></div></label>
+          <label>Org<div class="inline-filter"><select id="reportOrgOp"><option value="=">=</option><option value="!=">!=</option></select><select id="reportOrg"></select></div></label>
+          <label>Team<select id="reportTeam"><option value="">--</option><option value="not-doubles">Not On Doubles</option><option value="not-relay">Not On Relay</option></select></label>
+          <label>Group By<select id="reportGroup"><option value="">None</option><option value="email">Email</option><option value="division">Division</option><option value="country">Country</option><option value="region">Region</option><option value="org">Org</option><option value="gender">Gender</option></select></label>
+          <label>Columns<select id="reportColumns" multiple size="8"></select></label>
+          <button class="primary" data-action="run-report" type="button">Run Report</button>
+        </div>
+      </section>
+      <section class="panel report-section" data-report-section="admin" id="reportOutput"></section>
+    </template>
+
+    <template id="leaderboardView">
+      <section class="display-board" id="leaderDisplay">
+        <div>
+          <p id="leaderCaption"></p>
+          <h2 id="leaderTitle"></h2>
+        </div>
+        <div id="leaderRows"></div>
+      </section>
+    </template>
+
+    <template id="usersView">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Users</h2>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Access</th><th>Last Active</th><th>Platform</th><th>Browser</th></tr></thead><tbody id="userRows"></tbody></table></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>User Levels</h2></div>
+        <div class="level-grid">
+          <article><strong>Data Entry</strong><span>Enter times and use the Print Center</span></article>
+          <article><strong>Staff</strong><span>Manage stackers, doubles, and reports</span></article>
+          <article><strong>Tournament Director</strong><span>Full settings and user access</span></article>
+        </div>
+      </section>
+    </template>
+
+    <script src="data/stacktrack-4257-stackers.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
