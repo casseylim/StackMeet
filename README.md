@@ -1,6 +1,6 @@
 # StackMeet
 
-StackMeet is a browser-based sport stacking competition manager. The current release is a static single-page application designed for local tournament operation, with future migration planned toward a hosted SQL/API architecture.
+StackMeet is a browser-based sport stacking competition manager backed by the StackMeet online API and SQL Server.
 
 ## Current capabilities
 
@@ -17,9 +17,9 @@ StackMeet is a browser-based sport stacking competition manager. The current rel
 
 ## Run locally
 
-Open `index.html` in a modern browser. The application loads `styles.css`, the bundled stacker data file, and `app.js` directly; no build step is currently required.
+Host the frontend behind the same HTTPS origin as the StackMeet API, then open the application in a modern browser. The application loads `styles.css`, the bundled stacker data file, and `app.js` directly; no frontend build step is required.
 
-Tournament data is stored in browser localStorage under `stackmeet-stacktrack-style-v1`. Export XML backups regularly because browser storage is not a server database.
+Tournament data is stored through `/api/state/DEFAULT` in SQL Server. Export XML backups regularly for operational recovery.
 
 ## Project layout
 
@@ -39,4 +39,3 @@ Tournament data is stored in browser localStorage under `stackmeet-stacktrack-st
 ## Engineering baseline
 
 The current architecture is documented in `ARCHITECTURE_REVIEW.md`. Planned behavior-preserving architecture work should begin with automated characterization tests and a versioned state contract before module extraction.
-

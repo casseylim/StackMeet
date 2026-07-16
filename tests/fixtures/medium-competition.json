@@ -1,0 +1,8 @@
+{
+  "name": "Medium Competition",
+  "purpose": "Representative mixed divisions, countries, special stackers, doubles and relays for report/filter scenarios.",
+  "stackerCount": 24,
+  "divisionMix": ["6U", "8U", "10U", "12U", "14U", "18U", "19+", "SS 12U"],
+  "teamMix": { "doubles": 8, "relays": 4 },
+  "resultMix": ["Prelims", "Finals", "scratch", "DNS", "ties"]
+}

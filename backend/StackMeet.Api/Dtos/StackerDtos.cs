@@ -1,0 +1,3 @@
+namespace StackMeet.Api.Dtos;
+public sealed record StackerRequest(string StackerCode, string? WssaId, string FirstName, string LastName, string Gender, DateOnly? BirthDate, string Country, string? Club, string? Region, string? Email, string? Phone, string? CustomDivision, string? Paid, string? CheckedIn, bool IsSpecialStacker);
+public sealed record StackerResponse(int Id, int CompetitionId, string StackerCode, string? WssaId, string FirstName, string LastName, string Gender, DateOnly? BirthDate, string Country, string? Club, string? Region, string? Email, string? Phone, string? CustomDivision, string Paid, string CheckedIn, bool IsSpecialStacker, DateTime CreatedAt, DateTime UpdatedAt);

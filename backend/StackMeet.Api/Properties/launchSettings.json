@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "StackMeet.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__StackMeet": "Server=(localdb)\\MSSQLLocalDB;Database=StackMeet_Local;Trusted_Connection=True;MultipleActiveResultSets=True;TrustServerCertificate=True"
+      },
+      "applicationUrl": "https://localhost:48803;http://localhost:48804"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+.admin-shell { padding: 24px; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+.admin-auth-panel { display: grid; grid-template-columns: minmax(220px, 420px) auto 1fr; gap: 12px; align-items: end; margin-bottom: 16px; }
+.admin-auth-panel label, .admin-form label { display: grid; gap: 6px; color: var(--muted); font-weight: 800; }
+.admin-split { grid-template-columns: minmax(460px, 1.2fr) minmax(360px, 0.8fr); }
+.admin-form { display: grid; gap: 12px; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.admin-json { max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; white-space: pre-wrap; }
+.admin-row-button { padding: 4px 8px; }
+@media (max-width: 900px) { .admin-auth-panel, .admin-split { grid-template-columns: 1fr; } }
