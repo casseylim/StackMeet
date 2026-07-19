@@ -18,7 +18,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("StackMeetApiCors", policy =>
     {
-        if (allowedOrigins.Length == 0) policy.AllowAnyOrigin(); else policy.WithOrigins(allowedOrigins);
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin();
+        }
+
         policy.WithMethods("GET", "POST", "PUT", "DELETE")
             .WithHeaders("Authorization", "Content-Type", apiKeyHeaderName, adminKeyHeaderName, "X-StackMeet-Updated-By");
     });
