@@ -35,8 +35,9 @@
           <div class="panel-head"><h2 id="adminFormTitle">Create Competition</h2></div>
           <form id="competitionAdminForm" class="admin-form">
             <input id="adminOriginalKey" type="hidden" />
-            <label>Competition Key<input id="adminCompetitionKey" autocomplete="off" required /></label>
+            <label>Login ID / Competition Key<input id="adminCompetitionKey" autocomplete="off" required /></label>
             <label>Competition Code<input id="adminCompetitionCode" autocomplete="off" /></label>
+            <p class="muted" id="immutableKeyHelp" hidden>Login ID and competition code cannot be changed after creation. Delete an unused mistaken competition and create it again with the correct key.</p>
             <label>Name<input id="adminCompetitionName" required /></label>
             <label>Venue<input id="adminCompetitionVenue" required /></label>
             <label>Start Date<input id="adminStartDate" type="date" required /></label>
@@ -55,6 +56,7 @@
             <button class="ghost" data-admin-action="close" type="button">Close</button>
             <button class="ghost" data-admin-action="archive" type="button">Archive</button>
             <button class="danger-button" data-admin-action="reset" type="button">Reset State</button>
+            <button class="danger-button" data-admin-action="delete" type="button">Delete Unused Competition</button>
           </div>
           <pre id="adminJsonOutput" class="admin-json" hidden></pre>
         </article>
