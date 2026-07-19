@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
@@ -159,6 +160,34 @@ public sealed class CompetitionAdminController(
         return NoContent();
     }
 
+    [HttpPost("{competitionKey}/delete")]
+    public async Task<IActionResult> Delete(string competitionKey, CompetitionAdminDeleteRequest request, CancellationToken ct)
+    {
+        var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
+        if (request.Confirmation != $"DELETE {normalizedKey}") return BadRequest(new { error = $"Confirmation must be DELETE {normalizedKey}." });
+        if (normalizedKey == "DEFAULT") return BadRequest(new { error = "DEFAULT competition deletion is blocked." });
+
+        var competition = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
+        if (competition is null) return NotFound();
+        if (await database.Stackers.AnyAsync(item => item.CompetitionId == competition.Id, ct))
+        {
+            return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
+        }
+
+        var state = await database.CompetitionStates.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
+        if (state is not null && StateContainsCompetitionData(state.JsonData))
+        {
+            return Conflict(new { error = "Competition cannot be deleted while its state contains participants, teams or results." });
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        if (state is not null) database.CompetitionStates.Remove(state);
+        database.Competitions.Remove(competition);
+        await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("{competitionKey}/state/reset")]
     public async Task<IActionResult> ResetState(string competitionKey, CompetitionAdminResetStateRequest request, CancellationToken ct)
     {
@@ -244,6 +273,30 @@ public sealed class CompetitionAdminController(
         !string.IsNullOrWhiteSpace(request.CompetitionName)
         && !string.IsNullOrWhiteSpace(request.Venue)
         && request.EndDate >= request.StartDate;
+
+    static bool StateContainsCompetitionData(string jsonData)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(jsonData);
+            if (document.RootElement.ValueKind != JsonValueKind.Object) return true;
+            foreach (var propertyName in new[] { "stackers", "doubles", "relays", "results", "finalQualificationSnapshots" })
+            {
+                if (document.RootElement.TryGetProperty(propertyName, out var value)
+                    && value.ValueKind == JsonValueKind.Array
+                    && value.GetArrayLength() > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (JsonException)
+        {
+            return true;
+        }
+    }
 
     static string? NormalizeStatus(string? status) => status?.Trim().ToUpperInvariant() switch
     {
