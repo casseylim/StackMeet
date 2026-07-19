@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: backend/StackMeet.Api/StackMeet.Api.csproj
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Restore .NET dependencies
+        run: dotnet restore StackMeet.sln --configfile NuGet.Config
+
+      - name: Build Release
+        run: dotnet build StackMeet.sln -c Release --no-restore
+
+      - name: Check synchronized authentication scripts
+        run: |
+          node --check js/auth/AuthSession.js
+          node --check backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js
+
+      - name: Run static security regression tests
+        run: node tests/competition-admin-phase1.static.test.js
+
+      - name: Run characterization suite
+        run: node tests/characterization.test.js
+
+      - name: Run storage smoke tests
+        run: node js/storage/storage-smoke.test.js
+
+      - name: Run preliminary save pipeline tests
+        run: node tests/prelim-save-pipeline.test.js
+
+      - name: Run competition report engine tests
+        run: node tests/competition-report-engine.test.js
