@@ -1,11 +1,12 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:5186"
+    [string]$BaseUrl = "http://127.0.0.1:5186",
+    [Parameter(Mandatory = $true)][string]$ApiKey
 )
 
 $ErrorActionPreference = "Stop"
 
 function Invoke-Api([string]$Method, [string]$Path, $Body = $null) {
-    $parameters = @{ Method = $Method; Uri = "$BaseUrl$Path"; UseBasicParsing = $true }
+    $parameters = @{ Method = $Method; Uri = "$BaseUrl$Path"; UseBasicParsing = $true; Headers = @{ "X-StackMeet-Api-Key" = $ApiKey } }
     if ($null -ne $Body) { $parameters.ContentType = "application/json"; $parameters.Body = ($Body | ConvertTo-Json -Depth 5) }
     try {
         $response = Invoke-WebRequest @parameters
