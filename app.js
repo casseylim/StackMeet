@@ -590,8 +590,8 @@ function normalizeState(data) {
     { ...structuredClone(pack), ...(data.translations?.[code] || {}) }
   ]));
   data.settings.prelims = normalizePrelimRounds(data.settings.prelims);
-  data.settings.ageCalculationMode = "actual";
-  ageCalculationMode = "actual";
+  data.settings.ageCalculationMode = data.settings.ageCalculationMode === "yearBorn" ? "yearBorn" : "actual";
+  ageCalculationMode = data.settings.ageCalculationMode;
   data.divisionSettings = {
     ...structuredClone(defaultDivisionSettings),
     ...(data.divisionSettings || {})
@@ -797,6 +797,11 @@ async function initializeSqlNativeStackers() {
   await refreshSqlStackers({ allowEditing: true, rerender: false });
 }
 
+function usesAuthenticatedCompetitionState() {
+  const session = window.StackMeetAuth?.readSession?.();
+  return Boolean(session?.token && !session.localFileTest);
+}
+
 function competitionSettingsProvider() {
   if (!selectedSqlCompetitionId) throw new Error("A selected competition is required.");
   return new CompetitionStateProvider(`competition-${selectedSqlCompetitionId}-settings`);
@@ -813,11 +818,17 @@ function applyCompetitionAgeCalculation(mode) {
 }
 
 async function loadCompetitionAgeCalculation() {
+  if (usesAuthenticatedCompetitionState()) {
+    applyCompetitionAgeCalculation(state.settings.ageCalculationMode);
+    return;
+  }
+
   const saved = await competitionSettingsProvider().load();
   applyCompetitionAgeCalculation(saved?.ageCalculationMode);
 }
 
 async function saveCompetitionAgeCalculation(mode) {
+  if (usesAuthenticatedCompetitionState()) return;
   await competitionSettingsProvider().save({ ageCalculationMode: mode });
 }
 
