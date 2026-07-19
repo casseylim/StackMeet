@@ -136,6 +136,18 @@ app.Use(async (context, next) =>
             return;
         }
 
+        var statusRestriction = await CompetitionStatusRestriction(
+            session,
+            context.Request.Method,
+            database,
+            context.RequestAborted);
+        if (statusRestriction is { } restriction)
+        {
+            context.Response.StatusCode = restriction.StatusCode;
+            await context.Response.WriteAsJsonAsync(new { error = restriction.Error });
+            return;
+        }
+
         context.Items["StackMeetSession"] = session;
         await next();
         return;
@@ -193,6 +205,43 @@ static string? BearerToken(string? authorization)
         ? authorization[prefix.Length..].Trim()
         : null;
 }
+
+static async Task<(int StatusCode, string Error)?> CompetitionStatusRestriction(
+    SessionToken session,
+    string method,
+    StackMeetDbContext database,
+    CancellationToken ct)
+{
+    var lifecycle = await database.Competitions
+        .AsNoTracking()
+        .Where(item => item.CompetitionKey == session.CompetitionId)
+        .Select(item => new { item.Status, item.ArchivedAt })
+        .SingleOrDefaultAsync(ct);
+
+    if (lifecycle is null)
+    {
+        return (StatusCodes.Status403Forbidden, "Competition is no longer available.");
+    }
+
+    if (lifecycle.ArchivedAt is not null
+        || string.Equals(lifecycle.Status, "Archived", StringComparison.OrdinalIgnoreCase))
+    {
+        return (StatusCodes.Status403Forbidden, "Competition is archived.");
+    }
+
+    if (IsWriteMethod(method)
+        && string.Equals(lifecycle.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+    {
+        return (StatusCodes.Status409Conflict, "Competition is closed and read-only.");
+    }
+
+    return null;
+}
+
+static bool IsWriteMethod(string method) =>
+    !HttpMethods.IsGet(method)
+    && !HttpMethods.IsHead(method)
+    && !HttpMethods.IsOptions(method);
 
 static async Task<bool> SessionCanAccessPath(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
 {
