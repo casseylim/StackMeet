@@ -84,7 +84,8 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
     }
 
     bool IsMaintenanceRequest() => HttpContext.Items["StackMeetMaintenanceApiKey"] is true;
-    static bool Valid(CompetitionRequest x)=>!string.IsNullOrWhiteSpace(x.CompetitionCode)&&!string.IsNullOrWhiteSpace(x.CompetitionName)&&!string.IsNullOrWhiteSpace(x.Venue)&&!string.IsNullOrWhiteSpace(x.Status)&&x.EndDate>=x.StartDate && CompetitionKeyRules.IsValid(CompetitionKeyRules.Normalize(x.CompetitionCode));
-    static CompetitionRequest Normalize(CompetitionRequest x) => x with { CompetitionCode = CompetitionKeyRules.Normalize(x.CompetitionCode), CompetitionName = x.CompetitionName.Trim(), Venue = x.Venue.Trim(), Status = x.Status.Trim() };
+    static bool Valid(CompetitionRequest x)=>!string.IsNullOrWhiteSpace(x.CompetitionCode)&&!string.IsNullOrWhiteSpace(x.CompetitionName)&&!string.IsNullOrWhiteSpace(x.Venue)&&x.EndDate>=x.StartDate && CompetitionKeyRules.IsValid(CompetitionKeyRules.Normalize(x.CompetitionCode)) && NormalizeStatus(x.Status) is not null;
+    static CompetitionRequest Normalize(CompetitionRequest x) => x with { CompetitionCode = CompetitionKeyRules.Normalize(x.CompetitionCode), CompetitionName = x.CompetitionName.Trim(), Venue = x.Venue.Trim(), Status = NormalizeStatus(x.Status)! };
+    static string? NormalizeStatus(string? status) => status?.Trim().ToUpperInvariant() switch { "ACTIVE" => "Active", "CLOSED" => "Closed", "ARCHIVED" => "Archived", "DRAFT" => "Draft", _ => null };
     static CompetitionResponse Map(Competition x)=>new(x.Id,x.CompetitionCode,x.CompetitionName,x.Venue,x.StartDate,x.EndDate,x.Status,x.CreatedAt,x.UpdatedAt);
 }
