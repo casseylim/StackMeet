@@ -27,6 +27,8 @@ assert(!/IsLocalTestApiKey/.test(program), "Server must not contain a localhost 
 assert(!/localHttpTest|localFileTestPassword/.test(authClient), "Browser client must not contain an embedded local HTTP credential.");
 assert(/SessionCanAccessPath/.test(program) && /CompetitionKey == session\.CompetitionId/.test(program), "Session isolation must compare token CompetitionKey to route data.");
 assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be blocked in Phase 1.");
+assert(/Query\(normalizedKey\)\.SingleOrDefaultAsync\(ct\)/.test(admin) && /Query\(key\)\.SingleAsync\(ct\)/.test(admin), "Admin competition lookups must filter entities before response projection.");
+assert(!/SingleOrDefaultAsync\(item => item\.CompetitionKey/.test(admin) && !/SingleAsync\(item => item\.CompetitionKey/.test(admin), "Admin queries must not filter projected response records.");
 assert(/CompetitionKeyRules\.Normalize/.test(stateController) && /CompetitionKeyRules\.IsValid/.test(stateController), "State routes must normalize and validate competition keys.");
 assert(/JsonDocument\.Parse/.test(stateController) && /JsonValueKind\.Object/.test(stateController), "State saves must require a valid JSON object.");
 assert(stateController.indexOf("ValidateStateJson(jsonData)") < stateController.indexOf("ExecuteStateCommand("), "State JSON validation must occur before SQL persistence.");
