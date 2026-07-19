@@ -36,4 +36,6 @@ public sealed record CompetitionAdminArchiveRequest(string? ArchivedBy);
 
 public sealed record CompetitionAdminResetStateRequest(string Confirmation, bool ResultsOnly);
 
+public sealed record CompetitionAdminDeleteRequest(string Confirmation);
+
 public sealed record CompetitionJsonExportResponse(string CompetitionKey, DateTime ExportedAtUtc, string JsonData);

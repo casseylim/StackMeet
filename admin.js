@@ -10,6 +10,7 @@
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
+      if (response.status === 401) sessionStorage.removeItem(keyName);
       let error = `Request failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
       throw new Error(error);
@@ -24,6 +25,11 @@
   }
 
   function drawRows() {
+    if (!competitions.length) {
+      $("competitionAdminRows").innerHTML = '<tr><td colspan="6" class="muted">No competitions found.</td></tr>';
+      return;
+    }
+
     $("competitionAdminRows").innerHTML = competitions.map(item => `
       <tr>
         <td><strong>${esc(item.competitionKey)}</strong></td>
@@ -40,6 +46,10 @@
     $("adminOriginalKey").value = item?.competitionKey || "";
     $("adminCompetitionKey").value = item?.competitionKey || "";
     $("adminCompetitionCode").value = item?.competitionCode || "";
+    const editing = Boolean(item);
+    $("adminCompetitionKey").readOnly = editing;
+    $("adminCompetitionCode").readOnly = editing;
+    $("immutableKeyHelp").hidden = !editing;
     $("adminCompetitionName").value = item?.competitionName || "";
     $("adminCompetitionVenue").value = item?.venue || "";
     $("adminStartDate").value = item?.startDate || "";
@@ -84,6 +94,15 @@
     if (action === "init") await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/initialize`, { method: "POST" });
     if (action === "close") await request(`/api/admin/competitions/${encodeURIComponent(key)}/status`, { method: "POST", body: JSON.stringify({ status: "Closed" }) });
     if (action === "archive") await request(`/api/admin/competitions/${encodeURIComponent(key)}/archive`, { method: "POST", body: JSON.stringify({ archivedBy: "admin" }) });
+    if (action === "delete") {
+      const confirmation = prompt(`Type DELETE ${key} to permanently delete only this unused competition.`);
+      if (confirmation !== `DELETE ${key}`) return;
+      await request(`/api/admin/competitions/${encodeURIComponent(key)}/delete`, { method: "POST", body: JSON.stringify({ confirmation }) });
+      await loadCompetitions();
+      fillForm(null);
+      message(`Deleted ${key}.`);
+      return;
+    }
     if (action === "reset") {
       const confirmation = prompt(`Type RESET ${key} to reset only ${key}.`);
       if (confirmation !== `RESET ${key}`) return;
@@ -92,11 +111,28 @@
     await loadCompetitions();
   }
 
+  async function activateAdminKey() {
+    const value = $("adminKey").value.trim();
+    if (!value) {
+      message("Enter the admin key before selecting Use Key.");
+      return;
+    }
+
+    sessionStorage.setItem(keyName, value);
+    try {
+      await loadCompetitions();
+      $("adminKey").value = "";
+    } catch (error) {
+      sessionStorage.removeItem(keyName);
+      throw error;
+    }
+  }
+
   function esc(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
 
-  $("saveAdminKey").addEventListener("click", async () => { sessionStorage.setItem(keyName, $("adminKey").value); await loadCompetitions().catch(error => message(error.message)); });
+  $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
   $("refreshAdmin").addEventListener("click", () => loadCompetitions().catch(error => message(error.message)));
   $("newCompetition").addEventListener("click", () => fillForm(null));
   $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
@@ -107,4 +143,9 @@
   });
   document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
   fillForm(null);
+  if (sessionStorage.getItem(keyName)) {
+    loadCompetitions().catch(error => message(error.message));
+  } else {
+    message("Enter the admin key to load competitions.");
+  }
 })();
