@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 const migration = read("backend/StackMeet.Api/Migrations/20260713034108_CompetitionAdminPhase1.cs");
 const program = read("backend/StackMeet.Api/Program.cs");
 const auth = read("backend/StackMeet.Api/Controllers/AuthController.cs");
+const authClient = read("js/auth/AuthSession.js");
 const admin = read("backend/StackMeet.Api/Controllers/CompetitionAdminController.cs");
 const appsettings = read("backend/StackMeet.Api/appsettings.json");
 
@@ -19,6 +20,8 @@ assert(/UPDATE \[dbo\]\.\[CompetitionState\] SET \[CreatedAt\] = \[UpdatedAt\]/.
 assert(!/LoginPassword/.test(auth), "Competition login must not use one shared login password.");
 assert(/PasswordHash/.test(auth) && /PasswordHash/.test(admin), "Competition password hashes must be used by auth/admin flows.");
 assert(/X-StackMeet-Admin-Key/.test(program), "Admin endpoints must use separate admin authorization.");
+assert(!/IsLocalTestApiKey/.test(program), "Server must not contain a localhost API-key bypass.");
+assert(!/localHttpTest|localFileTestPassword/.test(authClient), "Browser client must not contain an embedded local HTTP credential.");
 assert(/SessionCanAccessPath/.test(program) && /CompetitionKey == session\.CompetitionId/.test(program), "Session isolation must compare token CompetitionKey to route data.");
 assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be blocked in Phase 1.");
 assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
