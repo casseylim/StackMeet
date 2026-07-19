@@ -71,5 +71,9 @@ assert(!/allowedOrigins\.Length\s*==\s*0[^\n]*AllowAnyOrigin/.test(program), "Em
 assert(/allowedOrigins\.Length\s*>\s*0/.test(program) && /else if \(builder\.Environment\.IsDevelopment\(\)\)/.test(program), "AllowAnyOrigin must be limited to Development when no origins are configured.");
 assert(/state rejects missing credentials/.test(securityIntegration) && /malformed state JSON rejection/.test(securityIntegration), "Security integration coverage must include authentication and malformed state saves.");
 assert(/unsupported competition status rejection/.test(securityIntegration) && /401,401,401,401,401,429/.test(securityIntegration), "Security integration coverage must include status validation and login throttling.");
+assert(/CompetitionStatusRestriction/.test(program) && /Competition is closed and read-only/.test(program), "Closed competition sessions must be read-only.");
+assert(/Status409Conflict/.test(program) && /IsWriteMethod\(method\)/.test(program), "Closed competition writes must return HTTP 409.");
+assert(/Competition is archived/.test(program) && /Status403Forbidden/.test(program), "Archived competition sessions must be denied.");
+assert(/IsMaintenanceRequest/.test(competitions), "Maintenance API-key recovery writes must remain explicitly separated from competition sessions.");
 assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
 console.log("Competition admin static safety tests passed.");
