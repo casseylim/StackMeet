@@ -1,7 +1,9 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
+using StackMeet.Api.Services;
 
 namespace StackMeet.Api.Controllers;
 
@@ -12,20 +14,38 @@ public sealed class CompetitionStateController(StackMeetDbContext database) : Co
     [HttpGet("{competitionKey}")]
     public async Task<IActionResult> Get(string competitionKey, CancellationToken cancellationToken)
     {
-        var jsonData = await ReadJsonData(competitionKey, cancellationToken);
+        var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
+        if (!CompetitionKeyRules.IsValid(normalizedKey))
+        {
+            return BadRequest(new { error = "Competition key must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
+        }
+
+        var jsonData = await ReadJsonData(normalizedKey, cancellationToken);
         return jsonData is null ? NotFound() : Content(jsonData, "application/json");
     }
 
     [HttpPost("{competitionKey}")]
     public async Task<IActionResult> Save(string competitionKey, CancellationToken cancellationToken)
     {
+        var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
+        if (!CompetitionKeyRules.IsValid(normalizedKey))
+        {
+            return BadRequest(new { error = "Competition key must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
+        }
+
         using var reader = new StreamReader(Request.Body);
         var jsonData = await reader.ReadToEndAsync(cancellationToken);
+        var validationError = ValidateStateJson(jsonData);
+        if (validationError is not null)
+        {
+            return BadRequest(new { error = validationError });
+        }
+
         var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
 
         var updated = await ExecuteStateCommand(
             "UPDATE [dbo].[CompetitionState] SET [JsonData] = @jsonData, [UpdatedAt] = SYSUTCDATETIME(), [UpdatedBy] = @updatedBy WHERE [CompetitionKey] = @competitionKey",
-            competitionKey,
+            normalizedKey,
             jsonData,
             updatedBy,
             cancellationToken);
@@ -34,13 +54,33 @@ public sealed class CompetitionStateController(StackMeetDbContext database) : Co
         {
             await ExecuteStateCommand(
                 "INSERT INTO [dbo].[CompetitionState] ([CompetitionKey], [JsonData], [SchemaVersion], [UpdatedAt], [UpdatedBy]) VALUES (@competitionKey, @jsonData, '0.9-online', SYSUTCDATETIME(), @updatedBy)",
-                competitionKey,
+                normalizedKey,
                 jsonData,
                 updatedBy,
                 cancellationToken);
         }
 
         return NoContent();
+    }
+
+    static string? ValidateStateJson(string jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return "Competition state must contain a JSON object.";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jsonData);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                ? null
+                : "Competition state root must be a JSON object.";
+        }
+        catch (JsonException)
+        {
+            return "Competition state contains malformed JSON.";
+        }
     }
 
     async Task<string?> ReadJsonData(string competitionKey, CancellationToken cancellationToken)
