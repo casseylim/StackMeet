@@ -30,6 +30,8 @@ assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be bloc
 assert(/CompetitionKeyRules\.Normalize/.test(stateController) && /CompetitionKeyRules\.IsValid/.test(stateController), "State routes must normalize and validate competition keys.");
 assert(/JsonDocument\.Parse/.test(stateController) && /JsonValueKind\.Object/.test(stateController), "State saves must require a valid JSON object.");
 assert(stateController.indexOf("ValidateStateJson(jsonData)") < stateController.indexOf("ExecuteStateCommand("), "State JSON validation must occur before SQL persistence.");
+assert(/BEGIN TRANSACTION/.test(stateController) && /UPDLOCK, SERIALIZABLE/.test(stateController) && /COMMIT TRANSACTION/.test(stateController), "First state save must use one serializable upsert transaction.");
+assert(!/if \(updated == 0\)/.test(stateController), "State saves must not use a race-prone two-command update/insert flow.");
 assert(/AddRateLimiter/.test(program) && /FixedWindowRateLimiterOptions/.test(program), "Login rate limiting must be registered with a fixed-window policy.");
 assert(/PermitLimit\s*=\s*5/.test(program) && /Window\s*=\s*TimeSpan\.FromMinutes\(1\)/.test(program), "Login rate limiting must allow at most five attempts per minute.");
 assert(/Status429TooManyRequests/.test(program) && /UseRateLimiter/.test(program), "Rate-limit rejection must return HTTP 429 and middleware must be enabled.");
