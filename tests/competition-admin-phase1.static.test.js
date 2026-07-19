@@ -22,6 +22,9 @@ assert(/UPDATE \[dbo\]\.\[Competition\] SET \[CompetitionKey\] = UPPER\(\[Compet
 assert(/UPDATE \[dbo\]\.\[CompetitionState\] SET \[CreatedAt\] = \[UpdatedAt\]/.test(up), "Existing CompetitionState CreatedAt must be backfilled from UpdatedAt.");
 assert(!/LoginPassword/.test(auth), "Competition login must not use one shared login password.");
 assert(/PasswordHash/.test(auth) && /PasswordHash/.test(admin), "Competition password hashes must be used by auth/admin flows.");
+assert(/var stateExists = await database\.CompetitionStates\.AnyAsync/.test(admin), "Competition creation must detect an existing state row.");
+assert(/if \(!stateExists\)\s*\{\s*database\.CompetitionStates\.Add/.test(admin), "Competition creation must preserve an existing state row and initialize state only when absent.");
+assert(!/Competitions\.AnyAsync[\s\S]{0,180}\|\|\s*await database\.CompetitionStates\.AnyAsync/.test(admin), "An orphaned state row must not block creation of its competition metadata.");
 assert(/X-StackMeet-Admin-Key/.test(program), "Admin endpoints must use separate admin authorization.");
 assert(!/IsLocalTestApiKey/.test(program), "Server must not contain a localhost API-key bypass.");
 assert(!/localHttpTest|localFileTestPassword/.test(authClient), "Browser client must not contain an embedded local HTTP credential.");
