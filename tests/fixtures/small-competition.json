@@ -1,0 +1,11 @@
+{
+  "name": "Small Competition",
+  "start": "2026-07-11",
+  "stackers": [
+    { "id": "1.1", "name": "Ava Tan", "gender": "F", "dob": "2016-07-12", "age": 9, "division": "10U", "special": "No", "country": "Malaysia", "org": "KL Stackers" },
+    { "id": "1.2", "name": "Ben Lim", "gender": "M", "dob": "2014-07-11", "age": 12, "division": "12U", "special": "No", "country": "Malaysia", "org": "KL Stackers" },
+    { "id": "1.3", "name": "Cara Lee", "gender": "F", "dob": "2010-06-01", "age": 16, "division": "18U", "special": "Yes", "country": "Singapore", "org": "Lion Stackers" }
+  ],
+  "doubles": [{ "id": "2.1", "type": "normal", "status": "complete", "one": "1.1", "two": "1.2" }],
+  "relays": [{ "id": "3.1", "name": "KL Lightning", "members": ["1.1", "1.2", "1.3", "1.4"] }]
+}

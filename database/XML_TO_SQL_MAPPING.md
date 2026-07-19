@@ -31,7 +31,7 @@ The tournament login ID goes into `competitions.public_code`. For example, Stack
 
 ```sql
 INSERT INTO competitions (public_code, name, competition_type, start_date, end_date)
-VALUES ('4257', 'Seremban Junction Sport Stacking Challenge', 'Sanctioned', '2026-07-05', '2026-07-05');
+VALUES ('4257', 'WSSA NS Sport Stacking Centre', 'Sanctioned', '2026-07-05', '2026-07-05');
 ```
 
 All tournament-specific rows then use the internal `competitions.id`, not the public code, as their `competition_id`.

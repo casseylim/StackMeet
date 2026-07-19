@@ -1,0 +1,47 @@
+"use strict";
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+
+const root = path.resolve(__dirname, "..");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
+
+const migration = read("backend/StackMeet.Api/Migrations/20260713034108_CompetitionAdminPhase1.cs");
+const program = read("backend/StackMeet.Api/Program.cs");
+const auth = read("backend/StackMeet.Api/Controllers/AuthController.cs");
+const authClient = read("js/auth/AuthSession.js");
+const admin = read("backend/StackMeet.Api/Controllers/CompetitionAdminController.cs");
+const stateController = read("backend/StackMeet.Api/Controllers/CompetitionStateController.cs");
+const competitions = read("backend/StackMeet.Api/Controllers/CompetitionsController.cs");
+const appsettings = read("backend/StackMeet.Api/appsettings.json");
+const securityIntegration = read("tests/security-api.integration.ps1");
+
+const up = migration.slice(migration.indexOf("protected override void Up"), migration.indexOf("protected override void Down"));
+assert(!/DropTable|DropColumn|DeleteData|TRUNCATE|DELETE FROM/i.test(up), "Migration Up must not contain destructive operations.");
+assert(/UPDATE \[dbo\]\.\[Competition\] SET \[CompetitionKey\] = UPPER\(\[CompetitionCode\]\)/.test(up), "Existing competitions must be backfilled from CompetitionCode.");
+assert(/UPDATE \[dbo\]\.\[CompetitionState\] SET \[CreatedAt\] = \[UpdatedAt\]/.test(up), "Existing CompetitionState CreatedAt must be backfilled from UpdatedAt.");
+assert(!/LoginPassword/.test(auth), "Competition login must not use one shared login password.");
+assert(/PasswordHash/.test(auth) && /PasswordHash/.test(admin), "Competition password hashes must be used by auth/admin flows.");
+assert(/X-StackMeet-Admin-Key/.test(program), "Admin endpoints must use separate admin authorization.");
+assert(!/IsLocalTestApiKey/.test(program), "Server must not contain a localhost API-key bypass.");
+assert(!/localHttpTest|localFileTestPassword/.test(authClient), "Browser client must not contain an embedded local HTTP credential.");
+assert(/SessionCanAccessPath/.test(program) && /CompetitionKey == session\.CompetitionId/.test(program), "Session isolation must compare token CompetitionKey to route data.");
+assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be blocked in Phase 1.");
+assert(/CompetitionKeyRules\.Normalize/.test(stateController) && /CompetitionKeyRules\.IsValid/.test(stateController), "State routes must normalize and validate competition keys.");
+assert(/JsonDocument\.Parse/.test(stateController) && /JsonValueKind\.Object/.test(stateController), "State saves must require a valid JSON object.");
+assert(stateController.indexOf("ValidateStateJson(jsonData)") < stateController.indexOf("ExecuteStateCommand("), "State JSON validation must occur before SQL persistence.");
+assert(/BEGIN TRANSACTION/.test(stateController) && /UPDLOCK, SERIALIZABLE/.test(stateController) && /COMMIT TRANSACTION/.test(stateController), "First state save must use one serializable upsert transaction.");
+assert(!/if \(updated == 0\)/.test(stateController), "State saves must not use a race-prone two-command update/insert flow.");
+assert(/AddRateLimiter/.test(program) && /FixedWindowRateLimiterOptions/.test(program), "Login rate limiting must be registered with a fixed-window policy.");
+assert(/PermitLimit\s*=\s*5/.test(program) && /Window\s*=\s*TimeSpan\.FromMinutes\(1\)/.test(program), "Login rate limiting must allow at most five attempts per minute.");
+assert(/Status429TooManyRequests/.test(program) && /UseRateLimiter/.test(program), "Rate-limit rejection must return HTTP 429 and middleware must be enabled.");
+assert(/EnableRateLimiting\("Login"\)/.test(auth), "The login endpoint must enable the Login rate-limit policy.");
+assert(/"ACTIVE"\s*=>\s*"Active"/.test(admin) && /"CLOSED"\s*=>\s*"Closed"/.test(admin) && /"ARCHIVED"\s*=>\s*"Archived"/.test(admin) && /"DRAFT"\s*=>\s*"Draft"/.test(admin), "Competition status validation must preserve the four supported lifecycle values.");
+assert(/_\s*=>\s*null/.test(admin) && /Status must be Draft, Active, Closed or Archived/.test(admin), "Unsupported competition statuses must be rejected.");
+assert(/NormalizeStatus\(x\.Status\) is not null/.test(competitions) && /Status = NormalizeStatus\(x\.Status\)!/.test(competitions), "Maintenance competition writes must reject unsupported statuses.");
+assert(!/allowedOrigins\.Length\s*==\s*0[^\n]*AllowAnyOrigin/.test(program), "Empty production CORS configuration must not allow every origin.");
+assert(/allowedOrigins\.Length\s*>\s*0/.test(program) && /else if \(builder\.Environment\.IsDevelopment\(\)\)/.test(program), "AllowAnyOrigin must be limited to Development when no origins are configured.");
+assert(/state rejects missing credentials/.test(securityIntegration) && /malformed state JSON rejection/.test(securityIntegration), "Security integration coverage must include authentication and malformed state saves.");
+assert(/unsupported competition status rejection/.test(securityIntegration) && /401,401,401,401,401,429/.test(securityIntegration), "Security integration coverage must include status validation and login throttling.");
+assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
+console.log("Competition admin static safety tests passed.");

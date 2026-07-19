@@ -1,0 +1,6 @@
+{
+  "dates": ["2026-07-11", "11/07/2026", "July 11, 2026", "2026-02-29"],
+  "times": ["", "999", "6523", "6.523", "1:02.5", "0", "601000", "bad"],
+  "teamCases": ["missing first member", "same doubles member twice", "external Child/Parent", "duplicate relay name", "duplicate relay member", "seven relay members"],
+  "finalCases": ["best attempt tie", "second attempt tie break", "third attempt tie break", "scratch", "DNS"]
+}

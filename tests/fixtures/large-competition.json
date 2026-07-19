@@ -1,0 +1,9 @@
+{
+  "name": "Large Competition",
+  "purpose": "Scale and ID-boundary fixture for future browser-run characterization.",
+  "stackerCount": 250,
+  "doublesCount": 80,
+  "relayCount": 32,
+  "resultCount": 900,
+  "expectedIdBoundaries": { "stacker": "1.251", "doubles": "2.81", "relay": "3.33" }
+}

@@ -1,0 +1,38 @@
+# OneDrive temporary files
+.tmp.driveupload/
+
+# .NET generated output
+**/bin/
+**/obj/
+backend/StackMeet.Api/publish/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+
+# Node dependencies
+node_modules/
+
+# Local databases
+*.db
+*.mdf
+*.ldf
+
+# Machine-specific configuration and secrets
+**/appsettings.Development.json
+**/appsettings.Production.json
+*.pfx
+*.key
+
+# Local verification artifacts
+.tmp.driveupload/
+.vs/
+tmp/
+temp/
+screenshots/
+outputs/manual-publish/
+
+# Imported participant data containing personal information
+backend/StackMeet.Api/wwwroot/data/stacktrack-4257-stackers.js
+data/stacktrack-4257-stackers.js
