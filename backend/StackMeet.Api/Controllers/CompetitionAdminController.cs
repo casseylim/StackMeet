@@ -16,14 +16,14 @@ public sealed class CompetitionAdminController(
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CompetitionAdminSummaryResponse>>> List(CancellationToken ct)
     {
-        return Ok(await Query().OrderBy(item => item.CompetitionKey).ToListAsync(ct));
+        return Ok(await Query().ToListAsync(ct));
     }
 
     [HttpGet("{competitionKey}")]
     public async Task<ActionResult<CompetitionAdminSummaryResponse>> Get(string competitionKey, CancellationToken ct)
     {
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
-        var item = await Query().SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
+        var item = await Query(normalizedKey).SingleOrDefaultAsync(ct);
         return item is null ? NotFound() : Ok(item);
     }
 
@@ -72,7 +72,7 @@ public sealed class CompetitionAdminController(
         await database.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var created = await Query().SingleAsync(item => item.CompetitionKey == key, ct);
+        var created = await Query(key).SingleAsync(ct);
         return CreatedAtAction(nameof(Get), new { competitionKey = key }, created);
     }
 
@@ -190,11 +190,21 @@ public sealed class CompetitionAdminController(
         return NoContent();
     }
 
-    IQueryable<CompetitionAdminSummaryResponse> Query() =>
-        from competition in database.Competitions.AsNoTracking()
+    IQueryable<CompetitionAdminSummaryResponse> Query(string? competitionKey = null)
+    {
+        var competitions = database.Competitions.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(competitionKey))
+        {
+            competitions = competitions.Where(item => item.CompetitionKey == competitionKey);
+        }
+
+        return
+        from competition in competitions
         join state in database.CompetitionStates.AsNoTracking()
             on competition.CompetitionKey equals state.CompetitionKey into states
         from state in states.DefaultIfEmpty()
+        orderby competition.CompetitionKey
         select new CompetitionAdminSummaryResponse(
             competition.Id,
             competition.CompetitionCode,
@@ -212,6 +222,7 @@ public sealed class CompetitionAdminController(
             competition.ArchivedBy,
             competition.CreatedAt,
             competition.UpdatedAt);
+    }
 
     static IActionResult? ValidateRequest(CompetitionAdminUpsertRequest request, bool requirePassword, out string key, out string code)
     {
