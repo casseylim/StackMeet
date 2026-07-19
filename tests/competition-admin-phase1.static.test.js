@@ -14,6 +14,7 @@ const admin = read("backend/StackMeet.Api/Controllers/CompetitionAdminController
 const stateController = read("backend/StackMeet.Api/Controllers/CompetitionStateController.cs");
 const competitions = read("backend/StackMeet.Api/Controllers/CompetitionsController.cs");
 const appsettings = read("backend/StackMeet.Api/appsettings.json");
+const securityIntegration = read("tests/security-api.integration.ps1");
 
 const up = migration.slice(migration.indexOf("protected override void Up"), migration.indexOf("protected override void Down"));
 assert(!/DropTable|DropColumn|DeleteData|TRUNCATE|DELETE FROM/i.test(up), "Migration Up must not contain destructive operations.");
@@ -38,5 +39,7 @@ assert(/_\s*=>\s*null/.test(admin) && /Status must be Draft, Active, Closed or A
 assert(/NormalizeStatus\(x\.Status\) is not null/.test(competitions) && /Status = NormalizeStatus\(x\.Status\)!/.test(competitions), "Maintenance competition writes must reject unsupported statuses.");
 assert(!/allowedOrigins\.Length\s*==\s*0[^\n]*AllowAnyOrigin/.test(program), "Empty production CORS configuration must not allow every origin.");
 assert(/allowedOrigins\.Length\s*>\s*0/.test(program) && /else if \(builder\.Environment\.IsDevelopment\(\)\)/.test(program), "AllowAnyOrigin must be limited to Development when no origins are configured.");
+assert(/state rejects missing credentials/.test(securityIntegration) && /malformed state JSON rejection/.test(securityIntegration), "Security integration coverage must include authentication and malformed state saves.");
+assert(/unsupported competition status rejection/.test(securityIntegration) && /401,401,401,401,401,429/.test(securityIntegration), "Security integration coverage must include status validation and login throttling.");
 assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
 console.log("Competition admin static safety tests passed.");
