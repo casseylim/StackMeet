@@ -37,7 +37,8 @@ $r = Invoke-Api GET "/api/competitions"; Assert-Status $r 200 "competition list"
 $r = Invoke-Api GET "/api/competitions/$competitionOneId"; Assert-Status $r 200 "competition get"
 $r = Invoke-Api GET "/api/competitions/999999999"; Assert-Status $r 404 "unknown competition get rejection"
 $r = Invoke-Api POST "/api/competitions" @{ competitionCode = ""; competitionName = "Invalid"; venue = "Test"; startDate = "2026-08-02"; endDate = "2026-08-01"; status = "Draft" }; Assert-Status $r 400 "competition validation rejection"
-$competitionOne.status = "Open"; $r = Invoke-Api PUT "/api/competitions/$competitionOneId" $competitionOne; Assert-Status $r 204 "competition update"
+$competitionOne.status = "Banana"; $r = Invoke-Api PUT "/api/competitions/$competitionOneId" $competitionOne; Assert-Status $r 400 "unsupported competition status rejection"
+$competitionOne.status = "Active"; $r = Invoke-Api PUT "/api/competitions/$competitionOneId" $competitionOne; Assert-Status $r 204 "competition update"
 $r = Invoke-Api POST "/api/competitions" $competitionOne; Assert-Status $r 409 "competition duplicate-code rejection"
 $r = Invoke-Api POST "/api/competitions" $competitionTwo; Assert-Status $r 201 "second competition create"; $competitionTwoId = $r.Body.id
 
