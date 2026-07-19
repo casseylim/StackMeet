@@ -28,5 +28,9 @@ assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be bloc
 assert(/CompetitionKeyRules\.Normalize/.test(stateController) && /CompetitionKeyRules\.IsValid/.test(stateController), "State routes must normalize and validate competition keys.");
 assert(/JsonDocument\.Parse/.test(stateController) && /JsonValueKind\.Object/.test(stateController), "State saves must require a valid JSON object.");
 assert(stateController.indexOf("ValidateStateJson(jsonData)") < stateController.indexOf("ExecuteStateCommand("), "State JSON validation must occur before SQL persistence.");
+assert(/AddRateLimiter/.test(program) && /FixedWindowRateLimiterOptions/.test(program), "Login rate limiting must be registered with a fixed-window policy.");
+assert(/PermitLimit\s*=\s*5/.test(program) && /Window\s*=\s*TimeSpan\.FromMinutes\(1\)/.test(program), "Login rate limiting must allow at most five attempts per minute.");
+assert(/Status429TooManyRequests/.test(program) && /UseRateLimiter/.test(program), "Rate-limit rejection must return HTTP 429 and middleware must be enabled.");
+assert(/EnableRateLimiting\("Login"\)/.test(auth), "The login endpoint must enable the Login rate-limit policy.");
 assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
 console.log("Competition admin static safety tests passed.");
