@@ -43,22 +43,31 @@ public sealed class CompetitionStateController(StackMeetDbContext database) : Co
 
         var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
 
-        var updated = await ExecuteStateCommand(
-            "UPDATE [dbo].[CompetitionState] SET [JsonData] = @jsonData, [UpdatedAt] = SYSUTCDATETIME(), [UpdatedBy] = @updatedBy WHERE [CompetitionKey] = @competitionKey",
+        await ExecuteStateCommand(
+            """
+            SET XACT_ABORT ON;
+            BEGIN TRANSACTION;
+
+            UPDATE [dbo].[CompetitionState] WITH (UPDLOCK, SERIALIZABLE)
+            SET [JsonData] = @jsonData,
+                [UpdatedAt] = SYSUTCDATETIME(),
+                [UpdatedBy] = @updatedBy
+            WHERE [CompetitionKey] = @competitionKey;
+
+            IF @@ROWCOUNT = 0
+            BEGIN
+                INSERT INTO [dbo].[CompetitionState]
+                    ([CompetitionKey], [JsonData], [SchemaVersion], [CreatedAt], [UpdatedAt], [UpdatedBy])
+                VALUES
+                    (@competitionKey, @jsonData, '0.9-online', SYSUTCDATETIME(), SYSUTCDATETIME(), @updatedBy);
+            END;
+
+            COMMIT TRANSACTION;
+            """,
             normalizedKey,
             jsonData,
             updatedBy,
             cancellationToken);
-
-        if (updated == 0)
-        {
-            await ExecuteStateCommand(
-                "INSERT INTO [dbo].[CompetitionState] ([CompetitionKey], [JsonData], [SchemaVersion], [UpdatedAt], [UpdatedBy]) VALUES (@competitionKey, @jsonData, '0.9-online', SYSUTCDATETIME(), @updatedBy)",
-                normalizedKey,
-                jsonData,
-                updatedBy,
-                cancellationToken);
-        }
 
         return NoContent();
     }
