@@ -1,6 +1,5 @@
 (function () {
   const sessionKey = "stackmeet-auth-session-v1";
-  const localFileTestPassword = "Vsep@3692";
 
   function readSession() {
     try {
@@ -29,12 +28,11 @@
   function authHeaders() {
     const session = readSession();
     if (!session) return {};
-    if (session.localHttpTest) return { "X-StackMeet-Api-Key": localFileTestPassword };
     return session.localFileTest ? {} : { Authorization: `Bearer ${session.token}` };
   }
 
-  function isLocalTestMode() {
-    return location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+  function isLocalFileMode() {
+    return location.protocol === "file:";
   }
 
   function competitionId() {
@@ -42,15 +40,13 @@
   }
 
   async function login(form) {
-    if (isLocalTestMode()) {
-      if (form.password !== localFileTestPassword) throw new Error("Invalid local test password.");
+    if (isLocalFileMode()) {
       return saveSession({
         token: "local-file-test-token",
         competitionId: form.competitionId || window.COMPETITION_KEY || "DEFAULT",
         displayName: form.displayName || "Tournament desk",
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
-        localFileTest: location.protocol === "file:",
-        localHttpTest: location.protocol !== "file:"
+        localFileTest: true
       });
     }
 
