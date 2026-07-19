@@ -19,7 +19,7 @@ function Invoke-Http(
         UseBasicParsing = $true
         Headers = $Headers
     }
-    if ($null -ne $Body) {
+    if ($Method -notin @("GET", "HEAD") -and -not [string]::IsNullOrEmpty($Body)) {
         $parameters.ContentType = "application/json"
         $parameters.Body = $Body
     }
