@@ -33,8 +33,7 @@ public sealed class CompetitionAdminController(
         var validation = ValidateRequest(request, requirePassword: true, out var key, out var code);
         if (validation is BadRequestObjectResult badRequest) return BadRequest(badRequest.Value);
 
-        if (await database.Competitions.AnyAsync(item => item.CompetitionKey == key, ct)
-            || await database.CompetitionStates.AnyAsync(item => item.CompetitionKey == key, ct))
+        if (await database.Competitions.AnyAsync(item => item.CompetitionKey == key, ct))
         {
             return Conflict(new { error = "CompetitionKey already exists." });
         }
@@ -43,6 +42,8 @@ public sealed class CompetitionAdminController(
         {
             return Conflict(new { error = "CompetitionCode already exists." });
         }
+
+        var stateExists = await database.CompetitionStates.AnyAsync(item => item.CompetitionKey == key, ct);
 
         await using var transaction = await database.Database.BeginTransactionAsync(ct);
         var now = DateTime.UtcNow;
@@ -60,15 +61,18 @@ public sealed class CompetitionAdminController(
             UpdatedAt = now
         };
         database.Competitions.Add(competition);
-        database.CompetitionStates.Add(new CompetitionState
+        if (!stateExists)
         {
-            CompetitionKey = key,
-            JsonData = EmptyCompetitionStateFactory.Create(key, competition.CompetitionName, competition.StartDate, competition.EndDate),
-            SchemaVersion = "0.9-online",
-            CreatedAt = now,
-            UpdatedAt = now,
-            UpdatedBy = "admin:create"
-        });
+            database.CompetitionStates.Add(new CompetitionState
+            {
+                CompetitionKey = key,
+                JsonData = EmptyCompetitionStateFactory.Create(key, competition.CompetitionName, competition.StartDate, competition.EndDate),
+                SchemaVersion = "0.9-online",
+                CreatedAt = now,
+                UpdatedAt = now,
+                UpdatedBy = "admin:create"
+            });
+        }
         await database.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
