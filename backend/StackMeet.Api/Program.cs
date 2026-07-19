@@ -79,7 +79,7 @@ app.Use(async (context, next) =>
 
     var configuredApiKey = app.Configuration["Security:ApiKey"];
     var suppliedApiKey = context.Request.Headers[apiKeyHeaderName].FirstOrDefault();
-    if ((!string.IsNullOrWhiteSpace(configuredApiKey) && TimeConstantEquals(suppliedApiKey, configuredApiKey)) || IsLocalTestApiKey(context, suppliedApiKey))
+    if (!string.IsNullOrWhiteSpace(configuredApiKey) && TimeConstantEquals(suppliedApiKey, configuredApiKey))
     {
         context.Items["StackMeetMaintenanceApiKey"] = true;
         await next();
@@ -174,11 +174,4 @@ static async Task<bool> SessionCanAccessPath(SessionToken session, PathString pa
     }
 
     return true;
-}
-
-static bool IsLocalTestApiKey(HttpContext context, string? suppliedApiKey)
-{
-    var host = context.Request.Host.Host;
-    return (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) || host == "127.0.0.1")
-        && string.Equals(suppliedApiKey, "Vsep@3692", StringComparison.Ordinal);
 }
