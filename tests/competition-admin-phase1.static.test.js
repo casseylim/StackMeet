@@ -21,6 +21,8 @@ const adminClient = read("admin.js");
 const hostedAdminClient = read("backend/StackMeet.Api/wwwroot/admin.js");
 const adminPage = read("admin.html");
 const hostedAdminPage = read("backend/StackMeet.Api/wwwroot/admin.html");
+const rootIndex = read("index.html");
+const hostedIndex = read("backend/StackMeet.Api/wwwroot/index.html");
 
 const up = migration.slice(migration.indexOf("protected override void Up"), migration.indexOf("protected override void Down"));
 assert(!/DropTable|DropColumn|DeleteData|TRUNCATE|DELETE FROM/i.test(up), "Migration Up must not contain destructive operations.");
@@ -37,6 +39,8 @@ assert(!/localHttpTest|localFileTestPassword/.test(authClient), "Browser client 
 assert.strictEqual(rootApp, hostedApp, "Root and hosted application scripts must remain synchronized.");
 assert.strictEqual(adminClient, hostedAdminClient, "Root and hosted admin scripts must remain synchronized.");
 assert.strictEqual(adminPage, hostedAdminPage, "Root and hosted admin pages must remain synchronized.");
+assert.strictEqual(rootIndex, hostedIndex, "Root and hosted application pages must remain synchronized.");
+assert(/href="admin\.html"[^>]*>Competition Admin<\/a>/.test(rootIndex), "The authenticated app must expose a discoverable Competition Admin link.");
 assert(/activateAdminKey/.test(adminClient) && /Enter the admin key before selecting Use Key/.test(adminClient), "Admin authorization must reject an empty key.");
 assert(/sessionStorage\.getItem\(keyName\)/.test(adminClient) && /loadCompetitions\(\)\.catch/.test(adminClient), "A valid tab-scoped admin key must reload competitions on startup.");
 assert(/readOnly = editing/.test(adminClient) && /Login ID \/ Competition Key/.test(adminPage), "Existing competition login IDs must be visibly immutable.");
