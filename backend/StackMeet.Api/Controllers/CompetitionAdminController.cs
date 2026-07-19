@@ -82,13 +82,15 @@ public sealed class CompetitionAdminController(
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
         var item = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (item is null) return NotFound();
-        if (!BasicFieldsAreValid(request)) return BadRequest(new { error = "Competition name, venue, dates and status are required." });
+        if (!BasicFieldsAreValid(request)) return BadRequest(new { error = "Competition name, venue and valid dates are required." });
+        var status = NormalizeStatus(request.Status);
+        if (status is null) return BadRequest(new { error = "Status must be Draft, Active, Closed or Archived." });
 
         item.CompetitionName = request.CompetitionName.Trim();
         item.Venue = request.Venue.Trim();
         item.StartDate = request.StartDate;
         item.EndDate = request.EndDate;
-        item.Status = NormalizeStatus(request.Status);
+        item.Status = status;
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
         return NoContent();
@@ -175,10 +177,13 @@ public sealed class CompetitionAdminController(
 
     async Task<IActionResult> UpdateStatus(string competitionKey, string status, DateTime? archivedAt, CancellationToken ct)
     {
+        var normalizedStatus = NormalizeStatus(status);
+        if (normalizedStatus is null) return BadRequest(new { error = "Status must be Draft, Active, Closed or Archived." });
+
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
         var item = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (item is null) return NotFound();
-        item.Status = NormalizeStatus(status);
+        item.Status = normalizedStatus;
         item.ArchivedAt = archivedAt;
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
@@ -214,7 +219,8 @@ public sealed class CompetitionAdminController(
         code = string.IsNullOrWhiteSpace(request.CompetitionCode) ? key : request.CompetitionCode.Trim().ToUpperInvariant();
         if (!CompetitionKeyRules.IsValid(key)) return new BadRequestObjectResult(new { error = "CompetitionKey must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
         if (!CompetitionKeyRules.IsValid(code)) return new BadRequestObjectResult(new { error = "CompetitionCode must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
-        if (!BasicFieldsAreValid(request)) return new BadRequestObjectResult(new { error = "Competition name, venue, dates and status are required." });
+        if (!BasicFieldsAreValid(request)) return new BadRequestObjectResult(new { error = "Competition name, venue and valid dates are required." });
+        if (NormalizeStatus(request.Status) is null) return new BadRequestObjectResult(new { error = "Status must be Draft, Active, Closed or Archived." });
         if (requirePassword && (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)) return new BadRequestObjectResult(new { error = "Password must be at least 8 characters." });
         return null;
     }
@@ -222,15 +228,14 @@ public sealed class CompetitionAdminController(
     static bool BasicFieldsAreValid(CompetitionAdminUpsertRequest request) =>
         !string.IsNullOrWhiteSpace(request.CompetitionName)
         && !string.IsNullOrWhiteSpace(request.Venue)
-        && !string.IsNullOrWhiteSpace(request.Status)
         && request.EndDate >= request.StartDate;
 
-    static string NormalizeStatus(string status) => status.Trim() switch
+    static string? NormalizeStatus(string? status) => status?.Trim().ToUpperInvariant() switch
     {
-        "Active" => "Active",
-        "Closed" => "Closed",
-        "Archived" => "Archived",
-        "Draft" => "Draft",
-        _ => status.Trim()
+        "ACTIVE" => "Active",
+        "CLOSED" => "Closed",
+        "ARCHIVED" => "Archived",
+        "DRAFT" => "Draft",
+        _ => null
     };
 }
