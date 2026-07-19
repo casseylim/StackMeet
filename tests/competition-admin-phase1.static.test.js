@@ -32,5 +32,7 @@ assert(/AddRateLimiter/.test(program) && /FixedWindowRateLimiterOptions/.test(pr
 assert(/PermitLimit\s*=\s*5/.test(program) && /Window\s*=\s*TimeSpan\.FromMinutes\(1\)/.test(program), "Login rate limiting must allow at most five attempts per minute.");
 assert(/Status429TooManyRequests/.test(program) && /UseRateLimiter/.test(program), "Rate-limit rejection must return HTTP 429 and middleware must be enabled.");
 assert(/EnableRateLimiting\("Login"\)/.test(auth), "The login endpoint must enable the Login rate-limit policy.");
+assert(!/allowedOrigins\.Length\s*==\s*0[^\n]*AllowAnyOrigin/.test(program), "Empty production CORS configuration must not allow every origin.");
+assert(/allowedOrigins\.Length\s*>\s*0/.test(program) && /else if \(builder\.Environment\.IsDevelopment\(\)\)/.test(program), "AllowAnyOrigin must be limited to Development when no origins are configured.");
 assert(!/"(AdminKey|ApiKey|SessionSigningKey|LoginPassword)"\s*:/.test(appsettings), "Secrets must not be committed in appsettings.json.");
 console.log("Competition admin static safety tests passed.");
