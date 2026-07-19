@@ -54,7 +54,7 @@ public sealed class CompetitionAdminController(
             Venue = request.Venue.Trim(),
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = NormalizeStatus(request.Status),
+            Status = NormalizeStatus(request.Status)!,
             PasswordHash = passwords.Hash(request.Password!),
             CreatedAt = now,
             UpdatedAt = now
