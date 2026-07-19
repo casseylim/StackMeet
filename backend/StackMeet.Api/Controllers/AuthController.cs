@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
@@ -14,6 +15,7 @@ public sealed class AuthController(
     SessionTokenService tokens) : ControllerBase
 {
     [HttpPost("login")]
+    [EnableRateLimiting("Login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tokens.SigningKey))
