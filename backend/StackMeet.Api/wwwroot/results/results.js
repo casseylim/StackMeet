@@ -96,6 +96,7 @@
       show("dashboard", false);
       show("finals", false);
       show("allAround", false);
+      show("doubles", false);
       show("comingSoon", false);
       show("preliminary", true);
       renderPreliminary(payload, official);
@@ -106,6 +107,7 @@
       show("dashboard", false);
       show("preliminary", false);
       show("allAround", false);
+      show("doubles", false);
       show("comingSoon", false);
       show("finals", true);
       renderFinals(payload, official);
@@ -116,15 +118,28 @@
       show("dashboard", false);
       show("preliminary", false);
       show("finals", false);
+      show("doubles", false);
       show("comingSoon", false);
       show("allAround", true);
       renderAllAround(payload, official);
       return;
     }
 
+    if (selectedSection === "doubles" || selectedSection === "double") {
+      show("dashboard", false);
+      show("preliminary", false);
+      show("finals", false);
+      show("allAround", false);
+      show("comingSoon", false);
+      show("doubles", true);
+      renderDoubles(payload, official);
+      return;
+    }
+
     show("preliminary", false);
     show("finals", false);
     show("allAround", false);
+    show("doubles", false);
     if (selectedSection !== "dashboard") {
       show("dashboard", false);
       show("comingSoon", true);
@@ -601,6 +616,171 @@
     return "";
   }
 
+  function renderDoubles(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const doublesTeams = Array.isArray(payload.doubles) ? payload.doubles : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const teamById = new Map(doublesTeams.map(team => [String(team.id), team]));
+    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
+    const groups = new Map();
+
+    results
+      .filter(result => isDoublesType(result.type))
+      .forEach(result => {
+        const team = teamById.get(String(result.participant)) || {};
+        const stage = doublesStage(result.stage);
+        const division = String(team.customDivision || team.division || team.type || "Open / Unassigned").trim();
+        const event = String(result.event || "Doubles").trim();
+        const key = `${stage.key}\u0000${division}`;
+        if (!groups.has(key)) groups.set(key, { stage, division, events: new Map() });
+        const events = groups.get(key).events;
+        if (!events.has(event)) events.set(event, []);
+        events.get(event).push({
+          result,
+          team,
+          meta: doublesTeamMeta(team, stackerById, result.participant),
+          best: bestTime(result)
+        });
+      });
+
+    const orderedGroups = [...groups.values()].sort((left, right) =>
+      left.stage.order - right.stage.order ||
+      naturalCompare(left.division, right.division));
+
+    const container = el("doublesGroups");
+    if (!container) return;
+    container.replaceChildren();
+    const entryCount = orderedGroups.reduce(
+      (sum, group) => sum + [...group.events.values()].reduce((count, rows) => count + rows.length, 0),
+      0);
+    text("doublesSummary", orderedGroups.length
+      ? `${orderedGroups.length} stage/division group${orderedGroups.length === 1 ? "" : "s"} · ${entryCount} entr${entryCount === 1 ? "y" : "ies"}`
+      : "No doubles results yet");
+
+    if (!orderedGroups.length) {
+      const empty = make("section", "panel empty-state compact");
+      empty.append(
+        make("span", "empty-icon clock", "↗"),
+        make("h2", "", "Doubles results are not available yet"),
+        make("p", "", "Normal and child/parent Doubles standings will appear automatically after officials publish results.")
+      );
+      container.append(empty);
+      return;
+    }
+
+    orderedGroups.forEach(group => container.append(renderDoublesGroup(group, official)));
+  }
+
+  function renderDoublesGroup(group, official) {
+    const section = make("section", "panel preliminary-division doubles-division");
+    const heading = make("div", "division-heading doubles-heading");
+    const titleBlock = make("div", "");
+    titleBlock.append(
+      make("span", "eyebrow", `${group.stage.label} doubles`),
+      make("h2", "", group.division)
+    );
+    const entryCount = [...group.events.values()].reduce((sum, rows) => sum + rows.length, 0);
+    heading.append(titleBlock, make("span", "division-count", `${entryCount} entr${entryCount === 1 ? "y" : "ies"}`));
+    section.append(heading);
+
+    const eventList = make("div", "event-list");
+    [...group.events.entries()]
+      .sort(([left], [right]) => naturalCompare(left, right))
+      .forEach(([eventName, rows]) =>
+        eventList.append(renderDoublesEvent(eventName, rows, group.stage.isFinal, official)));
+    section.append(eventList);
+    return section;
+  }
+
+  function renderDoublesEvent(eventName, rows, isFinal, official) {
+    const card = make("article", "results-event doubles-event");
+    const heading = make("div", "event-heading");
+    const eventCopy = make("div", "");
+    eventCopy.append(make("span", "eyebrow", "Doubles event"), make("h3", "", eventName));
+    heading.append(
+      eventCopy,
+      make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional")
+    );
+    card.append(heading);
+
+    rows.sort((left, right) => {
+      const leftValid = Number.isFinite(left.best);
+      const rightValid = Number.isFinite(right.best);
+      if (leftValid !== rightValid) return leftValid ? -1 : 1;
+      if (leftValid && left.best !== right.best) return left.best - right.best;
+      return naturalCompare(left.meta.name, right.meta.name);
+    });
+
+    const wrap = make("div", "results-table-wrap doubles-table-wrap");
+    const table = make("table", "results-table finals-table doubles-table");
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Place", "Team", "Stackers", "Organization", "Best", "Status"]
+      .forEach(label => headRow.append(make("th", "", label)));
+    head.append(headRow);
+    table.append(head);
+
+    const body = document.createElement("tbody");
+    let previousBest = Number.NaN;
+    let previousRank = 0;
+    rows.forEach((row, index) => {
+      const valid = Number.isFinite(row.best);
+      const rank = valid && row.best === previousBest ? previousRank : index + 1;
+      if (valid) {
+        previousBest = row.best;
+        previousRank = rank;
+      }
+
+      const tr = document.createElement("tr");
+      if (isFinal && valid && rank <= 3) tr.className = `medal-row medal-${rank}`;
+      const teamCell = make("td", "team-cell");
+      teamCell.append(
+        make("strong", "", row.meta.name),
+        make("span", "", row.team.id || row.result.participant || "")
+      );
+      const memberCell = make("td", "member-cell", row.meta.members);
+      memberCell.dataset.label = "Stackers";
+      tr.append(
+        make("td", `rank-cell ${isFinal && valid && rank <= 3 ? "medal-rank" : ""}`,
+          valid ? (isFinal ? medalPlace(rank) : String(rank)) : "—"),
+        teamCell,
+        memberCell,
+        make("td", "organization-cell", row.meta.organization),
+        make("td", `time-cell doubles-time ${valid ? "" : "scr"}`, formatTime(row.best)),
+        make("td", "status-cell", official ? "Official" : "Provisional")
+      );
+      body.append(tr);
+    });
+    table.append(body);
+    wrap.append(table);
+    card.append(wrap);
+    return card;
+  }
+
+  function doublesTeamMeta(team, stackerById, fallbackId) {
+    const members = [team.one, team.two]
+      .map(id => stackerById.get(String(id)) || {})
+      .filter(stacker => stacker.name);
+    const names = members.map(stacker => stacker.name);
+    const organizations = [...new Set(members.map(stacker => stacker.org).filter(Boolean))];
+    return {
+      name: team.name || names.join(" & ") || fallbackId || "Doubles Team",
+      members: names.join(" & ") || "Team members pending",
+      organization: organizations.join(" / ") || team.region || team.country || "Independent"
+    };
+  }
+
+  function doublesStage(value) {
+    if (isFinalStage(value)) return { key: "finals", label: "Final", order: 0, isFinal: true };
+    if (isPreliminaryStage(value)) return { key: "preliminary", label: "Preliminary", order: 1, isFinal: false };
+    const label = String(value || "Results").trim() || "Results";
+    return { key: label.toLowerCase(), label, order: 2, isFinal: false };
+  }
+
+  function isDoublesType(value) {
+    return String(value || "").trim().toLowerCase().includes("double");
+  }
+
   function medalPlace(rank) {
     if (rank === 1) return "🥇 1";
     if (rank === 2) return "🥈 2";
@@ -714,6 +894,7 @@
     show("preliminary", false);
     show("finals", false);
     show("allAround", false);
+    show("doubles", false);
     show("comingSoon", false);
     show("errorState", true);
     text("errorMessage", message);
