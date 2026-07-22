@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
+using StackMeet.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 var apiKeyHeaderName = builder.Configuration["Security:ApiKeyHeaderName"] ?? "X-StackMeet-Api-Key";
@@ -12,6 +13,7 @@ var allowedOrigins = builder.Configuration.GetSection("Security:AllowedOrigins")
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
@@ -167,6 +169,9 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapControllers();
+app.MapHub<ResultsHub>("/hubs/results");
+app.MapGet("/{competitionId}/Results", ResultsPortal);
+app.MapGet("/{competitionId}/Results/{**section}", ResultsPortal);
 
 if (app.Environment.IsDevelopment())
 {
@@ -182,12 +187,20 @@ if (app.Environment.IsDevelopment())
 
 app.Run();
 
+static Task ResultsPortal(HttpContext context, IWebHostEnvironment environment)
+{
+    context.Response.ContentType = "text/html; charset=utf-8";
+    context.Response.Headers.CacheControl = "no-cache, no-store";
+    return context.Response.SendFileAsync(Path.Combine(environment.WebRootPath, "results", "index.html"));
+}
+
 static bool RequiresApiAuth(PathString path)
 {
     return path.StartsWithSegments("/api")
         && !path.StartsWithSegments("/api/health")
         && !path.StartsWithSegments("/api/version")
-        && !path.StartsWithSegments("/api/auth/login");
+        && !path.StartsWithSegments("/api/auth/login")
+        && !path.StartsWithSegments("/api/public");
 }
 
 static bool TimeConstantEquals(string? supplied, string expected)
