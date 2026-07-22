@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07152e">
   <meta name="description" content="Live sport stacking competition results">
   <title>StackMeet Live Results</title>
-  <link rel="stylesheet" href="/results/results.css?v=20260722-5">
+  <link rel="stylesheet" href="/results/results.css?v=20260722-6">
 </head>
 <body>
   <div class="app-shell">
@@ -162,6 +162,18 @@
         <div id="allAroundGroups" class="allaround-groups"></div>
       </section>
 
+      <section id="doubles" hidden>
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">Two-stacker championship</span>
+            <h2>Doubles Results</h2>
+            <p>Normal and child/parent Doubles are ranked within their configured division and stage. Final podiums remain provisional until verified.</p>
+          </div>
+          <span id="doublesSummary" class="page-summary">Waiting for results</span>
+        </div>
+        <div id="doublesGroups" class="doubles-groups"></div>
+      </section>
+
       <section id="comingSoon" class="panel empty-state" hidden>
         <span class="empty-icon clock" aria-hidden="true">↗</span>
         <h2 id="sectionTitle">Results section</h2>
@@ -176,6 +188,6 @@
     </footer>
   </div>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=20260722-5"></script>
+  <script src="/results/results.js?v=20260722-6"></script>
 </body>
 </html>
