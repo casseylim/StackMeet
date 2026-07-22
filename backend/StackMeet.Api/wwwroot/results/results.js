@@ -95,6 +95,7 @@
     if (selectedSection === "preliminary" || selectedSection === "prelims") {
       show("dashboard", false);
       show("finals", false);
+      show("allAround", false);
       show("comingSoon", false);
       show("preliminary", true);
       renderPreliminary(payload, official);
@@ -104,14 +105,26 @@
     if (selectedSection === "finals" || selectedSection === "final") {
       show("dashboard", false);
       show("preliminary", false);
+      show("allAround", false);
       show("comingSoon", false);
       show("finals", true);
       renderFinals(payload, official);
       return;
     }
 
+    if (selectedSection === "allaround" || selectedSection === "all-around") {
+      show("dashboard", false);
+      show("preliminary", false);
+      show("finals", false);
+      show("comingSoon", false);
+      show("allAround", true);
+      renderAllAround(payload, official);
+      return;
+    }
+
     show("preliminary", false);
     show("finals", false);
+    show("allAround", false);
     if (selectedSection !== "dashboard") {
       show("dashboard", false);
       show("comingSoon", true);
@@ -435,6 +448,159 @@
     return card;
   }
 
+  function renderAllAround(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
+    const stages = [
+      { key: "finals", label: "Final", matches: isFinalStage },
+      { key: "preliminary", label: "Preliminary", matches: isPreliminaryStage }
+    ];
+    const rowsByStageAndDivision = new Map();
+
+    results
+      .filter(result => isIndividualType(result.type))
+      .forEach(result => {
+        const stage = stages.find(item => item.matches(result.stage));
+        const eventKey = allAroundEventKey(result.event);
+        const best = bestTime(result);
+        if (!stage || !eventKey || !Number.isFinite(best)) return;
+
+        const stacker = stackerById.get(String(result.participant)) || {};
+        const participantId = String(result.participant || "");
+        const division = String(stacker.division || "Open / Unassigned").trim();
+        const stageDivisionKey = `${stage.key}\u0000${division}`;
+        if (!rowsByStageAndDivision.has(stageDivisionKey)) {
+          rowsByStageAndDivision.set(stageDivisionKey, { stage, division, participants: new Map() });
+        }
+
+        const participants = rowsByStageAndDivision.get(stageDivisionKey).participants;
+        if (!participants.has(participantId)) {
+          participants.set(participantId, { participantId, stacker, times: {} });
+        }
+        const row = participants.get(participantId);
+        if (!Number.isFinite(row.times[eventKey]) || best < row.times[eventKey]) row.times[eventKey] = best;
+      });
+
+    const completeGroups = [...rowsByStageAndDivision.values()]
+      .map(group => ({
+        ...group,
+        rows: [...group.participants.values()]
+          .filter(row => ALL_AROUND_EVENTS.every(event => Number.isFinite(row.times[event.key])))
+          .map(row => ({
+            ...row,
+            total: ALL_AROUND_EVENTS.reduce((sum, event) => sum + row.times[event.key], 0)
+          }))
+      }))
+      .filter(group => group.rows.length);
+
+    const divisions = new Map();
+    completeGroups.forEach(group => {
+      if (!divisions.has(group.division)) divisions.set(group.division, []);
+      divisions.get(group.division).push(group);
+    });
+
+    const selectedGroups = [...divisions.values()].map(groups =>
+      groups.find(group => group.stage.key === "finals") || groups[0]);
+
+    const container = el("allAroundGroups");
+    if (!container) return;
+    container.replaceChildren();
+    const stackerCount = selectedGroups.reduce((sum, group) => sum + group.rows.length, 0);
+    text("allAroundSummary", selectedGroups.length
+      ? `${selectedGroups.length} division${selectedGroups.length === 1 ? "" : "s"} · ${stackerCount} complete stacker${stackerCount === 1 ? "" : "s"}`
+      : "Waiting for three-event totals");
+
+    if (!selectedGroups.length) {
+      const empty = make("section", "panel empty-state compact");
+      empty.append(
+        make("span", "empty-icon clock", "↗"),
+        make("h2", "", "All-Around standings are not available yet"),
+        make("p", "", "A stacker appears after valid 3-3-3, 3-6-3, and Cycle results have all been published for the same stage.")
+      );
+      container.append(empty);
+      return;
+    }
+
+    selectedGroups
+      .sort((left, right) => naturalCompare(left.division, right.division))
+      .forEach(group => container.append(renderAllAroundDivision(group, official)));
+  }
+
+  const ALL_AROUND_EVENTS = [
+    { key: "333", label: "3-3-3" },
+    { key: "363", label: "3-6-3" },
+    { key: "cycle", label: "Cycle" }
+  ];
+
+  function renderAllAroundDivision(group, official) {
+    const section = make("section", "panel preliminary-division allaround-division");
+    const heading = make("div", "division-heading allaround-heading");
+    const titleBlock = make("div", "");
+    titleBlock.append(make("span", "eyebrow", `${group.stage.label} all-around`), make("h2", "", group.division));
+    heading.append(titleBlock, make("span", "division-count", `${group.rows.length} complete`));
+    section.append(heading);
+
+    group.rows.sort((left, right) =>
+      left.total - right.total ||
+      naturalCompare(left.stacker.name || left.participantId, right.stacker.name || right.participantId));
+
+    const wrap = make("div", "results-table-wrap allaround-table-wrap");
+    const table = make("table", "results-table finals-table allaround-table");
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Place", "Stacker", "Organization", "3-3-3", "3-6-3", "Cycle", "Total", "Status"]
+      .forEach(label => headRow.append(make("th", "", label)));
+    head.append(headRow);
+    table.append(head);
+
+    const body = document.createElement("tbody");
+    let previousTotal = Number.NaN;
+    let previousRank = 0;
+    group.rows.forEach((row, index) => {
+      const rank = row.total === previousTotal ? previousRank : index + 1;
+      previousTotal = row.total;
+      previousRank = rank;
+
+      const tr = document.createElement("tr");
+      if (rank <= 3) tr.className = `medal-row medal-${rank}`;
+      const nameCell = make("td", "stacker-cell");
+      nameCell.append(
+        make("strong", "", row.stacker.name || row.participantId || "Stacker"),
+        make("span", "", row.participantId)
+      );
+      tr.append(
+        make("td", `rank-cell ${rank <= 3 ? "medal-rank" : ""}`, medalPlace(rank)),
+        nameCell,
+        make("td", "organization-cell", row.stacker.org || "Independent"),
+        allAroundTimeCell("3-3-3", row.times["333"], "event-time-333"),
+        allAroundTimeCell("3-6-3", row.times["363"], "event-time-363"),
+        allAroundTimeCell("Cycle", row.times.cycle, "event-time-cycle"),
+        allAroundTimeCell("Total", row.total, "allaround-total"),
+        make("td", "status-cell", official ? "Official" : "Provisional")
+      );
+      body.append(tr);
+    });
+    table.append(body);
+    wrap.append(table);
+    section.append(wrap);
+    return section;
+  }
+
+  function allAroundTimeCell(label, value, className) {
+    const cell = make("td", `time-cell ${className}`, formatTime(value));
+    cell.dataset.label = label;
+    return cell;
+  }
+
+  function allAroundEventKey(value) {
+    const normalized = String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (normalized === "333") return "333";
+    if (normalized === "363") return "363";
+    if (normalized === "cycle" || normalized === "thecycle") return "cycle";
+    return "";
+  }
+
   function medalPlace(rank) {
     if (rank === 1) return "🥇 1";
     if (rank === 2) return "🥈 2";
@@ -547,6 +713,7 @@
     show("dashboard", false);
     show("preliminary", false);
     show("finals", false);
+    show("allAround", false);
     show("comingSoon", false);
     show("errorState", true);
     text("errorMessage", message);
