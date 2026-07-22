@@ -92,6 +92,7 @@
     }
 
     const selectedSection = section.toLowerCase();
+    show("medals", false);
     if (selectedSection === "preliminary" || selectedSection === "prelims") {
       show("dashboard", false);
       show("finals", false);
@@ -149,6 +150,19 @@
       show("comingSoon", false);
       show("relay", true);
       renderRelay(payload, official);
+      return;
+    }
+
+    if (selectedSection === "medals" || selectedSection === "medal-table") {
+      show("dashboard", false);
+      show("preliminary", false);
+      show("finals", false);
+      show("allAround", false);
+      show("doubles", false);
+      show("relay", false);
+      show("comingSoon", false);
+      show("medals", true);
+      renderMedals(payload, official);
       return;
     }
 
@@ -631,6 +645,138 @@
     if (normalized === "363") return "363";
     if (normalized === "cycle" || normalized === "thecycle") return "cycle";
     return "";
+  }
+
+  function renderMedals(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const doubles = Array.isArray(payload.doubles) ? payload.doubles : [];
+    const relays = Array.isArray(payload.relays) ? payload.relays : [];
+    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
+    const doublesById = new Map(doubles.map(team => [String(team.id), team]));
+    const relaysById = new Map(relays.map(team => [String(team.id), team]));
+    const groups = new Map();
+
+    results.filter(result => isFinalStage(result.stage)).forEach(result => {
+      const best = bestTime(result);
+      if (!Number.isFinite(best)) return;
+
+      const participantId = String(result.participant || "");
+      let type = "";
+      let division = "Open / Unassigned";
+      if (isIndividualType(result.type)) {
+        type = "Individual";
+        division = String(stackerById.get(participantId)?.division || division).trim();
+      } else if (isDoublesType(result.type)) {
+        type = "Doubles";
+        const team = doublesById.get(participantId) || {};
+        division = String(team.customDivision || team.division || team.type || division).trim();
+      } else if (isRelayType(result.type)) {
+        type = "Relay";
+        const team = relaysById.get(participantId) || {};
+        division = String(team.timedRelayDivision || team.division || division).trim();
+      } else {
+        return;
+      }
+
+      const eventName = String(result.event || type).trim();
+      const groupKey = [type, division, eventName].join("\u0000");
+      if (!groups.has(groupKey)) groups.set(groupKey, new Map());
+      const participants = groups.get(groupKey);
+      const current = participants.get(participantId);
+      if (!current || best < current.best) {
+        participants.set(participantId, {
+          participantId,
+          best,
+          organization: medalOrganization(result, { stackerById, doublesById, relaysById })
+        });
+      }
+    });
+
+    const medalsByOrganization = new Map();
+    groups.forEach(participants => {
+      const rows = [...participants.values()].sort((left, right) =>
+        left.best - right.best || naturalCompare(left.participantId, right.participantId));
+      let previousBest = Number.NaN;
+      let previousRank = 0;
+      rows.forEach((row, index) => {
+        const rank = row.best === previousBest ? previousRank : index + 1;
+        previousBest = row.best;
+        previousRank = rank;
+        if (rank > 3) return;
+        const organization = row.organization || "Independent";
+        if (!medalsByOrganization.has(organization)) {
+          medalsByOrganization.set(organization, { organization, gold: 0, silver: 0, bronze: 0 });
+        }
+        const medal = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
+        medalsByOrganization.get(organization)[medal] += 1;
+      });
+    });
+
+    const rows = [...medalsByOrganization.values()]
+      .map(row => ({ ...row, total: row.gold + row.silver + row.bronze }))
+      .sort((left, right) =>
+        right.gold - left.gold ||
+        right.silver - left.silver ||
+        right.bronze - left.bronze ||
+        naturalCompare(left.organization, right.organization));
+
+    const body = el("medalRows");
+    const table = document.querySelector(".medal-table");
+    const empty = el("medalsEmpty");
+    if (!body || !table || !empty) return;
+    body.replaceChildren();
+    table.hidden = rows.length === 0;
+    empty.hidden = rows.length !== 0;
+
+    const medalTotal = rows.reduce((sum, row) => sum + row.total, 0);
+    text("medalsSummary", rows.length
+      ? `${rows.length} organization${rows.length === 1 ? "" : "s"} · ${medalTotal} medal${medalTotal === 1 ? "" : "s"} · ${official ? "Official" : "Provisional"}`
+      : "No final medals yet");
+
+    let previousSignature = "";
+    let previousRank = 0;
+    rows.forEach((row, index) => {
+      const signature = `${row.gold}:${row.silver}:${row.bronze}`;
+      const rank = signature === previousSignature ? previousRank : index + 1;
+      previousSignature = signature;
+      previousRank = rank;
+      const tr = document.createElement("tr");
+      tr.append(
+        make("td", "rank-cell", String(rank)),
+        make("td", "medal-organization", row.organization),
+        medalCountCell("Gold", row.gold, "gold"),
+        medalCountCell("Silver", row.silver, "silver"),
+        medalCountCell("Bronze", row.bronze, "bronze"),
+        medalCountCell("Total", row.total, "total")
+      );
+      body.append(tr);
+    });
+  }
+
+  function medalOrganization(result, lookup) {
+    const participantId = String(result.participant || "");
+    if (isIndividualType(result.type)) {
+      return lookup.stackerById.get(participantId)?.org || "Independent";
+    }
+
+    const team = isDoublesType(result.type)
+      ? lookup.doublesById.get(participantId) || {}
+      : lookup.relaysById.get(participantId) || {};
+    const memberIds = isDoublesType(result.type)
+      ? [team.one, team.two]
+      : (Array.isArray(team.members) ? team.members : []);
+    const organizations = [...new Set(memberIds
+      .map(id => lookup.stackerById.get(String(id))?.org)
+      .filter(Boolean))]
+      .sort(naturalCompare);
+    return organizations.join(" / ") || team.org || team.region || team.country || "Independent";
+  }
+
+  function medalCountCell(label, value, type) {
+    const cell = make("td", `medal-count medal-count-${type}`, String(value));
+    cell.dataset.label = label;
+    return cell;
   }
 
   function renderDoubles(payload, official) {
