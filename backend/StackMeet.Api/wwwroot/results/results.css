@@ -193,6 +193,16 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .allaround-table td:nth-last-child(-n+5) { text-align: right; }
 .allaround-table-wrap { overscroll-behavior-inline: contain; }
 
+.doubles-groups { display: grid; gap: 1rem; }
+.doubles-heading { background: linear-gradient(120deg, #35225f, #6843a6); }
+.doubles-heading .eyebrow { color: #d9c6ff; }
+.team-cell strong, .team-cell span { display: block; }
+.team-cell span { margin-top: .14rem; color: var(--muted); font-size: .7rem; }
+.member-cell { color: #384862; }
+.doubles-time { min-width: 5.2rem; }
+.doubles-table th:nth-last-child(-n+3),
+.doubles-table td:nth-last-child(-n+3) { text-align: right; }
+
 @media (max-width: 620px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-summary { align-self: stretch; text-align: center; }
@@ -243,4 +253,43 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
     letter-spacing: .04em;
     text-transform: uppercase;
   }
+  .doubles-table { min-width: 0; }
+  .doubles-table thead { display: none; }
+  .doubles-table tbody { display: grid; grid-template-columns: 1fr; gap: .7rem; }
+  .doubles-table tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place team best"
+      "members members members";
+    align-items: center;
+    gap: .55rem .7rem;
+    padding: .8rem;
+    border: 1px solid var(--line);
+    border-radius: .85rem;
+    background: #fff;
+  }
+  .doubles-table td { border: 0; }
+  .doubles-table .rank-cell { grid-area: place; width: auto; padding: 0; text-align: left; }
+  .doubles-table .team-cell { grid-area: team; min-width: 0; padding: 0; }
+  .doubles-table .doubles-time { grid-area: best; min-width: 0; padding: 0; text-align: right; }
+  .doubles-table .member-cell {
+    grid-area: members;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .5rem;
+    padding: .55rem 0 0;
+    border-top: 1px solid var(--line);
+    font-size: .8rem;
+  }
+  .doubles-table .member-cell::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: .62rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .doubles-table .organization-cell,
+  .doubles-table .status-cell { display: none; }
 }
