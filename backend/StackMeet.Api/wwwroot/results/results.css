@@ -185,6 +185,14 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .time-cell.scr { color: #a45454; }
 .status-cell { color: var(--muted); font-size: .72rem; }
 .empty-state.compact { min-height: 15rem; }
+.allaround-groups { display: grid; gap: 1rem; }
+.allaround-heading { background: linear-gradient(120deg, #133d35, #12705d); }
+.allaround-heading .eyebrow { color: #8ef0ce; }
+.allaround-total { color: #087956; font-size: 1.02rem; }
+.allaround-table th:nth-last-child(-n+5),
+.allaround-table td:nth-last-child(-n+5) { text-align: right; }
+.allaround-table-wrap { overscroll-behavior-inline: contain; }
+
 @media (max-width: 620px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-summary { align-self: stretch; text-align: center; }
@@ -192,4 +200,47 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   .organization-cell, .results-table th:nth-child(3) { display: none; }
   .results-table th, .results-table td { padding-left: .45rem; padding-right: .45rem; }
   .status-cell { max-width: 5.6rem; overflow: hidden; text-overflow: ellipsis; }
+  .allaround-table { min-width: 0; }
+  .allaround-table thead { display: none; }
+  .allaround-table tbody { display: grid; gap: .7rem; }
+  .allaround-table tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place stacker total"
+      "event333 event363 cycle";
+    align-items: center;
+    gap: .7rem .45rem;
+    padding: .8rem;
+    border: 1px solid var(--line);
+    border-radius: .85rem;
+    background: #fff;
+  }
+  .allaround-table .rank-cell { grid-area: place; width: auto; padding: 0; text-align: left; }
+  .allaround-table .stacker-cell { grid-area: stacker; min-width: 0; padding: 0; }
+  .allaround-table .event-time-333 { grid-area: event333; }
+  .allaround-table .event-time-363 { grid-area: event363; }
+  .allaround-table .event-time-cycle { grid-area: cycle; }
+  .allaround-table .allaround-total { grid-area: total; padding: 0; text-align: right; }
+  .allaround-table .organization-cell,
+  .allaround-table .status-cell { display: none; }
+  .allaround-table .event-time-333,
+  .allaround-table .event-time-363,
+  .allaround-table .event-time-cycle {
+    display: grid;
+    gap: .12rem;
+    padding: .55rem .35rem 0;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .allaround-table .event-time-333::before,
+  .allaround-table .event-time-363::before,
+  .allaround-table .event-time-cycle::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: .62rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
 }
