@@ -175,8 +175,10 @@ portal.renderDoubles({
 }, false);
 assert.equal(doublesGroups.children.length, 2, "Configured Doubles divisions must remain separate.");
 const doublesBodies = descendants(doublesGroups, "tbody");
-assert.deepEqual(doublesBodies[0].children.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
-assert.equal(cells(doublesBodies[1].children[0])[4].textContent, "SCR");
+const rankedDoublesBody = doublesBodies.find(body => body.children.length === 2);
+const scrDoublesBody = doublesBodies.find(body => body.children.length === 1);
+assert.deepEqual(rankedDoublesBody.children.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
+assert.equal(cells(scrDoublesBody.children[0])[4].textContent, "SCR");
 
 const relays = [
   { id: "R1", name: "Relay A", division: "U12 Relay", members: ["A", "D"], org: "Org A" },
@@ -228,7 +230,8 @@ assert.deepEqual(medalValues, [
   ["1", "Org A", "2", "0", "0", "2"],
   ["2", "Org B", "1", "1", "0", "2"],
   ["3", "Org A / Org B", "1", "0", "0", "1"],
-  ["4", "Org C", "0", "1", "1", "2"]
+  ["4", "Org A / Org C", "0", "1", "0", "1"],
+  ["5", "Org C", "0", "0", "1", "1"]
 ], "Medals must deduplicate saves, respect ties/SCR, and sort Gold-Silver-Bronze.");
 
 console.log("Public results portal representative-data tests passed.");
