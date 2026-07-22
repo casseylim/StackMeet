@@ -49,5 +49,10 @@ assert.match(client, /row\.best === previousBest \? previousRank/, "Tied final t
 assert.match(client, /medalPlace\(rank\)/, "Final places must show medal indicators.");
 assert.match(client, /rank <= 3/, "Only podium places may receive medal styling.");
 assert.match(styles, /medal-1/, "Gold-medal rows must have dedicated styling.");
+assert.match(client, /const resultsRoot = competitionId/, "Navigation must be rooted at the current competition.");
+assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
+assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
+assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
+assert.match(html, /results\.js\?v=20260722-4/, "The navigation fix must invalidate cached client JavaScript.");
 
 console.log("Public results portal static safety tests passed.");
