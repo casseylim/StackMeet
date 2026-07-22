@@ -5,6 +5,7 @@
   const resultsIndex = parts.findIndex(part => part.toLowerCase() === "results");
   const competitionId = resultsIndex > 0 ? decodeURIComponent(parts[resultsIndex - 1]) : "";
   const section = resultsIndex >= 0 && parts[resultsIndex + 1] ? parts[resultsIndex + 1] : "Dashboard";
+  const resultsRoot = competitionId ? `/${encodeURIComponent(competitionId)}/Results` : "";
   const endpoint = `/api/public/competitions/${encodeURIComponent(competitionId)}/results`;
   let lastVersion = "";
   let refreshInFlight = false;
@@ -14,8 +15,16 @@
   const show = (id, visible) => { const node = el(id); if (node) node.hidden = !visible; };
 
   document.querySelectorAll(".section-nav a").forEach(link => {
-    link.classList.toggle("active", link.dataset.section?.toLowerCase() === section.toLowerCase());
+    const targetSection = link.dataset.section || "Dashboard";
+    const suffix = targetSection.toLowerCase() === "dashboard"
+      ? ""
+      : `/${encodeURIComponent(targetSection)}`;
+    link.href = `${resultsRoot}${suffix}`;
+    link.classList.toggle("active", targetSection.toLowerCase() === section.toLowerCase());
   });
+
+  const backLink = document.querySelector(".back-link");
+  if (backLink) backLink.href = resultsRoot;
 
   if (!competitionId) {
     renderError("The competition ID is missing from this results link.");
