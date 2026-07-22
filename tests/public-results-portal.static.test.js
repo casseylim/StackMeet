@@ -28,6 +28,8 @@ assert.doesNotMatch(publicController, /phone\s*=/i, "Public responses must not e
 assert.doesNotMatch(publicController, /paid\s*=/i, "Public responses must not expose payment state.");
 assert.doesNotMatch(publicController, /checkedIn\s*=/i, "Public responses must not expose check-in state.");
 assert.doesNotMatch(publicController, /birthDate\s*=/i, "Public responses must not expose birth dates.");
+assert.match(publicController, /Text\(item, "division"\)/, "Computed competition divisions must be included in the safe public stacker projection.");
+assert.match(publicController, /stateStackers\.Length > 0/, "Saved competition divisions must take priority over incomplete SQL custom divisions.");
 
 assert.match(html, /Live Results/, "The provisional disclaimer must be visible.");
 assert.match(client, /ResultsUpdated/, "The browser must refresh when SignalR publishes an update.");
