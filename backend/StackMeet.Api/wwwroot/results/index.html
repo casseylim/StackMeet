@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07152e">
   <meta name="description" content="Live sport stacking competition results">
   <title>StackMeet Live Results</title>
-  <link rel="stylesheet" href="/results/results.css?v=20260722-7">
+  <link rel="stylesheet" href="/results/results.css?v=20260722-medals-awards">
 </head>
 <body>
   <div class="app-shell">
@@ -186,6 +186,30 @@
         <div id="relayGroups" class="relay-groups"></div>
       </section>
 
+      <section id="medals" hidden>
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">Championship overview</span>
+            <h2>Medal Table</h2>
+            <p>Final-event podiums are combined by organization. Teams representing more than one organization are shown as a combined entry.</p>
+          </div>
+          <span id="medalsSummary" class="page-summary">Waiting for results</span>
+        </div>
+        <section class="panel medal-table-panel">
+          <div class="results-table-wrap">
+            <table class="results-table medal-table">
+              <thead><tr><th>Rank</th><th>Organization</th><th>Gold</th><th>Silver</th><th>Bronze</th><th>Total</th></tr></thead>
+              <tbody id="medalRows"></tbody>
+            </table>
+          </div>
+          <div id="medalsEmpty" class="empty-state compact" hidden>
+            <span class="empty-icon clock" aria-hidden="true">↗</span>
+            <h2>No final medals published yet</h2>
+            <p>The medal table will update automatically when valid Final results produce podium positions.</p>
+          </div>
+        </section>
+      </section>
+
       <section id="comingSoon" class="panel empty-state" hidden>
         <span class="empty-icon clock" aria-hidden="true">↗</span>
         <h2 id="sectionTitle">Results section</h2>
@@ -200,6 +224,6 @@
     </footer>
   </div>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=20260722-7"></script>
+  <script src="/results/results.js?v=20260722-medals-awards"></script>
 </body>
 </html>
