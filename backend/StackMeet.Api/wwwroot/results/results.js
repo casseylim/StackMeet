@@ -204,9 +204,81 @@
     const progress = el("progressBar");
     if (progress) progress.style.width = `${percentage}%`;
 
+    renderSectionReadiness(payload, competitionIsOfficial(payload));
     renderLeader(current, results, { stackers, doubles, relays });
     renderLatest(latest.slice(0, 6), { stackers, doubles, relays });
     renderStageStats(stageCounts, results.length);
+  }
+
+  function renderSectionReadiness(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const individualPreliminary = results.filter(result =>
+      isPreliminaryStage(result.stage) && isIndividualType(result.type));
+    const individualFinals = results.filter(result =>
+      isFinalStage(result.stage) && isIndividualType(result.type));
+    const doublesResults = results.filter(result => isDoublesType(result.type));
+    const relayResults = results.filter(result => isRelayType(result.type));
+    const allAroundParticipants = new Set();
+    const allAroundGroups = new Map();
+
+    results
+      .filter(result => isIndividualType(result.type))
+      .forEach(result => {
+        const event = allAroundEventKey(result.event);
+        const best = bestTime(result);
+        if (!event || !Number.isFinite(best)) return;
+        const participant = String(result.participant || "");
+        if (!participant) return;
+        const stage = isFinalStage(result.stage) ? "finals" : isPreliminaryStage(result.stage) ? "preliminary" : "";
+        if (!stage) return;
+        const key = `${participant}::${stage}`;
+        if (!allAroundGroups.has(key)) allAroundGroups.set(key, new Set());
+        allAroundGroups.get(key).add(event);
+      });
+    allAroundGroups.forEach((events, key) => {
+      if (ALL_AROUND_EVENTS.every(event => events.has(event))) {
+        allAroundParticipants.add(key.split("::")[0]);
+      }
+    });
+
+    const finalPodiumSources = results.filter(result =>
+      isFinalStage(result.stage) && Number.isFinite(bestTime(result)));
+
+    const sections = [
+      { route: "Preliminary", label: "Preliminary", description: "Division and event rankings", count: individualPreliminary.length, noun: "result" },
+      { route: "Finals", label: "Finals", description: "Championship rankings and podiums", count: individualFinals.length, noun: "result" },
+      { route: "AllAround", label: "All Around", description: "Combined three-event standings", count: allAroundParticipants.size, noun: "complete stacker" },
+      { route: "Doubles", label: "Doubles", description: "Normal and child/parent teams", count: doublesResults.length, noun: "result" },
+      { route: "Relay", label: "Relay", description: "Team relay standings", count: relayResults.length, noun: "result" },
+      { route: "Medals", label: "Medal Table", description: "Final podiums by organization", count: finalPodiumSources.length, noun: "final entry" }
+    ];
+
+    const grid = el("sectionStatusGrid");
+    if (!grid) return;
+    grid.replaceChildren();
+
+    sections.forEach(item => {
+      const available = item.count > 0;
+      const state = available ? (official ? "official" : "live") : "not-started";
+      const statusLabel = available ? (official ? "Official" : "Live") : "Not started";
+      const countLabel = available
+        ? `${item.count} ${item.noun}${item.count === 1 ? "" : "s"}`
+        : "Waiting for results";
+      const link = make("a", "section-status-card");
+      link.href = `${resultsRoot}/${item.route}`;
+      link.dataset.status = state;
+      link.setAttribute("aria-label", `${item.label}: ${statusLabel}. ${countLabel}.`);
+      const copy = make("span", "section-status-copy");
+      copy.append(make("strong", "", item.label), make("span", "", item.description));
+      const meta = make("span", "section-status-meta");
+      meta.append(make("span", `section-state ${state}`, statusLabel), make("span", "section-count", countLabel));
+      link.append(copy, meta, make("span", "section-status-arrow", "→"));
+      grid.append(link);
+    });
+  }
+
+  function competitionIsOfficial(payload) {
+    return payload?.competition?.isOfficial === true;
   }
 
   function renderLeader(current, results, lookup) {
