@@ -32,5 +32,11 @@ assert.doesNotMatch(publicController, /birthDate\s*=/i, "Public responses must n
 assert.match(html, /Live Results/, "The provisional disclaimer must be visible.");
 assert.match(client, /ResultsUpdated/, "The browser must refresh when SignalR publishes an update.");
 assert.match(client, /cache:\s*"no-store"/, "Public results must not display a stale cached response.");
+assert.match(html, /id="preliminaryGroups"/, "The Preliminary page must have a results container.");
+assert.match(client, /renderPreliminary\(payload, official\)/, "The Preliminary route must render live standings.");
+assert.match(client, /isPreliminaryStage/, "Preliminary results must be filtered from other stages.");
+assert.match(client, /isIndividualType/, "Doubles and relay results must remain in their dedicated sections.");
+assert.match(client, /Open \/ Unassigned/, "Results without a configured division must remain visible.");
+assert.match(client, /localeCompare/, "Division and event groups must use stable natural sorting.");
 
 console.log("Public results portal static safety tests passed.");
