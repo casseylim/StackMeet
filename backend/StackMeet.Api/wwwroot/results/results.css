@@ -211,6 +211,16 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .relay-table th:nth-last-child(-n+3),
 .relay-table td:nth-last-child(-n+3) { text-align: right; }
 
+.medal-table-panel { overflow: hidden; }
+.medal-table th:nth-last-child(-n+4),
+.medal-table td:nth-last-child(-n+4) { text-align: center; }
+.medal-organization { color: var(--ink); font-weight: 800; }
+.medal-count { min-width: 4.3rem; font-size: 1rem; font-variant-numeric: tabular-nums; font-weight: 900; }
+.medal-count-gold { color: #9a6a00; }
+.medal-count-silver { color: #697386; }
+.medal-count-bronze { color: #995525; }
+.medal-count-total { color: var(--blue); }
+
 @media (max-width: 620px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-summary { align-self: stretch; text-align: center; }
@@ -340,4 +350,43 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   }
   .relay-table .organization-cell,
   .relay-table .status-cell { display: none; }
+  .medal-table { min-width: 0; }
+  .medal-table thead { display: none; }
+  .medal-table tbody { display: grid; grid-template-columns: 1fr; gap: .7rem; }
+  .medal-table tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) repeat(4, minmax(2.5rem, auto));
+    grid-template-areas:
+      "rank organization organization organization organization organization"
+      ". gold silver bronze total total";
+    align-items: center;
+    gap: .65rem .45rem;
+    padding: .8rem;
+    border: 1px solid var(--line);
+    border-radius: .85rem;
+    background: #fff;
+  }
+  .medal-table td { border: 0; padding: 0; }
+  .medal-table .rank-cell { grid-area: rank; width: auto; text-align: left; }
+  .medal-table .medal-organization { grid-area: organization; min-width: 0; }
+  .medal-table .medal-count-gold { grid-area: gold; }
+  .medal-table .medal-count-silver { grid-area: silver; }
+  .medal-table .medal-count-bronze { grid-area: bronze; }
+  .medal-table .medal-count-total { grid-area: total; }
+  .medal-table .medal-count {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+    padding-top: .55rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .medal-table .medal-count::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: .58rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
 }
