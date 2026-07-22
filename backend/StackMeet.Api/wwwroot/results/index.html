@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07152e">
   <meta name="description" content="Live sport stacking competition results">
   <title>StackMeet Live Results</title>
-  <link rel="stylesheet" href="/results/results.css?v=20260722-dashboard-readiness">
+  <link rel="stylesheet" href="/results/results.css?v=20260722-empty-status">
 </head>
 <body>
   <div class="app-shell">
@@ -22,7 +22,7 @@
       </div>
       <div class="hero-copy">
         <div class="status-row">
-          <span id="resultStatus" class="result-status live">Live results</span>
+          <span id="resultStatus" class="result-status waiting">Waiting for results</span>
           <span id="lastUpdated">Waiting for results…</span>
         </div>
         <h1 id="competitionName">Competition Results</h1>
@@ -32,8 +32,8 @@
 
     <main>
       <aside id="disclaimer" class="disclaimer" role="status">
-        <strong>Live Results</strong>
-        Results update automatically as officials enter them. Rankings, qualification positions, and medal standings are provisional until the event is completed and verified.
+        <strong>Waiting for Results</strong>
+        <span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>
       </aside>
 
       <nav class="section-nav" aria-label="Results sections">
@@ -235,6 +235,6 @@
     </footer>
   </div>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=20260722-dashboard-readiness"></script>
+  <script src="/results/results.js?v=20260722-empty-status"></script>
 </body>
 </html>
