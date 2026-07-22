@@ -2,14 +2,16 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
+using StackMeet.Api.Hubs;
 
 namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/state")]
-public sealed class CompetitionStateController(StackMeetDbContext database) : ControllerBase
+public sealed class CompetitionStateController(StackMeetDbContext database, IHubContext<ResultsHub> resultsHub) : ControllerBase
 {
     [HttpGet("{competitionKey}")]
     public async Task<IActionResult> Get(string competitionKey, CancellationToken cancellationToken)
@@ -67,6 +69,11 @@ public sealed class CompetitionStateController(StackMeetDbContext database) : Co
             normalizedKey,
             jsonData,
             updatedBy,
+            cancellationToken);
+
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync(
+            "ResultsUpdated",
+            new { competitionId = normalizedKey, updatedAt = DateTime.UtcNow },
             cancellationToken);
 
         return NoContent();
