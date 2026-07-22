@@ -203,6 +203,14 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .doubles-table th:nth-last-child(-n+3),
 .doubles-table td:nth-last-child(-n+3) { text-align: right; }
 
+.relay-groups { display: grid; gap: 1rem; }
+.relay-heading { background: linear-gradient(120deg, #063d55, #087f91); }
+.relay-heading .eyebrow { color: #9cecf3; }
+.relay-members { max-width: 28rem; }
+.relay-time { min-width: 5.2rem; }
+.relay-table th:nth-last-child(-n+3),
+.relay-table td:nth-last-child(-n+3) { text-align: right; }
+
 @media (max-width: 620px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-summary { align-self: stretch; text-align: center; }
@@ -292,4 +300,44 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   }
   .doubles-table .organization-cell,
   .doubles-table .status-cell { display: none; }
+  .relay-table { min-width: 0; }
+  .relay-table thead { display: none; }
+  .relay-table tbody { display: grid; grid-template-columns: 1fr; gap: .7rem; }
+  .relay-table tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place team best"
+      "members members members";
+    align-items: center;
+    gap: .55rem .7rem;
+    padding: .8rem;
+    border: 1px solid var(--line);
+    border-radius: .85rem;
+    background: #fff;
+  }
+  .relay-table td { border: 0; }
+  .relay-table .rank-cell { grid-area: place; width: auto; padding: 0; text-align: left; }
+  .relay-table .team-cell { grid-area: team; min-width: 0; padding: 0; }
+  .relay-table .relay-time { grid-area: best; min-width: 0; padding: 0; text-align: right; }
+  .relay-table .relay-members {
+    grid-area: members;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .5rem;
+    max-width: none;
+    padding: .55rem 0 0;
+    border-top: 1px solid var(--line);
+    font-size: .8rem;
+  }
+  .relay-table .relay-members::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: .62rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .relay-table .organization-cell,
+  .relay-table .status-cell { display: none; }
 }
