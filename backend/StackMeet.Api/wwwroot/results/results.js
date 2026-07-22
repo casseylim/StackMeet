@@ -1079,6 +1079,7 @@
     show("finals", false);
     show("allAround", false);
     show("doubles", false);
+    show("relay", false);
     show("comingSoon", false);
     show("errorState", true);
     text("errorMessage", message);
