@@ -39,21 +39,26 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
 
         using var stateDocument = JsonDocument.Parse(savedState.JsonData);
         var root = stateDocument.RootElement;
-        var stackers = await database.Stackers.AsNoTracking()
+        var stateStackers = PublicStackers(root);
+        var sqlStackerRows = await database.Stackers.AsNoTracking()
             .Where(item => item.CompetitionId == competition.Id)
             .OrderBy(item => item.StackerCode)
             .Select(item => new
             {
-                id = item.StackerCode,
-                name = (item.FirstName + " " + item.LastName).Trim(),
-                gender = item.Gender,
-                org = item.Club ?? "Independent",
-                country = item.Country,
-                region = item.Region ?? "",
-                division = item.CustomDivision ?? "",
-                special = item.IsSpecialStacker ? "Yes" : "No"
+                item.StackerCode, item.FirstName, item.LastName, item.Gender, item.Club,
+                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker
             })
             .ToListAsync(ct);
+        var sqlStackers = sqlStackerRows.Select(item => new PublicStacker(
+            item.StackerCode,
+            (item.FirstName + " " + item.LastName).Trim(),
+            item.Gender,
+            item.Club ?? "Independent",
+            item.Country,
+            item.Region ?? "",
+            item.CustomDivision ?? "",
+            item.IsSpecialStacker ? "Yes" : "No")).ToArray();
+        var stackers = stateStackers.Length > 0 ? stateStackers : sqlStackers;
 
         return Ok(new
         {
@@ -104,6 +109,23 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         }).ToArray();
     }
 
+    private static PublicStacker[] PublicStackers(JsonElement root)
+    {
+        if (!root.TryGetProperty("stackers", out var items) || items.ValueKind != JsonValueKind.Array) return [];
+        return items.EnumerateArray()
+            .Select(item => new PublicStacker(
+                Text(item, "id"),
+                Text(item, "name"),
+                Text(item, "gender"),
+                Text(item, "org"),
+                Text(item, "country"),
+                Text(item, "region"),
+                Text(item, "division"),
+                Text(item, "special")))
+            .Where(item => item.Id.Length > 0)
+            .ToArray();
+    }
+
     private static IEnumerable<object> PublicDoubles(JsonElement root)
     {
         if (!root.TryGetProperty("doubles", out var items) || items.ValueKind != JsonValueKind.Array) return [];
@@ -142,6 +164,16 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             six = Text(item, "six")
         }).ToArray();
     }
+
+    private sealed record PublicStacker(
+        string Id,
+        string Name,
+        string Gender,
+        string Org,
+        string Country,
+        string Region,
+        string Division,
+        string Special);
 
     private static string Text(JsonElement item, string name) =>
         item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
