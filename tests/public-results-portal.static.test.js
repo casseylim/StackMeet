@@ -53,6 +53,15 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260722-4/, "The navigation fix must invalidate cached client JavaScript.");
+assert.match(html, /results\.js\?v=20260722-5/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
+assert.match(client, /renderAllAround\(payload, official\)/, "The All-Around route must render live standings.");
+assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three configured individual events.");
+assert.match(client, /allAroundEventKey/, "Event labels must be normalized before calculating totals.");
+assert.match(client, /isIndividualType\(result\.type\)/, "Doubles and relay results must not enter All-Around standings.");
+assert.match(client, /every\(event => Number\.isFinite/, "A stacker must complete all three events before receiving an All-Around total.");
+assert.match(client, /group\.stage\.key === "finals"/, "Complete Final totals must take priority over Preliminary totals within a division.");
+assert.match(client, /row\.total === previousTotal \? previousRank/, "Tied All-Around totals must share the same rank.");
+assert.match(styles, /grid-template-areas:[\s\S]*"place stacker total"/, "Mobile All-Around rows must use a compact card layout.");
 
 console.log("Public results portal static safety tests passed.");
