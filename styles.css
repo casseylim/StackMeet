@@ -1563,7 +1563,7 @@ tr:last-child td { border-bottom: 0; }
   #nav { grid-template-columns: repeat(2, 1fr); }
   .main { padding: 12px; }
   .metric-grid, .split, .level-grid { grid-template-columns: 1fr; }
-  .form-grid, .result-grid, .report-filters, .division-grid, .relay-division-grid, .competition-mode-grid, .prelim-event-grid, .prelim-stacker-summary, .inline-editor, .relay-member-grid, .award-config-grid, .award-overall-grid, .award-place-grid { grid-template-columns: 1fr; }
+  .form-grid, .result-grid, .report-filters, .division-grid, .relay-division-grid, .doubles-division-grid, .competition-mode-grid, .prelim-event-grid, .prelim-stacker-summary, .inline-editor, .relay-member-grid, .award-config-grid, .award-overall-grid, .award-place-grid { grid-template-columns: 1fr; }
   .prelim-lookup-row, .missing-summary { grid-template-columns: 1fr; }
   .prelim-event-grid > label { grid-template-columns: 1fr; }
   .missing-entry-button { align-items: flex-start; flex-direction: column; }
