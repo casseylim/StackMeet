@@ -1836,10 +1836,14 @@ function overallAwardRows() {
 
 function plannedIndividualAwardDivisions() {
   const settings = state.divisionSettings || defaultDivisionSettings;
+  const specialDivisions = divisionRanges(settings.special || [], "Special");
+  const configuredSpecialDivisions = state.settings?.separateSpecialDivisionsByGender === true
+    ? specialDivisions.flatMap(division => [`${division} M`, `${division} F`])
+    : specialDivisions;
   const configured = [
     ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
     ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
-    ...divisionRanges(settings.special || [], "Special")
+    ...configuredSpecialDivisions
   ];
   const registered = (state.stackers || [])
     .map(stacker => stacker.customDivision || stacker.division)
