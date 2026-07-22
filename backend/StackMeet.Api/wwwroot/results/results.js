@@ -82,7 +82,17 @@
       disclaimer.innerHTML = "<strong>Official Results</strong><span>This competition is closed and the published results are official.</span>";
     }
 
-    if (section.toLowerCase() !== "dashboard") {
+    const selectedSection = section.toLowerCase();
+    if (selectedSection === "preliminary" || selectedSection === "prelims") {
+      show("dashboard", false);
+      show("comingSoon", false);
+      show("preliminary", true);
+      renderPreliminary(payload, official);
+      return;
+    }
+
+    show("preliminary", false);
+    if (selectedSection !== "dashboard") {
       show("dashboard", false);
       show("comingSoon", true);
       text("sectionTitle", displaySectionName(section));
@@ -178,6 +188,133 @@
     });
   }
 
+  function renderPreliminary(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
+    const preliminary = results.filter(result =>
+      isPreliminaryStage(result.stage) && isIndividualType(result.type));
+
+    const groups = new Map();
+    preliminary.forEach(result => {
+      const stacker = stackerById.get(String(result.participant)) || {};
+      const division = String(stacker.division || "Open / Unassigned").trim();
+      const event = String(result.event || "Event").trim();
+      if (!groups.has(division)) groups.set(division, new Map());
+      if (!groups.get(division).has(event)) groups.get(division).set(event, []);
+      groups.get(division).get(event).push({ result, stacker, best: bestTime(result) });
+    });
+
+    const container = el("preliminaryGroups");
+    if (!container) return;
+    container.replaceChildren();
+    const eventCount = [...groups.values()].reduce((sum, events) => sum + events.size, 0);
+    text("preliminarySummary", groups.size
+      ? `${groups.size} division${groups.size === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
+      : "No preliminary results yet");
+
+    if (!groups.size) {
+      const empty = make("section", "panel empty-state compact");
+      empty.append(
+        make("span", "empty-icon clock", "↗"),
+        make("h2", "", "Preliminary results are not available yet"),
+        make("p", "", "This page will update automatically when officials publish the first preliminary result.")
+      );
+      container.append(empty);
+      return;
+    }
+
+    [...groups.entries()]
+      .sort(([left], [right]) => naturalCompare(left, right))
+      .forEach(([division, events]) => {
+        const divisionSection = make("section", "panel preliminary-division");
+        const heading = make("div", "division-heading");
+        const titleBlock = make("div", "");
+        titleBlock.append(make("span", "eyebrow", "Division"), make("h2", "", division));
+        const entryCount = [...events.values()].reduce((sum, rows) => sum + rows.length, 0);
+        heading.append(titleBlock, make("span", "division-count", `${entryCount} entr${entryCount === 1 ? "y" : "ies"}`));
+        divisionSection.append(heading);
+
+        const eventList = make("div", "event-list");
+        [...events.entries()]
+          .sort(([left], [right]) => naturalCompare(left, right))
+          .forEach(([eventName, rows]) => eventList.append(renderPreliminaryEvent(eventName, rows, official)));
+        divisionSection.append(eventList);
+        container.append(divisionSection);
+      });
+  }
+
+  function renderPreliminaryEvent(eventName, rows, official) {
+    const card = make("article", "results-event");
+    const heading = make("div", "event-heading");
+    const eventCopy = make("div", "");
+    eventCopy.append(make("span", "eyebrow", "Event"), make("h3", "", eventName));
+    heading.append(eventCopy, make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional"));
+    card.append(heading);
+
+    rows.sort((left, right) => {
+      const leftValid = Number.isFinite(left.best);
+      const rightValid = Number.isFinite(right.best);
+      if (leftValid !== rightValid) return leftValid ? -1 : 1;
+      if (leftValid && left.best !== right.best) return left.best - right.best;
+      return naturalCompare(left.stacker.name || left.result.participant, right.stacker.name || right.result.participant);
+    });
+
+    const tableWrap = make("div", "results-table-wrap");
+    const table = make("table", "results-table");
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Rank", "Stacker", "Organization", "Best", "Status"].forEach(label => headRow.append(make("th", "", label)));
+    head.append(headRow);
+    table.append(head);
+
+    const body = document.createElement("tbody");
+    let previousBest = Number.NaN;
+    let previousRank = 0;
+    rows.forEach((row, index) => {
+      const valid = Number.isFinite(row.best);
+      const rank = valid && row.best === previousBest ? previousRank : index + 1;
+      if (valid) {
+        previousBest = row.best;
+        previousRank = rank;
+      }
+
+      const tr = document.createElement("tr");
+      const rankCell = make("td", "rank-cell", valid ? String(rank) : "—");
+      const nameCell = make("td", "stacker-cell");
+      nameCell.append(
+        make("strong", "", row.stacker.name || row.result.participant || "Stacker"),
+        make("span", "", row.result.participant || "")
+      );
+      tr.append(
+        rankCell,
+        nameCell,
+        make("td", "organization-cell", row.stacker.org || "Independent"),
+        make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
+        make("td", "status-cell", official ? "Official" : "Provisional")
+      );
+      body.append(tr);
+    });
+    table.append(body);
+    tableWrap.append(table);
+    card.append(tableWrap);
+    return card;
+  }
+
+  function isPreliminaryStage(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "prelims" || normalized === "preliminary" || normalized === "prelim";
+  }
+
+  function isIndividualType(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return !normalized.includes("double") && !normalized.includes("relay");
+  }
+
+  function naturalCompare(left, right) {
+    return String(left || "").localeCompare(String(right || ""), undefined, { numeric: true, sensitivity: "base" });
+  }
+
   function renderStageStats(counts, total) {
     const container = el("stageStats");
     if (!container) return;
@@ -262,6 +399,7 @@
   function renderError(message) {
     show("loadingState", false);
     show("dashboard", false);
+    show("preliminary", false);
     show("comingSoon", false);
     show("errorState", true);
     text("errorMessage", message);
