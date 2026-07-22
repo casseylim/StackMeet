@@ -113,4 +113,4 @@ assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awa
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
 assert.match(adminHtml, /app\.js\?v=20260722-awards-fix/, "The Awards Planner fix must invalidate the browser cache.");
 
-console.log("Public results portal and Awards Planner safety tests passed.");
+require("./public-results-portal.sample-data.test.js");\n\nconsole.log("Public results portal and Awards Planner safety tests passed.");
