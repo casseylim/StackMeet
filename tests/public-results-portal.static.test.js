@@ -39,6 +39,11 @@ assert.match(html, /Live Results/, "The provisional disclaimer must be visible."
 assert.match(html, /id="sectionStatusGrid"/, "The dashboard must expose a results-section readiness grid.");
 assert.match(client, /renderSectionReadiness\(payload/, "The dashboard must calculate section readiness from the public payload.");
 assert.match(client, /Not started/, "Sections without results must be clearly marked Not started.");
+assert.match(html, /result-status waiting">Waiting for results/, "The portal must default to a waiting state before data loads.");
+assert.match(client, /sectionHasPublishedResults\(payload, selectedSection\)/, "The selected section status must depend on its own published results.");
+assert.match(client, /!hasPublishedResults \? "waiting"/, "Empty sections must not be labelled Live.");
+assert.match(client, /setConnection\("live", "Connected"\)/, "Connection health must be labelled Connected, not confused with result availability.");
+assert.match(styles, /result-status\.waiting/, "The waiting result state must have dedicated styling.");
 assert.match(client, /official \? "Official" : "Live"/, "Available sections must switch from Live to Official when the competition closes.");
 assert.match(client, /ALL_AROUND_EVENTS\.every/, "All-Around readiness must require all three valid events.");
 assert.match(styles, /section-status-grid[\s\S]*repeat\(3/, "The desktop readiness overview must use a compact card grid.");
@@ -65,7 +70,7 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260722-dashboard-readiness/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260722-empty-status/, "Results JavaScript changes must invalidate the browser cache.");
 assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
 assert.match(client, /renderAllAround\(payload, official\)/, "The All-Around route must render live standings.");
 assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three configured individual events.");
@@ -83,7 +88,7 @@ assert.match(client, /row\.best === previousBest \? previousRank/, "Tied Doubles
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Doubles places must show podium indicators.");
 assert.match(client, /team\.one, team\.two/, "Doubles standings must resolve both team members.");
 assert.match(styles, /\.doubles-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Doubles standings must use one column.");
-assert.match(html, /results\.css\?v=20260722-dashboard-readiness/, "Doubles styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=20260722-empty-status/, "Doubles styles must invalidate the browser cache.");
 assert.match(html, /id="relayGroups"/, "The Relay page must have a standings container.");
 assert.match(client, /renderRelay\(payload, official\)/, "The Relay route must render live standings.");
 assert.match(client, /isRelayType/, "Only Relay result types may enter Relay standings.");
@@ -91,7 +96,7 @@ assert.match(client, /team\.timedRelayDivision \|\| team\.division/, "Configured
 assert.match(client, /team\.members[\s\S]*team\.one, team\.two, team\.three/, "Relay standings must resolve array and positional team members.");
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Relay places must show podium indicators.");
 assert.match(styles, /\.relay-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Relay standings must use one column.");
-assert.match(html, /results\.css\?v=20260722-dashboard-readiness/, "Relay styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=20260722-empty-status/, "Relay styles must invalidate the browser cache.");
 assert.match(html, /id="medalRows"/, "The Medal Table must have a standings body.");
 assert.match(client, /renderMedals\(payload, official\)/, "The Medals route must render live standings.");
 assert.match(client, /filter\(result => isFinalStage\(result\.stage\)\)/, "Only Final results may contribute to the Medal Table.");
