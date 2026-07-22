@@ -11,6 +11,7 @@ const publicController = read("backend/StackMeet.Api/Controllers/PublicResultsCo
 const hub = read("backend/StackMeet.Api/Hubs/ResultsHub.cs");
 const html = read("backend/StackMeet.Api/wwwroot/results/index.html");
 const client = read("backend/StackMeet.Api/wwwroot/results/results.js");
+const styles = read("backend/StackMeet.Api/wwwroot/results/results.css");
 
 assert.match(program, /AddSignalR\(\)/, "SignalR must be registered.");
 assert.match(program, /MapHub<ResultsHub>\("\/hubs\/results"\)/, "The results hub must be mapped.");
@@ -40,5 +41,13 @@ assert.match(client, /isPreliminaryStage/, "Preliminary results must be filtered
 assert.match(client, /isIndividualType/, "Doubles and relay results must remain in their dedicated sections.");
 assert.match(client, /Open \/ Unassigned/, "Results without a configured division must remain visible.");
 assert.match(client, /localeCompare/, "Division and event groups must use stable natural sorting.");
+assert.match(html, /id="finalsGroups"/, "The Finals page must have a results container.");
+assert.match(client, /renderFinals\(payload, official\)/, "The Finals route must render live standings.");
+assert.match(client, /isFinalStage/, "Final results must be filtered from other stages.");
+assert.match(client, /isIndividualType\(result\.type\)/, "Finals must exclude doubles and relay results.");
+assert.match(client, /row\.best === previousBest \? previousRank/, "Tied final times must share the same rank.");
+assert.match(client, /medalPlace\(rank\)/, "Final places must show medal indicators.");
+assert.match(client, /rank <= 3/, "Only podium places may receive medal styling.");
+assert.match(styles, /medal-1/, "Gold-medal rows must have dedicated styling.");
 
 console.log("Public results portal static safety tests passed.");
