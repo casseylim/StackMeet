@@ -1697,11 +1697,24 @@ function renderAwards() {
       <label>Award Item<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
     </article>`;
   }).join("");
-  document.querySelectorAll("#awardsView select, [id^='award']").forEach(select => select.addEventListener("change", () => {
-    saveAwards(false);
-    drawAwardSummary();
-  }));
+  document.querySelectorAll("[id^='award']").forEach(select => select.addEventListener("change", handleAwardPlannerChange));
   drawAwardSummary();
+}
+
+function handleAwardPlannerChange(event) {
+  saveAwards(false);
+  if (["awardIndividualPlaces", "awardDoublesPlaces", "awardRelayPlaces"].includes(event.target.id)) {
+    refreshAwardPlaceControls();
+  }
+  drawAwardSummary();
+}
+
+function refreshAwardPlaceControls() {
+  document.getElementById("awardIndividualItems").innerHTML = awardPlaceItemControls("individual", state.awards.individualPlaces, state.awards.individualItems);
+  document.getElementById("awardDoublesItems").innerHTML = awardPlaceItemControls("doubles", state.awards.doublesPlaces, state.awards.doublesItems);
+  document.getElementById("awardRelayItems").innerHTML = awardPlaceItemControls("relay", state.awards.relayPlaces, state.awards.relayItems);
+  document.querySelectorAll("#awardIndividualItems select, #awardDoublesItems select, #awardRelayItems select")
+    .forEach(select => select.addEventListener("change", handleAwardPlannerChange));
 }
 
 function fillAwardLimitSelect(id, value) {
@@ -1730,12 +1743,15 @@ function saveAwards(renderNow = true) {
   const relayPlaces = Number(val("awardRelayPlaces")) || state.awards.relayPlaces;
   state.awards = normalizeAwards({
     individualPlaces,
-    individualItems: Array.from({ length: individualPlaces }, (_, index) => val(`award-individual-${index}`) || "Medal"),
+    individualItems: Array.from({ length: individualPlaces }, (_, index) =>
+      val(`award-individual-${index}`) || state.awards.individualItems[index] || "Medal"),
     doublesPlaces,
-    doublesItems: Array.from({ length: doublesPlaces }, (_, index) => val(`award-doubles-${index}`) || "Medal"),
+    doublesItems: Array.from({ length: doublesPlaces }, (_, index) =>
+      val(`award-doubles-${index}`) || state.awards.doublesItems[index] || "Medal"),
     relayPlaces,
     relayUnits: Number(val("awardRelayUnits")) || state.awards.relayUnits,
-    relayItems: Array.from({ length: relayPlaces }, (_, index) => val(`award-relay-${index}`) || "Medal"),
+    relayItems: Array.from({ length: relayPlaces }, (_, index) =>
+      val(`award-relay-${index}`) || state.awards.relayItems[index] || "Medal"),
     overall: Object.fromEntries(awardOverallGroups.map(group => [group.key, {
       limit: Number(val(`awardOverallLimit-${group.key}`)) || 0,
       item: val(`awardOverallItem-${group.key}`) || "Trophy"
@@ -1819,18 +1835,35 @@ function overallAwardRows() {
 }
 
 function plannedIndividualAwardDivisions() {
-  const divisions = generatedDivisions(state.divisionSettings);
-  return sortedDivisions(divisions.length ? divisions : state.divisions);
+  const settings = state.divisionSettings || defaultDivisionSettings;
+  const configured = [
+    ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
+    ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
+    ...divisionRanges(settings.special || [], "Special")
+  ];
+  const registered = (state.stackers || [])
+    .map(stacker => stacker.customDivision || stacker.division)
+    .filter(Boolean);
+  return sortedDivisions([...configured, ...registered]);
 }
 
 function plannedDoublesAwardDivisions() {
-  const defaults = ["6U", "8U", "10U", "12U", "14U", "18U", "19+", "35+", "SS 12U", "SS 18U", "Child/Parent 10U", "Child/Parent 11+", "SS Child/Parent"];
-  return sortedDivisions([...defaults, ...state.doubles.map(team => doubleDivision(team)).filter(Boolean)]);
+  const settings = state.divisionSettings || defaultDivisionSettings;
+  const configured = [
+    ...teamDivisionRanges(settings.doubles || []),
+    ...teamDivisionRanges(settings.childParentDoubles || [], "Child/Parent "),
+    ...teamDivisionRanges(settings.specialDoubles || [], "SS "),
+    ...teamDivisionRanges(settings.specialChildParentDoubles || [], "SS Child/Parent ")
+  ];
+  const registered = (state.doubles || []).map(team => doubleDivision(team)).filter(Boolean);
+  return sortedDivisions([...configured, ...registered]);
 }
 
 function plannedRelayAwardDivisions() {
-  const defaults = ["10U", "12U", "14U", "18U", "Open", "SS Relay"];
-  return sortedDivisions([...defaults, ...(state.relays || []).map(team => relayDivision(team)).filter(Boolean)]);
+  const settings = state.divisionSettings || defaultDivisionSettings;
+  const configured = teamDivisionRanges(settings.timedRelay || []);
+  const registered = (state.relays || []).map(team => relayDivision(team)).filter(Boolean);
+  return sortedDivisions([...configured, ...registered]);
 }
 
 function plannedEventsForGroup(group) {
