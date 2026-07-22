@@ -59,7 +59,7 @@
       const version = String(payload.lastUpdatedAt || "");
       if (showLoader || version !== lastVersion) render(payload);
       lastVersion = version;
-      setConnection("live", "Live");
+      setConnection("live", "Connected");
     } catch (error) {
       if (showLoader || !lastVersion) renderError(error.message);
       setConnection("offline", "Reconnecting");
@@ -81,17 +81,26 @@
     text("latestTime", formatClock(payload.lastUpdatedAt));
 
     const official = competition.isOfficial === true;
+    const selectedSection = section.toLowerCase();
+    const hasPublishedResults = sectionHasPublishedResults(payload, selectedSection);
     const status = el("resultStatus");
     if (status) {
-      status.textContent = official ? "Official results" : "Live results";
-      status.className = `result-status ${official ? "official" : "live"}`;
+      const state = !hasPublishedResults ? "waiting" : official ? "official" : "live";
+      status.textContent = !hasPublishedResults
+        ? "Waiting for results"
+        : official ? "Official results" : "Live results";
+      status.className = `result-status ${state}`;
     }
     const disclaimer = el("disclaimer");
-    if (disclaimer && official) {
-      disclaimer.innerHTML = "<strong>Official Results</strong><span>This competition is closed and the published results are official.</span>";
+    if (disclaimer) {
+      if (!hasPublishedResults) {
+        disclaimer.innerHTML = "<strong>Waiting for Results</strong><span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>";
+      } else if (official) {
+        disclaimer.innerHTML = "<strong>Official Results</strong><span>This competition is closed and the published results are official.</span>";
+      } else {
+        disclaimer.innerHTML = "<strong>Live Results</strong><span>Results update automatically as officials enter them. Rankings, qualification positions, and medal standings are provisional until the event is completed and verified.</span>";
+      }
     }
-
-    const selectedSection = section.toLowerCase();
     show("medals", false);
     if (selectedSection === "preliminary" || selectedSection === "prelims") {
       show("dashboard", false);
@@ -275,6 +284,42 @@
       link.append(copy, meta, make("span", "section-status-arrow", "→"));
       grid.append(link);
     });
+  }
+
+  function sectionHasPublishedResults(payload, selectedSection) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    if (selectedSection === "preliminary" || selectedSection === "prelims") {
+      return results.some(result => isPreliminaryStage(result.stage) && isIndividualType(result.type));
+    }
+    if (selectedSection === "finals" || selectedSection === "final") {
+      return results.some(result => isFinalStage(result.stage) && isIndividualType(result.type));
+    }
+    if (selectedSection === "doubles" || selectedSection === "double") {
+      return results.some(result => isDoublesType(result.type));
+    }
+    if (selectedSection === "relay" || selectedSection === "relays") {
+      return results.some(result => isRelayType(result.type));
+    }
+    if (selectedSection === "medals" || selectedSection === "medal-table") {
+      return results.some(result => isFinalStage(result.stage) && Number.isFinite(bestTime(result)));
+    }
+    if (selectedSection === "allaround" || selectedSection === "all-around") {
+      const completed = new Map();
+      results
+        .filter(result => isIndividualType(result.type))
+        .forEach(result => {
+          const event = allAroundEventKey(result.event);
+          const stage = isFinalStage(result.stage) ? "finals" : isPreliminaryStage(result.stage) ? "preliminary" : "";
+          const participant = String(result.participant || "");
+          if (!event || !stage || !participant || !Number.isFinite(bestTime(result))) return;
+          const key = `${participant}::${stage}`;
+          if (!completed.has(key)) completed.set(key, new Set());
+          completed.get(key).add(event);
+        });
+      return [...completed.values()].some(events =>
+        ALL_AROUND_EVENTS.every(event => events.has(event)));
+    }
+    return results.length > 0;
   }
 
   function competitionIsOfficial(payload) {
@@ -1275,7 +1320,7 @@
     connection.onreconnecting(() => setConnection("connecting", "Reconnecting"));
     connection.onreconnected(async () => {
       await connection.invoke("JoinCompetition", competitionId);
-      setConnection("live", "Live");
+      setConnection("live", "Connected");
       void refresh(false);
     });
     connection.onclose(() => setConnection("offline", "Auto refresh"));
@@ -1283,7 +1328,7 @@
     try {
       await connection.start();
       await connection.invoke("JoinCompetition", competitionId);
-      setConnection("live", "Live");
+      setConnection("live", "Connected");
     } catch {
       setConnection("offline", "Auto refresh");
       window.setTimeout(connectLiveUpdates, 10000);
