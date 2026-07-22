@@ -70,7 +70,7 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260722-empty-status/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260722-sample-validation/, "Results JavaScript changes must invalidate the browser cache.");
 assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
 assert.match(client, /renderAllAround\(payload, official\)/, "The All-Around route must render live standings.");
 assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three configured individual events.");
@@ -113,4 +113,6 @@ assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awa
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
 assert.match(adminHtml, /app\.js\?v=20260722-awards-fix/, "The Awards Planner fix must invalidate the browser cache.");
 
-require("./public-results-portal.sample-data.test.js");\n\nconsole.log("Public results portal and Awards Planner safety tests passed.");
+require("./public-results-portal.sample-data.test.js");
+
+console.log("Public results portal and Awards Planner safety tests passed.");
