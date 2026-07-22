@@ -245,7 +245,7 @@
         allAroundGroups.get(key).add(event);
       });
     allAroundGroups.forEach((events, key) => {
-      if (ALL_AROUND_EVENTS.every(event => events.has(event))) {
+      if (ALL_AROUND_EVENTS.every(event => events.has(event.key))) {
         allAroundParticipants.add(key.split("::")[0]);
       }
     });
@@ -317,7 +317,7 @@
           completed.get(key).add(event);
         });
       return [...completed.values()].some(events =>
-        ALL_AROUND_EVENTS.every(event => events.has(event)));
+        ALL_AROUND_EVENTS.every(event => events.has(event.key)));
     }
     return results.length > 0;
   }
