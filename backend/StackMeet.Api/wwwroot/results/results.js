@@ -85,13 +85,24 @@
     const selectedSection = section.toLowerCase();
     if (selectedSection === "preliminary" || selectedSection === "prelims") {
       show("dashboard", false);
+      show("finals", false);
       show("comingSoon", false);
       show("preliminary", true);
       renderPreliminary(payload, official);
       return;
     }
 
+    if (selectedSection === "finals" || selectedSection === "final") {
+      show("dashboard", false);
+      show("preliminary", false);
+      show("comingSoon", false);
+      show("finals", true);
+      renderFinals(payload, official);
+      return;
+    }
+
     show("preliminary", false);
+    show("finals", false);
     if (selectedSection !== "dashboard") {
       show("dashboard", false);
       show("comingSoon", true);
@@ -301,6 +312,132 @@
     return card;
   }
 
+  function renderFinals(payload, official) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
+    const finals = results.filter(result =>
+      isFinalStage(result.stage) && isIndividualType(result.type));
+
+    const groups = new Map();
+    finals.forEach(result => {
+      const stacker = stackerById.get(String(result.participant)) || {};
+      const division = String(stacker.division || "Open / Unassigned").trim();
+      const event = String(result.event || "Event").trim();
+      if (!groups.has(division)) groups.set(division, new Map());
+      if (!groups.get(division).has(event)) groups.get(division).set(event, []);
+      groups.get(division).get(event).push({ result, stacker, best: bestTime(result) });
+    });
+
+    const container = el("finalsGroups");
+    if (!container) return;
+    container.replaceChildren();
+    const eventCount = [...groups.values()].reduce((sum, events) => sum + events.size, 0);
+    text("finalsSummary", groups.size
+      ? `${groups.size} division${groups.size === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
+      : "No final results yet");
+
+    if (!groups.size) {
+      const empty = make("section", "panel empty-state compact");
+      empty.append(
+        make("span", "empty-icon clock", "↗"),
+        make("h2", "", "Final results are not available yet"),
+        make("p", "", "This page will update automatically when officials publish the first final result.")
+      );
+      container.append(empty);
+      return;
+    }
+
+    [...groups.entries()]
+      .sort(([left], [right]) => naturalCompare(left, right))
+      .forEach(([division, events]) => {
+        const divisionSection = make("section", "panel preliminary-division finals-division");
+        const heading = make("div", "division-heading finals-heading");
+        const titleBlock = make("div", "");
+        titleBlock.append(make("span", "eyebrow", "Division"), make("h2", "", division));
+        const entryCount = [...events.values()].reduce((sum, rows) => sum + rows.length, 0);
+        heading.append(titleBlock, make("span", "division-count", `${entryCount} entr${entryCount === 1 ? "y" : "ies"}`));
+        divisionSection.append(heading);
+
+        const eventList = make("div", "event-list");
+        [...events.entries()]
+          .sort(([left], [right]) => naturalCompare(left, right))
+          .forEach(([eventName, rows]) => eventList.append(renderFinalEvent(eventName, rows, official)));
+        divisionSection.append(eventList);
+        container.append(divisionSection);
+      });
+  }
+
+  function renderFinalEvent(eventName, rows, official) {
+    const card = make("article", "results-event final-event");
+    const heading = make("div", "event-heading");
+    const eventCopy = make("div", "");
+    eventCopy.append(make("span", "eyebrow", "Final event"), make("h3", "", eventName));
+    heading.append(eventCopy, make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional"));
+    card.append(heading);
+
+    rows.sort((left, right) => {
+      const leftValid = Number.isFinite(left.best);
+      const rightValid = Number.isFinite(right.best);
+      if (leftValid !== rightValid) return leftValid ? -1 : 1;
+      if (leftValid && left.best !== right.best) return left.best - right.best;
+      return naturalCompare(left.stacker.name || left.result.participant, right.stacker.name || right.result.participant);
+    });
+
+    const tableWrap = make("div", "results-table-wrap");
+    const table = make("table", "results-table finals-table");
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Place", "Stacker", "Organization", "Best", "Status"].forEach(label => headRow.append(make("th", "", label)));
+    head.append(headRow);
+    table.append(head);
+
+    const body = document.createElement("tbody");
+    let previousBest = Number.NaN;
+    let previousRank = 0;
+    rows.forEach((row, index) => {
+      const valid = Number.isFinite(row.best);
+      const rank = valid && row.best === previousBest ? previousRank : index + 1;
+      if (valid) {
+        previousBest = row.best;
+        previousRank = rank;
+      }
+
+      const tr = document.createElement("tr");
+      if (valid && rank <= 3) tr.className = `medal-row medal-${rank}`;
+      const rankCell = make("td", `rank-cell ${valid && rank <= 3 ? "medal-rank" : ""}`, valid ? medalPlace(rank) : "—");
+      const nameCell = make("td", "stacker-cell");
+      nameCell.append(
+        make("strong", "", row.stacker.name || row.result.participant || "Stacker"),
+        make("span", "", row.result.participant || "")
+      );
+      tr.append(
+        rankCell,
+        nameCell,
+        make("td", "organization-cell", row.stacker.org || "Independent"),
+        make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
+        make("td", "status-cell", official ? "Official" : "Provisional")
+      );
+      body.append(tr);
+    });
+    table.append(body);
+    tableWrap.append(table);
+    card.append(tableWrap);
+    return card;
+  }
+
+  function medalPlace(rank) {
+    if (rank === 1) return "🥇 1";
+    if (rank === 2) return "🥈 2";
+    if (rank === 3) return "🥉 3";
+    return String(rank);
+  }
+
+  function isFinalStage(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "finals" || normalized === "final";
+  }
+
   function isPreliminaryStage(value) {
     const normalized = String(value || "").trim().toLowerCase();
     return normalized === "prelims" || normalized === "preliminary" || normalized === "prelim";
@@ -400,6 +537,7 @@
     show("loadingState", false);
     show("dashboard", false);
     show("preliminary", false);
+    show("finals", false);
     show("comingSoon", false);
     show("errorState", true);
     text("errorMessage", message);
