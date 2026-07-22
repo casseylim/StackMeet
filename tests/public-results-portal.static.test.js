@@ -12,6 +12,9 @@ const hub = read("backend/StackMeet.Api/Hubs/ResultsHub.cs");
 const html = read("backend/StackMeet.Api/wwwroot/results/index.html");
 const client = read("backend/StackMeet.Api/wwwroot/results/results.js");
 const styles = read("backend/StackMeet.Api/wwwroot/results/results.css");
+const adminHtml = read("backend/StackMeet.Api/wwwroot/index.html");
+const adminClient = read("backend/StackMeet.Api/wwwroot/app.js");
+const sourceAdminClient = read("app.js");
 
 assert.match(program, /AddSignalR\(\)/, "SignalR must be registered.");
 assert.match(program, /MapHub<ResultsHub>\("\/hubs\/results"\)/, "The results hub must be mapped.");
@@ -53,7 +56,7 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260722-7/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260722-medals-awards/, "Results JavaScript changes must invalidate the browser cache.");
 assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
 assert.match(client, /renderAllAround\(payload, official\)/, "The All-Around route must render live standings.");
 assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three configured individual events.");
@@ -71,7 +74,7 @@ assert.match(client, /row\.best === previousBest \? previousRank/, "Tied Doubles
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Doubles places must show podium indicators.");
 assert.match(client, /team\.one, team\.two/, "Doubles standings must resolve both team members.");
 assert.match(styles, /\.doubles-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Doubles standings must use one column.");
-assert.match(html, /results\.css\?v=20260722-7/, "Doubles styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=20260722-medals-awards/, "Doubles styles must invalidate the browser cache.");
 assert.match(html, /id="relayGroups"/, "The Relay page must have a standings container.");
 assert.match(client, /renderRelay\(payload, official\)/, "The Relay route must render live standings.");
 assert.match(client, /isRelayType/, "Only Relay result types may enter Relay standings.");
@@ -79,6 +82,21 @@ assert.match(client, /team\.timedRelayDivision \|\| team\.division/, "Configured
 assert.match(client, /team\.members[\s\S]*team\.one, team\.two, team\.three/, "Relay standings must resolve array and positional team members.");
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Relay places must show podium indicators.");
 assert.match(styles, /\.relay-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Relay standings must use one column.");
-assert.match(html, /results\.css\?v=20260722-7/, "Relay styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=20260722-medals-awards/, "Relay styles must invalidate the browser cache.");
+assert.match(html, /id="medalRows"/, "The Medal Table must have a standings body.");
+assert.match(client, /renderMedals\(payload, official\)/, "The Medals route must render live standings.");
+assert.match(client, /filter\(result => isFinalStage\(result\.stage\)\)/, "Only Final results may contribute to the Medal Table.");
+assert.match(client, /rank > 3/, "Only podium ranks may contribute medals.");
+assert.match(client, /right\.gold - left\.gold[\s\S]*right\.silver - left\.silver[\s\S]*right\.bronze - left\.bronze/, "Organizations must be ordered by gold, silver, then bronze.");
+assert.match(client, /organizations\.join\("\s*\/\s*"\)/, "Mixed-organization teams must remain a combined Medal Table entry.");
+assert.match(styles, /\.medal-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Medal Table standings must use one column.");
 
-console.log("Public results portal static safety tests passed.");
+assert.equal(adminClient, sourceAdminClient, "Source and hosted admin clients must remain synchronized.");
+assert.doesNotMatch(adminClient, /generatedDivisions\(/, "Awards Planner must not call the nonexistent generatedDivisions helper.");
+assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place changes must refresh the planner controls.");
+assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
+assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
+assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
+assert.match(adminHtml, /app\.js\?v=20260722-awards-fix/, "The Awards Planner fix must invalidate the browser cache.");
+
+console.log("Public results portal and Awards Planner safety tests passed.");
