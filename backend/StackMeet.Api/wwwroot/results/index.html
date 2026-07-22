@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07152e">
+  <meta name="description" content="Live sport stacking competition results">
+  <title>StackMeet Live Results</title>
+  <link rel="stylesheet" href="/results/results.css?v=20260722-1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="brand-row">
+        <a class="brand" href="/" aria-label="StackMeet home">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>StackMeet</span>
+        </a>
+        <span id="connectionStatus" class="connection" data-state="connecting">
+          <span class="connection-dot"></span><span>Connecting</span>
+        </span>
+      </div>
+      <div class="hero-copy">
+        <div class="status-row">
+          <span id="resultStatus" class="result-status live">Live results</span>
+          <span id="lastUpdated">Waiting for results…</span>
+        </div>
+        <h1 id="competitionName">Competition Results</h1>
+        <p id="competitionMeta" class="competition-meta"></p>
+      </div>
+    </header>
+
+    <main>
+      <aside id="disclaimer" class="disclaimer" role="status">
+        <strong>Live Results</strong>
+        Results update automatically as officials enter them. Rankings, qualification positions, and medal standings are provisional until the event is completed and verified.
+      </aside>
+
+      <nav class="section-nav" aria-label="Results sections">
+        <a class="active" data-section="Dashboard" href="./Results">Dashboard</a>
+        <a data-section="Preliminary" href="./Results/Preliminary">Preliminary</a>
+        <a data-section="Finals" href="./Results/Finals">Finals</a>
+        <a data-section="AllAround" href="./Results/AllAround">All Around</a>
+        <a data-section="Doubles" href="./Results/Doubles">Doubles</a>
+        <a data-section="Relay" href="./Results/Relay">Relay</a>
+        <a data-section="Medals" href="./Results/Medals">Medals</a>
+      </nav>
+
+      <section id="loadingState" class="panel loading-panel" aria-live="polite">
+        <span class="spinner"></span>
+        <p>Loading the latest competition results…</p>
+      </section>
+
+      <section id="errorState" class="panel empty-state" hidden>
+        <span class="empty-icon" aria-hidden="true">!</span>
+        <h2>Results are not available yet</h2>
+        <p id="errorMessage">Please check the competition link or try again shortly.</p>
+        <button id="retryButton" type="button">Try again</button>
+      </section>
+
+      <div id="dashboard" hidden>
+        <section class="summary-grid">
+          <article class="summary-card accent">
+            <span class="card-label">Current stage</span>
+            <strong id="currentStage">Preliminary</strong>
+            <span id="currentEvent">Waiting for the first result</span>
+          </article>
+          <article class="summary-card">
+            <span class="card-label">Results entered</span>
+            <strong id="resultCount">0</strong>
+            <span id="participantCount">0 participants</span>
+          </article>
+          <article class="summary-card">
+            <span class="card-label">Latest update</span>
+            <strong id="latestTime">—</strong>
+            <span>Automatic live refresh</span>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <article class="panel leader-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Current leader</span>
+                <h2 id="leaderEvent">Awaiting results</h2>
+              </div>
+              <span class="medal" aria-hidden="true">1</span>
+            </div>
+            <div id="leaderCard" class="leader-card empty">
+              <div class="avatar">—</div>
+              <div>
+                <strong>No result entered yet</strong>
+                <span>Live standings will appear here.</span>
+              </div>
+              <b>—</b>
+            </div>
+            <div class="progress-block">
+              <div class="progress-copy">
+                <span>Competition progress</span>
+                <strong id="progressText">0 results</strong>
+              </div>
+              <div class="progress-track"><span id="progressBar"></span></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Just published</span>
+                <h2>Latest results</h2>
+              </div>
+              <span class="live-pulse">Live</span>
+            </div>
+            <ol id="latestResults" class="latest-list"></ol>
+          </article>
+        </section>
+
+        <section class="panel stage-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">Competition overview</span>
+              <h2>Results by stage</h2>
+            </div>
+          </div>
+          <div id="stageStats" class="stage-stats"></div>
+        </section>
+      </div>
+
+      <section id="comingSoon" class="panel empty-state" hidden>
+        <span class="empty-icon clock" aria-hidden="true">↗</span>
+        <h2 id="sectionTitle">Results section</h2>
+        <p>This section is part of the next portal milestone. The live dashboard is already connected to official result saves.</p>
+        <a class="back-link" href="./Results">Return to dashboard</a>
+      </section>
+    </main>
+
+    <footer>
+      <span>Powered by StackMeet</span>
+      <span id="competitionCode"></span>
+    </footer>
+  </div>
+  <script src="/results/vendor/signalr.min.js"></script>
+  <script src="/results/results.js?v=20260722-1"></script>
+</body>
+</html>
