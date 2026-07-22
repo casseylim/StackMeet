@@ -53,7 +53,7 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260722-6/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260722-7/, "Results JavaScript changes must invalidate the browser cache.");
 assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
 assert.match(client, /renderAllAround\(payload, official\)/, "The All-Around route must render live standings.");
 assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three configured individual events.");
@@ -71,6 +71,14 @@ assert.match(client, /row\.best === previousBest \? previousRank/, "Tied Doubles
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Doubles places must show podium indicators.");
 assert.match(client, /team\.one, team\.two/, "Doubles standings must resolve both team members.");
 assert.match(styles, /\.doubles-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Doubles standings must use one column.");
-assert.match(html, /results\.css\?v=20260722-6/, "Doubles styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=20260722-7/, "Doubles styles must invalidate the browser cache.");
+assert.match(html, /id="relayGroups"/, "The Relay page must have a standings container.");
+assert.match(client, /renderRelay\(payload, official\)/, "The Relay route must render live standings.");
+assert.match(client, /isRelayType/, "Only Relay result types may enter Relay standings.");
+assert.match(client, /team\.timedRelayDivision \|\| team\.division/, "Configured timed Relay divisions must remain separate.");
+assert.match(client, /team\.members[\s\S]*team\.one, team\.two, team\.three/, "Relay standings must resolve array and positional team members.");
+assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Relay places must show podium indicators.");
+assert.match(styles, /\.relay-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Relay standings must use one column.");
+assert.match(html, /results\.css\?v=20260722-7/, "Relay styles must invalidate the browser cache.");
 
 console.log("Public results portal static safety tests passed.");
