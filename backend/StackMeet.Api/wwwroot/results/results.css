@@ -141,6 +141,14 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   background: #e8f3ff; font-size: .76rem; font-weight: 800;
 }
 .preliminary-groups { display: grid; gap: 1rem; }
+.finals-groups { display: grid; gap: 1rem; }
+.finals-heading { background: linear-gradient(120deg, #4b2d04, #9a6908); }
+.finals-heading .eyebrow { color: #ffe095; }
+.finals-table .medal-row td { background: #fffdf7; }
+.finals-table .medal-1 td { background: #fff9e8; }
+.finals-table .medal-2 td { background: #f8fafc; }
+.finals-table .medal-3 td { background: #fff8f1; }
+.medal-rank { white-space: nowrap; }
 .preliminary-division { overflow: hidden; box-shadow: 0 8px 26px rgba(7, 21, 46, .07); }
 .division-heading {
   display: flex; justify-content: space-between; align-items: center; gap: 1rem;
