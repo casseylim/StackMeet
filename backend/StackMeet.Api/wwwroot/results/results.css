@@ -42,6 +42,7 @@ button, a { font: inherit; }
 .hero-copy { max-width: 880px; margin-top: 3rem; }
 .status-row { display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; color: #b7c6dc; font-size: .88rem; }
 .result-status { display: inline-flex; align-items: center; gap: .45rem; border-radius: 999px; padding: .42rem .75rem; font-size: .74rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.result-status.waiting { color: #ffe2a8; background: rgba(246,170,54,.14); border: 1px solid rgba(255,205,121,.28); }
 .result-status.live { color: #87ffd0; background: rgba(22,184,119,.14); border: 1px solid rgba(82,245,173,.28); }
 .result-status.live::before { content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: #42eba7; animation: pulse 1.8s infinite; }
 .result-status.official { color: #061f16; background: #57e7ac; }
