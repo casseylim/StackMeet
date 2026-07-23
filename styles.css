@@ -236,7 +236,7 @@ h2 { margin-bottom: 0; font-size: 1.25rem; letter-spacing: 0; }
 }
 
 .metric-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 14px;
 }
 

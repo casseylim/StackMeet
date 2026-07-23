@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.16";
+const STACKMEET_APP_VERSION = "0.9.17";
 
 function brandText(key) {
   return branding[key] || "";
@@ -1211,6 +1211,7 @@ function renderDashboard() {
     stackers: state.stackers.length,
     gender: `${countBy("gender", "F")} Female // ${countBy("gender", "M")} Male`,
     doubles: state.doubles.length,
+    relay: completedRelays().length,
     divisions: state.divisions.length,
     fastest: fmt(Math.min(...state.results.map(official).filter(Number.isFinite)))
   };
@@ -1224,7 +1225,6 @@ function renderDashboard() {
       <div class="list-row"><span>Date</span><strong>${esc(competition.startDate)} to ${esc(competition.endDate)}</strong></div>
       <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
       <div class="list-row"><span>Rounds</span><strong>${state.settings.prelims} prelim / ${state.settings.finals} final</strong></div>
-      <div class="list-row"><span>Data Entry</span><strong>${state.settings.paperless === "Yes" ? "Paperless" : "Time sheet ID"}</strong></div>
       <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
     <div class="results-share no-auto-translate">
@@ -1235,7 +1235,6 @@ function renderDashboard() {
       <img src="${esc(qrCodeUrl(resultsUrl))}" alt="QR code for public results" loading="lazy" />
     </div>
   `;
-  renderNotifications();
 }
 
 function routeTitle(key) {

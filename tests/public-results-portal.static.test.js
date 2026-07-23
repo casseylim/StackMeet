@@ -121,11 +121,15 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260723-a4-even-attempt-boxes/, "The Dashboard version and A4 equal attempt box fix must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260723-dashboard-relay-metric/, "The Dashboard version and relay metric update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.16"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.17"/, "Dashboard must show the current deployed app version.");
+assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
+assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
+assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
+assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.metric-grid \{[\s\S]*repeat\(5/, "Dashboard metric grid must fit five summary cards.");
 assert.match(adminClient, /function routeIsAvailable\(\[key\]\) \{\s*return true;\s*\}/, "Doubles and Relay team builders must stay visible even when event groups are toggled.");
 assert.match(adminClient, /\["reports", "Reports"\]/, "Reports must be a clean top-level sidebar route.");
 assert.match(adminClient, /\["stackers", "Participant"\]/, "Participant must be a clean top-level sidebar route.");
