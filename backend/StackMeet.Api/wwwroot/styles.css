@@ -1351,12 +1351,43 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .display-board {
+  position: relative;
   min-height: calc(100vh - 150px);
-  padding: 28px;
+  padding: 28px 28px 64px;
   border-radius: 8px;
   color: white;
   background: #05080d;
   box-shadow: var(--shadow);
+}
+
+.leaderboard-mode {
+  overflow: hidden;
+  background: #05080d;
+}
+
+.leaderboard-mode .sidebar,
+.leaderboard-mode .topbar,
+.leaderboard-mode .hero {
+  display: none;
+}
+
+.leaderboard-mode .app,
+.leaderboard-mode .main,
+.leaderboard-mode #view {
+  display: block;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+}
+
+.leaderboard-mode .main {
+  padding: 0;
+}
+
+.leaderboard-mode .display-board {
+  min-height: 100vh;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .display-board.light {
@@ -1370,16 +1401,96 @@ tr:last-child td { border-bottom: 0; }
   text-transform: uppercase;
 }
 
+.display-board h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.6rem, 4vw, 3rem);
+}
+
+.leader-subtitle {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 18px;
+  color: #9be8ef;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.leader-subtitle span {
+  color: #ffd15c;
+}
+
+.leader-empty {
+  margin-top: 28px;
+  color: #dce6ef;
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.leader-header,
 .leader-row {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 64px minmax(0, 1fr) 160px 120px;
   gap: 14px;
   align-items: center;
-  min-height: 64px;
+}
+
+.leader-header {
+  padding: 0 12px 8px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.leader-header span:nth-child(3),
+.leader-header span:nth-child(4),
+.leader-row > strong,
+.leader-row > span {
+  text-align: right;
+}
+
+.leader-row {
+  min-height: 58px;
   margin-top: 10px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
+  padding: 8px 12px;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.45);
+  border-radius: 0;
+  background: transparent;
+}
+
+.leader-row strong {
+  font-size: 1.28rem;
+}
+
+.leader-row small {
+  color: #aaa;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.leader-row > span {
+  color: #65d7ff;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.leader-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  color: #fff;
+  background: #000;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 1rem;
+  font-weight: 800;
 }
 
 .light .leader-row {
@@ -1395,6 +1506,13 @@ tr:last-child td { border-bottom: 0; }
   color: var(--ink);
   background: #ffd15c;
   font-weight: 900;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .report-filters {

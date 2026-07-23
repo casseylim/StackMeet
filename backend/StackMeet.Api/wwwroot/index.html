@@ -164,7 +164,10 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Leader Board</h2>
-          <button class="primary" data-action="save-leaderboard" type="button">Save Display</button>
+          <div class="action-row">
+            <button class="ghost" data-action="open-leaderboard" type="button">Open Display</button>
+            <button class="primary" data-action="save-leaderboard" type="button">Save Display</button>
+          </div>
         </div>
         <div class="form-grid">
           <label>Type<select id="leaderType"><option>Divisional Results</option><option>Overall Results</option><option>SOC</option><option>Tournament Logo</option></select></label>
@@ -570,6 +573,6 @@
     <script src="js/storage/Repository.js?v=20260714-doubles4"></script>
     <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
     <script src="js/reports/FinalsReportEngine.js?v=20260722-report-engine-fix"></script>
-    <script src="app.js?v=20260723-dashboard-relay-metric"></script>
+    <script src="app.js?v=20260723-leaderboard-loop"></script>
   </body>
 </html>

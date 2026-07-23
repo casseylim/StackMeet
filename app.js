@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.17";
+const STACKMEET_APP_VERSION = "0.9.18";
 
 function brandText(key) {
   return branding[key] || "";
@@ -579,6 +579,8 @@ let stackerDoubleEditorOpen = false;
 let relayTab = "ready";
 let relayFlashMessage = null;
 let editingRelayId = "";
+let leaderboardTimer = null;
+let leaderboardSlideIndex = 0;
 
 const routes = [
   ["dashboard", "Dashboard"],
@@ -1085,7 +1087,9 @@ function eventGroupEnabled(group) {
 }
 
 function render() {
+  if (route !== "leaderboard") stopLeaderboardLoop();
   if (!routeIsAvailable([route])) route = "dashboard";
+  document.body.classList.toggle("leaderboard-mode", route === "leaderboard");
   applyBrandingChrome();
   renderNav();
   pageTitle.textContent = t(routeTitle(route));
@@ -3180,14 +3184,147 @@ function printFinalsReport() {
 }
 
 function renderLeaderboard() {
-  const rows = bestResults().slice(0, Number(state.leaderboard.limit));
+  stopLeaderboardLoop();
   const board = document.getElementById("leaderDisplay");
-  board.classList.toggle("light", state.leaderboard.bg === "White");
-  document.getElementById("leaderCaption").textContent = `${state.leaderboard.stage} - ${state.leaderboard.type}`;
-  document.getElementById("leaderTitle").textContent = state.settings.name;
-  document.getElementById("leaderRows").innerHTML = rows.length ? rows.map((r, i) => `
-    <div class="leader-row"><div class="rank">${i + 1}</div><div><strong>${esc(participantName(r.type, r.participant))}</strong><br><small>${esc(r.type)} // ${esc(r.event)}</small></div><strong>${fmt(official(r))}</strong></div>
-  `).join("") : `<p>No results yet.</p>`;
+  board.classList.remove("light");
+  const slides = leaderboardSlides();
+  leaderboardSlideIndex = Math.min(leaderboardSlideIndex, Math.max(0, slides.length - 1));
+  renderLeaderboardSlide(slides, leaderboardSlideIndex);
+  if (slides.length > 1) {
+    leaderboardTimer = setInterval(() => {
+      if (route !== "leaderboard") return stopLeaderboardLoop();
+      leaderboardSlideIndex = (leaderboardSlideIndex + 1) % slides.length;
+      renderLeaderboardSlide(slides, leaderboardSlideIndex);
+    }, leaderboardPauseMs());
+  }
+}
+
+function stopLeaderboardLoop() {
+  if (!leaderboardTimer) return;
+  clearInterval(leaderboardTimer);
+  leaderboardTimer = null;
+}
+
+function leaderboardPauseMs() {
+  const seconds = Number(String(state.leaderboard.pause || "").match(/\d+/)?.[0]) || 8;
+  return Math.max(1, seconds) * 1000;
+}
+
+function renderLeaderboardSlide(slides, index) {
+  const slide = slides[index] || emptyLeaderboardSlide();
+  const nextSlide = slides.length > 1 ? slides[(index + 1) % slides.length] : null;
+  document.getElementById("leaderCaption").textContent = slide.caption;
+  document.getElementById("leaderTitle").textContent = slide.title;
+  document.getElementById("leaderRows").innerHTML = slide.rows.length ? `
+    <div class="leader-subtitle"><span>${esc(slide.subtitle)}</span><span>${esc(index + 1)} / ${esc(slides.length)}</span></div>
+    <div class="leader-header"><span></span><span>Stacker</span><span>Time</span><span>Gap</span></div>
+    ${slide.rows.map(row => `
+      <div class="leader-row">
+        <div class="rank">${esc(row.rank)}</div>
+        <div><strong>${esc(row.name)}</strong><br><small>${esc(row.meta)}</small></div>
+        <strong>${esc(row.time)}</strong>
+        <span>${esc(row.gap)}</span>
+      </div>
+    `).join("")}
+    <footer class="leader-footer"><span>Results are not final, times/rankings may change.</span><span>${nextSlide ? `Next: ${esc(nextSlide.title)}` : ""}</span></footer>
+  ` : `
+    <div class="leader-empty">${esc(slide.subtitle || "No results yet.")}</div>
+    <footer class="leader-footer"><span>Results are not final, times/rankings may change.</span><span>${nextSlide ? `Next: ${esc(nextSlide.title)}` : ""}</span></footer>
+  `;
+}
+
+function emptyLeaderboardSlide() {
+  return { caption: `${state.leaderboard.stage} - ${state.leaderboard.type}`, title: state.settings.name, subtitle: "No results yet.", rows: [] };
+}
+
+function leaderboardSlides() {
+  if (state.leaderboard.type === "Tournament Logo") {
+    return [{ caption: "Tournament", title: state.settings.name, subtitle: brandText("reportHeader"), rows: [] }];
+  }
+  const stage = state.leaderboard.type === "SOC" ? "SOC" : state.leaderboard.stage;
+  const rows = state.results
+    .filter(result => leaderboardStageMatches(result.stage, stage) && Number.isFinite(official(result)))
+    .map(result => competitionRowFromResult(result))
+    .filter(row => Number.isFinite(row.time));
+  if (!rows.length) return [emptyLeaderboardSlide()];
+  const grouped = leaderboardGroupedRows(rows);
+  return grouped.map(group => ({
+    caption: state.settings.name,
+    title: leaderboardSlideTitle(stage, group),
+    subtitle: group.division === "Overall" ? state.leaderboard.type : group.division,
+    rows: leaderboardRankRows(group.rows).slice(0, Number(state.leaderboard.limit) || 10)
+  }));
+}
+
+function leaderboardStageMatches(resultStage, selectedStage) {
+  return String(resultStage || "").toLowerCase() === String(selectedStage || "").toLowerCase();
+}
+
+function leaderboardGroupedRows(rows) {
+  const divisionMode = state.leaderboard.type === "Divisional Results";
+  const groups = rows.reduce((acc, row) => {
+    const category = leaderboardCategory(row);
+    const division = divisionMode ? row.division || "Open" : "Overall";
+    const key = `${division}|${category}`;
+    if (!acc.has(key)) acc.set(key, { division, category, rows: [] });
+    acc.get(key).rows.push(row);
+    return acc;
+  }, new Map());
+  return [...groups.values()]
+    .sort((left, right) => compareDivisionNames(left.division, right.division) || leaderboardCategorySort(left.category) - leaderboardCategorySort(right.category) || left.category.localeCompare(right.category, undefined, { numeric: true, sensitivity: "base" }))
+    .map(group => ({
+      division: group.division,
+      category: group.category,
+      rows: group.rows
+    }));
+}
+
+function leaderboardCategory(row) {
+  const type = row.type === "Timed Relay" ? "Relay" : row.type;
+  return `${type} - ${row.event}`;
+}
+
+function leaderboardSlideTitle(stage, group) {
+  const [type, ...eventParts] = String(group.category || "").split(" - ");
+  const event = eventParts.join(" - ");
+  const typeLabel = type === "Individual" ? "Individuals" : type;
+  const stageLabel = stage === "Prelims" ? "Prelims" : stage === "Finals" ? "Finals" : stage;
+  return [stageLabel, typeLabel, group.division === "Overall" ? "" : group.division, event].filter(Boolean).join(" // ");
+}
+
+function leaderboardCategorySort(category) {
+  const text = String(category || "");
+  const typeOrder = text.startsWith("Individual") ? 1 : text.startsWith("Doubles") ? 2 : text.startsWith("Relay") ? 3 : 9;
+  const event = text.split(" - ").slice(1).join(" - ");
+  return typeOrder * 10 + finalEventSort(event);
+}
+
+function leaderboardRankRows(rows) {
+  const bestByParticipant = new Map();
+  rows.forEach(row => {
+    const current = bestByParticipant.get(row.participant);
+    if (!current || compareCompetitionRows(row, current) < 0) bestByParticipant.set(row.participant, row);
+  });
+  const sorted = [...bestByParticipant.values()].sort(compareCompetitionRows);
+  let previousTime = NaN;
+  let previousRank = 0;
+  const leaderTime = sorted[0]?.time;
+  return sorted.map((row, index) => {
+    const rank = row.time === previousTime ? previousRank : index + 1;
+    previousTime = row.time;
+    previousRank = rank;
+    return {
+      rank,
+      name: row.name,
+      meta: [row.org || row.country || "", row.participant ? `ID ${row.participant}` : ""].filter(Boolean).join(" / "),
+      time: leaderboardTime(row.time),
+      gap: row.time === leaderTime ? "" : `+${leaderboardTime(row.time - leaderTime)}`
+    };
+  });
+}
+
+function leaderboardTime(value) {
+  return Number.isFinite(value) ? value.toFixed(3) : "--";
 }
 
 function renderUsers() {
@@ -3560,6 +3697,7 @@ function competitionRowFromResult(result, eventOverride = "") {
   const time = official(result);
   return {
     rank: 0,
+    type: result.type,
     participant: result.participant,
     event: eventOverride || result.event,
     stage: result.stage,
@@ -4245,6 +4383,7 @@ document.addEventListener("click", async (event) => {
   if (action === "save-language") saveLanguage();
   if (action === "save-events") saveEvents();
   if (action === "save-leaderboard") saveLeaderboard();
+  if (action === "open-leaderboard") { await openLeaderboardDisplay(); shouldRender = false; shouldSave = false; }
   if (action === "save-divisions") saveDivisions();
   if (action === "add-division") addDivision();
   if (action === "remove-division") removeDivision(target.dataset.division);
@@ -4637,6 +4776,14 @@ function saveLeaderboard() {
     pause: val("leaderPause"),
     limit: Number(val("leaderLimit"))
   };
+}
+
+async function openLeaderboardDisplay() {
+  saveLeaderboard();
+  await saveState();
+  const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
+  const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
+  if (!display) alert("Please allow popups for StackMeet, then click Open Display again.");
 }
 
 function addDivision() {
