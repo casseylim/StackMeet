@@ -121,11 +121,11 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260723-leaderboard-compact/, "The compact leaderboard display update must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260723-relay-ready-visible/, "The relay ready-tab update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.20"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.21"/, "Dashboard must show the current deployed app version.");
 assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
 assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
 assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
@@ -173,6 +173,7 @@ assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /grid-template-co
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /min-height: 3\.35em;/, "Leader Board rows must scale down with the configured font size.");
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /width: 2\.75em;[\s\S]*height: 2\.75em;/, "Leader Board rank boxes must scale down with the configured font size.");
 assert.match(adminClient, /participantAvailability[\s\S]*state\.stackers\.length > 0[\s\S]*printableDoublesTeams\(\)\.length > 0[\s\S]*completedRelays\(\)\.length > 0/, "Print Center must hide or show sheet buttons from participant registrations.");
+assert.match(adminClient, /if \(relayTab === "ready"\) return sorted\.filter\(relayCanCompete\);/, "Relay Ready tab must show complete teams even after competition start locks them.");
 assert.match(adminClient, /function registeredDoublesFromStackers/, "Print Center must detect registered Doubles from imported participant registration fields.");
 assert.match(adminClient, /function findDoublesTeam/, "Doubles Finals must resolve registered Doubles team names and divisions.");
 assert.match(adminClient, /timeSheetEvents\("Doubles", \["Cycle"\]\)/, "Doubles preliminary time sheets must render default attempt rows when setup has no explicit events.");

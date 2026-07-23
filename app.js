@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.20";
+const STACKMEET_APP_VERSION = "0.9.21";
 
 function brandText(key) {
   return branding[key] || "";
@@ -1769,7 +1769,7 @@ function showSelectedRelayWarnings() {
 
 function filteredRelaysForTab() {
   const sorted = [...state.relays].sort((a, b) => stackerIdNumber(a.id) - stackerIdNumber(b.id));
-  if (relayTab === "ready") return sorted.filter(team => relayTeamStatus(team) === "Ready");
+  if (relayTab === "ready") return sorted.filter(relayCanCompete);
   if (relayTab === "incomplete") return sorted.filter(team => relayTeamStatus(team) === "Incomplete");
   if (relayTab === "draft") return sorted.filter(team => relayTeamStatus(team) === "Draft");
   if (relayTab === "locked") return sorted.filter(team => relayTeamStatus(team) === "Locked");
