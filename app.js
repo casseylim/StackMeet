@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.18";
+const STACKMEET_APP_VERSION = "0.9.19";
 
 function brandText(key) {
   return branding[key] || "";
@@ -471,7 +471,9 @@ const demo = {
     stage: "Prelims",
     bg: "Black",
     color: "Blue",
-    pause: "8 seconds",
+    pause: 8,
+    fontSize: 1,
+    progressHeight: 4,
     limit: 10
   },
   awards: structuredClone(defaultAwards),
@@ -647,6 +649,7 @@ function normalizeState(data) {
   data.divisionSettings.specialChildParentDoubles = data.divisionSettings.specialChildParentDoubles || structuredClone(defaultDivisionSettings.specialChildParentDoubles);
   data.divisionSettings.timedRelay = data.divisionSettings.timedRelay || structuredClone(defaultDivisionSettings.timedRelay);
   data.divisionSettings.headToHeadRelay = data.divisionSettings.headToHeadRelay || structuredClone(defaultDivisionSettings.headToHeadRelay);
+  data.leaderboard = normalizeLeaderboard(data.leaderboard);
   data.awards = normalizeAwards(data.awards);
   data.divisions = generateDivisionNames(data.divisionSettings);
   data.stackers = (data.stackers || []).map(stacker => ({
@@ -672,6 +675,30 @@ function normalizeState(data) {
   }));
   data.divisions = appendStandardImportedDivisions(data.divisions, data.stackers);
   return data;
+}
+
+function normalizeLeaderboard(leaderboard = {}) {
+  const merged = {
+    ...structuredClone(demo.leaderboard),
+    ...leaderboard
+  };
+  merged.pause = clampNumber(numericFromSetting(merged.pause), 8, 1, 300);
+  merged.fontSize = clampNumber(numericFromSetting(merged.fontSize), 1, 0.5, 2);
+  merged.progressHeight = clampNumber(numericFromSetting(merged.progressHeight), 4, 1, 20);
+  merged.limit = clampNumber(numericFromSetting(merged.limit), 10, 3, 50);
+  return merged;
+}
+
+function numericFromSetting(value) {
+  if (typeof value === "number") return value;
+  const match = String(value || "").match(/[\d.]+/);
+  return match ? Number(match[0]) : NaN;
+}
+
+function clampNumber(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(max, Math.max(min, numeric));
 }
 
 function currentCompetitionKey() {
@@ -1279,8 +1306,10 @@ function renderSettings() {
   setValue("settingTimeSheetInput", state.settings.timeSheetInput);
   setValue("leaderType", state.leaderboard.type);
   setValue("leaderStage", state.leaderboard.stage);
+  setValue("leaderFontSize", state.leaderboard.fontSize);
   setValue("leaderBg", state.leaderboard.bg);
   setValue("leaderColor", state.leaderboard.color);
+  setValue("leaderProgressHeight", state.leaderboard.progressHeight);
   setValue("leaderPause", state.leaderboard.pause);
   setValue("leaderLimit", state.leaderboard.limit);
 
@@ -3187,35 +3216,46 @@ function renderLeaderboard() {
   stopLeaderboardLoop();
   const board = document.getElementById("leaderDisplay");
   board.classList.remove("light");
+  board.style.fontSize = `${leaderboardFontScale()}rem`;
+  board.style.setProperty("--leader-progress-color", leaderboardProgressColor());
+  board.style.setProperty("--leader-progress-height", `${leaderboardProgressHeight()}px`);
   const slides = leaderboardSlides();
   leaderboardSlideIndex = Math.min(leaderboardSlideIndex, Math.max(0, slides.length - 1));
   renderLeaderboardSlide(slides, leaderboardSlideIndex);
-  if (slides.length > 1) {
-    leaderboardTimer = setInterval(() => {
-      if (route !== "leaderboard") return stopLeaderboardLoop();
-      leaderboardSlideIndex = (leaderboardSlideIndex + 1) % slides.length;
-      renderLeaderboardSlide(slides, leaderboardSlideIndex);
-    }, leaderboardPauseMs());
-  }
+  scheduleLeaderboardSlide(slides);
 }
 
 function stopLeaderboardLoop() {
   if (!leaderboardTimer) return;
-  clearInterval(leaderboardTimer);
+  clearTimeout(leaderboardTimer);
   leaderboardTimer = null;
 }
 
-function leaderboardPauseMs() {
-  const seconds = Number(String(state.leaderboard.pause || "").match(/\d+/)?.[0]) || 8;
+function scheduleLeaderboardSlide(slides) {
+  if (slides.length <= 1) return;
+  const slide = slides[leaderboardSlideIndex] || emptyLeaderboardSlide();
+  leaderboardTimer = setTimeout(() => {
+    if (route !== "leaderboard") return stopLeaderboardLoop();
+    leaderboardSlideIndex = (leaderboardSlideIndex + 1) % slides.length;
+    renderLeaderboardSlide(slides, leaderboardSlideIndex);
+    scheduleLeaderboardSlide(slides);
+  }, leaderboardPauseMs(slide));
+}
+
+function leaderboardPauseMs(slide = null) {
+  if (slide && !slide.rows.length) return 2000;
+  const seconds = clampNumber(numericFromSetting(state.leaderboard.pause), 8, 1, 300);
   return Math.max(1, seconds) * 1000;
 }
 
 function renderLeaderboardSlide(slides, index) {
   const slide = slides[index] || emptyLeaderboardSlide();
   const nextSlide = slides.length > 1 ? slides[(index + 1) % slides.length] : null;
+  const durationMs = leaderboardPauseMs(slide);
   document.getElementById("leaderCaption").textContent = slide.caption;
   document.getElementById("leaderTitle").textContent = slide.title;
   document.getElementById("leaderRows").innerHTML = slide.rows.length ? `
+    <div class="leader-progress" style="animation-duration: ${esc(durationMs)}ms"></div>
     <div class="leader-subtitle"><span>${esc(slide.subtitle)}</span><span>${esc(index + 1)} / ${esc(slides.length)}</span></div>
     <div class="leader-header"><span></span><span>Stacker</span><span>Time</span><span>Gap</span></div>
     ${slide.rows.map(row => `
@@ -3228,9 +3268,25 @@ function renderLeaderboardSlide(slides, index) {
     `).join("")}
     <footer class="leader-footer"><span>Results are not final, times/rankings may change.</span><span>${nextSlide ? `Next: ${esc(nextSlide.title)}` : ""}</span></footer>
   ` : `
+    <div class="leader-progress" style="animation-duration: ${esc(durationMs)}ms"></div>
     <div class="leader-empty">${esc(slide.subtitle || "No results yet.")}</div>
     <footer class="leader-footer"><span>Results are not final, times/rankings may change.</span><span>${nextSlide ? `Next: ${esc(nextSlide.title)}` : ""}</span></footer>
   `;
+}
+
+function leaderboardFontScale() {
+  return clampNumber(numericFromSetting(state.leaderboard.fontSize), 1, 0.5, 2);
+}
+
+function leaderboardProgressHeight() {
+  return clampNumber(numericFromSetting(state.leaderboard.progressHeight), 4, 1, 20);
+}
+
+function leaderboardProgressColor() {
+  const color = String(state.leaderboard.color || "Blue").toLowerCase();
+  if (color === "red") return "#ef4444";
+  if (color === "green") return "#22c55e";
+  return "#65d7ff";
 }
 
 function emptyLeaderboardSlide() {
@@ -4771,10 +4827,12 @@ function saveLeaderboard() {
   state.leaderboard = {
     type: val("leaderType"),
     stage: val("leaderStage"),
+    fontSize: clampNumber(numericFromSetting(val("leaderFontSize")), 1, 0.5, 2),
     bg: val("leaderBg"),
     color: val("leaderColor"),
-    pause: val("leaderPause"),
-    limit: Number(val("leaderLimit"))
+    progressHeight: clampNumber(numericFromSetting(val("leaderProgressHeight")), 4, 1, 20),
+    pause: clampNumber(numericFromSetting(val("leaderPause")), 8, 1, 300),
+    limit: clampNumber(numericFromSetting(val("leaderLimit")), 10, 3, 50)
   };
 }
 

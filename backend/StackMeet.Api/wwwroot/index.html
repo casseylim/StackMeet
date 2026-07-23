@@ -172,9 +172,11 @@
         <div class="form-grid">
           <label>Type<select id="leaderType"><option>Divisional Results</option><option>Overall Results</option><option>SOC</option><option>Tournament Logo</option></select></label>
           <label>Stage<select id="leaderStage"><option>Prelims</option><option>Finals</option></select></label>
+          <label>Font Size<input id="leaderFontSize" type="number" min="0.5" max="2" step="0.1" inputmode="decimal" /></label>
           <label>Background<select id="leaderBg"><option>Black</option><option>White</option></select></label>
           <label>Progress Color<select id="leaderColor"><option>Blue</option><option>Red</option><option>Green</option></select></label>
-          <label>Pause Time<select id="leaderPause"><option>5 seconds</option><option>8 seconds</option><option>10 seconds</option><option>15 seconds</option></select></label>
+          <label>Progress Height<input id="leaderProgressHeight" type="number" min="1" max="20" step="1" inputmode="numeric" /></label>
+          <label>Pause Time (seconds)<input id="leaderPause" type="number" min="1" max="300" step="1" inputmode="numeric" /></label>
           <label>Results Limit<input id="leaderLimit" type="number" min="3" max="50" /></label>
         </div>
       </section>
@@ -573,6 +575,6 @@
     <script src="js/storage/Repository.js?v=20260714-doubles4"></script>
     <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
     <script src="js/reports/FinalsReportEngine.js?v=20260722-report-engine-fix"></script>
-    <script src="app.js?v=20260723-leaderboard-loop"></script>
+    <script src="app.js?v=20260723-leaderboard-controls"></script>
   </body>
 </html>

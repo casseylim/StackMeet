@@ -1358,6 +1358,8 @@ tr:last-child td { border-bottom: 0; }
   color: white;
   background: #05080d;
   box-shadow: var(--shadow);
+  --leader-progress-color: #65d7ff;
+  --leader-progress-height: 4px;
 }
 
 .leaderboard-mode {
@@ -1399,12 +1401,36 @@ tr:last-child td { border-bottom: 0; }
   color: #ffd15c;
   font-weight: 900;
   text-transform: uppercase;
+  font-size: 1em;
 }
 
 .display-board h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(1.6rem, 4vw, 3rem);
+  font-size: clamp(1.6em, 4vw, 3em);
+}
+
+.leader-progress {
+  height: var(--leader-progress-height);
+  margin: 18px 0 14px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.leader-progress::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--leader-progress-color);
+  transform-origin: left;
+  animation: leader-progress-fill linear forwards;
+  animation-duration: inherit;
+}
+
+@keyframes leader-progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 .leader-subtitle {
@@ -1413,7 +1439,7 @@ tr:last-child td { border-bottom: 0; }
   gap: 16px;
   margin: 8px 0 18px;
   color: #9be8ef;
-  font-size: 1.05rem;
+  font-size: 1.05em;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -1425,7 +1451,7 @@ tr:last-child td { border-bottom: 0; }
 .leader-empty {
   margin-top: 28px;
   color: #dce6ef;
-  font-size: 1.5rem;
+  font-size: 1.5em;
   font-weight: 900;
 }
 
@@ -1441,7 +1467,7 @@ tr:last-child td { border-bottom: 0; }
   padding: 0 12px 8px;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.85);
-  font-size: 1rem;
+  font-size: 1em;
   font-weight: 900;
 }
 
@@ -1462,18 +1488,18 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .leader-row strong {
-  font-size: 1.28rem;
+  font-size: 1.28em;
 }
 
 .leader-row small {
   color: #aaa;
-  font-size: 0.95rem;
+  font-size: 0.95em;
   font-weight: 800;
 }
 
 .leader-row > span {
   color: #65d7ff;
-  font-size: 1.05rem;
+  font-size: 1.05em;
   font-weight: 900;
 }
 
@@ -1489,7 +1515,7 @@ tr:last-child td { border-bottom: 0; }
   color: #fff;
   background: #000;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
-  font-size: 1rem;
+  font-size: 1em;
   font-weight: 800;
 }
 
@@ -1505,6 +1531,7 @@ tr:last-child td { border-bottom: 0; }
   border-radius: 8px;
   color: var(--ink);
   background: #ffd15c;
+  font-size: 1em;
   font-weight: 900;
 }
 
