@@ -151,6 +151,24 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .finals-table .medal-3 td { background: #fff8f1; }
 .medal-rank { white-space: nowrap; }
 .preliminary-division { overflow: hidden; box-shadow: 0 8px 26px rgba(7, 21, 46, .07); }
+.division-jump {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .75rem; align-items: center;
+  margin: 0 0 .9rem; padding: .85rem .95rem; border: 1px solid var(--line); border-radius: 1rem;
+  background: #fff; box-shadow: 0 8px 20px rgba(7, 21, 46, .05);
+}
+.division-jump-label {
+  color: var(--muted); font-size: .72rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+}
+.division-jump-links { display: flex; flex-wrap: wrap; gap: .45rem; min-width: 0; }
+.division-jump-links a {
+  display: inline-flex; align-items: center; min-height: 2rem; padding: .35rem .7rem;
+  border: 1px solid #d7e5f6; border-radius: 999px; color: #24476f; background: #f3f8ff;
+  font-size: .78rem; font-weight: 850; text-decoration: none;
+}
+.division-jump-links a:hover,
+.division-jump-links a:focus-visible {
+  border-color: #8cbcf4; color: var(--navy); background: #e5f1ff; outline: none;
+}
 .division-heading {
   display: flex; justify-content: space-between; align-items: center; gap: 1rem;
   padding: 1.2rem 1.25rem; color: #fff; background: linear-gradient(120deg, var(--navy), #12396d);
@@ -163,6 +181,11 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 }
 .event-list { display: grid; gap: 1px; background: var(--line); }
 .results-event { padding: 1.15rem 1.25rem 1.25rem; background: #fff; }
+.division-empty {
+  color: var(--muted);
+  background: #f8fbff;
+}
+.division-empty p { margin: .35rem 0 0; }
 .event-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .75rem; }
 .event-heading h3 { margin: .2rem 0 0; font-size: 1.08rem; }
 .event-state { padding: .38rem .6rem; border-radius: 999px; font-size: .68rem; font-weight: 900; text-transform: uppercase; }
@@ -455,4 +478,5 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 @media (max-width: 560px) {
   .section-status-grid { grid-template-columns: 1fr; }
   .section-status-card { min-height: 7.2rem; }
+  .division-jump { grid-template-columns: 1fr; }
 }

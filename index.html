@@ -6,7 +6,7 @@
     <title>WSSA NS Sport Stacking Centre - StackMeet</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="apple-touch-icon" href="assets/stackmeet-logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260722-mobile-doubles" />
+    <link rel="stylesheet" href="styles.css?v=20260722-qrcode-300" />
   </head>
   <body class="auth-pending">
     <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
@@ -126,6 +126,21 @@
       </section>
       <section class="panel">
         <div class="panel-head">
+          <h2>Team Builders</h2>
+        </div>
+        <div class="team-builder-grid">
+          <button class="team-builder-action" data-route="doubles" type="button">
+            <strong>Doubles Team Builder</strong>
+            <span>Choose 2 stackers to create a Doubles Team.</span>
+          </button>
+          <button class="team-builder-action" data-route="relay" type="button">
+            <strong>Relay Team Builder</strong>
+            <span>Choose at least 4 stackers, with up to 2 optional backups.</span>
+          </button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
           <h2>Divisions</h2>
           <button class="primary" data-action="save-divisions" type="button">Save Divisions</button>
         </div>
@@ -134,6 +149,10 @@
           <div class="panel-subhead"><h3 id="individualDivisionsHeading">Individual Divisions</h3></div>
           <div id="divisionCutoffs" class="division-grid"></div>
         </section>
+        <div class="panel-subhead team-division-subhead">
+          <h3>Team Division Setup</h3>
+          <span class="muted">Doubles and Relay cutoff ages</span>
+        </div>
         <section class="division-section" aria-labelledby="doublesDivisionsHeading">
           <div class="panel-subhead"><h3 id="doublesDivisionsHeading">Doubles Divisions</h3></div>
           <div id="doublesDivisionCutoffs" class="doubles-division-grid"></div>
@@ -179,6 +198,11 @@
     </template>
 
     <template id="stackersView">
+      <div class="module-tabs no-print" data-module-tabs="participant">
+        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button">Individual</button>
+        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button">Doubles</button>
+        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button">Relays</button>
+      </div>
       <section class="panel">
         <div class="panel-head">
           <h2 id="stackerListHeading" tabindex="-1">Stackers List</h2>
@@ -249,6 +273,11 @@
     </template>
 
     <template id="doublesView">
+      <div class="module-tabs no-print" data-module-tabs="participant">
+        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button">Individual</button>
+        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button">Doubles</button>
+        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button">Relays</button>
+      </div>
       <section class="panel">
         <div class="panel-head">
           <h2>Doubles</h2>
@@ -279,6 +308,11 @@
     </template>
 
     <template id="relayView">
+      <div class="module-tabs no-print" data-module-tabs="participant">
+        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button">Individual</button>
+        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button">Doubles</button>
+        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button">Relays</button>
+      </div>
       <section class="panel">
         <div class="panel-head">
           <h2>Relay Teams</h2>
@@ -311,6 +345,11 @@
     </template>
 
     <template id="paperworkView">
+      <div class="module-tabs no-print" data-module-tabs="reports">
+        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="finals" type="button">Competition Reports</button>
+        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="admin" type="button">Admin</button>
+        <button class="module-tab active" data-route="paperwork" data-report-route="paperwork" type="button">Print Center</button>
+      </div>
       <section class="panel">
         <div class="panel-head">
           <h2>Print Center</h2>
@@ -319,18 +358,30 @@
           <label>From Stacker<select id="printRangeFrom"></select></label>
           <label>To Stacker<select id="printRangeTo"></select></label>
         </div>
-        <div class="paper-grid">
-          <button data-action="paperwork" data-type="packets" type="button">All Packets</button>
-          <button data-action="paperwork" data-type="badges" type="button">Name Badges</button>
-          <button data-action="paperwork" data-type="individual-prelim" type="button">Individual Time Sheets</button>
-          <button data-action="paperwork" data-type="doubles-prelim" type="button">Doubles Time Sheets</button>
-          <button data-action="paperwork" data-type="relay-prelim" type="button">Relay Time Sheets</button>
-          <button data-action="paperwork" data-type="finals" type="button">Final Time Sheets</button>
-          <button data-action="paperwork" data-type="finals-individual" type="button">Individual Finals</button>
-          <button data-action="paperwork" data-type="finals-doubles" type="button">Doubles Finals</button>
-          <button data-action="paperwork" data-type="finals-relay" type="button">Relay Finals</button>
-          <button data-action="paperwork" data-type="soc" type="button">SOC Packet</button>
-        </div>
+        <section class="paperwork-section">
+          <div class="panel-subhead"><h3>Preliminary Time Sheets</h3></div>
+          <div class="paper-grid">
+            <button data-action="paperwork" data-type="individual-prelim" data-participant-group="individuals" type="button">Individual Time Sheets</button>
+            <button data-action="paperwork" data-type="doubles-prelim" data-participant-group="doubles" type="button">Doubles Time Sheets</button>
+            <button data-action="paperwork" data-type="relay-prelim" data-participant-group="relay" type="button">Relay Time Sheets</button>
+          </div>
+        </section>
+        <section class="paperwork-section">
+          <div class="panel-subhead"><h3>Final Time Sheets</h3></div>
+          <div class="paper-grid">
+            <button data-action="paperwork" data-type="finals-individual" data-participant-group="individuals" type="button">Individual Finals</button>
+            <button data-action="paperwork" data-type="finals-doubles" data-participant-group="doubles" type="button">Doubles Finals</button>
+            <button data-action="paperwork" data-type="finals-relay" data-participant-group="relay" type="button">Relay Finals</button>
+          </div>
+        </section>
+        <section class="paperwork-section">
+          <div class="panel-subhead"><h3>Other Print Tools</h3></div>
+          <div class="paper-grid">
+            <button data-action="paperwork" data-type="packets" type="button">All Packets</button>
+            <button data-action="paperwork" data-type="badges" type="button">Name Badges</button>
+            <button data-action="paperwork" data-type="soc" type="button">SOC Packet</button>
+          </div>
+        </section>
       </section>
       <section class="panel">
         <div class="panel-head">
@@ -449,9 +500,10 @@
     </template>
 
     <template id="reportsView">
-      <div class="report-tabs no-print">
-        <button class="report-tab" data-action="switch-report-tab" data-report-tab="finals" type="button">Competition Reports</button>
-        <button class="report-tab" data-action="switch-report-tab" data-report-tab="admin" type="button">Admin</button>
+      <div class="module-tabs no-print" data-module-tabs="reports">
+        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="finals" type="button">Competition Reports</button>
+        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="admin" type="button">Admin</button>
+        <button class="module-tab" data-route="paperwork" data-report-route="paperwork" type="button">Print Center</button>
       </div>
       <section class="panel report-section" data-report-section="finals">
         <div class="panel-head"><h2>Competition Reports</h2></div>
@@ -522,8 +574,8 @@
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>
     <script src="js/storage/Repository.js?v=20260714-doubles4"></script>
-    <script src="js/results/BestResultEngine.js"></script>
-    <script src="js/reports/FinalsReportEngine.js"></script>
-    <script src="app.js?v=20260722-awards-fix"></script>
+    <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
+    <script src="js/reports/FinalsReportEngine.js?v=20260722-report-engine-fix"></script>
+    <script src="app.js?v=20260723-a4-even-attempt-boxes"></script>
   </body>
 </html>

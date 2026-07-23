@@ -2,7 +2,25 @@
   "use strict";
 
   const requiredAllAroundEvents = ["3-3-3", "3-6-3", "cycle"];
-  const ResultEngine = global.StackMeetBestResult;
+  const ResultEngine = global.StackMeetBestResult || (() => {
+    const statusOrder = { valid: 0, scratch: 1, invalid: 2, missing: 3 };
+    const numericAttempts = attempts => (Array.isArray(attempts) ? attempts : [])
+      .map(value => value === "" || value === null || value === undefined ? NaN : Number(value))
+      .filter(Number.isFinite);
+    const validAttempts = attempts => numericAttempts(attempts).filter(value => value > 0 && value < 999);
+    const isScratchAttempt = value => Number(value) === 999;
+    const calculateBestResult = input => {
+      const result = Array.isArray(input) ? { attempts: input } : (input || {});
+      const values = numericAttempts(result.attempts);
+      const valid = validAttempts(values);
+      const bestTime = valid.length ? Math.min(...valid) : null;
+      if (bestTime !== null) return { status: "valid", bestTime, bestValidTime: bestTime, eligibleForRanking: true };
+      if (!values.length) return { status: "missing", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+      if (values.every(isScratchAttempt) || Number(result.penalty) >= 999) return { status: "scratch", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+      return { status: "invalid", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+    };
+    return { statusOrder, finiteAttempts: numericAttempts, validAttempts, calculateBestResult };
+  })();
   const statusOrder = ResultEngine.statusOrder;
 
   function normalizedEvent(event) { return String(event || "").toLowerCase() === "cycle" ? "cycle" : String(event || ""); }

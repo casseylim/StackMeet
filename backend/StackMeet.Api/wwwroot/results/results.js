@@ -404,12 +404,13 @@
     const container = el("preliminaryGroups");
     if (!container) return;
     container.replaceChildren();
+    const orderedGroups = orderedDivisionGroups(groups, payload);
     const eventCount = [...groups.values()].reduce((sum, events) => sum + events.size, 0);
-    text("preliminarySummary", groups.size
-      ? `${groups.size} division${groups.size === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
+    text("preliminarySummary", orderedGroups.length
+      ? `${orderedGroups.length} division${orderedGroups.length === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
       : "No preliminary results yet");
 
-    if (!groups.size) {
+    if (!orderedGroups.length) {
       const empty = make("section", "panel empty-state compact");
       empty.append(
         make("span", "empty-icon clock", "↗"),
@@ -420,10 +421,11 @@
       return;
     }
 
-    [...groups.entries()]
-      .sort(([left], [right]) => naturalCompare(left, right))
+    container.append(renderDivisionJumpNav(orderedGroups.map(([division]) => division), "preliminary"));
+    orderedGroups
       .forEach(([division, events]) => {
         const divisionSection = make("section", "panel preliminary-division");
+        divisionSection.id = divisionAnchorId("preliminary", division);
         const heading = make("div", "division-heading");
         const titleBlock = make("div", "");
         titleBlock.append(make("span", "eyebrow", "Division"), make("h2", "", division));
@@ -432,9 +434,13 @@
         divisionSection.append(heading);
 
         const eventList = make("div", "event-list");
-        [...events.entries()]
-          .sort(([left], [right]) => naturalCompare(left, right))
-          .forEach(([eventName, rows]) => eventList.append(renderPreliminaryEvent(eventName, rows, official)));
+        if (events.size) {
+          [...events.entries()]
+            .sort(([left], [right]) => naturalCompare(left, right))
+            .forEach(([eventName, rows]) => eventList.append(renderPreliminaryEvent(eventName, rows, official)));
+        } else {
+          eventList.append(renderDivisionEmpty("preliminary"));
+        }
         divisionSection.append(eventList);
         container.append(divisionSection);
       });
@@ -517,12 +523,13 @@
     const container = el("finalsGroups");
     if (!container) return;
     container.replaceChildren();
+    const orderedGroups = orderedDivisionGroups(groups, payload);
     const eventCount = [...groups.values()].reduce((sum, events) => sum + events.size, 0);
-    text("finalsSummary", groups.size
-      ? `${groups.size} division${groups.size === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
+    text("finalsSummary", orderedGroups.length
+      ? `${orderedGroups.length} division${orderedGroups.length === 1 ? "" : "s"} · ${eventCount} event${eventCount === 1 ? "" : "s"}`
       : "No final results yet");
 
-    if (!groups.size) {
+    if (!orderedGroups.length) {
       const empty = make("section", "panel empty-state compact");
       empty.append(
         make("span", "empty-icon clock", "↗"),
@@ -533,10 +540,11 @@
       return;
     }
 
-    [...groups.entries()]
-      .sort(([left], [right]) => naturalCompare(left, right))
+    container.append(renderDivisionJumpNav(orderedGroups.map(([division]) => division), "finals"));
+    orderedGroups
       .forEach(([division, events]) => {
         const divisionSection = make("section", "panel preliminary-division finals-division");
+        divisionSection.id = divisionAnchorId("finals", division);
         const heading = make("div", "division-heading finals-heading");
         const titleBlock = make("div", "");
         titleBlock.append(make("span", "eyebrow", "Division"), make("h2", "", division));
@@ -545,12 +553,93 @@
         divisionSection.append(heading);
 
         const eventList = make("div", "event-list");
-        [...events.entries()]
-          .sort(([left], [right]) => naturalCompare(left, right))
-          .forEach(([eventName, rows]) => eventList.append(renderFinalEvent(eventName, rows, official)));
+        if (events.size) {
+          [...events.entries()]
+            .sort(([left], [right]) => naturalCompare(left, right))
+            .forEach(([eventName, rows]) => eventList.append(renderFinalEvent(eventName, rows, official)));
+        } else {
+          eventList.append(renderDivisionEmpty("final"));
+        }
         divisionSection.append(eventList);
         container.append(divisionSection);
       });
+  }
+
+  function renderDivisionJumpNav(divisions, stageKey) {
+    const nav = make("nav", "division-jump", "");
+    nav.setAttribute("aria-label", "Jump to division");
+    nav.append(make("span", "division-jump-label", "Division"));
+    const list = make("div", "division-jump-links", "");
+    divisions.forEach(division => {
+      const link = document.createElement("a");
+      link.href = `#${divisionAnchorId(stageKey, division)}`;
+      link.textContent = division;
+      list.append(link);
+    });
+    nav.append(list);
+    return nav;
+  }
+
+  function orderedDivisionGroups(groups, payload) {
+    const configured = configuredDivisions(payload);
+    const resultGroups = [...groups.entries()];
+    if (!configured.length) {
+      return resultGroups.sort(([left], [right]) => naturalCompare(left, right));
+    }
+
+    const groupsByKey = new Map(resultGroups.map(([division, events]) => [divisionKey(division), [division, events]]));
+    const usedKeys = new Set();
+    const ordered = configured.map(division => {
+      const key = divisionKey(division);
+      usedKeys.add(key);
+      return groupsByKey.get(key) || [division, new Map()];
+    });
+
+    resultGroups
+      .filter(([division]) => !usedKeys.has(divisionKey(division)))
+      .sort(([left], [right]) => naturalCompare(left, right))
+      .forEach(entry => ordered.push(entry));
+
+    return ordered;
+  }
+
+  function configuredDivisions(payload) {
+    const divisions = (Array.isArray(payload.divisions) ? payload.divisions : [])
+      .map(division => String(division || "").trim())
+      .filter(Boolean);
+    const genderSplitSpecials = new Set(divisions
+      .map(genderSplitSpecialBase)
+      .filter(Boolean));
+    return divisions.filter(division => {
+      const key = divisionKey(division);
+      return !genderSplitSpecials.has(key) || Boolean(genderSplitSpecialBase(division));
+    });
+  }
+
+  function divisionKey(division) {
+    return String(division || "").trim().toLowerCase();
+  }
+
+  function genderSplitSpecialBase(division) {
+    const match = /^(SS\s+(?:\d+\s*&\s*Under|\d+(?:-\d+)?)\s+L\d+)\s+([FM])$/i.exec(String(division || "").trim());
+    return match ? divisionKey(match[1]) : "";
+  }
+
+  function divisionAnchorId(stageKey, division) {
+    const slug = String(division || "division")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "division";
+    return `${stageKey}-division-${slug}`;
+  }
+
+  function renderDivisionEmpty(stageLabel) {
+    const card = make("article", "results-event division-empty");
+    card.append(
+      make("span", "eyebrow", "No results"),
+      make("p", "", `No ${stageLabel} results published for this division yet.`)
+    );
+    return card;
   }
 
   function renderFinalEvent(eventName, rows, official) {
@@ -665,16 +754,23 @@
 
     const selectedGroups = [...divisions.values()].map(groups =>
       groups.find(group => group.stage.key === "finals") || groups[0]);
+    const aggregateGroups = allAroundAggregateGroups(selectedGroups, payload);
+    const displayGroups = aggregateGroups;
 
     const container = el("allAroundGroups");
     if (!container) return;
     container.replaceChildren();
-    const stackerCount = selectedGroups.reduce((sum, group) => sum + group.rows.length, 0);
-    text("allAroundSummary", selectedGroups.length
+    const stackerCount = aggregateGroups[0]?.rows.length || selectedGroups.reduce((sum, group) => sum + group.rows.length, 0);
+    const allAroundTotalStackers = Array.isArray(payload.stackers) ? payload.stackers.length : stackerCount;
+    const incompleteCount = Math.max(allAroundTotalStackers - stackerCount, 0);
+    text("allAroundSummary", displayGroups.length
       ? `${selectedGroups.length} division${selectedGroups.length === 1 ? "" : "s"} · ${stackerCount} complete stacker${stackerCount === 1 ? "" : "s"}`
       : "Waiting for three-event totals");
+    if (displayGroups.length) {
+      text("allAroundSummary", `${displayGroups.length} group${displayGroups.length === 1 ? "" : "s"} · ${stackerCount} complete stacker${stackerCount === 1 ? "" : "s"}`);
+    }
 
-    if (!selectedGroups.length) {
+    if (!displayGroups.length) {
       const empty = make("section", "panel empty-state compact");
       empty.append(
         make("span", "empty-icon clock", "↗"),
@@ -685,9 +781,74 @@
       return;
     }
 
-    selectedGroups
-      .sort((left, right) => naturalCompare(left.division, right.division))
+    text("allAroundSummary", `${stackerCount} complete · ${incompleteCount} incomplete`);
+    displayGroups
+      .sort((left, right) => (left.order || 0) - (right.order || 0) || naturalCompare(left.division, right.division))
       .forEach(group => container.append(renderAllAroundDivision(group, official)));
+  }
+
+  function allAroundAggregateGroups(selectedGroups, payload) {
+    const rows = allAroundAggregateRows(payload);
+    if (!rows.length) return [];
+
+    const stage = rows[0].sourceStage || { key: "all", label: "Best" };
+    const definitions = [
+      { title: "All-Around (Normal + Special)", order: 10, filter: () => true },
+      { title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
+      { title: "All-Around Male (Normal + Special)", order: 30, filter: row => row.stacker.gender === "M" },
+      { title: "All-Around (Normal)", order: 40, filter: row => !isSpecialStackerRow(row) },
+      { title: "All-Around (Special)", order: 50, filter: isSpecialStackerRow },
+      { title: "All-Around Female (Normal)", order: 60, filter: row => row.stacker.gender === "F" && !isSpecialStackerRow(row) },
+      { title: "All-Around Female (Special)", order: 70, filter: row => row.stacker.gender === "F" && isSpecialStackerRow(row) },
+      { title: "All-Around Male (Normal)", order: 80, filter: row => row.stacker.gender === "M" && !isSpecialStackerRow(row) },
+      { title: "All-Around Male (Special)", order: 90, filter: row => row.stacker.gender === "M" && isSpecialStackerRow(row) }
+    ];
+
+    return definitions
+      .map(definition => ({
+        stage,
+        division: definition.title,
+        order: definition.order,
+        aggregate: true,
+        rows: rows.filter(definition.filter).map(row => ({ ...row }))
+      }));
+  }
+
+  function isSpecialStackerRow(row) {
+    return String(row.stacker.special || "").toLowerCase() === "yes";
+  }
+
+  function allAroundAggregateRows(payload) {
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
+    const stage = { key: "all", label: "Best" };
+    const timesByParticipant = new Map();
+
+    results
+      .filter(result => isIndividualType(result.type) && (isFinalStage(result.stage) || isPreliminaryStage(result.stage)))
+      .forEach(result => {
+        const eventKey = allAroundEventKey(result.event);
+        const best = bestTime(result);
+        if (!eventKey || !Number.isFinite(best)) return;
+        const participantId = String(result.participant || "");
+        if (!participantId) return;
+        if (!timesByParticipant.has(participantId)) timesByParticipant.set(participantId, {});
+        const times = timesByParticipant.get(participantId);
+        if (!Number.isFinite(times[eventKey]) || best < times[eventKey]) times[eventKey] = best;
+      });
+
+    return stackers.map(stacker => {
+      const participantId = String(stacker.id || "");
+      const times = timesByParticipant.get(participantId) || {};
+      const complete = ALL_AROUND_EVENTS.every(event => Number.isFinite(times[event.key]));
+      return {
+        participantId,
+        stacker,
+        times,
+        sourceStage: stage,
+        total: complete ? ALL_AROUND_EVENTS.reduce((sum, event) => sum + times[event.key], 0) : Number.NaN
+      };
+    }).filter(row => row.participantId && Number.isFinite(row.total));
   }
 
   const ALL_AROUND_EVENTS = [
@@ -700,9 +861,16 @@
     const section = make("section", "panel preliminary-division allaround-division");
     const heading = make("div", "division-heading allaround-heading");
     const titleBlock = make("div", "");
-    titleBlock.append(make("span", "eyebrow", `${group.stage.label} all-around`), make("h2", "", group.division));
+    titleBlock.append(make("span", "eyebrow", group.aggregate ? `${group.stage.label} all-around ranking` : `${group.stage.label} all-around`), make("h2", "", group.division));
     heading.append(titleBlock, make("span", "division-count", `${group.rows.length} complete`));
     section.append(heading);
+
+    if (!group.rows.length) {
+      const eventList = make("div", "event-list");
+      eventList.append(renderDivisionEmpty("all-around"));
+      section.append(eventList);
+      return section;
+    }
 
     group.rows.sort((left, right) =>
       left.total - right.total ||

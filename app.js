@@ -17,6 +17,8 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
+const STACKMEET_APP_VERSION = "0.9.16";
+
 function brandText(key) {
   return branding[key] || "";
 }
@@ -108,12 +110,19 @@ const defaultMalayTranslations = {
   "Dashboard": "Papan Pemuka",
   "Settings": "Tetapan",
   "Reports": "Laporan",
+  "Competition Reports": "Laporan Pertandingan",
+  "Participant": "Peserta",
+  "Individual": "Individu",
   "Stackers": "Peserta",
   "Doubles": "Beregu",
+  "Relays": "Relay",
   "Print Center": "Pusat Cetakan",
   "All Packets": "Semua Paket",
   "Name Badges": "Lencana Nama",
   "Individual Time Sheets": "Borang Masa Individu",
+  "Preliminary Time Sheets": "Borang Masa Awal",
+  "Final Time Sheets": "Borang Masa Akhir",
+  "Other Print Tools": "Alat Cetakan Lain",
   "Doubles Time Sheets": "Borang Masa Beregu",
   "Relay Time Sheets": "Borang Masa Relay",
   "Final Time Sheets": "Borang Masa Akhir",
@@ -374,6 +383,14 @@ const defaultChineseTranslations = {
   "Simplified Chinese": "简体中文"
 };
 
+defaultChineseTranslations["Competition Reports"] = "赛事报告";
+defaultChineseTranslations.Participant = "参赛者";
+defaultChineseTranslations.Individual = "个人";
+defaultChineseTranslations.Relays = "接力";
+defaultChineseTranslations["Preliminary Time Sheets"] = "预赛计时表";
+defaultChineseTranslations["Final Time Sheets"] = "决赛计时表";
+defaultChineseTranslations["Other Print Tools"] = "其他打印工具";
+
 const defaultTranslationPacks = {
   ms: defaultMalayTranslations,
   zh: defaultChineseTranslations
@@ -502,7 +519,35 @@ const repository = new CompetitionRepository();
 const SqlStackerApi = window.StackMeetStorage.StackerApi;
 const stackerApi = new SqlStackerApi();
 const CompetitionStateProvider = window.StackMeetStorage.ApiProvider;
-const BestResultEngine = window.StackMeetBestResult;
+const BestResultEngine = window.StackMeetBestResult || (() => {
+  const statusOrder = { valid: 0, scratch: 1, invalid: 2, missing: 3 };
+  const numericAttempts = attempts => (Array.isArray(attempts) ? attempts : [])
+    .map(value => value === "" || value === null || value === undefined ? NaN : Number(value))
+    .filter(Number.isFinite);
+  const validAttempts = attempts => numericAttempts(attempts).filter(value => value > 0 && value < 999);
+  const isScratchAttempt = value => Number(value) === 999;
+  const calculateBestResult = input => {
+    const result = Array.isArray(input) ? { attempts: input } : (input || {});
+    const values = numericAttempts(result.attempts);
+    const valid = validAttempts(values);
+    const bestTime = valid.length ? Math.min(...valid) : null;
+    if (bestTime !== null) return { status: "valid", bestTime, bestValidTime: bestTime, eligibleForRanking: true };
+    if (!values.length) return { status: "missing", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+    if (values.every(isScratchAttempt) || Number(result.penalty) >= 999) return { status: "scratch", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+    return { status: "invalid", bestTime: null, bestValidTime: null, eligibleForRanking: false };
+  };
+  const bestTime = input => calculateBestResult(input).bestTime;
+  const appliedPenalty = input => {
+    const result = Array.isArray(input) ? {} : (input || {});
+    const penalty = Number(result.penalty || 0);
+    return penalty > 0 && penalty < 999 ? penalty : 0;
+  };
+  const rankingTime = input => {
+    const summary = calculateBestResult(input);
+    return summary.eligibleForRanking ? summary.bestTime + appliedPenalty(input) : Infinity;
+  };
+  return { statusOrder, numericAttempts, finiteAttempts: numericAttempts, validAttempts, isScratchAttempt, calculateBestResult, classifyResult: calculateBestResult, bestTime, appliedPenalty, rankingTime };
+})();
 const FinalsReportEngine = window.StackMeetFinalsReports;
 const sqlCompetitionSessionKey = "stackmeet-sql-competition-id";
 let ageCalculationMode = "actual";
@@ -536,18 +581,14 @@ let relayFlashMessage = null;
 let editingRelayId = "";
 
 const routes = [
-  ["dashboard", "Dashboard", "Home"],
-  ["settings", "Settings", "Setup"],
-  ["language", "Language", "__languageBadge"],
-  ["reports", "Reports", "Admin"],
-  ["stackers", "Stackers", "__stackerCount"],
-  ["doubles", "Doubles", "Teams"],
-  ["relay", "Relay", "Teams"],
-  ["awards", "Awards Planner", "Awards"],
-  ["paperwork", "Print Center", "Print"],
-  ["competition", "Competition", "Entry"],
-  ["leaderboard", "Leader Board", "Display"],
-  ["users", "Users", "Access"]
+  ["dashboard", "Dashboard"],
+  ["settings", "Settings"],
+  ["language", "Language"],
+  ["reports", "Reports"],
+  ["stackers", "Participant"],
+  ["awards", "Awards Planner"],
+  ["competition", "Competition"],
+  ["leaderboard", "Leader Board"]
 ];
 
 const view = document.getElementById("view");
@@ -787,10 +828,16 @@ function setSelectedSqlCompetition(competition) {
   history.replaceState(null, "", url);
 }
 
+function defaultSqlCompetition(competitions) {
+  const active = competitions.filter(item => String(item.status || "").toLowerCase() === "active");
+  const candidates = active.length ? active : competitions;
+  return [...candidates].sort((a, b) => Number(b.id) - Number(a.id))[0] || null;
+}
+
 async function initializeSqlNativeStackers() {
   const competitions = await stackerApi.listCompetitions();
   const requested = sqlCompetitionIdFromUrl() || Number(sessionStorage.getItem(sqlCompetitionSessionKey));
-  const selected = competitions.find(item => item.id === requested) || (competitions.length === 1 ? competitions[0] : null);
+  const selected = competitions.find(item => item.id === requested) || defaultSqlCompetition(competitions);
   if (!selected) return;
   setSelectedSqlCompetition(selected);
   await loadCompetitionAgeCalculation();
@@ -924,12 +971,23 @@ function defaultCompetitionVenue() {
 
 function sqlDashboardCompetition() {
   return sqlCompetition || {
+    competitionCode: defaultCompetitionCode(),
     competitionName: state.settings.name,
     startDate: state.settings.start,
     endDate: state.settings.end,
     venue: "",
     status: state.settings.type
   };
+}
+
+function publicResultsUrl() {
+  const competition = sqlDashboardCompetition();
+  const publicId = competition.competitionCode || window.StackMeetAuth?.competitionId?.() || window.COMPETITION_KEY || "DEFAULT";
+  return `${location.origin}/${encodeURIComponent(String(publicId))}/Results`;
+}
+
+function qrCodeUrl(value) {
+  return `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(value)}`;
 }
 
 function updateSqlDashboardPresentation() {
@@ -989,22 +1047,32 @@ async function createSqlCompetition() {
 }
 
 function renderNav() {
-  document.getElementById("nav").innerHTML = routes.filter(routeIsAvailable).map(([key, label, badge]) => `
-    <a href="#${key}" class="nav-item ${route === key ? "active" : ""}" data-route="${key}">
-      <span>${esc(t(label))}</span><small>${esc(navBadgeText(badge))}</small>
-    </a>
-  `).join("");
+  const visibleRoutes = routes.filter(routeIsAvailable);
+  document.getElementById("nav").innerHTML = visibleRoutes.map(([key, label, badge]) => {
+    const badgeText = navBadgeText(badge);
+    return `
+      <a href="#${key}" class="nav-item ${navRouteIsActive(key) ? "active" : ""}" data-route="${key}">
+        <span>${esc(t(label))}</span>${badgeText ? `<small>${esc(badgeText)}</small>` : ""}
+      </a>
+    `;
+  }).join("");
+}
+
+function navRouteIsActive(key) {
+  if (key === "reports") return route === "reports" || route === "paperwork";
+  if (key === "stackers") return ["stackers", "doubles", "relay"].includes(route);
+  return route === key;
 }
 
 function navBadgeText(badge) {
+  if (!badge) return "";
   if (badge === "__languageBadge") return languageLabel(currentLanguage());
+  if (badge === "__languageList") return "English / Bahasa Malaysia / Simplified Chinese";
   if (badge === "__stackerCount") return selectedSqlCompetitionId ? String(state.stackers.length) : "--";
   return t(badge);
 }
 
 function routeIsAvailable([key]) {
-  if (key === "doubles") return eventGroupEnabled("Doubles");
-  if (key === "relay") return relayTeamSetupAvailable();
   return true;
 }
 
@@ -1020,7 +1088,7 @@ function render() {
   if (!routeIsAvailable([route])) route = "dashboard";
   applyBrandingChrome();
   renderNav();
-  pageTitle.textContent = t(routes.find(([key]) => key === route)?.[1] || "Dashboard");
+  pageTitle.textContent = t(routeTitle(route));
   updateSqlDashboardPresentation();
   translateChrome();
   hero.classList.toggle("hidden", route !== "dashboard");
@@ -1043,9 +1111,21 @@ function render() {
     users: renderUsers
   };
   renderers[route]?.();
+  syncModuleTabs();
   applyTranslations(view);
   syncDashboardSqlPolling();
   if (route === "dashboard" && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
+}
+
+function syncModuleTabs() {
+  document.querySelectorAll("[data-participant-route]").forEach(button => {
+    button.classList.toggle("active", button.dataset.participantRoute === route);
+  });
+  document.querySelectorAll("[data-report-route]").forEach(button => {
+    const isReportsTab = button.dataset.reportRoute === "reports" && route === "reports" && (!button.dataset.reportTab || button.dataset.reportTab === reportTab);
+    const isPaperworkTab = button.dataset.reportRoute === "paperwork" && route === "paperwork";
+    button.classList.toggle("active", isReportsTab || isPaperworkTab);
+  });
 }
 
 function applyEventMenuVisibility() {
@@ -1126,6 +1206,7 @@ function applyTranslations(root) {
 
 function renderDashboard() {
   const competition = sqlDashboardCompetition();
+  const resultsUrl = publicResultsUrl();
   const metrics = {
     stackers: state.stackers.length,
     gender: `${countBy("gender", "F")} Female // ${countBy("gender", "M")} Male`,
@@ -1144,9 +1225,23 @@ function renderDashboard() {
       <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
       <div class="list-row"><span>Rounds</span><strong>${state.settings.prelims} prelim / ${state.settings.finals} final</strong></div>
       <div class="list-row"><span>Data Entry</span><strong>${state.settings.paperless === "Yes" ? "Paperless" : "Time sheet ID"}</strong></div>
+      <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
+    </div>
+    <div class="results-share no-auto-translate">
+      <div>
+        <span>Public Results</span>
+        <a href="${esc(resultsUrl)}" target="_blank" rel="noopener">${esc(resultsUrl)}</a>
+      </div>
+      <img src="${esc(qrCodeUrl(resultsUrl))}" alt="QR code for public results" loading="lazy" />
     </div>
   `;
   renderNotifications();
+}
+
+function routeTitle(key) {
+  if (["stackers", "doubles", "relay"].includes(key)) return "Participant";
+  if (key === "paperwork") return "Reports";
+  return routes.find(([routeKey]) => routeKey === key)?.[1] || "Dashboard";
 }
 
 function renderNotifications() {
@@ -1254,16 +1349,19 @@ function renderDivisionCutoffs() {
       `).join("")}
     </article>
   `).join("");
-  document.getElementById("divisionCutoffs").innerHTML = renderGroups(individualGroups);
-  document.getElementById("doublesDivisionCutoffs").innerHTML = renderGroups(doublesGroups);
-  document.getElementById("relayDivisionCutoffs").innerHTML = renderGroups(relayGroups);
+  const individualContainer = document.getElementById("divisionCutoffs");
+  const doublesContainer = document.getElementById("doublesDivisionCutoffs");
+  const relayContainer = document.getElementById("relayDivisionCutoffs");
+  if (individualContainer) individualContainer.innerHTML = renderGroups(individualGroups);
+  if (doublesContainer) doublesContainer.innerHTML = renderGroups(doublesGroups);
+  if (relayContainer) relayContainer.innerHTML = renderGroups(relayGroups);
 
   document.querySelectorAll("[data-division-group]").forEach(input => {
     input.addEventListener("change", () => {
-      const previewSettings = readDivisionSettingsFromForm();
-      const previewCounts = divisionCountSummary(previewSettings);
+      updateDivisionSettingsFromForm({ recalculateEntries: false });
+      const previewCounts = divisionCountSummary(state.divisionSettings);
       refreshDivisionCountBadges(previewCounts);
-      document.getElementById("divisionList").innerHTML = generateDivisionNames(previewSettings).map(division => `
+      document.getElementById("divisionList").innerHTML = state.divisions.map(division => `
         <div class="tag-row"><strong>${esc(division)}</strong></div>
       `).join("");
     });
@@ -1978,10 +2076,14 @@ function renderPaperwork() {
     to.innerHTML = options;
     if (stackers.length) to.value = stackers[stackers.length - 1].id;
   }
-  document.querySelector('[data-type="doubles-prelim"]')?.toggleAttribute("hidden", !eventGroupEnabled("Doubles"));
-  document.querySelector('[data-type="relay-prelim"]')?.toggleAttribute("hidden", !eventGroupEnabled("Timed Relay"));
-  document.querySelector('[data-type="finals-doubles"]')?.toggleAttribute("hidden", !eventGroupEnabled("Doubles"));
-  document.querySelector('[data-type="finals-relay"]')?.toggleAttribute("hidden", !eventGroupEnabled("Timed Relay"));
+  const participantAvailability = {
+    individuals: state.stackers.length > 0,
+    doubles: printableDoublesTeams().length > 0,
+    relay: completedRelays().length > 0
+  };
+  document.querySelectorAll("[data-participant-group]").forEach(button => {
+    button.toggleAttribute("hidden", !participantAvailability[button.dataset.participantGroup]);
+  });
   document.getElementById("paperOutput").innerHTML = `<h2>Preview</h2><p class="muted">Choose a print item to generate a printable preview.</p>`;
 }
 
@@ -2158,7 +2260,7 @@ function resolvePrelimParticipant(rawId) {
     return stacker ? { ...config, ...stacker, events: prelimEventsForParticipant(config), name: stacker.name } : null;
   }
   if (prefix === "2") {
-    const team = state.doubles.find(item => item.id === id);
+    const team = findDoublesTeam(id);
     if (!team) return null;
     const members = registeredDoubleMemberIds(team).map(memberId => state.stackers.find(item => item.id === memberId) || {});
     return {
@@ -2992,7 +3094,14 @@ function finalsReportPrintFilterSummary(definition) {
 function runFinalsReport() {
   const output = document.getElementById("finalsReportOutput");
   if (!output) return;
-  const definition = finalsReportDefinition();
+  let definition;
+  try {
+    definition = finalsReportDefinition();
+  } catch (error) {
+    console.error("Unable to build competition report.", error);
+    output.innerHTML = `<div class="report-empty"><strong>Unable to build report.</strong><br>${esc(error?.message || error)}</div>`;
+    return;
+  }
   const qualificationActions = definition.kind === "qualification" ? `<button class="ghost" data-action="generate-qualification-snapshots" type="button">Generate Draft Qualification Snapshots</button>` : "";
   const table = definition.rows.map((row, index) => `<tr${definition.rowClasses?.[index] ? ` class="${definition.rowClasses[index]}"` : ""}>${row.map(cell => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${definition.headers.length}">${esc(definition.empty)}</td></tr>`;
   const drilldown = definition.contributors ? `<details class="report-drilldown"><summary>Organization placement contributors</summary>${definition.contributors.map(org => `<h3>${esc(org.organization)}</h3><ul>${org.placements.map(item => `<li>${esc(`${item.name} — ${item.type} — ${item.division} — ${item.event} — Place ${item.rank} — ${fmt(item.bestValidTime)} — credited to ${item.representedOrganization}`)}</li>`).join("")}</ul>`).join("")}</details>` : "";
@@ -3470,7 +3579,7 @@ function competitionRowFromResult(result, eventOverride = "") {
 
 function competitionParticipantMeta(typeName, participantId) {
   if (typeName === "Doubles") {
-    const team = state.doubles.find(item => item.id === participantId) || {};
+    const team = findDoublesTeam(participantId) || {};
     const members = registeredDoubleMemberIds(team).map(memberId => state.stackers.find(stacker => stacker.id === memberId) || {});
     return {
       name: participantName("Doubles", participantId),
@@ -3701,9 +3810,15 @@ function selectedOptionText(id) {
 }
 
 function runReport() {
-  const report = buildAdminReportData();
   const out = document.getElementById("reportOutput");
-  out.innerHTML = adminReportHtml(report);
+  if (!out) return;
+  try {
+    const report = buildAdminReportData();
+    out.innerHTML = adminReportHtml(report);
+  } catch (error) {
+    console.error("Unable to build admin report.", error);
+    out.innerHTML = `<div class="report-empty"><strong>Unable to build report.</strong><br>${esc(error?.message || error)}</div>`;
+  }
 }
 
 function buildAdminReportData() {
@@ -4050,6 +4165,45 @@ function registeredDoubleMemberIds(team) {
   return [team.one, team.two, team.childStackerId, team.parentStackerId].filter(Boolean);
 }
 
+function printableDoublesTeams() {
+  const builtTeams = completedDoubles();
+  if (builtTeams.length) return builtTeams;
+  return registeredDoublesFromStackers();
+}
+
+function findDoublesTeam(id) {
+  return state.doubles.find(team => team.id === id) || registeredDoublesFromStackers().find(team => team.id === id) || null;
+}
+
+function registeredDoublesFromStackers() {
+  const teams = new Map();
+  state.stackers.forEach(stacker => {
+    const partnerId = registrationField(stacker, ["d_id", "doublesPartnerId", "doubles_partner_id", "partnerId"]);
+    const partnerName = registrationField(stacker, ["doubles_partner", "st_doubles_partner", "doublesPartner", "partnerName"]);
+    const teamId = registrationField(stacker, ["doubles_team", "doublesTeam", "doublesTeamId", "d_id"]) || (partnerId ? `REG-${[stacker.id, partnerId].sort().join("-")}` : `REG-${stacker.id}`);
+    if (!partnerId && !partnerName) return;
+    if (teams.has(teamId)) return;
+    const partner = partnerId ? state.stackers.find(item => item.id === partnerId) : null;
+    teams.set(teamId, {
+      id: teamId,
+      type: "normal",
+      status: "complete",
+      one: stacker.id,
+      two: partner?.id || "",
+      parentName: partner ? "" : partnerName,
+      division: stacker.division || stacker.customDivision || "Open",
+      country: stacker.country || partner?.country || "Malaysia",
+      region: stacker.region || partner?.region || ""
+    });
+  });
+  return [...teams.values()];
+}
+
+function registrationField(stacker, keys) {
+  const key = keys.find(candidate => String(stacker?.[candidate] || "").trim());
+  return key ? String(stacker[key]).trim() : "";
+}
+
 function teamRegion(team) {
   const members = registeredDoubleMemberIds(team).map(id => state.stackers.find(stacker => stacker.id === id)).filter(Boolean);
   return team.region || members.find(member => member.region)?.region || "";
@@ -4079,6 +4233,7 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-route], [data-action]");
   if (!target) return;
   if (target.dataset.route) {
+    if (target.dataset.reportTab) reportTab = ["finals", "admin"].includes(target.dataset.reportTab) ? target.dataset.reportTab : reportTab;
     route = target.dataset.route;
     render();
     return;
@@ -4133,20 +4288,20 @@ document.addEventListener("click", async (event) => {
   if (action === "print-final-sheet") { printCurrentFinalSheet(); shouldRender = false; }
   if (action === "save-result") saveResult();
   if (action === "delete-result") state.results = state.results.filter(r => r.id !== target.dataset.id);
-  if (action === "switch-report-tab") { switchReportTab(target.dataset.reportTab); shouldRender = false; }
-  if (action === "run-finals-report") { runFinalsReport(); shouldRender = false; }
+  if (action === "switch-report-tab") { switchReportTab(target.dataset.reportTab); shouldRender = false; shouldSave = false; }
+  if (action === "run-finals-report") { runFinalsReport(); shouldRender = false; shouldSave = false; }
   if (action === "generate-qualification-snapshots") { generateQualificationSnapshots(); shouldRender = false; }
   if (action === "approve-qualification-snapshot") { approveQualificationSnapshot(target.dataset.id); shouldRender = false; }
-  if (action === "export-finals-csv") { exportFinalsCsv(); shouldRender = false; }
-  if (action === "print-finals-report") { printFinalsReport(); shouldRender = false; }
-  if (action === "run-competition-report") { runCompetitionReport(); shouldRender = false; }
-  if (action === "export-results-json") { exportResults("json"); shouldRender = false; }
-  if (action === "export-results-csv") { exportResults("csv"); shouldRender = false; }
-  if (action === "print-admin-report") { printAdminReport(); shouldRender = false; }
-  if (action === "export-admin-csv") { exportAdminReport("csv"); shouldRender = false; }
-  if (action === "export-admin-excel") { exportAdminReport("excel"); shouldRender = false; }
-  if (action === "sort-admin-report") { sortAdminReportBy(Number(target.dataset.sortIndex)); shouldRender = false; }
-  if (action === "run-report") { runReport(); shouldRender = false; }
+  if (action === "export-finals-csv") { exportFinalsCsv(); shouldRender = false; shouldSave = false; }
+  if (action === "print-finals-report") { printFinalsReport(); shouldRender = false; shouldSave = false; }
+  if (action === "run-competition-report") { runCompetitionReport(); shouldRender = false; shouldSave = false; }
+  if (action === "export-results-json") { exportResults("json"); shouldRender = false; shouldSave = false; }
+  if (action === "export-results-csv") { exportResults("csv"); shouldRender = false; shouldSave = false; }
+  if (action === "print-admin-report") { printAdminReport(); shouldRender = false; shouldSave = false; }
+  if (action === "export-admin-csv") { exportAdminReport("csv"); shouldRender = false; shouldSave = false; }
+  if (action === "export-admin-excel") { exportAdminReport("excel"); shouldRender = false; shouldSave = false; }
+  if (action === "sort-admin-report") { sortAdminReportBy(Number(target.dataset.sortIndex)); shouldRender = false; shouldSave = false; }
+  if (action === "run-report") { runReport(); shouldRender = false; shouldSave = false; }
   if (shouldRender) render();
   if (shouldSave) {
     try {
@@ -4279,8 +4434,13 @@ function saveEvents() {
 }
 
 function saveDivisions() {
+  updateDivisionSettingsFromForm({ recalculateEntries: true });
+}
+
+function updateDivisionSettingsFromForm({ recalculateEntries = false } = {}) {
   state.divisionSettings = readDivisionSettingsFromForm();
   state.divisions = appendStandardImportedDivisions(generateDivisionNames(state.divisionSettings), state.stackers);
+  if (!recalculateEntries) return;
   state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
   state.doubles = state.doubles.map(team => ({
     ...team,
@@ -5101,7 +5261,7 @@ function buildPaperwork(type) {
     return;
   }
   if (type === "doubles-prelim") {
-    const teams = completedDoubles();
+    const teams = printableDoublesTeams();
     out.innerHTML = `<div class="panel-head no-print"><h2>Doubles Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
       <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">No completed doubles teams are available for preliminary time sheets.</p>`}</div>`;
     return;
@@ -5164,7 +5324,7 @@ function doublesTimeSheetHtml(team) {
     name: participantName("Doubles", team.id),
     detail: `Division: ${doubleDivision(team)}`,
     location: teamCountry(team),
-    events: state.events?.Doubles || ["Cycle"]
+    events: timeSheetEvents("Doubles", ["Cycle"])
   });
 }
 
@@ -5175,8 +5335,13 @@ function relayTimeSheetHtml(team) {
     name: participantName("Timed Relay", team.id),
     detail: `Stackers: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · Division: ${relayTimedDivision(team)}`,
     location: relayLocation(team),
-    events: state.events?.["Timed Relay"] || ["3-6-3"]
+    events: timeSheetEvents("Timed Relay", ["3-6-3"])
   });
+}
+
+function timeSheetEvents(group, fallback) {
+  const events = state.events?.[group];
+  return Array.isArray(events) && events.length ? events : fallback;
 }
 
 function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
@@ -5189,6 +5354,7 @@ function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
     </header>
     <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>Location: ${esc(location)}</span></div>
     <table class="attempt-table">
+      <colgroup><col class="event-col" /><col class="attempt-col" /><col class="attempt-col" /><col class="attempt-col" /></colgroup>
       <thead><tr><th>Event</th>${attempts.map(attempt => `<th>Attempt ${attempt}</th>`).join("")}</tr></thead>
       <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> Best</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table>
@@ -5263,7 +5429,7 @@ function groupCounts(items, key) {
 
 function participantName(type, id) {
   if (type === "Doubles") {
-    const d = state.doubles.find(team => team.id === id);
+    const d = findDoublesTeam(id);
     return d ? doubleTeamName(d) : "Unknown Team";
   }
   if (type === "Timed Relay" || type === "Relay") {
@@ -5638,7 +5804,6 @@ async function initializeApplication() {
   applyBrandingChrome();
   const session = await window.StackMeetAuth.requireLogin();
   repository.setCompetitionKey(session.competitionId);
-  sessionStorage.setItem(sqlCompetitionSessionKey, session.competitionId);
   state = await loadState();
   try {
     await initializeSqlNativeStackers();

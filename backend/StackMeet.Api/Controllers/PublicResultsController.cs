@@ -40,13 +40,16 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         using var stateDocument = JsonDocument.Parse(savedState.JsonData);
         var root = stateDocument.RootElement;
         var stateStackers = PublicStackers(root);
+        var divisionSettings = ReadPublicDivisionSettings(root);
+        var settings = ReadPublicSettingsForDivision(root);
+        var competitionStart = settings.Start ?? competition.StartDate;
         var sqlStackerRows = await database.Stackers.AsNoTracking()
             .Where(item => item.CompetitionId == competition.Id)
             .OrderBy(item => item.StackerCode)
             .Select(item => new
             {
                 item.StackerCode, item.FirstName, item.LastName, item.Gender, item.Club,
-                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker
+                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker, item.BirthDate
             })
             .ToListAsync(ct);
         var sqlStackers = sqlStackerRows.Select(item => new PublicStacker(
@@ -56,7 +59,14 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             item.Club ?? "Independent",
             item.Country,
             item.Region ?? "",
-            item.CustomDivision ?? "",
+            PublicStackerDivision(
+                item.CustomDivision,
+                item.BirthDate,
+                competitionStart,
+                item.Gender,
+                item.IsSpecialStacker,
+                divisionSettings,
+                settings.SeparateSpecialDivisionsByGender),
             item.IsSpecialStacker ? "Yes" : "No")).ToArray();
         var stackers = stateStackers.Length > 0 ? stateStackers : sqlStackers;
 
@@ -75,6 +85,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             },
             lastUpdatedAt = savedState.UpdatedAt,
             settings = PublicSettings(root),
+            divisions = PublicDivisions(root),
             results = PublicResults(root),
             doubles = PublicDoubles(root),
             relays = PublicRelays(root),
@@ -92,6 +103,18 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             start = Text(settings, "start"),
             end = Text(settings, "end")
         };
+    }
+
+    private static string[] PublicDivisions(JsonElement root)
+    {
+        if (!root.TryGetProperty("divisions", out var items) || items.ValueKind != JsonValueKind.Array) return [];
+        return items.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString() ?? "")
+            .Select(item => item.Trim())
+            .Where(item => item.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static IEnumerable<object> PublicResults(JsonElement root)
@@ -125,6 +148,148 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             .Where(item => item.Id.Length > 0)
             .ToArray();
     }
+
+    private static PublicDivisionSettings ReadPublicDivisionSettings(JsonElement root)
+    {
+        if (!root.TryGetProperty("divisionSettings", out var settings) || settings.ValueKind != JsonValueKind.Object)
+        {
+            return new PublicDivisionSettings();
+        }
+
+        return new PublicDivisionSettings
+        {
+            Combined = NumberArray(settings, "combined").Select(item => (int)item).ToArray(),
+            Male = NumberArray(settings, "male").Select(item => (int)item).ToArray(),
+            Female = NumberArray(settings, "female").Select(item => (int)item).ToArray(),
+            Special = NumberArray(settings, "special").Select(item => (int)item).ToArray()
+        };
+    }
+
+    private static PublicSettingsForDivision ReadPublicSettingsForDivision(JsonElement root)
+    {
+        if (!root.TryGetProperty("settings", out var settings) || settings.ValueKind != JsonValueKind.Object)
+        {
+            return new PublicSettingsForDivision(null, false);
+        }
+
+        var start = DateOnly.TryParse(Text(settings, "start"), out var parsedStart) ? parsedStart : (DateOnly?)null;
+        var separateSpecial = settings.TryGetProperty("separateSpecialDivisionsByGender", out var separateValue)
+            && separateValue.ValueKind == JsonValueKind.True;
+        return new PublicSettingsForDivision(start, separateSpecial);
+    }
+
+    private static string PublicStackerDivision(
+        string? customDivision,
+        DateOnly? birthDate,
+        DateOnly? competitionStart,
+        string gender,
+        bool isSpecial,
+        PublicDivisionSettings settings,
+        bool separateSpecialDivisionsByGender)
+    {
+        if (!string.IsNullOrWhiteSpace(customDivision)) return customDivision.Trim();
+        var age = AgeOnCompetitionDate(birthDate, competitionStart);
+        if (age <= 0) return "";
+        return isSpecial
+            ? SpecialDivision(age, gender, settings.Special, separateSpecialDivisionsByGender)
+            : StandardDivision(age, gender, settings);
+    }
+
+    private static int AgeOnCompetitionDate(DateOnly? birthDate, DateOnly? competitionStart)
+    {
+        if (birthDate is null) return 0;
+        var eventDate = competitionStart ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var age = eventDate.Year - birthDate.Value.Year;
+        if (eventDate.Month < birthDate.Value.Month
+            || (eventDate.Month == birthDate.Value.Month && eventDate.Day < birthDate.Value.Day))
+        {
+            age--;
+        }
+        return Math.Max(age, 0);
+    }
+
+    private static string SpecialDivision(int age, string gender, int[] cutoffs, bool separateByGender)
+    {
+        var baseDivision = FindRangeName(age, cutoffs, "Special");
+        if (string.IsNullOrWhiteSpace(baseDivision)) baseDivision = "SS";
+        return separateByGender ? $"{baseDivision} {(string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase) ? "F" : "M")}" : baseDivision;
+    }
+
+    private static string StandardDivision(int age, string gender, PublicDivisionSettings settings)
+    {
+        var genderCutoffs = string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase) ? settings.Female : settings.Male;
+        var genderLabel = string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase) ? "Female" : "Male";
+        var path = genderCutoffs.Select(item => new DivisionPathItem(item, genderLabel))
+            .Concat(settings.Combined.Select(item => new DivisionPathItem(item, "Combined")))
+            .Where(item => item.Age > 0)
+            .OrderBy(item => item.Age)
+            .ToArray();
+        return FindRangeName(age, path);
+    }
+
+    private static string FindRangeName(int age, int[] cutoffs, string fallbackLabel) =>
+        FindRangeName(age, cutoffs.OrderBy(item => item).Select(item => new DivisionPathItem(item, fallbackLabel)).ToArray());
+
+    private static string FindRangeName(int age, DivisionPathItem[] path)
+    {
+        var previous = 0;
+        foreach (var item in path.OrderBy(item => item.Age))
+        {
+            var cutoff = item.Age;
+            var start = previous + 1;
+            if (age <= cutoff)
+            {
+                if (item.Label == "Special")
+                {
+                    if (start <= 4) return $"SS {cutoff} & Under L1";
+                    if (start == cutoff) return $"SS {cutoff} L1";
+                    return $"SS {start}-{cutoff} L1";
+                }
+
+                if (item.Label == "Combined")
+                {
+                    var standardName = StandardCombinedDivisionName(start, cutoff);
+                    if (!string.IsNullOrWhiteSpace(standardName)) return standardName;
+                    if (age >= 19)
+                    {
+                        var adultName = StandardCombinedDivisionName(age, age);
+                        if (!string.IsNullOrWhiteSpace(adultName)) return adultName;
+                    }
+                }
+
+                if (start <= 4) return $"{cutoff} & Under {item.Label}";
+                if (start == cutoff) return $"{cutoff} {item.Label}";
+                return $"{start}-{cutoff} {item.Label}";
+            }
+            previous = cutoff;
+        }
+        return "";
+    }
+
+    private static string StandardCombinedDivisionName(int start, int cutoff)
+    {
+        var names = new List<string>();
+        if (start <= 24 && cutoff >= 19) names.Add("Collegiate C");
+        if (cutoff >= 25)
+        {
+            var firstMaster = MasterLevelForAge(Math.Max(start, 25));
+            var lastMaster = MasterLevelForAge(cutoff);
+            if (firstMaster > 0 && lastMaster > 0)
+            {
+                names.Add(firstMaster == lastMaster ? $"Masters {firstMaster} C" : $"Masters {firstMaster}-{lastMaster} C");
+            }
+        }
+        return names.Count == 1 ? names[0] : "";
+    }
+
+    private static int MasterLevelForAge(int age) => age switch
+    {
+        >= 25 and <= 34 => 1,
+        >= 35 and <= 44 => 2,
+        >= 45 and <= 59 => 3,
+        >= 60 => 4,
+        _ => 0
+    };
 
     private static IEnumerable<object> PublicDoubles(JsonElement root)
     {
@@ -174,6 +339,18 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         string Region,
         string Division,
         string Special);
+
+    private sealed record PublicSettingsForDivision(DateOnly? Start, bool SeparateSpecialDivisionsByGender);
+
+    private sealed record DivisionPathItem(int Age, string Label);
+
+    private sealed class PublicDivisionSettings
+    {
+        public int[] Combined { get; init; } = [];
+        public int[] Male { get; init; } = [];
+        public int[] Female { get; init; } = [];
+        public int[] Special { get; init; } = [];
+    }
 
     private static string Text(JsonElement item, string name) =>
         item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
