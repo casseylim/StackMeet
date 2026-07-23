@@ -1388,6 +1388,7 @@ tr:last-child td { border-bottom: 0; }
 
 .leaderboard-mode .display-board {
   min-height: 100vh;
+  padding: 1.1em 1.2em 3.4em;
   border-radius: 0;
   box-shadow: none;
 }
@@ -1412,7 +1413,7 @@ tr:last-child td { border-bottom: 0; }
 
 .leader-progress {
   height: var(--leader-progress-height);
-  margin: 18px 0 14px;
+  margin: 1.1em 0 0.8em;
   background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
@@ -1436,8 +1437,8 @@ tr:last-child td { border-bottom: 0; }
 .leader-subtitle {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  margin: 8px 0 18px;
+  gap: 1em;
+  margin: 0.45em 0 1em;
   color: #9be8ef;
   font-size: 1.05em;
   font-weight: 900;
@@ -1449,7 +1450,7 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .leader-empty {
-  margin-top: 28px;
+  margin-top: 1.6em;
   color: #dce6ef;
   font-size: 1.5em;
   font-weight: 900;
@@ -1458,13 +1459,13 @@ tr:last-child td { border-bottom: 0; }
 .leader-header,
 .leader-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 160px 120px;
-  gap: 14px;
+  grid-template-columns: 4em minmax(0, 1fr) 9em 7em;
+  gap: 0.85em;
   align-items: center;
 }
 
 .leader-header {
-  padding: 0 12px 8px;
+  padding: 0 0.75em 0.45em;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.85);
   font-size: 1em;
@@ -1479,9 +1480,9 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .leader-row {
-  min-height: 58px;
-  margin-top: 10px;
-  padding: 8px 12px;
+  min-height: 3.35em;
+  margin-top: 0.45em;
+  padding: 0.45em 0.75em;
   border-bottom: 1px dotted rgba(255, 255, 255, 0.45);
   border-radius: 0;
   background: transparent;
@@ -1510,8 +1511,8 @@ tr:last-child td { border-bottom: 0; }
   left: 0;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 14px;
+  gap: 1em;
+  padding: 0.6em 0.85em;
   color: #fff;
   background: #000;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -1526,9 +1527,9 @@ tr:last-child td { border-bottom: 0; }
 .rank {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  width: 2.75em;
+  height: 2.75em;
+  border-radius: 0.5em;
   color: var(--ink);
   background: #ffd15c;
   font-size: 1em;
