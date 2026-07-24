@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.26";
+const STACKMEET_APP_VERSION = "0.9.27";
 
 function brandText(key) {
   return branding[key] || "";
@@ -4540,7 +4540,8 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
-document.getElementById("exportXmlBtn").addEventListener("click", () => {
+document.getElementById("exportXmlBtn").addEventListener("click", async () => {
+  if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: true, rerender: false });
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -4554,6 +4555,7 @@ document.getElementById("importXmlInput").addEventListener("change", async (even
   if (!file) return;
   try {
     state = xmlToState(await file.text());
+    await importSqlStackersFromState(state);
     render();
   } catch (error) {
     alert("This XML file could not be imported. Please check that it came from this app.");
@@ -4567,6 +4569,20 @@ document.getElementById("importXmlInput").addEventListener("change", async (even
     console.error("Unable to save competition state to the StackMeet API.", error);
   }
 });
+
+async function importSqlStackersFromState(importedState) {
+  if (!selectedSqlCompetitionId) return;
+  const importedStackers = importedState.stackers || [];
+  const existingRecords = await stackerApi.list(selectedSqlCompetitionId);
+  const existingByCode = new Map(existingRecords.map(record => [String(record.stackerCode || ""), record]));
+  for (const stacker of importedStackers) {
+    if (!stacker.id) continue;
+    const existing = existingByCode.get(String(stacker.id));
+    if (existing) await stackerApi.update(selectedSqlCompetitionId, existing.id, runtimeStackerToSql(stacker));
+    else await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+  }
+  await refreshSqlStackers({ allowEditing: true, rerender: false });
+}
 
 document.getElementById("resetBtn")?.addEventListener("click", async () => {
   state = normalizeState(structuredClone(demo));
@@ -5822,6 +5838,7 @@ function val(id) {
 function stateToXml(data) {
   const node = (name, value = "", attrs = "") => `<${name}${attrs}>${xmlEsc(value)}</${name}>`;
   const list = (name, items, renderItem) => `<${name}>\n${items.map(renderItem).join("\n")}\n</${name}>`;
+  const stateJson = node("stateJson", JSON.stringify(data));
   const settings = `<settings>\n${Object.entries(data.settings).map(([key, value]) => node(key, value)).join("\n")}\n</settings>`;
   const leaderboard = `<leaderboard>\n${Object.entries(data.leaderboard).map(([key, value]) => node(key, value)).join("\n")}\n</leaderboard>`;
   const awards = `<awards>\n${node("individualPlaces", data.awards?.individualPlaces)}\n<individualItems>${(data.awards?.individualItems || []).map(item => node("item", item)).join("")}</individualItems>\n${node("doublesPlaces", data.awards?.doublesPlaces)}\n<doublesItems>${(data.awards?.doublesItems || []).map(item => node("item", item)).join("")}</doublesItems>\n${node("relayPlaces", data.awards?.relayPlaces)}\n${node("relayUnits", data.awards?.relayUnits)}\n<relayItems>${(data.awards?.relayItems || []).map(item => node("item", item)).join("")}</relayItems>\n<overall>${awardOverallGroups.map(group => `<group key="${xmlAttr(group.key)}">${node("limit", data.awards?.overall?.[group.key]?.limit)}${node("item", data.awards?.overall?.[group.key]?.item)}</group>`).join("")}</overall>\n</awards>`;
@@ -5831,12 +5848,12 @@ function stateToXml(data) {
   const divisions = list("divisions", data.divisions, division => node("division", division));
   const translations = `<translations>\n${Object.entries(data.translations || {}).map(([code, values]) => `<lang code="${xmlAttr(code)}">${Object.entries(values || {}).map(([key, value]) => node("item", value, ` key="${xmlAttr(key)}"`)).join("")}</lang>`).join("\n")}\n</translations>`;
   const stackers = list("stackers", data.stackers, s => `<stacker id="${xmlAttr(s.id)}">${node("name", s.name)}${node("gender", s.gender)}${node("dob", s.dob)}${node("age", s.age)}${node("special", s.special || "No")}${node("org", s.org)}${node("division", s.division)}${node("customDivision", s.customDivision)}${node("standardDivision", s.standardDivision)}${node("country", s.country)}${node("region", s.region)}${node("email", s.email)}${node("phone", s.phone)}${node("paid", s.paid)}${node("checkedIn", s.checkedIn)}</stacker>`);
-  const doubles = list("doubles", data.doubles, d => `<team id="${xmlAttr(d.id)}">${node("type", d.type || "normal")}${node("status", d.status || "complete")}${node("one", d.one)}${node("two", d.two)}${node("parentName", d.parentName)}${node("customDivision", d.customDivision)}${node("division", doubleDivision(d))}${node("country", d.country || teamCountry(d))}</team>`);
-  const relays = list("relays", data.relays || [], relay => `<team id="${xmlAttr(relay.id)}">${node("name", relay.name)}${node("coordinator", relay.coordinator)}${node("email", relay.email)}${node("phone", relay.phone)}${node("customDivision", relay.customDivision)}${node("division", relayDivision(relay))}${node("org", relay.org)}${node("country", relay.country)}${node("region", relay.region)}<members>${relayMemberIds(relay).map(member => node("member", member)).join("")}</members></team>`);
+  const doubles = list("doubles", data.doubles, d => `<team id="${xmlAttr(d.id)}">${node("type", d.type || "normal")}${node("status", d.status || "complete")}${node("one", d.one)}${node("two", d.two)}${node("parentName", d.parentName)}${node("customDivision", d.customDivision)}${node("division", doubleDivision(d))}${node("org", d.org)}${node("country", d.country || teamCountry(d))}${node("region", d.region || teamRegion(d))}</team>`);
+  const relays = list("relays", data.relays || [], relay => `<team id="${xmlAttr(relay.id)}">${node("name", relay.name)}${node("coordinator", relay.coordinator)}${node("email", relay.email)}${node("phone", relay.phone)}${node("timedRelayDivision", relay.timedRelayDivision || relayDivision(relay))}${node("headToHeadDivision", relay.headToHeadDivision)}${node("customDivision", relay.customDivision)}${node("division", relayDivision(relay))}${node("org", relay.org)}${node("country", relay.country)}${node("region", relay.region)}<members>${relayMemberIds(relay).map(member => node("member", member)).join("")}</members></team>`);
   const results = list("results", data.results, r => `<result id="${xmlAttr(r.id)}">${node("stage", r.stage)}${node("type", r.type)}${node("participant", r.participant)}${node("event", r.event)}<attempts>${r.attempts.map(a => node("attempt", a)).join("")}</attempts>${node("penalty", r.penalty)}</result>`);
   const notifications = list("notifications", data.notifications, n => `<notification id="${xmlAttr(n.id)}" read="${xmlAttr(n.read ? "true" : "false")}">${node("title", n.title)}${node("time", n.time)}</notification>`);
   const users = list("users", data.users, u => `<user>${node("name", u.name)}${node("access", u.access)}${node("last", u.last)}${node("platform", u.platform)}${node("browser", u.browser)}</user>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<stackmeet version="1">\n${settings}\n${leaderboard}\n${awards}\n${qualificationSnapshots}\n${events}\n${divisionSettings}\n${divisions}\n${translations}\n${stackers}\n${doubles}\n${relays}\n${results}\n${notifications}\n${users}\n</stackmeet>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<stackmeet version="2">\n${stateJson}\n${settings}\n${leaderboard}\n${awards}\n${qualificationSnapshots}\n${events}\n${divisionSettings}\n${divisions}\n${translations}\n${stackers}\n${doubles}\n${relays}\n${results}\n${notifications}\n${users}\n</stackmeet>\n`;
 }
 
 function xmlToState(xmlText) {
@@ -5845,6 +5862,8 @@ function xmlToState(xmlText) {
     throw new Error("Invalid XML");
   }
   const text = (root, selector, fallback = "") => root.querySelector(selector)?.textContent ?? fallback;
+  const stateJson = doc.querySelector("stackmeet > stateJson")?.textContent;
+  if (stateJson) return normalizeState(JSON.parse(stateJson));
   const imported = structuredClone(demo);
   const settings = doc.querySelector("settings");
   const leaderboard = doc.querySelector("leaderboard");
@@ -5921,7 +5940,9 @@ function xmlToState(xmlText) {
     parentName: text(d, "parentName"),
     customDivision: text(d, "customDivision"),
     division: text(d, "division"),
-    country: text(d, "country")
+    org: text(d, "org"),
+    country: text(d, "country"),
+    region: text(d, "region")
   }));
   imported.relays = [...doc.querySelectorAll("relays team")].map(relay => ({
     id: relay.getAttribute("id") || "",
@@ -5929,6 +5950,8 @@ function xmlToState(xmlText) {
     coordinator: text(relay, "coordinator"),
     email: text(relay, "email"),
     phone: text(relay, "phone"),
+    timedRelayDivision: text(relay, "timedRelayDivision"),
+    headToHeadDivision: text(relay, "headToHeadDivision"),
     customDivision: text(relay, "customDivision"),
     division: text(relay, "division"),
     org: text(relay, "org"),
