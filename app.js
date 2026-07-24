@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.21";
+const STACKMEET_APP_VERSION = "0.9.22";
 
 function brandText(key) {
   return branding[key] || "";
@@ -1664,7 +1664,6 @@ function renderRelay() {
   document.getElementById("relayRows").innerHTML = rows.map(team => {
     const members = relayMemberIds(team);
     const status = relayTeamStatus(team);
-    const locked = status === "Locked";
     return `<tr>
       <td>${esc(team.id)}</td>
       <td><strong>${esc(participantName("Timed Relay", team.id))}</strong>${team.coordinator ? `<br><small>${esc(team.coordinator)}</small>` : ""}</td>
@@ -1674,7 +1673,7 @@ function renderRelay() {
       <td><strong>${members.length}</strong></td>
       <td><span class="pill ${relayStatusClass(status)}">${esc(status)}</span></td>
       <td>${esc(relayLocation(team))}</td>
-      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button" ${locked ? "disabled" : ""}>Edit</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button" ${locked ? "disabled" : ""}>x</button></div></td>
+      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button">Edit</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button">x</button></div></td>
     </tr>`;
   }).join("") || `<tr><td colspan="9"><span class="muted">No relay teams found for this tab.</span></td></tr>`;
   document.querySelectorAll("[data-relay-search]").forEach(input => input.addEventListener("input", populateRelaySelects));
@@ -1697,11 +1696,8 @@ function syncRelayEditState() {
   const cancelButton = document.getElementById("cancelRelayEdit");
   if (saveButton) saveButton.textContent = editingRelayId ? `Update ${editingRelayId}` : "Add Team";
   if (cancelButton) cancelButton.hidden = !editingRelayId;
-  const team = state.relays.find(item => item.id === editingRelayId);
-  const locked = Boolean(team && relayTeamStatus(team) === "Locked");
-  if (saveButton) saveButton.disabled = locked;
-  document.querySelectorAll("#relayMemberGrid input, #relayMemberGrid select, #relayName, #timedRelayDivision, #headToHeadDivision, #relayCoordinator, #relayEmail, #relayPhone, #relayRegion").forEach(control => { control.disabled = locked; });
-  if (locked) relayFlashMessage = { type: "error", text: "Locked Team: this competition has started, so relay team membership and divisions can no longer be changed." };
+  if (saveButton) saveButton.disabled = false;
+  document.querySelectorAll("#relayMemberGrid input, #relayMemberGrid select, #relayName, #timedRelayDivision, #headToHeadDivision, #relayCoordinator, #relayEmail, #relayPhone, #relayRegion").forEach(control => { control.disabled = false; });
 }
 
 function showRelayMessage() {
@@ -1772,7 +1768,6 @@ function filteredRelaysForTab() {
   if (relayTab === "ready") return sorted.filter(relayCanCompete);
   if (relayTab === "incomplete") return sorted.filter(team => relayTeamStatus(team) === "Incomplete");
   if (relayTab === "draft") return sorted.filter(team => relayTeamStatus(team) === "Draft");
-  if (relayTab === "locked") return sorted.filter(team => relayTeamStatus(team) === "Locked");
   return sorted;
 }
 
@@ -1788,15 +1783,7 @@ function relayCanCompete(team) {
   return relayMemberIds(team).length >= 4;
 }
 
-function competitionHasStarted(today = new Date()) {
-  const start = normalizedDateValue(state.settings?.start);
-  if (!start) return false;
-  const current = typeof today === "string" ? normalizedDateValue(today) : today.toISOString().slice(0, 10);
-  return Boolean(current && start <= current);
-}
-
-function relayTeamStatus(team, today = new Date()) {
-  if (competitionHasStarted(today)) return "Locked";
+function relayTeamStatus(team) {
   const memberCount = relayMemberIds(team).length;
   if (memberCount === 0) return "Draft";
   if (memberCount < 4) return "Incomplete";
@@ -1805,7 +1792,6 @@ function relayTeamStatus(team, today = new Date()) {
 
 function relayStatusClass(status) {
   if (status === "Ready") return "blue";
-  if (status === "Locked") return "muted";
   return "warning";
 }
 
@@ -5280,11 +5266,6 @@ function deleteDouble(id) {
 function addRelay() {
   const selectedMembers = selectedRelayMemberIds().filter(Boolean);
   const relayName = val("relayName").trim();
-  const existingTeam = state.relays.find(team => team.id === editingRelayId);
-  if (existingTeam && relayTeamStatus(existingTeam) === "Locked") {
-    relayFlashMessage = { type: "error", text: "Locked Team: this competition has started, so this team cannot be changed." };
-    return;
-  }
   const validation = validateRelayEntry(selectedMembers, relayName);
   if (validation) {
     relayFlashMessage = { type: "error", text: validation };
@@ -5370,10 +5351,6 @@ function clearRelayForm(renderNow = true) {
 function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
   if (!team) return;
-  if (relayTeamStatus(team) === "Locked") {
-    relayFlashMessage = { type: "error", text: "Locked Team: this competition has started, so this team cannot be deleted." };
-    return;
-  }
   if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
