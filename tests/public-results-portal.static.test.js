@@ -121,11 +121,11 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260724-relay-editable/, "The relay editable-status update must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260724-stacker-autocomplete/, "The stacker autocomplete update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.22"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.23"/, "Dashboard must show the current deployed app version.");
 assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
 assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
 assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
@@ -177,6 +177,12 @@ assert.match(adminClient, /if \(relayTab === "ready"\) return sorted\.filter\(re
 assert.doesNotMatch(adminHtml, /data-relay-tab="locked"/, "Relay teams must not expose a locked tab.");
 assert.doesNotMatch(adminClient, /Locked Team/, "Relay teams must remain editable after competition start.");
 assert.doesNotMatch(adminClient, /return "Locked"/, "Relay status must be based on member count, not competition date.");
+assert.match(adminHtml, /id="stCustomDivision" list="customDivisionOptions"[\s\S]*id="customDivisionOptions"/, "Stacker custom division must expose competition-scoped autocomplete options.");
+assert.match(adminHtml, /id="stOrg" list="organizationOptions"[\s\S]*id="organizationOptions"/, "Stacker organization must expose competition-scoped autocomplete options.");
+assert.match(adminHtml, /id="stRegion" list="regionOptions"[\s\S]*id="regionOptions"/, "Stacker region must expose competition-scoped autocomplete options.");
+assert.match(adminClient, /function populateStackerAutocompleteOptions/, "Stacker autocomplete options must be populated from current competition state.");
+assert.match(adminClient, /setDatalistOptions\("organizationOptions", state\.stackers\.map\(stacker => stacker\.org\)/, "Organization suggestions must come from current competition stackers.");
+assert.match(adminClient, /setDatalistOptions\("regionOptions", state\.stackers\.map\(stacker => stacker\.region\)/, "Region suggestions must come from current competition stackers.");
 assert.match(adminClient, /function registeredDoublesFromStackers/, "Print Center must detect registered Doubles from imported participant registration fields.");
 assert.match(adminClient, /function findDoublesTeam/, "Doubles Finals must resolve registered Doubles team names and divisions.");
 assert.match(adminClient, /timeSheetEvents\("Doubles", \["Cycle"\]\)/, "Doubles preliminary time sheets must render default attempt rows when setup has no explicit events.");

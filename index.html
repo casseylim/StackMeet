@@ -250,9 +250,9 @@
           <label>Generated Division<input id="stDivision" readonly placeholder="Enter DOB to preview" /></label>
           <label class="checkbox-field"><input id="stSpecial" type="checkbox" /> <span>Special / Disability</span></label>
           <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
-          <label>Organization<input id="stOrg" placeholder="School or club" /></label>
+          <label>Organization<input id="stOrg" list="organizationOptions" placeholder="School or club" /><datalist id="organizationOptions"></datalist></label>
           <label>Country<select id="stCountry"></select></label>
-          <label>Region<input id="stRegion" placeholder="State / region" /></label>
+          <label>Region<input id="stRegion" list="regionOptions" placeholder="State / region" /><datalist id="regionOptions"></datalist></label>
           <label>Email<input id="stEmail" type="email" placeholder="Optional" /></label>
           <label>Phone<input id="stPhone" placeholder="Optional" /></label>
           <label>Paid<select id="stPaid"><option>Yes</option><option>No</option></select></label>
@@ -574,6 +574,6 @@
     <script src="js/storage/Repository.js?v=20260714-doubles4"></script>
     <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
     <script src="js/reports/FinalsReportEngine.js?v=20260722-report-engine-fix"></script>
-    <script src="app.js?v=20260724-relay-editable"></script>
+    <script src="app.js?v=20260724-stacker-autocomplete"></script>
   </body>
 </html>

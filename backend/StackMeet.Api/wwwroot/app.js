@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.22";
+const STACKMEET_APP_VERSION = "0.9.23";
 
 function brandText(key) {
   return branding[key] || "";
@@ -965,7 +965,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
     );
     refreshDivisionCountBadges(divisionCountSummary(state.divisionSettings));
     if (rerender && route === "stackers") {
-      populateCustomDivisionOptions();
+      populateStackerAutocompleteOptions();
       drawStackerRows();
     }
     if (rerender && route === "dashboard") {
@@ -1490,7 +1490,7 @@ function renderStackers() {
   const showFormButton = document.getElementById("showStackerFormBtn");
   if (showFormButton) showFormButton.hidden = stackerFormVisible;
   setOptions("stackerDivisionFilter", ["All Divisions", ...sortedDivisions(state.divisions)]);
-  populateCustomDivisionOptions();
+  populateStackerAutocompleteOptions();
   syncStackerEditState();
   if (flashMessage) {
     const box = document.getElementById("stackerMessage");
@@ -1515,16 +1515,21 @@ function renderStackers() {
   }
 }
 
-function populateCustomDivisionOptions() {
-  const datalist = document.getElementById("customDivisionOptions");
-  if (!datalist) return;
-  const custom = [
+function populateStackerAutocompleteOptions() {
+  setDatalistOptions("customDivisionOptions", [
     ...(state.divisionSettings?.custom || []),
     ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
-  ];
-  datalist.innerHTML = [...new Set(custom)]
+  ]);
+  setDatalistOptions("organizationOptions", state.stackers.map(stacker => stacker.org).filter(Boolean));
+  setDatalistOptions("regionOptions", state.stackers.map(stacker => stacker.region).filter(Boolean));
+}
+
+function setDatalistOptions(id, options) {
+  const datalist = document.getElementById(id);
+  if (!datalist) return;
+  datalist.innerHTML = [...new Set(options.map(option => String(option || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-    .map(division => `<option value="${esc(division)}"></option>`)
+    .map(option => `<option value="${esc(option)}"></option>`)
     .join("");
 }
 
