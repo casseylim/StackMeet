@@ -121,11 +121,11 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260724-final-enter-scratch/, "The finals Enter-to-scratch update must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260724-final-save-reset/, "The final-save reset update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.25"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.26"/, "Dashboard must show the current deployed app version.");
 assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
 assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
 assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
@@ -191,6 +191,8 @@ assert.doesNotMatch(adminClient, /if \(!eventGroupEnabled\(typeEventGroup\(confi
 assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["2"\]\)/, "Doubles missing-times and lookup must use the same event resolver.");
 assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["3"\]\)/, "Relay missing-times and lookup must use the same event resolver.");
 assert.match(adminClient, /input\.addEventListener\("keydown", event => \{[\s\S]*if \(event\.key !== "Enter"\) return;[\s\S]*if \(!input\.value\.trim\(\)\) input\.value = "999";[\s\S]*normalizeFinalTimeInput\(input\)/, "Finals entry must fill blank attempts with 999 when Enter is pressed.");
+assert.match(adminClient, /showFinalMessage\(`\$\{sheet\.id\} saved\.[\s\S]*populateFinalSheetSelect\(\);[\s\S]*clearFinalSheet\(\);[\s\S]*sheetInput\?\.focus\(\);/, "Saving a final sheet must reset back to the Final Sheet ID finder.");
+assert.doesNotMatch(adminClient, /populateFinalSheetSelect\(\);\s*loadFinalSheet\(sheet\.id, false\);/, "Saving a final sheet must not reload the same sheet.");
 assert.match(adminClient, /<colgroup><col class="event-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><\/colgroup>/, "Time sheets must define one event column and three even attempt columns.");
 assert.match(adminClient, /"finals-doubles": \{ typeKey: "2"[\s\S]*"finals-relay": \{ typeKey: "3"[\s\S]*sheets\.map\(finalTimeSheetHtml\)/, "Doubles and Relay finals must use the same final time sheet renderer as Individual finals.");
 assert.match(adminClient, /defaultChineseTranslations\["Preliminary Time Sheets"\]/, "Print Center headings must be covered by the Chinese translation pack.");

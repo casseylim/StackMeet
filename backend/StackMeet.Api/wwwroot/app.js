@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.25";
+const STACKMEET_APP_VERSION = "0.9.26";
 
 function brandText(key) {
   return branding[key] || "";
@@ -2789,7 +2789,11 @@ function saveFinalResults() {
   });
   showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
   populateFinalSheetSelect();
-  loadFinalSheet(sheet.id, false);
+  clearFinalSheet();
+  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
+  const sheetInput = document.getElementById("finalSheetId");
+  sheetInput?.focus();
+  sheetInput?.select();
   drawResultRows();
 }
 
