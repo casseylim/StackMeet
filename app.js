@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.24";
+const STACKMEET_APP_VERSION = "0.9.25";
 
 function brandText(key) {
   return branding[key] || "";
@@ -2158,6 +2158,7 @@ function renderCompetition() {
     input.addEventListener("keydown", event => {
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (!input.value.trim()) input.value = "999";
       if (!normalizeFinalTimeInput(input)) return;
       updateFinalSheetComputedColumns();
       const inputs = visibleFinalTimeInputs();
@@ -2660,6 +2661,7 @@ function drawFinalSheetRows(sheet) {
     input.addEventListener("keydown", event => {
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (!input.value.trim()) input.value = "999";
       if (!normalizeFinalTimeInput(input)) return;
       updateFinalSheetComputedColumns();
       const inputs = visibleFinalTimeInputs();
