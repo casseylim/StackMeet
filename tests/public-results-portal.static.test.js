@@ -121,11 +121,11 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260724-stacker-autocomplete/, "The stacker autocomplete update must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260724-prelim-team-entry/, "The team prelim-entry update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.23"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.24"/, "Dashboard must show the current deployed app version.");
 assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
 assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
 assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
@@ -187,6 +187,9 @@ assert.match(adminClient, /function registeredDoublesFromStackers/, "Print Cente
 assert.match(adminClient, /function findDoublesTeam/, "Doubles Finals must resolve registered Doubles team names and divisions.");
 assert.match(adminClient, /timeSheetEvents\("Doubles", \["Cycle"\]\)/, "Doubles preliminary time sheets must render default attempt rows when setup has no explicit events.");
 assert.match(adminClient, /timeSheetEvents\("Timed Relay", \["3-6-3"\]\)/, "Relay preliminary time sheets must render default attempt rows when setup has no explicit events.");
+assert.doesNotMatch(adminClient, /if \(!eventGroupEnabled\(typeEventGroup\(config\.entryType\)\)\) return null;/, "Prelim lookup must allow printed Doubles and Relay sheets even when event setup is empty.");
+assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["2"\]\)/, "Doubles missing-times and lookup must use the same event resolver.");
+assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["3"\]\)/, "Relay missing-times and lookup must use the same event resolver.");
 assert.match(adminClient, /<colgroup><col class="event-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><\/colgroup>/, "Time sheets must define one event column and three even attempt columns.");
 assert.match(adminClient, /"finals-doubles": \{ typeKey: "2"[\s\S]*"finals-relay": \{ typeKey: "3"[\s\S]*sheets\.map\(finalTimeSheetHtml\)/, "Doubles and Relay finals must use the same final time sheet renderer as Individual finals.");
 assert.match(adminClient, /defaultChineseTranslations\["Preliminary Time Sheets"\]/, "Print Center headings must be covered by the Chinese translation pack.");

@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.23";
+const STACKMEET_APP_VERSION = "0.9.24";
 
 function brandText(key) {
   return branding[key] || "";
@@ -2277,7 +2277,6 @@ function resolvePrelimParticipant(rawId) {
   const prefix = id.split(".")[0];
   const config = prelimEntryConfig[prefix];
   if (!config) return null;
-  if (!eventGroupEnabled(typeEventGroup(config.entryType))) return null;
   if (prefix === "1") {
     const stacker = state.stackers.find(item => item.id === id);
     return stacker ? { ...config, ...stacker, events: prelimEventsForParticipant(config), name: stacker.name } : null;
@@ -3623,21 +3622,21 @@ function missingPrelimGroups() {
       label: "Individuals",
       summaryLabel: "Individual Missing",
       type: "Individual",
-      events: prelimEntryConfig["1"].events,
+      events: prelimEventsForParticipant(prelimEntryConfig["1"]),
       participants: state.stackers.map(stacker => ({ id: stacker.id, name: stacker.name }))
     },
     {
       label: "Doubles",
       summaryLabel: "Doubles Missing",
       type: "Doubles",
-      events: prelimEntryConfig["2"].events,
+      events: prelimEventsForParticipant(prelimEntryConfig["2"]),
       participants: completedDoubles().map(team => ({ id: team.id, name: participantName("Doubles", team.id) }))
     },
     {
       label: "Relay Teams",
       summaryLabel: "Relay Team Missing",
       type: "Timed Relay",
-      events: prelimEntryConfig["3"].events,
+      events: prelimEventsForParticipant(prelimEntryConfig["3"]),
       participants: completedRelays().map(team => ({ id: team.id, name: participantName("Timed Relay", team.id) }))
     }
   ];
