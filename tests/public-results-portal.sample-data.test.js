@@ -135,6 +135,10 @@ const finalBody = descendants(finalCard, "tbody")[0];
 assert.deepEqual(finalBody.children.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1", "🥉 3", "—"]);
 assert.deepEqual(finalBody.children.map(row => cells(row)[3].textContent), ["8.000", "8.000", "9.000", "SCR"]);
 
+assert.deepEqual(descendants(finalCard, "th").map(cell => cell.textContent), ["Place", "Stacker", "Organization", "Best", "GAP"]);
+assert.deepEqual(finalBody.children.map(row => cells(row)[4].textContent), ["--", "--", "+1.000", "--"]);
+assert.equal(descendants(finalCard, ".event-state").length, 0);
+
 resetNodes();
 const allAroundGroups = node("allAroundGroups");
 node("allAroundSummary");

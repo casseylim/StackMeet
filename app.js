@@ -17,7 +17,7 @@ const branding = Object.freeze({
   ...(window.StackMeetBranding || {})
 });
 
-const STACKMEET_APP_VERSION = "0.9.27";
+const STACKMEET_APP_VERSION = "0.9.28";
 
 function brandText(key) {
   return branding[key] || "";
@@ -2236,11 +2236,11 @@ function loadPrelimParticipant() {
   summary.hidden = false;
   summary.innerHTML = `<div><span>Participant ID</span><strong>${esc(participant.id)}</strong></div><div><span>${esc(identity.label)}</span><strong>${esc(identity.value)}</strong></div><div><span>Division</span><strong>${esc(participant.division || "Open")}</strong></div><div><span>Organization / Location</span><strong>${esc(participant.org || "Independent")} // ${esc(participant.country || "--")}</strong></div>`;
   Object.entries(prelimEventFieldIds).forEach(([event, fieldId]) => {
-    const result = state.results.find(item => item.stage === "Prelims" && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(event));
+    const result = findPrelimEntryResult(participant, event);
     setValue(fieldId, participant.events.includes(event) ? prelimResultInputValue(result) : "");
   });
   showPrelimEntryFields(participant.events);
-  const hasExistingResult = participant.events.some(event => state.results.some(item => item.stage === "Prelims" && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(event)));
+  const hasExistingResult = participant.events.some(event => Boolean(findPrelimEntryResult(participant, event)));
   showPrelimMessage(`${hasExistingResult ? "Editing Existing Result" : "Ready for Entry"}: ${participant.id} ${participant.name}.`, false);
   const firstInput = visiblePrelimTimeInputs()[0];
   firstInput?.focus();
@@ -2434,13 +2434,14 @@ async function persistPrelimResults(options = {}) {
     return;
   }
   const previousState = structuredClone(state);
+  const resultStage = prelimEntryResultStage();
   let created = 0;
   let updated = 0;
   completed.forEach(entry => {
-    const existing = state.results.find(result => result.stage === "Prelims" && result.type === participant.type && result.participant === participant.id && normalizeEventName(result.event) === normalizeEventName(entry.event));
+    const existing = findPrelimEntryResult(participant, entry.event);
     const result = {
       id: existing?.id || crypto.randomUUID(),
-      stage: "Prelims",
+      stage: resultStage,
       type: participant.type,
       participant: participant.id,
       event: entry.event,
@@ -2448,7 +2449,8 @@ async function persistPrelimResults(options = {}) {
       penalty: entry.parsed.kind === "scratch" ? 999 : 0
     };
     if (existing) {
-      state.results = state.results.map(item => item.id === existing.id ? result : item);
+      state.results = state.results.filter(item => !(prelimEntryLookupStages().includes(item.stage) && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(entry.event)));
+      state.results.push(result);
       updated += 1;
     } else {
       state.results.push(result);
@@ -2477,11 +2479,24 @@ async function persistPrelimResults(options = {}) {
 function prelimResultsPersisted(authoritativeState, participant, entries) {
   const results = authoritativeState?.results || [];
   return entries.every(entry => {
-    const result = results.find(item => item.stage === "Prelims" && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(entry.event));
+    const result = results.find(item => item.stage === prelimEntryResultStage() && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(entry.event));
     if (!result) return false;
     const expectedPenalty = entry.parsed.kind === "scratch" ? 999 : 0;
     return Number(result.penalty || 0) === expectedPenalty && Number(result.attempts?.[0]) === Number(entry.parsed.value);
   });
+}
+
+function prelimEntryResultStage() {
+  return state.settings?.prelims === "0" && state.settings?.finals === "1" ? "Finals" : "Prelims";
+}
+
+function prelimEntryLookupStages() {
+  const stage = prelimEntryResultStage();
+  return stage === "Finals" ? ["Finals", "Prelims"] : ["Prelims"];
+}
+
+function findPrelimEntryResult(participant, event, results = state.results) {
+  return results.find(item => prelimEntryLookupStages().includes(item.stage) && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(event));
 }
 
 function populateFinalSheetSelect() {
@@ -3651,7 +3666,7 @@ function missingPrelimGroups() {
     items: definition.participants
       .map(participant => ({
         ...participant,
-        missingEvents: definition.events.filter(event => !state.results.some(result => result.stage === "Prelims" && result.type === definition.type && result.participant === participant.id && normalizeEventName(result.event) === normalizeEventName(event)))
+        missingEvents: definition.events.filter(event => !state.results.some(result => prelimEntryLookupStages().includes(result.stage) && result.type === definition.type && result.participant === participant.id && normalizeEventName(result.event) === normalizeEventName(event)))
       }))
       .filter(participant => participant.missingEvents.length)
       .sort((a, b) => stackerIdNumber(a.id) - stackerIdNumber(b.id))

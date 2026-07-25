@@ -647,7 +647,7 @@
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
     eventCopy.append(make("span", "eyebrow", "Final event"), make("h3", "", eventName));
-    heading.append(eventCopy, make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional"));
+    heading.append(eventCopy);
     card.append(heading);
 
     rows.sort((left, right) => {
@@ -662,11 +662,12 @@
     const table = make("table", "results-table finals-table");
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["Place", "Stacker", "Organization", "Best", "Status"].forEach(label => headRow.append(make("th", "", label)));
+    ["Place", "Stacker", "Organization", "Best", "GAP"].forEach(label => headRow.append(make("th", "", label)));
     head.append(headRow);
     table.append(head);
 
     const body = document.createElement("tbody");
+    const winningBest = rows.find(row => Number.isFinite(row.best))?.best;
     let previousBest = Number.NaN;
     let previousRank = 0;
     rows.forEach((row, index) => {
@@ -690,7 +691,7 @@
         nameCell,
         make("td", "organization-cell", row.stacker.org || "Independent"),
         make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
-        make("td", "status-cell", official ? "Official" : "Provisional")
+        make("td", "status-cell", valid && Number.isFinite(winningBest) && row.best > winningBest ? `+${formatTime(row.best - winningBest)}` : "--")
       );
       body.append(tr);
     });

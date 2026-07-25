@@ -1,13 +1,13 @@
 // StackMeet Online Phase 3 uses the API provider exclusively.
-const COMPETITION_KEY = "DEFAULT";
+const COMPETITION_KEY = "Null";
 
 window.StackMeetBranding = Object.freeze({
-  organizationName: "WSSA NS Sport Stacking Centre",
-  shortName: "WSSA",
+  organizationName: "NS-Melaka Sport Stacking",
+  shortName: "NS-Melaka",
   productName: "StackMeet",
-  reportHeader: "WSSA NS Sport Stacking Centre",
-  browserTitle: "WSSA NS Sport Stacking Centre - StackMeet",
-  sidebarTitle: "WSSA",
-  sidebarSubtitle: "Sport Stacking Centre",
-  defaultCompetitionName: "WSSA NS Sport Stacking Centre"
+  reportHeader: "NS-Melaka Sport Stacking",
+  browserTitle: "NS-Melaka Sport Stacking - StackMeet",
+  sidebarTitle: "NS-Melaka",
+  sidebarSubtitle: "Sport Stacking",
+  defaultCompetitionName: "NS-Melaka Sport Stacking"
 });

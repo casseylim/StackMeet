@@ -70,7 +70,7 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260723-allaround-aggregate-only/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260725-finals-gap/, "Results JavaScript changes must invalidate the browser cache.");
 assert.match(client, /renderDivisionJumpNav/, "Preliminary and Finals standings must include division jump links.");
 assert.match(client, /orderedDivisionGroups\(groups, payload\)/, "Preliminary and Finals divisions must follow configured division order.");
 assert.match(client, /renderDivisionEmpty/, "Configured divisions without published rows must still render a public section.");
@@ -121,11 +121,11 @@ assert.match(adminClient, /function handleAwardPlannerChange/, "Awards place cha
 assert.match(adminClient, /teamDivisionRanges\(settings\.doubles/, "Doubles awards must use competition-configured divisions.");
 assert.match(adminClient, /teamDivisionRanges\(settings\.timedRelay/, "Relay awards must use competition-configured divisions.");
 assert.match(adminClient, /state\.awards\.individualItems\[index\]/, "Increasing award places must preserve configured award items.");
-assert.match(adminHtml, /app\.js\?v=20260724-xml-roundtrip/, "The XML round-trip update must invalidate the browser cache.");
+assert.match(adminHtml, /app\.js\?v=20260724-zero-prelim-finals/, "The zero-prelim finals update must invalidate the browser cache.");
 assert.match(adminHtml, /Team Division Setup/, "Settings must clearly expose Doubles and Relay division setup.");
 assert.match(adminHtml, /Doubles Team Builder/, "Settings must link directly to the Doubles team builder.");
 assert.match(adminHtml, /Relay Team Builder/, "Settings must link directly to the Relay team builder.");
-assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.27"/, "Dashboard must show the current deployed app version.");
+assert.match(adminClient, /const STACKMEET_APP_VERSION = "0\.9\.28"/, "Dashboard must show the current deployed app version.");
 assert.match(adminHtml, /Doubles Teams[\s\S]*data-metric="doubles"[\s\S]*Relay Teams[\s\S]*data-metric="relay"/, "Dashboard must show Relay Teams immediately after Doubles Teams.");
 assert.doesNotMatch(adminHtml, /<h2>Notifications<\/h2>/, "Dashboard must not render the Notifications section.");
 assert.doesNotMatch(adminClient, /<span>Data Entry<\/span>/, "Dashboard snapshot must not show Data Entry.");
@@ -190,6 +190,11 @@ assert.match(adminClient, /timeSheetEvents\("Timed Relay", \["3-6-3"\]\)/, "Rela
 assert.doesNotMatch(adminClient, /if \(!eventGroupEnabled\(typeEventGroup\(config\.entryType\)\)\) return null;/, "Prelim lookup must allow printed Doubles and Relay sheets even when event setup is empty.");
 assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["2"\]\)/, "Doubles missing-times and lookup must use the same event resolver.");
 assert.match(adminClient, /events: prelimEventsForParticipant\(prelimEntryConfig\["3"\]\)/, "Relay missing-times and lookup must use the same event resolver.");
+assert.match(adminClient, /function prelimEntryResultStage\(\) \{[\s\S]*state\.settings\?\.prelims === "0" && state\.settings\?\.finals === "1" \? "Finals" : "Prelims"/, "Prelim entry must save as Finals when setup has zero prelim rounds and one final round.");
+assert.match(adminClient, /\? "Finals" : "Prelims"/, "Normal one-prelim one-final mode must continue saving prelim entry as Prelims.");
+assert.match(adminClient, /stage: resultStage/, "Prelim entry save must use the computed result stage.");
+assert.match(adminClient, /function prelimEntryLookupStages\(\) \{[\s\S]*return stage === "Finals" \? \["Finals", "Prelims"\] : \["Prelims"\]/, "Zero-prelim finals mode must still recognize legacy Prelims rows while editing.");
+assert.match(adminClient, /prelimEntryLookupStages\(\)\.includes\(item\.stage\)[\s\S]*item\.type === participant\.type[\s\S]*normalizeEventName\(item\.event\) === normalizeEventName\(entry\.event\)/, "Saving zero-prelim finals entries must remove duplicate legacy stage rows for that event.");
 assert.match(adminClient, /input\.addEventListener\("keydown", event => \{[\s\S]*if \(event\.key !== "Enter"\) return;[\s\S]*if \(!input\.value\.trim\(\)\) input\.value = "999";[\s\S]*normalizeFinalTimeInput\(input\)/, "Finals entry must fill blank attempts with 999 when Enter is pressed.");
 assert.match(adminClient, /showFinalMessage\(`\$\{sheet\.id\} saved\.[\s\S]*populateFinalSheetSelect\(\);[\s\S]*clearFinalSheet\(\);[\s\S]*sheetInput\?\.focus\(\);/, "Saving a final sheet must reset back to the Final Sheet ID finder.");
 assert.doesNotMatch(adminClient, /populateFinalSheetSelect\(\);\s*loadFinalSheet\(sheet\.id, false\);/, "Saving a final sheet must not reload the same sheet.");
