@@ -9,5 +9,6 @@ window.StackMeetBranding = Object.freeze({
   browserTitle: "NS-Melaka Sport Stacking - StackMeet",
   sidebarTitle: "NS-Melaka",
   sidebarSubtitle: "Sport Stacking",
-  defaultCompetitionName: "NS-Melaka Sport Stacking"
+    defaultCompetitionName: "NS-Melaka Sport Stacking"
 });
+window.STACKMEET_VERSION = "0.9.1";
