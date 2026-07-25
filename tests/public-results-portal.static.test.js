@@ -70,7 +70,10 @@ assert.match(client, /const resultsRoot = competitionId/, "Navigation must be ro
 assert.match(client, /link\.href = `\$\{resultsRoot\}\$\{suffix\}`/, "Section links must use competition-scoped absolute paths.");
 assert.match(client, /backLink\.href = resultsRoot/, "The return link must use the competition results root.");
 assert.doesNotMatch(html, /href="\.\/Results/, "Relative Results links must not append duplicate URL segments.");
-assert.match(html, /results\.js\?v=20260725-finals-gap/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(html, /results\.js\?v=20260725-prelim-qualified/, "Results JavaScript changes must invalidate the browser cache.");
+assert.match(client, /Results are not final, times\/rankings may change\./, "Preliminary results must show the requested non-final disclaimer.");
+assert.match(client, /preliminaryAdvanceLimit\(payload\)/, "Public Preliminary results must use the configured finals cutoff.");
+assert.match(client, /rank <= advanceLimit \? "Qualified" : "Provisional"/, "Preliminary rows inside the cutoff must be marked Qualified.");
 assert.match(client, /renderDivisionJumpNav/, "Preliminary and Finals standings must include division jump links.");
 assert.match(client, /orderedDivisionGroups\(groups, payload\)/, "Preliminary and Finals divisions must follow configured division order.");
 assert.match(client, /renderDivisionEmpty/, "Configured divisions without published rows must still render a public section.");
@@ -211,8 +214,9 @@ assert.match(adminClient, /"finals-doubles": \{ typeKey: "2"[\s\S]*"finals-relay
 assert.match(adminClient, /defaultChineseTranslations\["Preliminary Time Sheets"\]/, "Print Center headings must be covered by the Chinese translation pack.");
 assert.match(adminClient, /"Preliminary Time Sheets": "Borang Masa Awal"/, "Print Center headings must be covered by the Malay translation pack.");
 assert.match(adminClient, /@page \{ size: A4 portrait; margin: 10mm; \}/, "Preliminary time sheets must be designed for A4 portrait paper.");
-assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table \{[\s\S]*width: 94%;[\s\S]*table-layout: fixed/, "Attempt tables must stay inside the A4 printable width.");
-assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table \.attempt-col \{[\s\S]*width: 29\.3333%/, "All three attempt columns must be evenly sized.");
+assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table \{[\s\S]*width: 76%;[\s\S]*table-layout: fixed/, "Attempt tables must stay inside the A4 printable width.");
+assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table \.attempt-col \{[\s\S]*width: 24%/, "Attempt columns must be narrowed for print.");
+assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.time-write-line \{[\s\S]*width: 90%/, "Printed attempt write lines must leave a right-side gutter.");
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table th,[\s\S]*box-sizing: border-box/, "Attempt table cells must include padding in their printed width.");
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /#nav \{ grid-template-columns: 1fr; \}/, "Narrow sidebar navigation must remain a single readable column.");
 assert.match(adminClient, /updateDivisionSettingsFromForm\(\{ recalculateEntries: false \}\)/, "Division checkbox changes must update in-memory settings before any save button is clicked.");

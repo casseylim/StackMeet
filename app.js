@@ -5562,11 +5562,14 @@ function relayTimeSheetHtml(team) {
 }
 
 function timeSheetEvents(group, fallback) {
+  // Uses configured event setup; falls back so Individual/Doubles/Relay sheets still print.
   const events = state.events?.[group];
   return Array.isArray(events) && events.length ? events : fallback;
 }
 
 function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
+  // Shared printable time sheet for preliminary Individual, Doubles, and Timed Relay.
+  // The generated headers are Event / Attempt 1 / Attempt 2 / Attempt 3.
   const attempts = [1, 2, 3];
   return `<article class="individual-time-sheet">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
@@ -5607,6 +5610,7 @@ function printPaperPreview() {
 }
 
 function printTimeSheetTarget(target, removableElement = null) {
+  // Applies a temporary print target and page orientation, then cleans it after printing.
   const pageStyle = document.createElement("style");
   const isFinalTimeSheetPrint = target === "single-time-sheet"
     ? removableElement?.querySelector(".final-time-sheet")

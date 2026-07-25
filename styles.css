@@ -1161,6 +1161,7 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .attempt-table {
+  /* Screen preview layout for preliminary Individual/Doubles/Relay time sheets. */
   box-sizing: border-box;
   width: 96%;
   max-width: 96%;
@@ -1208,6 +1209,7 @@ tr:last-child td { border-bottom: 0; }
 }
 
 .time-write-line {
+  /* The black hand-written time line inside each attempt cell. */
   display: block;
   width: 100%;
   height: 56px;
@@ -2226,18 +2228,19 @@ tr:last-child td { border-bottom: 0; }
   }
 
   .attempt-table {
-    width: 94%;
-    max-width: 94%;
+    /* Print-only: keep the Event/Attempt table inside the A4 printable area. */
+    width: 76%;
+    max-width: 76%;
     margin: 0 auto;
     table-layout: fixed;
   }
 
   .attempt-table .event-col {
-    width: 12%;
+    width: 28%;
   }
 
   .attempt-table .attempt-col {
-    width: 29.3333%;
+    width: 24%;
   }
 
   .attempt-table thead th,
@@ -2256,8 +2259,9 @@ tr:last-child td { border-bottom: 0; }
   }
 
   .time-write-line {
+    /* Print-only: leave a right gutter so Attempt 3 does not run past the printable edge. */
     height: 7mm;
-    width: 100%;
+    width: 90%;
   }
 
   .best-mark {

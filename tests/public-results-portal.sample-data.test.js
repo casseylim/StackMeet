@@ -60,6 +60,7 @@ source = source.replace(
   `globalThis.__portalTest = {
     bestTime,
     sectionHasPublishedResults,
+    renderPreliminaryEvent,
     renderFinalEvent,
     renderAllAround,
     renderMedals,
@@ -138,6 +139,16 @@ assert.deepEqual(finalBody.children.map(row => cells(row)[3].textContent), ["8.0
 assert.deepEqual(descendants(finalCard, "th").map(cell => cell.textContent), ["Place", "Stacker", "Organization", "Best", "GAP"]);
 assert.deepEqual(finalBody.children.map(row => cells(row)[4].textContent), ["--", "--", "+1.000", "--"]);
 assert.equal(descendants(finalCard, ".event-state").length, 0);
+
+const preliminaryRows = [
+  { result: result("C", "Preliminary", "Individual", "Cycle", [], 999), stacker: stackers[2], best: Number.NaN },
+  { result: result("B", "Preliminary", "Individual", "Cycle", [8]), stacker: stackers[1], best: 8 },
+  { result: result("A", "Preliminary", "Individual", "Cycle", [8]), stacker: stackers[0], best: 8 },
+  { result: result("D", "Preliminary", "Individual", "Cycle", [9]), stacker: stackers[3], best: 9 }
+];
+const preliminaryCard = portal.renderPreliminaryEvent("Cycle", preliminaryRows, false, 2);
+const preliminaryBody = descendants(preliminaryCard, "tbody")[0];
+assert.deepEqual(preliminaryBody.children.map(row => cells(row)[4].textContent), ["Qualified", "Qualified", "Provisional", "Provisional"]);
 
 resetNodes();
 const allAroundGroups = node("allAroundGroups");

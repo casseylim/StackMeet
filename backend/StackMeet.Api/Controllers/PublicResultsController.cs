@@ -101,7 +101,12 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             name = Text(settings, "name"),
             type = Text(settings, "type"),
             start = Text(settings, "start"),
-            end = Text(settings, "end")
+            end = Text(settings, "end"),
+            // Public-only, non-secret settings used by the Results Portal to label preliminary qualifiers.
+            advanceIndividuals = Number(settings, "advanceIndividuals"),
+            advanceDoubles = Number(settings, "advanceDoubles"),
+            advanceCpDoubles = Number(settings, "advanceCpDoubles"),
+            advanceRelay = Number(settings, "advanceRelay")
         };
     }
 

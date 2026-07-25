@@ -95,6 +95,9 @@
     if (disclaimer) {
       if (!hasPublishedResults) {
         disclaimer.innerHTML = "<strong>Waiting for Results</strong><span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>";
+      } else if (selectedSection === "preliminary" || selectedSection === "prelims") {
+        // Preliminary standings are live, so the qualifier labels must stay clearly non-final.
+        disclaimer.innerHTML = "<strong>Results are not final, times/rankings may change.</strong><span>Qualified status is based on the current finals cutoff and may change as new preliminary times are saved.</span>";
       } else if (official) {
         disclaimer.innerHTML = "<strong>Official Results</strong><span>This competition is closed and the published results are official.</span>";
       } else {
@@ -385,6 +388,7 @@
   }
 
   function renderPreliminary(payload, official) {
+    // Groups individual preliminary results by configured division, then event, for the public portal.
     const results = Array.isArray(payload.results) ? payload.results : [];
     const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
     const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
@@ -435,9 +439,10 @@
 
         const eventList = make("div", "event-list");
         if (events.size) {
+          const advanceLimit = preliminaryAdvanceLimit(payload);
           [...events.entries()]
             .sort(([left], [right]) => naturalCompare(left, right))
-            .forEach(([eventName, rows]) => eventList.append(renderPreliminaryEvent(eventName, rows, official)));
+            .forEach(([eventName, rows]) => eventList.append(renderPreliminaryEvent(eventName, rows, official, advanceLimit)));
         } else {
           eventList.append(renderDivisionEmpty("preliminary"));
         }
@@ -446,7 +451,8 @@
       });
   }
 
-  function renderPreliminaryEvent(eventName, rows, official) {
+  function renderPreliminaryEvent(eventName, rows, official, advanceLimit = 0) {
+    // Sort one preliminary event, assign ranks with ties, and label rows inside the finals cutoff.
     const card = make("article", "results-event");
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
@@ -493,7 +499,7 @@
         nameCell,
         make("td", "organization-cell", row.stacker.org || "Independent"),
         make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
-        make("td", "status-cell", official ? "Official" : "Provisional")
+        make("td", "status-cell", official ? "Official" : valid && advanceLimit > 0 && rank <= advanceLimit ? "Qualified" : "Provisional")
       );
       body.append(tr);
     });
@@ -642,7 +648,14 @@
     return card;
   }
 
+  function preliminaryAdvanceLimit(payload) {
+    // The public API exposes this non-secret setting so the portal can show Qualified rows.
+    const value = Number(payload?.settings?.advanceIndividuals);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  }
+
   function renderFinalEvent(eventName, rows, official) {
+    // Finals use a GAP column instead of a provisional status column.
     const card = make("article", "results-event final-event");
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
