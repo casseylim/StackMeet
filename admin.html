@@ -22,6 +22,7 @@
         <button class="active" data-admin-page-target="email" type="button">Email Setup</button>
         <button data-admin-page-target="users" type="button">User Management</button>
         <button data-admin-page-target="competition" type="button">Competition</button>
+        <button data-admin-page-target="audit" type="button">Audit Logs</button>
       </nav>
 
       <section class="panel admin-auth-panel">
@@ -128,6 +129,24 @@
             <button class="danger-button" data-admin-action="delete" type="button">Delete Unused Competition</button>
           </div>
           <pre id="adminJsonOutput" class="admin-json" hidden></pre>
+        </article>
+      </section>
+
+      <section class="admin-page" data-admin-page="audit">
+        <article class="panel">
+          <div class="panel-head"><h2>Audit Logs</h2></div>
+          <div class="form-grid audit-filter-grid">
+            <label>Action<input id="auditActionFilter" placeholder="login, user, competition" /></label>
+            <label>Entity<select id="auditEntityFilter"><option value="">All</option><option value="AppUser">AppUser</option><option value="Competition">Competition</option><option value="CompetitionState">CompetitionState</option><option value="CompetitionUser">CompetitionUser</option><option value="AppSetting">AppSetting</option></select></label>
+            <label>Limit<input id="auditLimit" min="1" max="500" type="number" value="100" /></label>
+            <button class="primary" id="refreshAuditLogs" type="button">Refresh Logs</button>
+          </div>
+          <div class="table-wrap audit-table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Details</th></tr></thead>
+              <tbody id="auditLogRows"></tbody>
+            </table>
+          </div>
         </article>
       </section>
     </main>

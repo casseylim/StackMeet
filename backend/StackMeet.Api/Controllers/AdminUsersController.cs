@@ -20,7 +20,8 @@ public sealed class AdminUsersController(
     StackMeetDbContext database,
     PasswordHashService passwords,
     AccountTokenService tokens,
-    AccountEmailService emails) : ControllerBase
+    AccountEmailService emails,
+    AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
     /// Lists all application accounts with their competition assignments.
@@ -75,6 +76,15 @@ public sealed class AdminUsersController(
 
         database.AppUsers.Add(user);
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.user.created",
+            "AppUser",
+            user.Id.ToString(),
+            ActorUserId(),
+            null,
+            null,
+            new { user.Email, user.DisplayName, user.IsActive, user.IsSystemAdmin, user.EmailConfirmed },
+            ct);
 
         return CreatedAtAction(nameof(Get), new { id = user.Id }, await ReadUser(user.Id, ct));
     }
@@ -118,6 +128,21 @@ public sealed class AdminUsersController(
         }
 
         var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.ActivationPurpose, TimeSpan.FromDays(7), ct);
+        await auditLogs.Write(
+            "admin.user.invited",
+            "AppUser",
+            user.Id.ToString(),
+            ActorUserId(),
+            null,
+            null,
+            new
+            {
+                user.Email,
+                user.DisplayName,
+                user.IsSystemAdmin,
+                competitionAccess = request.CompetitionAccess?.Select(item => new { item.CompetitionId, item.Role, item.IsActive })
+            },
+            ct);
         await transaction.CommitAsync(ct);
 
         var link = AccountLink("activate", rawToken);
@@ -152,11 +177,21 @@ public sealed class AdminUsersController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (user is null) return NotFound();
 
+        var before = new { user.DisplayName, user.IsActive, user.IsSystemAdmin, user.EmailConfirmed };
         user.DisplayName = request.DisplayName.Trim();
         user.IsActive = request.IsActive;
         user.IsSystemAdmin = request.IsSystemAdmin;
         user.EmailConfirmed = request.EmailConfirmed;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.user.updated",
+            "AppUser",
+            user.Id.ToString(),
+            ActorUserId(),
+            null,
+            before,
+            new { user.DisplayName, user.IsActive, user.IsSystemAdmin, user.EmailConfirmed },
+            ct);
         return NoContent();
     }
 
@@ -179,6 +214,15 @@ public sealed class AdminUsersController(
 
         user.PasswordHash = passwords.Hash(request.Password);
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.user.password_set",
+            "AppUser",
+            user.Id.ToString(),
+            ActorUserId(),
+            null,
+            null,
+            new { user.Email },
+            ct);
         return NoContent();
     }
 
@@ -197,6 +241,15 @@ public sealed class AdminUsersController(
         var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), ct);
         var link = AccountLink("reset", rawToken);
         await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, ct);
+        await auditLogs.Write(
+            "admin.user.password_reset_requested",
+            "AppUser",
+            user.Id.ToString(),
+            ActorUserId(),
+            null,
+            null,
+            new { user.Email },
+            ct);
         return Ok(new AdminEmailLinkResponse("Password reset email sent.", link));
     }
 
@@ -212,10 +265,21 @@ public sealed class AdminUsersController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (user is null) return NotFound();
 
+        var before = await AccessSnapshot(id, request.CompetitionId, ct);
         var accessError = await UpsertAccess(id, request, ct);
         if (accessError is not null) return BadRequest(new { error = accessError });
 
         await database.SaveChangesAsync(ct);
+        var after = await AccessSnapshot(id, request.CompetitionId, ct);
+        await auditLogs.Write(
+            "admin.user.competition_access_set",
+            "CompetitionUser",
+            after?.Id.ToString(),
+            ActorUserId(),
+            request.CompetitionId,
+            before,
+            after,
+            ct);
         return Ok(await ReadUser(id, ct));
     }
 
@@ -228,11 +292,24 @@ public sealed class AdminUsersController(
     [HttpDelete("{id:int}/competition-access/{accessId:int}")]
     public async Task<ActionResult<AdminUserResponse>> RemoveCompetitionAccess(int id, int accessId, CancellationToken ct)
     {
-        var access = await database.CompetitionUsers.SingleOrDefaultAsync(item => item.Id == accessId && item.UserId == id, ct);
+        var access = await database.CompetitionUsers
+            .Include(item => item.Competition)
+            .Include(item => item.Role)
+            .SingleOrDefaultAsync(item => item.Id == accessId && item.UserId == id, ct);
         if (access is null) return NotFound();
 
+        var before = new { access.Id, access.UserId, access.CompetitionId, access.Competition.CompetitionKey, Role = access.Role.Name, access.IsActive };
         access.IsActive = false;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.user.competition_access_removed",
+            "CompetitionUser",
+            access.Id.ToString(),
+            ActorUserId(),
+            access.CompetitionId,
+            before,
+            new { access.Id, access.UserId, access.CompetitionId, access.Competition.CompetitionKey, Role = access.Role.Name, access.IsActive },
+            ct);
         return Ok(await ReadUser(id, ct));
     }
 
@@ -297,6 +374,45 @@ public sealed class AdminUsersController(
         if (string.IsNullOrWhiteSpace(request.DisplayName)) return "Display name is required.";
         return null;
     }
+
+    /// <summary>
+    /// Reads the optional account actor from the current admin request.
+    /// </summary>
+    /// <remarks>
+    /// Admin-key-only requests do not identify a specific user, so audit rows allow null actor ids.
+    /// </remarks>
+    int? ActorUserId() => auditLogs.CurrentSession()?.UserId;
+
+    /// <summary>
+    /// Captures one competition assignment in an audit-safe shape.
+    /// </summary>
+    /// <remarks>
+    /// This avoids logging EF navigation objects while still showing the role and active flag change.
+    /// </remarks>
+    async Task<AccessAuditSnapshot?> AccessSnapshot(int userId, int competitionId, CancellationToken ct)
+    {
+        return await database.CompetitionUsers
+            .AsNoTracking()
+            .Where(item => item.UserId == userId && item.CompetitionId == competitionId)
+            .Select(item => new AccessAuditSnapshot(
+                item.Id,
+                item.UserId,
+                item.CompetitionId,
+                item.Competition.CompetitionKey,
+                item.Role.Name,
+                item.IsActive,
+                item.AssignedAt))
+            .SingleOrDefaultAsync(ct);
+    }
+
+    sealed record AccessAuditSnapshot(
+        int Id,
+        int UserId,
+        int CompetitionId,
+        string CompetitionKey,
+        string Role,
+        bool IsActive,
+        DateTime AssignedAt);
 
     /// <summary>
     /// Builds the browser link used in activation and password-reset emails.

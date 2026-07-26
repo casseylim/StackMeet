@@ -2,6 +2,7 @@
   const keyName = "stackmeet-admin-key-v1";
   let competitions = [];
   let users = [];
+  let auditLogs = [];
   let selectedUserId = null;
   let userSearch = "";
   let userSort = { key: "email", direction: "asc" };
@@ -57,9 +58,21 @@
       : "Set Security:SettingsEncryptionKey before saving an SMTP password.";
   }
 
+  async function loadAuditLogs() {
+    const params = new URLSearchParams();
+    const action = $("auditActionFilter").value.trim();
+    const entityType = $("auditEntityFilter").value;
+    const limit = $("auditLimit").value;
+    if (action) params.set("action", action);
+    if (entityType) params.set("entityType", entityType);
+    if (limit) params.set("limit", limit);
+    auditLogs = await request(`/api/admin/audit-logs?${params.toString()}`);
+    drawAuditRows();
+  }
+
   async function loadAdminData() {
     await loadCompetitions();
-    await Promise.all([loadUsers(), loadEmailSettings()]);
+    await Promise.all([loadUsers(), loadEmailSettings(), loadAuditLogs()]);
   }
 
   function drawRows() {
@@ -103,6 +116,27 @@
           <td>${esc(status)}</td>
           <td>${access}</td>
           <td><button class="ghost compact-button" data-edit-user="${user.id}" type="button">Edit</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">Reset</button></td>
+        </tr>`;
+    }).join("");
+  }
+
+  // Renders recent MSSQL admin/security audit entries in read-only form.
+  function drawAuditRows() {
+    if (!auditLogs.length) {
+      $("auditLogRows").innerHTML = '<tr><td colspan="5" class="muted">No audit logs found.</td></tr>';
+      return;
+    }
+
+    $("auditLogRows").innerHTML = auditLogs.map(item => {
+      const actor = item.userEmail || (item.userId ? `User #${item.userId}` : "Admin key / system");
+      const target = `${item.entityType}${item.entityId ? ` #${item.entityId}` : ""}${item.competitionKey ? `<br /><span class="muted">${esc(item.competitionKey)}</span>` : ""}`;
+      return `
+        <tr>
+          <td>${esc(formatDateTime(item.createdAt))}</td>
+          <td>${esc(item.action)}</td>
+          <td>${esc(actor)}${item.ipAddress ? `<br /><span class="muted">${esc(item.ipAddress)}</span>` : ""}</td>
+          <td>${target}</td>
+          <td><pre class="audit-detail">${esc(compactAuditDetails(item))}</pre></td>
         </tr>`;
     }).join("");
   }
@@ -394,6 +428,19 @@
     drawUserRows();
   }
 
+  // Combines before/after audit JSON into a compact detail block for table display.
+  function compactAuditDetails(item) {
+    const parts = [];
+    if (item.oldValueJson) parts.push(`Before: ${item.oldValueJson}`);
+    if (item.newValueJson) parts.push(`After: ${item.newValueJson}`);
+    return parts.join("\n") || "";
+  }
+
+  // Formats UTC audit timestamps for the browser locale without changing stored values.
+  function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString() : "";
+  }
+
   function esc(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
@@ -413,6 +460,7 @@
     drawUserRows();
   });
   document.querySelectorAll("[data-user-sort]").forEach(button => button.addEventListener("click", () => setUserSort(button.dataset.userSort)));
+  $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(error.message)));
   $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");

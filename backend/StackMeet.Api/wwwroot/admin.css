@@ -2,7 +2,7 @@
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
 .admin-auth-panel { display: grid; grid-template-columns: minmax(220px, 420px) auto 1fr; gap: 12px; align-items: end; margin-bottom: 16px; }
 .admin-auth-panel label, .admin-form label { display: grid; gap: 6px; color: var(--muted); font-weight: 800; }
-.admin-page-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 8px 18px rgba(18, 32, 48, 0.08); }
+.admin-page-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 8px 18px rgba(18, 32, 48, 0.08); }
 .admin-page-tabs button { min-height: 44px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-weight: 900; }
 .admin-page-tabs button.active { background: var(--teal); color: white; }
 .admin-page { display: none; }
@@ -17,6 +17,9 @@
 .sort-button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 900; cursor: pointer; padding: 0; text-align: left; }
 .danger-button { border: 1px solid #dc2626; background: #fff5f5; color: #b91c1c; }
 #userEditForm input[readonly] { background: #f8fafc; }
+.audit-filter-grid { align-items: end; margin-bottom: 12px; }
+.audit-table-wrap td { vertical-align: top; }
+.audit-detail { max-width: 360px; white-space: pre-wrap; word-break: break-word; }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .admin-json { max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; white-space: pre-wrap; }
 .admin-row-button { padding: 4px 8px; }
@@ -26,6 +29,6 @@
 @media (max-width: 900px) {
   .admin-shell { padding: 14px; }
   .admin-auth-panel, .admin-split, .admin-page[data-admin-page="users"].active { grid-template-columns: 1fr; }
-  .admin-page-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; }
+  .admin-page-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; }
   .admin-page-tabs button { min-height: 40px; min-width: 0; padding: 8px 6px; font-size: 0.82rem; }
 }

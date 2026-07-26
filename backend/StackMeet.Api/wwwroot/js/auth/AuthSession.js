@@ -128,7 +128,17 @@
     });
   }
 
-  function logout() {
+  async function logout() {
+    // Notify the API for audit logging, but never block local logout if the request fails.
+    try {
+      const headers = authHeaders();
+      if (headers.Authorization) {
+        await fetch("/api/auth/logout", { method: "POST", headers });
+      }
+    } catch (_) {
+      /* logout must still clear the browser session */
+    }
+
     clearSession();
     location.reload();
   }

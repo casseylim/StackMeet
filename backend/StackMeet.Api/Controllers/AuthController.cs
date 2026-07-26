@@ -13,7 +13,8 @@ public sealed class AuthController(
     StackMeetDbContext database,
     PasswordHashService passwords,
     SessionTokenService tokens,
-    AccountTokenService accountTokens) : ControllerBase
+    AccountTokenService accountTokens,
+    AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
     /// Authenticates either a Phase 1 email account or the legacy competition-password flow.
@@ -83,7 +84,24 @@ public sealed class AuthController(
     /// Phase 1 bearer tokens are stateless, so logout is client-side token disposal until cookie auth lands.
     /// </remarks>
     [HttpPost("logout")]
-    public IActionResult Logout() => NoContent();
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        var bearerToken = BearerToken(Request.Headers.Authorization.FirstOrDefault());
+        if (tokens.TryValidate(bearerToken, out var session))
+        {
+            await auditLogs.Write(
+                session.IsAccountSession ? "auth.logout.account" : "auth.logout.competition",
+                session.IsAccountSession ? "AppUser" : "Competition",
+                session.IsAccountSession ? session.UserId?.ToString() : session.CompetitionId,
+                session.UserId,
+                null,
+                null,
+                new { session.Email, session.DisplayName, session.CompetitionId },
+                cancellationToken);
+        }
+
+        return NoContent();
+    }
 
     /// <summary>
     /// Activates an invited account and sets its first password.
@@ -108,6 +126,15 @@ public sealed class AuthController(
         user.IsActive = true;
         user.EmailConfirmed = true;
         await database.SaveChangesAsync(cancellationToken);
+        await auditLogs.Write(
+            "auth.account.activated",
+            "AppUser",
+            user.Id.ToString(),
+            user.Id,
+            null,
+            null,
+            new { user.Email, user.DisplayName },
+            cancellationToken);
         return NoContent();
     }
 
@@ -132,6 +159,15 @@ public sealed class AuthController(
         user.PasswordHash = passwords.Hash(request.Password);
         user.IsActive = true;
         await database.SaveChangesAsync(cancellationToken);
+        await auditLogs.Write(
+            "auth.password_reset.completed",
+            "AppUser",
+            user.Id.ToString(),
+            user.Id,
+            null,
+            null,
+            new { user.Email },
+            cancellationToken);
         return NoContent();
     }
 
@@ -152,6 +188,15 @@ public sealed class AuthController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail, cancellationToken);
         if (user is null || !user.IsActive || !passwords.Verify(request.Password!, user.PasswordHash))
         {
+            await auditLogs.Write(
+                "auth.login.failed",
+                "AppUser",
+                normalizedEmail,
+                user?.Id,
+                null,
+                null,
+                new { email = normalizedEmail, reason = user is null ? "not_found" : "invalid_or_inactive" },
+                cancellationToken);
             return Unauthorized(new { error = "Invalid email or password." });
         }
 
@@ -159,6 +204,23 @@ public sealed class AuthController(
         await database.SaveChangesAsync(cancellationToken);
 
         var tokenValue = tokens.CreateForUser(user.Id, user.Email, user.DisplayName, user.IsSystemAdmin);
+        var access = await CompetitionAccessFor(user.Id, cancellationToken);
+        await auditLogs.Write(
+            "auth.login.success",
+            "AppUser",
+            user.Id.ToString(),
+            user.Id,
+            null,
+            null,
+            new
+            {
+                user.Email,
+                user.DisplayName,
+                user.IsSystemAdmin,
+                competitions = access.Select(item => new { item.CompetitionId, item.CompetitionKey, item.Role })
+            },
+            cancellationToken);
+
         return Ok(new LoginResponse(
             tokenValue.ToString(),
             null,
@@ -167,7 +229,7 @@ public sealed class AuthController(
             user.Id,
             user.Email,
             user.IsSystemAdmin,
-            await CompetitionAccessFor(user.Id, cancellationToken)));
+            access));
     }
 
     /// <summary>
@@ -185,21 +247,47 @@ public sealed class AuthController(
         }
 
         var competition = await database.Competitions
-            .AsNoTracking()
             .SingleOrDefaultAsync(item => item.CompetitionKey == competitionKey, cancellationToken);
 
         if (competition is null || competition.ArchivedAt is not null || competition.Status == "Archived")
         {
+            await auditLogs.Write(
+                "auth.login.competition_failed",
+                "Competition",
+                competitionKey,
+                null,
+                competition?.Id,
+                null,
+                new { competitionKey, reason = competition is null ? "not_found" : "archived" },
+                cancellationToken);
             return Unauthorized(new { error = "Invalid competition ID or password." });
         }
 
         if (!passwords.Verify(request.Password!, competition.PasswordHash))
         {
+            await auditLogs.Write(
+                "auth.login.competition_failed",
+                "Competition",
+                competitionKey,
+                null,
+                competition.Id,
+                null,
+                new { competitionKey, reason = "invalid_password" },
+                cancellationToken);
             return Unauthorized(new { error = "Invalid competition ID or password." });
         }
 
         var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? "StackMeet User" : request.DisplayName.Trim();
         var tokenValue = tokens.Create(competitionKey, displayName);
+        await auditLogs.Write(
+            "auth.login.competition_success",
+            "Competition",
+            competitionKey,
+            null,
+            competition.Id,
+            null,
+            new { competitionKey, displayName },
+            cancellationToken);
         return Ok(new LoginResponse(tokenValue.ToString(), competitionKey, displayName, tokenValue.Session.ExpiresAt));
     }
 

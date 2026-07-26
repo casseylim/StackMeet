@@ -14,7 +14,8 @@ namespace StackMeet.Api.Controllers;
 [Route("api/admin/email-settings")]
 public sealed class AdminEmailSettingsController(
     ProtectedSettingService settings,
-    AccountEmailService emails) : ControllerBase
+    AccountEmailService emails,
+    AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
     /// Reads current SMTP settings without returning the password.
@@ -52,6 +53,7 @@ public sealed class AdminEmailSettingsController(
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "Security:SettingsEncryptionKey is required before saving SMTP password." });
         }
 
+        var before = await SafeSettingsSnapshot(ct);
         await settings.Set("Email:FromName", request.FromName.Trim(), false, ct);
         await settings.Set("Email:FromAddress", request.FromAddress.Trim(), false, ct);
         await settings.Set("Email:SmtpHost", request.SmtpHost.Trim(), false, ct);
@@ -63,6 +65,15 @@ public sealed class AdminEmailSettingsController(
             await settings.Set("Email:Password", request.Password, true, ct);
         }
 
+        await auditLogs.Write(
+            "admin.email_settings.updated",
+            "AppSetting",
+            "Email",
+            auditLogs.CurrentSession()?.UserId,
+            null,
+            before,
+            await SafeSettingsSnapshot(ct) with { PasswordUpdated = !string.IsNullOrWhiteSpace(request.Password) },
+            ct);
         return NoContent();
     }
 
@@ -77,8 +88,33 @@ public sealed class AdminEmailSettingsController(
     {
         if (!EmailRules.IsValid(request.ToEmail)) return BadRequest(new { error = "Valid recipient email is required." });
         await emails.SendPasswordResetEmail(request.ToEmail, "StackMeet Admin", $"{Request.Scheme}://{Request.Host}/account.html", ct);
+        await auditLogs.Write(
+            "admin.email_settings.test_sent",
+            "AppSetting",
+            "Email",
+            auditLogs.CurrentSession()?.UserId,
+            null,
+            null,
+            new { request.ToEmail },
+            ct);
         return Ok(new { message = "Test email sent." });
     }
+
+    /// <summary>
+    /// Reads SMTP settings in a form that is safe to store in audit details.
+    /// </summary>
+    /// <remarks>
+    /// The password value is never returned; only HasPassword and PasswordUpdated are logged.
+    /// </remarks>
+    async Task<EmailSettingsAuditSnapshot> SafeSettingsSnapshot(CancellationToken ct) => new(
+        await settings.Get("Email:FromName", ct) ?? "",
+        await settings.Get("Email:FromAddress", ct) ?? "",
+        await settings.Get("Email:SmtpHost", ct) ?? "",
+        int.TryParse(await settings.Get("Email:SmtpPort", ct), out var port) ? port : 587,
+        bool.TryParse(await settings.Get("Email:UseTls", ct), out var useTls) ? useTls : true,
+        await settings.Get("Email:Username", ct) ?? "",
+        !string.IsNullOrWhiteSpace(await settings.Get("Email:Password", ct)),
+        false);
 
     static string? Validate(AdminEmailSettingsRequest request)
     {
@@ -89,4 +125,14 @@ public sealed class AdminEmailSettingsController(
         if (string.IsNullOrWhiteSpace(request.Username)) return "SMTP username is required.";
         return null;
     }
+
+    sealed record EmailSettingsAuditSnapshot(
+        string FromName,
+        string FromAddress,
+        string SmtpHost,
+        int SmtpPort,
+        bool UseTls,
+        string Username,
+        bool HasPassword,
+        bool PasswordUpdated);
 }

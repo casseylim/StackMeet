@@ -14,6 +14,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
@@ -65,6 +66,7 @@ builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddScoped<AccountEmailService>();
 builder.Services.AddScoped<ProtectedSettingService>();
+builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StackMeet")));
 builder.WebHost.ConfigureKestrel(options =>
