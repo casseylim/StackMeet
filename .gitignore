@@ -32,6 +32,7 @@ tmp/
 temp/
 screenshots/
 outputs/manual-publish/
+exports/test-data/
 
 # Imported participant data containing personal information
 backend/StackMeet.Api/wwwroot/data/stacktrack-4257-stackers.js
