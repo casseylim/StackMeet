@@ -2311,7 +2311,9 @@ body.auth-pending .app { display: none; }
 
 .login-panel h1 { font-size: 1.75rem; }
 .login-panel label { display: grid; gap: 7px; font-weight: 800; color: var(--muted); }
-.login-panel input { width: 100%; min-height: 44px; }
+.login-step { display: grid; gap: 14px; }
+.login-panel input,
+.login-panel select { width: 100%; min-height: 44px; }
 .login-mark { width: 58px; height: 58px; }
 .form-error { min-height: 20px; margin: 0; color: var(--red); font-weight: 800; }
 .session-pill {

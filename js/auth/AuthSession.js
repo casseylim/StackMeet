@@ -1,10 +1,11 @@
 (function () {
   const sessionKey = "stackmeet-auth-session-v1";
 
+  // Reads the saved account session even before a competition has been selected.
   function readSession() {
     try {
       const parsed = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
-      if (!parsed?.token || !parsed?.competitionId) return null;
+      if (!parsed?.token) return null;
       if (parsed.expiresAt && Date.parse(parsed.expiresAt) <= Date.now()) {
         clearSession();
         return null;
@@ -35,27 +36,31 @@
     return location.protocol === "file:";
   }
 
+  // Distinguishes old competition-password sessions from account sessions awaiting selection.
+  function hasSelectedCompetition(session) {
+    if (!session?.token) return false;
+    if (!session.userId) return Boolean(session.competitionId);
+    return Boolean(session.competitionId && session.selectedCompetitionSqlId);
+  }
+
   function competitionId() {
-    return readSession()?.competitionId || window.COMPETITION_KEY || "DEFAULT";
+    const session = readSession();
+    return hasSelectedCompetition(session) ? session.competitionId : window.COMPETITION_KEY || "DEFAULT";
   }
 
   function defaultCompetitionId() {
     return window.COMPETITION_KEY || "DEFAULT";
   }
 
-  function looksLikeEmail(value) {
-    return /\S+@\S+\.\S+/.test(value || "");
-  }
-
-  function normalizeLoginSession(session, form) {
-    const competitionAccess = Array.isArray(session.competitionAccess) ? session.competitionAccess : [];
-    const firstCompetition = competitionAccess[0];
+  // Preserves the account token and assigned competition list without auto-entering a competition.
+  function normalizeLoginSession(session) {
     return {
       ...session,
-      competitionId: session.competitionId || form.competitionId || firstCompetition?.competitionKey || defaultCompetitionId()
+      competitionAccess: Array.isArray(session.competitionAccess) ? session.competitionAccess : []
     };
   }
 
+  // Authenticates by email/password; local file mode keeps a no-server test shortcut.
   async function login(form) {
     if (isLocalFileMode()) {
       return saveSession({
@@ -67,62 +72,157 @@
       });
     }
 
-    const loginId = (form.loginId || "").trim();
-    const displayName = (form.displayName || "").trim();
-    const email = looksLikeEmail(loginId) ? loginId : looksLikeEmail(displayName) ? displayName : "";
-    const competitionId = email === loginId ? defaultCompetitionId() : loginId;
-    const body = email
-      ? { email, password: form.password }
-      : { competitionId, password: form.password, displayName: displayName || "StackMeet User" };
-
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ email: (form.email || "").trim(), password: form.password })
     });
     if (!response.ok) {
       let message = "Login failed.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
       throw new Error(message);
     }
-    return saveSession(normalizeLoginSession(await response.json(), { competitionId }));
+    return saveSession(normalizeLoginSession(await response.json()));
   }
 
+  // Loads competition choices from assignments, or all competitions for a global admin.
+  async function competitionChoices(session) {
+    const assigned = Array.isArray(session?.competitionAccess) ? session.competitionAccess : [];
+    if (assigned.length) return assigned;
+    if (!session?.isSystemAdmin) return [];
+
+    const response = await fetch("/api/competitions", {
+      headers: { Accept: "application/json", ...authHeaders() }
+    });
+    if (!response.ok) {
+      let message = "Unable to load competitions.";
+      try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
+      throw new Error(message);
+    }
+    return (await response.json()).map(item => ({
+      competitionId: item.id,
+      competitionKey: item.competitionKey,
+      competitionName: item.competitionName,
+      role: "Global Admin"
+    }));
+  }
+
+  // Stores the selected competition in the session and URL before the app boots.
+  function chooseCompetition(session, competitionId) {
+    const choices = Array.isArray(session.competitionAccess) ? session.competitionAccess : [];
+    const selected = choices.find(item => String(item.competitionId) === String(competitionId));
+    if (!selected) throw new Error("Choose an assigned competition.");
+    const nextSession = saveSession({
+      ...session,
+      competitionId: selected.competitionKey,
+      selectedCompetitionSqlId: selected.competitionId,
+      selectedCompetitionName: selected.competitionName,
+      selectedCompetitionRole: selected.role
+    });
+    const url = new URL(location.href);
+    url.searchParams.set("competitionId", String(selected.competitionId));
+    history.replaceState(null, "", url);
+    return nextSession;
+  }
+
+  // Escapes account-sourced competition labels before placing them into the picker.
+  function esc(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // Populates the second login step with competitions available to this account.
+  function renderCompetitionChoices(choices) {
+    const select = document.getElementById("loginCompetitionSelect");
+    if (!select) return;
+    select.innerHTML = choices.map(item =>
+      `<option value="${esc(item.competitionId)}">${esc(item.competitionKey)} - ${esc(item.competitionName)} (${esc(item.role || "Competition Manager")})</option>`
+    ).join("");
+  }
+
+  // Keeps the login screen visible until both account and competition are selected.
   function updateChrome() {
     const session = readSession();
-    document.body.classList.toggle("auth-pending", !session);
-    document.getElementById("sessionCompetition")?.replaceChildren(document.createTextNode(session ? `Competition ${session.competitionId}` : ""));
+    const ready = hasSelectedCompetition(session);
+    document.body.classList.toggle("auth-pending", !ready);
+    document.getElementById("sessionCompetition")?.replaceChildren(document.createTextNode(ready ? `${session.selectedCompetitionName || "Competition"} (${session.competitionId})` : ""));
   }
 
+  // Blocks app startup until email/password login and competition selection are complete.
   async function requireLogin() {
     let session = readSession();
     updateChrome();
-    if (session) return session;
+    if (hasSelectedCompetition(session)) return session;
 
     const form = document.getElementById("loginForm");
     const error = document.getElementById("loginError");
-    const competitionInput = document.getElementById("loginCompetitionId");
-    if (competitionInput && !competitionInput.value) competitionInput.value = window.COMPETITION_KEY || "DEFAULT";
+    const credentialsStep = document.getElementById("loginCredentialsStep");
+    const competitionStep = document.getElementById("loginCompetitionStep");
+    const submitButton = form?.querySelector("button[type='submit']");
+    const switchAccountButton = document.getElementById("loginSwitchAccount");
     if (error) error.textContent = "";
+
+    // Toggles form controls so browser validation only applies to the active login step.
+    function setCompetitionStepVisible(visible) {
+      if (credentialsStep) credentialsStep.hidden = visible;
+      if (competitionStep) competitionStep.hidden = !visible;
+      document.getElementById("loginEmail")?.toggleAttribute("disabled", visible);
+      document.getElementById("loginPassword")?.toggleAttribute("disabled", visible);
+      document.getElementById("loginCompetitionSelect")?.toggleAttribute("disabled", !visible);
+      if (submitButton) submitButton.textContent = visible ? "Open Competition" : "Log In";
+      if (switchAccountButton) switchAccountButton.hidden = !visible;
+    }
+
+    async function showCompetitionStep(accountSession) {
+      const choices = await competitionChoices(accountSession);
+      if (!choices.length) throw new Error("No competition access is assigned to this account.");
+      accountSession.competitionAccess = choices;
+      session = saveSession(accountSession);
+      renderCompetitionChoices(choices);
+      setCompetitionStepVisible(true);
+      document.getElementById("loginCompetitionSelect")?.focus();
+    }
+
+    switchAccountButton?.addEventListener("click", () => {
+      clearSession();
+      session = null;
+      setCompetitionStepVisible(false);
+      if (error) error.textContent = "";
+      document.getElementById("loginEmail")?.focus();
+    });
+
+    if (session && !hasSelectedCompetition(session)) {
+      await showCompetitionStep(session).catch(loginError => {
+        if (error) error.textContent = loginError.message;
+      });
+    }
 
     return new Promise(resolve => {
       form?.addEventListener("submit", async event => {
         event.preventDefault();
         if (error) error.textContent = "";
-        const button = form.querySelector("button[type='submit']");
-        if (button) button.disabled = true;
+        if (submitButton) submitButton.disabled = true;
         try {
-          session = await login({
-            loginId: document.getElementById("loginCompetitionId")?.value.trim(),
-            password: document.getElementById("loginPassword")?.value,
-            displayName: document.getElementById("loginDisplayName")?.value.trim()
-          });
+          if (!session?.token) {
+            session = await login({
+              email: document.getElementById("loginEmail")?.value.trim(),
+              password: document.getElementById("loginPassword")?.value
+            });
+            await showCompetitionStep(session);
+            return;
+          }
+
+          session = chooseCompetition(session, document.getElementById("loginCompetitionSelect")?.value);
           updateChrome();
           resolve(session);
         } catch (loginError) {
           if (error) error.textContent = loginError.message;
         } finally {
-          if (button) button.disabled = false;
+          if (submitButton) submitButton.disabled = false;
         }
       });
     });
