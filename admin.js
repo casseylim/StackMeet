@@ -329,9 +329,15 @@
     message("Email setup saved.");
   }
 
+  // Sends a test email to the explicit recipient entered in Email Setup.
   async function sendTestEmail() {
-    const toEmail = prompt("Send test email to:");
-    if (!toEmail) return;
+    const toEmail = $("emailTestRecipient").value.trim();
+    if (!toEmail) {
+      message("Enter a test recipient email first.");
+      $("emailTestRecipient").focus();
+      return;
+    }
+
     const result = await request("/api/admin/email-settings/test", { method: "POST", body: JSON.stringify({ toEmail }) });
     message(result.message || "Test email sent.");
   }

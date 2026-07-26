@@ -41,6 +41,7 @@
             <label>SMTP Port<input id="emailSmtpPort" type="number" min="1" max="65535" value="587" /></label>
             <label>SMTP Login<input id="emailUsername" autocomplete="off" placeholder="Brevo SMTP login" /></label>
             <label>SMTP Key / Password<input id="emailPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
+            <label>Test Recipient<input id="emailTestRecipient" autocomplete="email" placeholder="name@example.com" type="email" /></label>
             <label class="checkbox-field"><input id="emailUseTls" type="checkbox" checked /> <span>Use TLS</span></label>
             <div class="button-row">
               <button class="primary" type="submit">Save Email Setup</button>
@@ -150,6 +151,6 @@
         </article>
       </section>
     </main>
-    <script src="admin.js?v=account-email-phase2"></script>
+    <script src="admin.js?v=email-test-input"></script>
   </body>
 </html>
