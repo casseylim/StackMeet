@@ -812,7 +812,7 @@ input[readonly] {
 
 table {
   width: 100%;
-  min-width: 780px;
+  min-width: 680px;
   border-collapse: collapse;
   background: white;
 }
@@ -2103,7 +2103,7 @@ tr:last-child td { border-bottom: 0; }
     height: 132mm;
     min-height: 0;
     padding: 3mm;
-    overflow: hidden;
+    overflow: visible;
     border: 0;
     border-bottom: 1px dashed #777;
     break-inside: avoid;
@@ -2225,18 +2225,17 @@ tr:last-child td { border-bottom: 0; }
 
   .attempt-table {
     /* Print-only: keep the Event/Attempt table inside the A4 printable area. */
-    width: 76%;
-    max-width: 76%;
+    width: 100%;
+    max-width: 175mm;
     margin: 0 auto;
-    table-layout: fixed;
   }
 
   .attempt-table .event-col {
-    width: 28%;
+    width: 16%;
   }
 
   .attempt-table .attempt-col {
-    width: 24%;
+    width: 28%;
   }
 
   .attempt-table thead th,
@@ -2249,20 +2248,23 @@ tr:last-child td { border-bottom: 0; }
     width: auto;
   }
 
+
   .attempt-table td {
-    height: 17mm;
-    padding: 1mm 0.8mm;
+    height: 20mm;
+    padding: 1mm 0.8mm 2mm 0.8mm;
   }
 
   .time-write-line {
     /* Print-only: leave a right gutter so Attempt 3 does not run past the printable edge. */
-    height: 7mm;
+    height: 5.5mm;
     width: 90%;
+    margin-bottom: 0.5mm;
   }
 
   .best-mark {
     gap: 1mm;
-    margin-top: 1mm;
+    margin-top: 0mm;
+    margin-bottom: 0.5mm;
     font-size: 7pt;
   }
 
