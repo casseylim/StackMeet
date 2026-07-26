@@ -8,6 +8,13 @@
   const adminKey = () => sessionStorage.getItem(keyName) || $("adminKey").value;
   const headers = () => ({ "Content-Type": "application/json", Accept: "application/json", "X-StackMeet-Admin-Key": adminKey() });
 
+  function setAdminPage(page) {
+    const selected = page || "email";
+    document.querySelectorAll("[data-admin-page]").forEach(section => section.classList.toggle("active", section.dataset.adminPage === selected));
+    document.querySelectorAll("[data-admin-page-target]").forEach(button => button.classList.toggle("active", button.dataset.adminPageTarget === selected));
+    if (location.hash !== `#${selected}`) history.replaceState(null, "", `#${selected}`);
+  }
+
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
@@ -252,6 +259,7 @@
   $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
   $("refreshAdmin").addEventListener("click", () => loadAdminData().catch(error => message(error.message)));
   $("newCompetition").addEventListener("click", () => fillForm(null));
+  document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
   $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
   $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
   $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
@@ -272,6 +280,7 @@
     sendPasswordReset(button.dataset.resetUser).catch(error => message(error.message));
   });
   document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
+  setAdminPage(location.hash.replace("#", "") || "email");
   fillForm(null);
   if (sessionStorage.getItem(keyName)) {
     loadAdminData().catch(error => message(error.message));

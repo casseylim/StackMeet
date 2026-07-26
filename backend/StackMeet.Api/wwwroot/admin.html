@@ -6,7 +6,7 @@
     <title>StackMeet Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css" />
+    <link rel="stylesheet" href="admin.css?v=admin-pages" />
   </head>
   <body>
     <main class="admin-shell">
@@ -24,7 +24,13 @@
         <p class="muted">The admin key is entered locally for this browser session and is not stored in source code.</p>
       </section>
 
-      <section class="split admin-split">
+      <nav class="admin-page-tabs" aria-label="Admin pages">
+        <button class="active" data-admin-page-target="email" type="button">Email Setup</button>
+        <button data-admin-page-target="users" type="button">User Management</button>
+        <button data-admin-page-target="competition" type="button">Competition</button>
+      </nav>
+
+      <section class="admin-page active" data-admin-page="email">
         <article class="panel">
           <div class="panel-head"><h2>Email Setup</h2></div>
           <form id="emailSettingsForm" class="admin-form">
@@ -42,7 +48,9 @@
           </form>
           <p class="muted" id="emailSettingsStatus">Enter the admin key to load email setup.</p>
         </article>
+      </section>
 
+      <section class="admin-page" data-admin-page="users">
         <article class="panel">
           <div class="panel-head"><h2>User Management</h2></div>
           <form id="inviteUserForm" class="admin-form">
@@ -57,7 +65,7 @@
         </article>
       </section>
 
-      <section class="split admin-split">
+      <section class="admin-page split admin-split" data-admin-page="competition">
         <article class="panel">
           <div class="panel-head"><h2>Competitions</h2></div>
           <div id="adminMessage" class="form-error" aria-live="polite"></div>
