@@ -180,6 +180,18 @@
                   <label>Results Limit<input id="leaderLimit" type="number" min="3" max="50" /></label>
               </div>
           </section>
+          <section class="panel">
+              <div class="panel-head">
+                  <h2>Competition Audit Logs</h2>
+                  <button class="ghost" data-action="export-competition-audit-csv" type="button">Export CSV</button>
+              </div>
+              <div class="table-wrap">
+                  <table>
+                      <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Summary</th></tr></thead>
+                      <tbody id="competitionAuditRows"></tbody>
+                  </table>
+              </div>
+          </section>
       </template>
 
       <template id="languageView">
@@ -575,6 +587,6 @@
       <script src="js/results/BestResultEngine.js?v=0.9.1"></script>
       <script src="js/reports/FinalsReportEngine.js?v=0.9.1"></script>
       <script src="js/printing/TimeSheetPrinting.js?v=0.9.1"></script>
-      <script src="app.js?v=0.9.1"></script>
+      <script src="app.js?v=competition-audit-json"></script>
   </body>
 </html>

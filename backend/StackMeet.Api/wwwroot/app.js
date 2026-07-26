@@ -18,6 +18,8 @@ const branding = Object.freeze({
 });
 
 const STACKMEET_APP_VERSION = "0.9.28";
+const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+const stackMeetLocale = "en-MY";
 
 function brandText(key) {
   return branding[key] || "";
@@ -665,6 +667,7 @@ function normalizeState(data) {
   data.doubles = normalizeDoubles(data.doubles || []);
   data.relays = normalizeRelays(data.relays || [], data.stackers);
   data.results = normalizeResults(data.results || []);
+  data.auditLogs = normalizeCompetitionAuditLogs(data.auditLogs || []);
   data.finalQualificationSnapshots = (data.finalQualificationSnapshots || []).map(snapshot => ({
     id: snapshot.id || crypto.randomUUID(), competitionKey: snapshot.competitionKey || currentCompetitionKey(),
     participantType: snapshot.participantType || "Individual", division: snapshot.division || "", event: snapshot.event || "",
@@ -810,6 +813,67 @@ function normalizeResults(results) {
     if (result.type === "Relay") return { ...result, type: "Timed Relay" };
     return result;
   });
+}
+
+// Normalizes per-competition audit entries stored inside the competition JSON state.
+function normalizeCompetitionAuditLogs(logs) {
+  return (Array.isArray(logs) ? logs : []).map(log => ({
+    id: log.id || crypto.randomUUID(),
+    atUtc: log.atUtc || log.at || new Date().toISOString(),
+    actorUserId: log.actorUserId ?? null,
+    actorEmail: log.actorEmail || "",
+    actorName: log.actorName || "",
+    action: log.action || "competition.unknown",
+    entityType: log.entityType || "",
+    entityId: log.entityId || "",
+    summary: log.summary || "",
+    before: log.before ?? null,
+    after: log.after ?? null
+  }));
+}
+
+// Appends one audit entry to the current competition JSON state after a successful action.
+function appendCompetitionAuditLog({ action, entityType, entityId = "", summary = "", before = null, after = null }) {
+  const actor = currentAuditActor();
+  state.auditLogs = normalizeCompetitionAuditLogs(state.auditLogs || []);
+  state.auditLogs.push({
+    id: crypto.randomUUID(),
+    atUtc: new Date().toISOString(),
+    actorUserId: actor.userId,
+    actorEmail: actor.email,
+    actorName: actor.name,
+    action,
+    entityType,
+    entityId: String(entityId || ""),
+    summary,
+    before: auditSnapshot(before),
+    after: auditSnapshot(after)
+  });
+}
+
+// Reads the current browser session identity for competition audit attribution.
+function currentAuditActor() {
+  const session = window.StackMeetAuth?.readSession?.() || {};
+  return {
+    userId: session.userId ?? null,
+    email: session.email || "",
+    name: session.displayName || ""
+  };
+}
+
+// Clones audit values through JSON to avoid storing live object references.
+function auditSnapshot(value) {
+  if (value === null || value === undefined) return null;
+  return JSON.parse(JSON.stringify(value));
+}
+
+// Persists an audit-only update without rolling back the completed user action.
+async function persistCompetitionAuditLog() {
+  try {
+    await saveState();
+  } catch (error) {
+    console.error("Unable to save competition audit log.", error);
+  }
 }
 
 function saveState() {
@@ -1325,6 +1389,55 @@ function renderSettings() {
   document.getElementById("divisionList").innerHTML = sortedDivisions(state.divisions).map(division => `
     <div class="tag-row"><strong>${esc(division)}</strong><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
   `).join("");
+  renderCompetitionAuditLogs();
+}
+
+// Renders the latest per-competition audit entries in the Settings page.
+function renderCompetitionAuditLogs() {
+  const body = document.getElementById("competitionAuditRows");
+  if (!body) return;
+  const logs = [...(state.auditLogs || [])].sort((left, right) => String(right.atUtc).localeCompare(String(left.atUtc))).slice(0, 200);
+  if (!logs.length) {
+    body.innerHTML = '<tr><td colspan="5" class="muted">No competition audit logs yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = logs.map(log => `
+    <tr>
+      <td>${esc(stackMeetDateTime(parseUtcDate(log.atUtc)))}</td>
+      <td>${esc(log.action)}</td>
+      <td>${esc(log.actorEmail || log.actorName || "Competition user")}</td>
+      <td>${esc([log.entityType, log.entityId].filter(Boolean).join(" #"))}</td>
+      <td>${esc(log.summary || auditChangeSummary(log))}</td>
+    </tr>
+  `).join("");
+}
+
+// Exports the per-competition audit trail with MYT display time and raw UTC time.
+function exportCompetitionAuditCsv() {
+  const rows = (state.auditLogs || []).map(log => [
+    stackMeetDateTime(parseUtcDate(log.atUtc)),
+    log.atUtc,
+    log.action,
+    log.actorEmail || "",
+    log.actorName || "",
+    log.entityType || "",
+    log.entityId || "",
+    log.summary || "",
+    JSON.stringify(log.before ?? null),
+    JSON.stringify(log.after ?? null)
+  ]);
+  const header = ["Time (MYT)", "Time (UTC)", "Action", "Actor Email", "Actor Name", "Entity Type", "Entity ID", "Summary", "Before JSON", "After JSON"];
+  const generated = [["Competition Audit Logs"], [state.settings.name || currentCompetitionKey()], [`Exported ${stackMeetDateTime()}`], []];
+  downloadText(`stackmeet-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
+}
+
+// Provides a compact fallback summary when an audit entry has before/after snapshots only.
+function auditChangeSummary(log) {
+  if (log.before && log.after) return "Updated";
+  if (log.after) return "Created";
+  if (log.before) return "Removed";
+  return "";
 }
 
 function renderLanguage() {
@@ -2437,6 +2550,7 @@ async function persistPrelimResults(options = {}) {
   const resultStage = prelimEntryResultStage();
   let created = 0;
   let updated = 0;
+  const changes = [];
   completed.forEach(entry => {
     const existing = findPrelimEntryResult(participant, entry.event);
     const result = {
@@ -2448,6 +2562,7 @@ async function persistPrelimResults(options = {}) {
       attempts: [entry.parsed.value],
       penalty: entry.parsed.kind === "scratch" ? 999 : 0
     };
+    changes.push({ event: entry.event, before: existing || null, after: result });
     if (existing) {
       state.results = state.results.filter(item => !(prelimEntryLookupStages().includes(item.stage) && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(entry.event)));
       state.results.push(result);
@@ -2457,6 +2572,14 @@ async function persistPrelimResults(options = {}) {
       created += 1;
     }
     setValue(entry.fieldId, entry.parsed.kind === "scratch" ? "999" : entry.parsed.value.toFixed(3));
+  });
+  appendCompetitionAuditLog({
+    action: "results.prelim_saved",
+    entityType: "Result",
+    entityId: participant.id,
+    summary: `${participant.id} ${participant.name}: ${created} added, ${updated} updated for ${resultStage}.`,
+    before: changes.map(item => ({ event: item.event, result: item.before })),
+    after: changes.map(item => ({ event: item.event, result: item.after }))
   });
   try {
     await saveState();
@@ -2796,11 +2919,23 @@ function saveFinalResults() {
   }
   const draftRows = finalDraftResults(sheet);
   let saved = 0;
+  const changes = [];
   draftRows.forEach(row => {
+    const before = state.results.find(result => result.stage === "Finals" && result.type === row.type && result.participant === row.participant && normalizeEventName(result.event) === normalizeEventName(row.event)) || null;
     state.results = state.results.filter(result => !(result.stage === "Finals" && result.type === row.type && result.participant === row.participant && normalizeEventName(result.event) === normalizeEventName(row.event)));
     if (!row.attempts.length) return;
-    state.results.push({ id: crypto.randomUUID(), stage: "Finals", type: row.type, participant: row.participant, event: row.event, attempts: row.attempts, penalty: 0 });
+    const after = { id: crypto.randomUUID(), stage: "Finals", type: row.type, participant: row.participant, event: row.event, attempts: row.attempts, penalty: 0 };
+    state.results.push(after);
+    changes.push({ participant: row.participant, before, after });
     saved += 1;
+  });
+  appendCompetitionAuditLog({
+    action: "results.final_saved",
+    entityType: "Result",
+    entityId: sheet.id,
+    summary: `${sheet.id}: ${saved} final result${saved === 1 ? "" : "s"} recorded.`,
+    before: changes.map(item => ({ participant: item.participant, result: item.before })),
+    after: changes.map(item => ({ participant: item.participant, result: item.after }))
   });
   showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
   populateFinalSheetSelect();
@@ -3076,9 +3211,6 @@ function stageBoardDisplayRow(row, champion, highlighted) {
     highlight: highlighted.has(row.participant)
   };
 }
-
-const stackMeetTimeZone = "Asia/Kuala_Lumpur";
-const stackMeetLocale = "en-MY";
 
 function finalsReportMeta(definition) {
   const filters = definition.filters;
@@ -4435,8 +4567,20 @@ document.addEventListener("click", async (event) => {
   if (action === "cancel-relay-edit") { clearRelayForm(); shouldRender = false; }
   if (action === "delete-relay") deleteRelay(target.dataset.id);
   if (action === "switch-relay-tab") { relayTab = target.dataset.relayTab || "ready"; shouldRender = false; renderRelay(); }
-  if (action === "save-awards") { saveAwards(); shouldRender = false; }
+  if (action === "save-awards") {
+    const beforeAwards = auditSnapshot(state.awards);
+    saveAwards();
+    appendCompetitionAuditLog({
+      action: "awards.updated",
+      entityType: "Awards",
+      summary: "Award planner settings updated.",
+      before: beforeAwards,
+      after: state.awards
+    });
+    shouldRender = false;
+  }
   if (action === "export-awards-csv") { exportAwardsCsv(); shouldRender = false; }
+  if (action === "export-competition-audit-csv") { exportCompetitionAuditCsv(); shouldRender = false; shouldSave = false; }
   if (action === "paperwork") { buildPaperwork(target.dataset.type); shouldRender = false; }
   if (action === "print-paper-preview") { printPaperPreview(); shouldRender = false; }
   if (action === "build-bracket") { buildBracket(); shouldRender = false; }
@@ -4450,7 +4594,18 @@ document.addEventListener("click", async (event) => {
   if (action === "save-final-results") { saveFinalResults(); shouldRender = false; }
   if (action === "print-final-sheet") { printCurrentFinalSheet(); shouldRender = false; }
   if (action === "save-result") saveResult();
-  if (action === "delete-result") state.results = state.results.filter(r => r.id !== target.dataset.id);
+  if (action === "delete-result") {
+    const result = state.results.find(item => item.id === target.dataset.id);
+    state.results = state.results.filter(r => r.id !== target.dataset.id);
+    if (result) appendCompetitionAuditLog({
+      action: "results.deleted",
+      entityType: "Result",
+      entityId: result.id,
+      summary: `${result.stage} ${result.event} result deleted for ${result.participant}.`,
+      before: result,
+      after: null
+    });
+  }
   if (action === "switch-report-tab") { switchReportTab(target.dataset.reportTab); shouldRender = false; shouldSave = false; }
   if (action === "run-finals-report") { runFinalsReport(); shouldRender = false; shouldSave = false; }
   if (action === "generate-qualification-snapshots") { generateQualificationSnapshots(); shouldRender = false; }
@@ -4568,6 +4723,7 @@ document.getElementById("resetBtn")?.addEventListener("click", async () => {
 });
 
 async function saveSettings() {
+  const before = auditSnapshot(state.settings);
   const selectedAgeMode = val("settingAgeCalculation") === "yearBorn" ? "yearBorn" : "actual";
   if (selectedSqlCompetitionId) await saveCompetitionAgeCalculation(selectedAgeMode);
   ageCalculationMode = selectedAgeMode;
@@ -4593,6 +4749,13 @@ async function saveSettings() {
   };
   applyCompetitionAgeCalculation(selectedAgeMode);
   refreshDivisionCountBadges(divisionCountSummary(state.divisionSettings));
+  appendCompetitionAuditLog({
+    action: "settings.updated",
+    entityType: "Settings",
+    summary: "Competition settings updated.",
+    before,
+    after: state.settings
+  });
 }
 
 function saveLanguage() {
@@ -4605,15 +4768,31 @@ function saveLanguage() {
 }
 
 function saveEvents() {
+  const before = auditSnapshot(state.events);
   state.events = {};
   document.querySelectorAll("[data-event-group]").forEach(input => {
     if (!state.events[input.dataset.eventGroup]) state.events[input.dataset.eventGroup] = [];
     if (input.checked) state.events[input.dataset.eventGroup].push(input.value);
   });
+  appendCompetitionAuditLog({
+    action: "events.updated",
+    entityType: "Events",
+    summary: "Competition event setup updated.",
+    before,
+    after: state.events
+  });
 }
 
 function saveDivisions() {
+  const before = auditSnapshot({ divisionSettings: state.divisionSettings, divisions: state.divisions });
   updateDivisionSettingsFromForm({ recalculateEntries: true });
+  appendCompetitionAuditLog({
+    action: "divisions.updated",
+    entityType: "Divisions",
+    summary: "Competition division setup updated.",
+    before,
+    after: { divisionSettings: state.divisionSettings, divisions: state.divisions }
+  });
 }
 
 function updateDivisionSettingsFromForm({ recalculateEntries = false } = {}) {
@@ -5015,6 +5194,16 @@ async function addStacker() {
     if (existing) await stackerApi.update(selectedSqlCompetitionId, existing.sqlId, runtimeStackerToSql(stacker));
     else await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
     await refreshSqlStackers({ allowEditing: true, rerender: false });
+    const savedStacker = state.stackers.find(item => item.id === stacker.id) || stacker;
+    appendCompetitionAuditLog({
+      action: existing ? "stacker.updated" : "stacker.created",
+      entityType: "Stacker",
+      entityId: stacker.id,
+      summary: `${stacker.id} ${stacker.name} ${existing ? "updated" : "created"}.`,
+      before: existing,
+      after: savedStacker
+    });
+    await persistCompetitionAuditLog();
     flashMessage = { type: "success", text: existing ? `${stacker.name} was updated.` : `${stacker.name} was added as stacker ${stacker.id}.` };
     editingStackerId = "";
     stackerFormVisible = false;
@@ -5121,6 +5310,15 @@ async function deleteStacker(id) {
   state.doubles = state.doubles.filter(d => !registeredDoubleMemberIds(d).includes(id));
   state.relays = state.relays.map(team => ({ ...team, members: relayMemberIds(team).filter(member => member !== id) }));
   state.results = state.results.filter(r => r.participant !== id);
+  appendCompetitionAuditLog({
+    action: "stacker.deleted",
+    entityType: "Stacker",
+    entityId: id,
+    summary: `Stacker ${id} deleted.`,
+    before: stacker,
+    after: null
+  });
+  await persistCompetitionAuditLog();
   if (editingStackerId === id) editingStackerId = "";
   pendingDeleteStackerId = "";
   flashMessage = { type: "success", text: `Stacker ${id} was removed.` };
@@ -5130,6 +5328,7 @@ async function deleteStacker(id) {
 function saveStackerDoubleAssignment() {
   if (!editingStackerId) return;
   const currentTeam = doublesForStacker(editingStackerId)[0];
+  const before = auditSnapshot(currentTeam);
   const status = val("stDoubleStatus") || "complete";
   const partnerId = status === "pending" ? "" : selectedStackerId("stDoublePartner");
   const parentName = val("stDoubleParentName").trim();
@@ -5160,6 +5359,14 @@ function saveStackerDoubleAssignment() {
   } else {
     state.doubles.push(team);
   }
+  appendCompetitionAuditLog({
+    action: currentTeam ? "doubles.updated" : "doubles.created",
+    entityType: "Doubles",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Doubles", team.id)} saved from stacker profile.`,
+    before,
+    after: team
+  });
   flashMessage = {
     type: "success",
     text: `${team.id} ${participantName("Doubles", team.id)} was saved${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}`
@@ -5184,6 +5391,7 @@ function addDouble() {
   const first = state.stackers.find(stacker => stacker.id === one) || {};
   const second = state.stackers.find(stacker => stacker.id === two) || {};
   const displaced = removeConflictingDoubles([one, two].filter(Boolean), editingDoubleId);
+  const before = auditSnapshot(editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null);
   const team = {
     id: editingDoubleId || nextTeamCode("2"),
     type,
@@ -5200,6 +5408,14 @@ function addDouble() {
   } else {
     state.doubles.push(team);
   }
+  appendCompetitionAuditLog({
+    action: editingDoubleId ? "doubles.updated" : "doubles.created",
+    entityType: "Doubles",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Doubles", team.id)} ${editingDoubleId ? "updated" : "created"}.`,
+    before,
+    after: team
+  });
   doublesTab = status === "pending" ? "incomplete" : "completed";
   doubleFlashMessage = { type: "success", text: `${team.id} ${participantName("Doubles", team.id)} was ${editingDoubleId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
   clearDoubleForm(false);
@@ -5258,8 +5474,17 @@ function removeConflictingDoubles(stackerIds, exceptTeamId = "") {
 function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
   if (!team) return;
+  const teamName = participantName("Doubles", id);
   if (!confirm(`Delete ${team.id} ${participantName("Doubles", team.id)}?`)) return;
   state.doubles = state.doubles.filter(d => d.id !== id);
+  appendCompetitionAuditLog({
+    action: "doubles.deleted",
+    entityType: "Doubles",
+    entityId: id,
+    summary: `${id} ${teamName} deleted.`,
+    before: team,
+    after: null
+  });
 }
 
 function addRelay() {
@@ -5272,6 +5497,7 @@ function addRelay() {
   }
   const members = [...new Set(selectedMembers)];
   const displaced = removeConflictingRelays(members, editingRelayId);
+  const before = auditSnapshot(editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null);
   const team = {
     id: editingRelayId || nextTeamCode("3"),
     name: relayName,
@@ -5291,6 +5517,14 @@ function addRelay() {
   } else {
     state.relays.push(team);
   }
+  appendCompetitionAuditLog({
+    action: editingRelayId ? "relay.updated" : "relay.created",
+    entityType: "Relay",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Timed Relay", team.id)} ${editingRelayId ? "updated" : "created"}.`,
+    before,
+    after: team
+  });
   relayTab = relayTeamStatus(team) === "Ready" ? "ready" : relayTeamStatus(team).toLowerCase();
   relayFlashMessage = { type: "success", text: `${team.id} ${participantName("Timed Relay", team.id)} was ${editingRelayId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
   clearRelayForm(false);
@@ -5350,9 +5584,18 @@ function clearRelayForm(renderNow = true) {
 function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
   if (!team) return;
+  const teamName = participantName("Timed Relay", id);
   if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
+  appendCompetitionAuditLog({
+    action: "relay.deleted",
+    entityType: "Relay",
+    entityId: id,
+    summary: `${id} ${teamName} deleted.`,
+    before: team,
+    after: null
+  });
 }
 
 function relayForStacker(stackerId) {
@@ -5423,7 +5666,16 @@ function saveResult() {
   const participant = val("participantSelect").split(" - ")[0];
   const attempts = [Number(val("attempt1")), Number(val("attempt2")), Number(val("attempt3"))].filter(n => n > 0);
   if (!participant || !attempts.length) return;
-  state.results.push({ id: crypto.randomUUID(), stage: val("resultStage"), type, participant, event: val("resultEvent"), attempts, penalty: Number(val("penalty")) });
+  const result = { id: crypto.randomUUID(), stage: val("resultStage"), type, participant, event: val("resultEvent"), attempts, penalty: Number(val("penalty")) };
+  state.results.push(result);
+  appendCompetitionAuditLog({
+    action: "results.created",
+    entityType: "Result",
+    entityId: result.id,
+    summary: `${result.stage} ${result.event} result created for ${result.participant}.`,
+    before: null,
+    after: result
+  });
 }
 
 function countBy(key, value) {
@@ -5639,6 +5891,15 @@ function stackMeetDateTime(value = new Date()) {
     second: "2-digit",
     timeZoneName: "short"
   }).format(value);
+}
+
+// Parses UTC timestamps that may arrive from SQL JSON without an explicit offset.
+// Parses an audit timestamp safely before formatting it in StackMeet's configured timezone.
+function parseUtcDate(value) {
+  if (!value) return new Date();
+  const textValue = String(value);
+  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(textValue) ? textValue : `${textValue}Z`);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 // Returns today's date for defaults using GMT+8 instead of the browser's local timezone.
