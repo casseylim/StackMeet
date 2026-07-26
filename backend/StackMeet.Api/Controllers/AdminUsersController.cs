@@ -21,6 +21,7 @@ public sealed class AdminUsersController(
     PasswordHashService passwords,
     AccountTokenService tokens,
     AccountEmailService emails,
+    AccountLinkService accountLinks,
     AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
@@ -145,7 +146,7 @@ public sealed class AdminUsersController(
             ct);
         await transaction.CommitAsync(ct);
 
-        var link = AccountLink("activate", rawToken);
+        var link = accountLinks.ActivationLink(rawToken);
         await emails.SendActivationEmail(user.Email, user.DisplayName, link, ct);
         return Ok(new AdminEmailLinkResponse("Activation email sent.", link));
     }
@@ -239,7 +240,7 @@ public sealed class AdminUsersController(
         if (user is null) return NotFound();
 
         var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), ct);
-        var link = AccountLink("reset", rawToken);
+        var link = accountLinks.PasswordResetLink(rawToken);
         await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, ct);
         await auditLogs.Write(
             "admin.user.password_reset_requested",
@@ -413,23 +414,6 @@ public sealed class AdminUsersController(
         string Role,
         bool IsActive,
         DateTime AssignedAt);
-
-    /// <summary>
-    /// Builds the browser link used in activation and password-reset emails.
-    /// </summary>
-    /// <remarks>
-    /// Local testing links point to localhost; deployed links point to the request host.
-    /// </remarks>
-    string AccountLink(string purpose, string rawToken)
-    {
-        var url = new UriBuilder(Request.Scheme, Request.Host.Host)
-        {
-            Path = "account.html",
-            Query = $"purpose={Uri.EscapeDataString(purpose)}&token={Uri.EscapeDataString(rawToken)}"
-        };
-        if (Request.Host.Port is { } port) url.Port = port;
-        return url.Uri.ToString();
-    }
 
     /// <summary>
     /// Reads a single user with competition and role navigation data loaded.

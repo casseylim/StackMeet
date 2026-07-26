@@ -15,6 +15,7 @@ namespace StackMeet.Api.Controllers;
 public sealed class AdminEmailSettingsController(
     ProtectedSettingService settings,
     AccountEmailService emails,
+    AccountLinkService accountLinks,
     AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
@@ -87,7 +88,7 @@ public sealed class AdminEmailSettingsController(
     public async Task<IActionResult> Test(AdminTestEmailRequest request, CancellationToken ct)
     {
         if (!EmailRules.IsValid(request.ToEmail)) return BadRequest(new { error = "Valid recipient email is required." });
-        await emails.SendPasswordResetEmail(request.ToEmail, "StackMeet Admin", $"{Request.Scheme}://{Request.Host}/account.html", ct);
+        await emails.SendPasswordResetEmail(request.ToEmail, "StackMeet Admin", accountLinks.PasswordResetLink("test-token"), ct);
         await auditLogs.Write(
             "admin.email_settings.test_sent",
             "AppSetting",

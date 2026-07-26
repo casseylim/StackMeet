@@ -65,6 +65,7 @@ builder.Services.AddSingleton<PasswordHashService>();
 builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddScoped<AccountEmailService>();
+builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
