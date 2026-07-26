@@ -28,6 +28,19 @@ public sealed class ProtectedSettingService(StackMeetDbContext database, IConfig
     }
 
     /// <summary>
+    /// Checks whether a setting has a stored value without decrypting protected secrets.
+    /// </summary>
+    /// <remarks>
+    /// Admin screens use this to display secret status even if a password value must remain hidden.
+    /// </remarks>
+    public async Task<bool> HasValue(string key, CancellationToken ct)
+    {
+        return await database.AppSettings
+            .AsNoTracking()
+            .AnyAsync(item => item.Key == key && item.Value != "", ct);
+    }
+
+    /// <summary>
     /// Saves or updates one runtime setting.
     /// </summary>
     /// <remarks>

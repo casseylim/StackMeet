@@ -33,7 +33,7 @@ public sealed class AdminEmailSettingsController(
             int.TryParse(await settings.Get("Email:SmtpPort", ct), out var port) ? port : 587,
             bool.TryParse(await settings.Get("Email:UseTls", ct), out var useTls) ? useTls : true,
             await settings.Get("Email:Username", ct) ?? "",
-            !string.IsNullOrWhiteSpace(await settings.Get("Email:Password", ct)),
+            await settings.HasValue("Email:Password", ct),
             settings.CanProtect));
     }
 
@@ -113,7 +113,7 @@ public sealed class AdminEmailSettingsController(
         int.TryParse(await settings.Get("Email:SmtpPort", ct), out var port) ? port : 587,
         bool.TryParse(await settings.Get("Email:UseTls", ct), out var useTls) ? useTls : true,
         await settings.Get("Email:Username", ct) ?? "",
-        !string.IsNullOrWhiteSpace(await settings.Get("Email:Password", ct)),
+        await settings.HasValue("Email:Password", ct),
         false);
 
     static string? Validate(AdminEmailSettingsRequest request)
