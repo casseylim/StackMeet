@@ -7,6 +7,9 @@
   let userSearch = "";
   let userSort = { key: "email", direction: "asc" };
 
+  const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+  const stackMeetLocale = "en-MY";
+
   const $ = id => document.getElementById(id);
   const message = text => { $("adminMessage").textContent = text || ""; };
   const adminKey = () => sessionStorage.getItem(keyName) || $("adminKey").value;
@@ -87,7 +90,7 @@
         <td>${esc(item.competitionName)}</td>
         <td>${esc(item.status)}</td>
         <td>${item.hasState ? "Ready" : "Missing"}</td>
-        <td>${esc(item.updatedAt?.slice(0, 19) || "")}</td>
+        <td>${esc(formatDateTime(item.updatedAt))}</td>
         <td><button class="ghost compact-button" data-key="${esc(item.competitionKey)}" type="button">Edit</button></td>
       </tr>`).join("");
   }
@@ -442,9 +445,29 @@
     return parts.join("\n") || "";
   }
 
-  // Formats UTC audit timestamps for the browser locale without changing stored values.
+  // Formats stored UTC timestamps in StackMeet's GMT+8 operating timezone.
   function formatDateTime(value) {
-    return value ? new Date(value).toLocaleString() : "";
+    const date = parseUtcDate(value);
+    return date
+      ? new Intl.DateTimeFormat(stackMeetLocale, {
+          timeZone: stackMeetTimeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZoneName: "short"
+        }).format(date)
+      : "";
+  }
+
+  // Treats SQL datetime strings without an offset as UTC before displaying them in GMT+8.
+  function parseUtcDate(value) {
+    if (!value) return null;
+    const text = String(value);
+    const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text}Z`);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   function esc(value) {

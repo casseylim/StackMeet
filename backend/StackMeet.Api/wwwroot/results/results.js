@@ -7,6 +7,8 @@
   const section = resultsIndex >= 0 && parts[resultsIndex + 1] ? parts[resultsIndex + 1] : "Dashboard";
   const resultsRoot = competitionId ? `/${encodeURIComponent(competitionId)}/Results` : "";
   const endpoint = `/api/public/competitions/${encodeURIComponent(competitionId)}/results`;
+  const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+  const stackMeetLocale = "en-MY";
   let lastVersion = "";
   let refreshInFlight = false;
 
@@ -1568,8 +1570,17 @@
   }
 
   function formatClock(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "just now" : new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
+    const date = parseUtcDate(value);
+    return date
+      ? new Intl.DateTimeFormat(stackMeetLocale, { timeZone: stackMeetTimeZone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)
+      : "just now";
+  }
+
+  function parseUtcDate(value) {
+    if (!value) return null;
+    const textValue = String(value);
+    const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(textValue) ? textValue : `${textValue}Z`);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   function formatDateRange(start, end) {

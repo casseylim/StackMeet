@@ -3077,9 +3077,12 @@ function stageBoardDisplayRow(row, champion, highlighted) {
   };
 }
 
+const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+const stackMeetLocale = "en-MY";
+
 function finalsReportMeta(definition) {
   const filters = definition.filters;
-  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", new Date().toLocaleString()], ["Returned rows", definition.rows.length]];
+  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", stackMeetDateTime()], ["Returned rows", definition.rows.length]];
 }
 
 function finalsReportPrintFilterSummary(definition) {
@@ -4053,7 +4056,7 @@ function adminReportMeta(type, group) {
     ["Region", filterSummary("reportRegion", "reportRegionOp")],
     ["Org", filterSummary("reportOrg", "reportOrgOp")],
     ["Team", selectedOptionText("reportTeam") || "--"],
-    ["Generated", new Date().toLocaleString()]
+    ["Generated", stackMeetDateTime()]
   ];
 }
 
@@ -5621,7 +5624,31 @@ function setValue(id, value) {
 
 
 function todayIsoDate() {
-  return new Date().toLocaleDateString("en-CA");
+  return stackMeetDateOnly();
+}
+
+// Formats browser-generated timestamps in StackMeet's fixed GMT+8 operating timezone.
+function stackMeetDateTime(value = new Date()) {
+  return new Intl.DateTimeFormat(stackMeetLocale, {
+    timeZone: stackMeetTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short"
+  }).format(value);
+}
+
+// Returns today's date for defaults using GMT+8 instead of the browser's local timezone.
+function stackMeetDateOnly(value = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: stackMeetTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(value);
 }
 
 function isoDateValue(value) {
