@@ -18,17 +18,17 @@
         <button class="ghost" id="refreshAdmin" type="button">Refresh</button>
       </header>
 
-      <section class="panel admin-auth-panel">
-        <label>Admin Key<input id="adminKey" type="password" autocomplete="off" /></label>
-        <button class="primary" id="saveAdminKey" type="button">Use Key</button>
-        <p class="muted">The admin key is entered locally for this browser session and is not stored in source code.</p>
-      </section>
-
       <nav class="admin-page-tabs" aria-label="Admin pages">
         <button class="active" data-admin-page-target="email" type="button">Email Setup</button>
         <button data-admin-page-target="users" type="button">User Management</button>
         <button data-admin-page-target="competition" type="button">Competition</button>
       </nav>
+
+      <section class="panel admin-auth-panel">
+        <label>Admin Key<input id="adminKey" type="password" autocomplete="off" /></label>
+        <button class="primary" id="saveAdminKey" type="button">Use Key</button>
+        <p class="muted">The admin key is entered locally for this browser session and is not stored in source code.</p>
+      </section>
 
       <section class="admin-page active" data-admin-page="email">
         <article class="panel">
