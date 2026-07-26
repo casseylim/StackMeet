@@ -88,7 +88,14 @@ public sealed class AdminEmailSettingsController(
     public async Task<IActionResult> Test(AdminTestEmailRequest request, CancellationToken ct)
     {
         if (!EmailRules.IsValid(request.ToEmail)) return BadRequest(new { error = "Valid recipient email is required." });
-        await emails.SendPasswordResetEmail(request.ToEmail, "StackMeet Admin", accountLinks.PasswordResetLink("test-token"), ct);
+        try
+        {
+            await emails.SendPasswordResetEmail(request.ToEmail, "StackMeet Admin", accountLinks.PasswordResetLink("test-token"), ct);
+        }
+        catch (Exception error)
+        {
+            return EmailSendFailure(error);
+        }
         await auditLogs.Write(
             "admin.email_settings.test_sent",
             "AppSetting",
@@ -116,6 +123,17 @@ public sealed class AdminEmailSettingsController(
         await settings.Get("Email:Username", ct) ?? "",
         await settings.HasValue("Email:Password", ct),
         false);
+
+    /// <summary>
+    /// Returns an admin-visible error when the SMTP test send fails.
+    /// </summary>
+    /// <remarks>
+    /// This keeps production troubleshooting on-screen without exposing the SMTP password.
+    /// </remarks>
+    ObjectResult EmailSendFailure(Exception error)
+    {
+        return StatusCode(StatusCodes.Status502BadGateway, new { error = $"Email could not be sent: {error.Message}" });
+    }
 
     static string? Validate(AdminEmailSettingsRequest request)
     {

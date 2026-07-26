@@ -147,7 +147,14 @@ public sealed class AdminUsersController(
         await transaction.CommitAsync(ct);
 
         var link = accountLinks.ActivationLink(rawToken);
-        await emails.SendActivationEmail(user.Email, user.DisplayName, link, ct);
+        try
+        {
+            await emails.SendActivationEmail(user.Email, user.DisplayName, link, ct);
+        }
+        catch (Exception error)
+        {
+            return EmailSendFailure(error);
+        }
         return Ok(new AdminEmailLinkResponse("Activation email sent.", link));
     }
 
@@ -241,7 +248,14 @@ public sealed class AdminUsersController(
 
         var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), ct);
         var link = accountLinks.PasswordResetLink(rawToken);
-        await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, ct);
+        try
+        {
+            await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, ct);
+        }
+        catch (Exception error)
+        {
+            return EmailSendFailure(error);
+        }
         await auditLogs.Write(
             "admin.user.password_reset_requested",
             "AppUser",
@@ -383,6 +397,17 @@ public sealed class AdminUsersController(
     /// Admin-key-only requests do not identify a specific user, so audit rows allow null actor ids.
     /// </remarks>
     int? ActorUserId() => auditLogs.CurrentSession()?.UserId;
+
+    /// <summary>
+    /// Returns an admin-visible error when SMTP delivery fails.
+    /// </summary>
+    /// <remarks>
+    /// The message is intentionally limited to the exception text and does not include SMTP credentials.
+    /// </remarks>
+    ObjectResult EmailSendFailure(Exception error)
+    {
+        return StatusCode(StatusCodes.Status502BadGateway, new { error = $"Email could not be sent: {error.Message}" });
+    }
 
     /// <summary>
     /// Captures one competition assignment in an audit-safe shape.
