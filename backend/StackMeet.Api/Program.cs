@@ -61,6 +61,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
+builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StackMeet")));
 builder.WebHost.ConfigureKestrel(options =>
@@ -140,6 +141,7 @@ app.Use(async (context, next) =>
 
         var statusRestriction = await CompetitionStatusRestriction(
             session,
+            path,
             context.Request.Method,
             database,
             context.RequestAborted);
@@ -221,13 +223,20 @@ static string? BearerToken(string? authorization)
 
 static async Task<(int StatusCode, string Error)?> CompetitionStatusRestriction(
     SessionToken session,
+    PathString path,
     string method,
     StackMeetDbContext database,
     CancellationToken ct)
 {
+    var competitionKey = await RequestedCompetitionKey(session, path, database, ct);
+    if (competitionKey is null)
+    {
+        return null;
+    }
+
     var lifecycle = await database.Competitions
         .AsNoTracking()
-        .Where(item => item.CompetitionKey == session.CompetitionId)
+        .Where(item => item.CompetitionKey == competitionKey)
         .Select(item => new { item.Status, item.ArchivedAt })
         .SingleOrDefaultAsync(ct);
 
@@ -261,7 +270,18 @@ static async Task<bool> SessionCanAccessPath(SessionToken session, PathString pa
     if (path.StartsWithSegments("/api/state", out var stateRemaining))
     {
         var requestedCompetition = stateRemaining.Value?.Trim('/').Split('/')[0];
-        return string.Equals(requestedCompetition, session.CompetitionId, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(requestedCompetition)) return false;
+        if (!session.IsAccountSession)
+        {
+            return string.Equals(requestedCompetition, session.CompetitionId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
+            item.IsActive
+            && item.UserId == session.UserId
+            && item.User.IsActive
+            && item.Competition.CompetitionKey == requestedCompetition,
+            ct);
     }
 
     if (path.StartsWithSegments("/api/competitions", out var competitionRemaining))
@@ -269,9 +289,49 @@ static async Task<bool> SessionCanAccessPath(SessionToken session, PathString pa
         var firstSegment = competitionRemaining.Value?.Trim('/').Split('/')[0];
         if (int.TryParse(firstSegment, out var competitionId))
         {
-            return await database.Competitions.AsNoTracking().AnyAsync(item => item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
+            if (!session.IsAccountSession)
+            {
+                return await database.Competitions.AsNoTracking().AnyAsync(item => item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
+            }
+
+            return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
+                item.IsActive
+                && item.UserId == session.UserId
+                && item.User.IsActive
+                && item.CompetitionId == competitionId,
+                ct);
         }
     }
 
     return true;
+}
+
+// Resolves the competition key affected by the current request so account sessions can reuse
+// the existing competition lifecycle restrictions during the auth migration.
+static async Task<string?> RequestedCompetitionKey(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
+{
+    if (!session.IsAccountSession && !string.IsNullOrWhiteSpace(session.CompetitionId))
+    {
+        return session.CompetitionId;
+    }
+
+    if (path.StartsWithSegments("/api/state", out var stateRemaining))
+    {
+        return stateRemaining.Value?.Trim('/').Split('/')[0];
+    }
+
+    if (path.StartsWithSegments("/api/competitions", out var competitionRemaining))
+    {
+        var firstSegment = competitionRemaining.Value?.Trim('/').Split('/')[0];
+        if (int.TryParse(firstSegment, out var competitionId))
+        {
+            return await database.Competitions
+                .AsNoTracking()
+                .Where(item => item.Id == competitionId)
+                .Select(item => item.CompetitionKey)
+                .SingleOrDefaultAsync(ct);
+        }
+    }
+
+    return null;
 }

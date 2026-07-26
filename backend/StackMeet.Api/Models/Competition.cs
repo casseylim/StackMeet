@@ -16,4 +16,6 @@ public sealed class Competition
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<Stacker> Stackers { get; set; } = [];
+    public ICollection<CompetitionUser> CompetitionUsers { get; set; } = [];
+    public ICollection<AuditLog> AuditLogs { get; set; } = [];
 }

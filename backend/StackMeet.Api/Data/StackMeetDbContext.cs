@@ -1,16 +1,75 @@
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Models;
+using StackMeet.Api.Services;
 
 namespace StackMeet.Api.Data;
 
 public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> options) : DbContext(options)
 {
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<AppRole> AppRoles => Set<AppRole>();
+    public DbSet<CompetitionUser> CompetitionUsers => Set<CompetitionUser>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<CompetitionState> CompetitionStates => Set<CompetitionState>();
     public DbSet<Competition> Competitions => Set<Competition>();
     public DbSet<Stacker> Stackers => Set<Stacker>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var appUser = modelBuilder.Entity<AppUser>();
+        appUser.ToTable("AppUser", "dbo");
+        appUser.HasKey(item => item.Id);
+        appUser.Property(item => item.Id).UseIdentityColumn();
+        appUser.Property(item => item.Email).HasMaxLength(200).IsRequired();
+        appUser.Property(item => item.NormalizedEmail).HasMaxLength(200).IsRequired();
+        appUser.HasIndex(item => item.NormalizedEmail).IsUnique();
+        appUser.Property(item => item.PasswordHash).HasMaxLength(500).IsRequired();
+        appUser.Property(item => item.DisplayName).HasMaxLength(150).IsRequired();
+        appUser.Property(item => item.IsActive).IsRequired().HasDefaultValue(true);
+        appUser.Property(item => item.EmailConfirmed).IsRequired().HasDefaultValue(false);
+        appUser.Property(item => item.IsSystemAdmin).IsRequired().HasDefaultValue(false);
+        appUser.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        appUser.Property(item => item.LastLoginAt).HasColumnType("datetime2");
+
+        var appRole = modelBuilder.Entity<AppRole>();
+        appRole.ToTable("AppRole", "dbo");
+        appRole.HasKey(item => item.Id);
+        appRole.Property(item => item.Id).ValueGeneratedNever();
+        appRole.Property(item => item.Name).HasMaxLength(50).IsRequired();
+        appRole.HasIndex(item => item.Name).IsUnique();
+        appRole.HasData(
+            new AppRole { Id = 1, Name = StackMeetRoles.SystemAdmin },
+            new AppRole { Id = 2, Name = StackMeetRoles.CompetitionManager },
+            new AppRole { Id = 3, Name = StackMeetRoles.DataEntry },
+            new AppRole { Id = 4, Name = StackMeetRoles.Viewer });
+
+        var competitionUser = modelBuilder.Entity<CompetitionUser>();
+        competitionUser.ToTable("CompetitionUser", "dbo");
+        competitionUser.HasKey(item => item.Id);
+        competitionUser.Property(item => item.Id).UseIdentityColumn();
+        competitionUser.Property(item => item.IsActive).IsRequired().HasDefaultValue(true);
+        competitionUser.Property(item => item.AssignedAt).HasColumnType("datetime2").IsRequired();
+        competitionUser.HasIndex(item => new { item.CompetitionId, item.UserId }).IsUnique();
+        competitionUser.HasOne(item => item.Competition).WithMany(item => item.CompetitionUsers).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Restrict);
+        competitionUser.HasOne(item => item.User).WithMany(item => item.CompetitionUsers).HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Restrict);
+        competitionUser.HasOne(item => item.Role).WithMany(item => item.CompetitionUsers).HasForeignKey(item => item.RoleId).OnDelete(DeleteBehavior.Restrict);
+        competitionUser.HasOne(item => item.AssignedByUser).WithMany().HasForeignKey(item => item.AssignedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        var auditLog = modelBuilder.Entity<AuditLog>();
+        auditLog.ToTable("AuditLog", "dbo");
+        auditLog.HasKey(item => item.Id);
+        auditLog.Property(item => item.Id).UseIdentityColumn();
+        auditLog.Property(item => item.Action).HasMaxLength(100).IsRequired();
+        auditLog.Property(item => item.EntityType).HasMaxLength(100).IsRequired();
+        auditLog.Property(item => item.EntityId).HasMaxLength(100);
+        auditLog.Property(item => item.OldValueJson).HasColumnType("nvarchar(max)");
+        auditLog.Property(item => item.NewValueJson).HasColumnType("nvarchar(max)");
+        auditLog.Property(item => item.IpAddress).HasMaxLength(100);
+        auditLog.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        auditLog.HasIndex(item => new { item.CompetitionId, item.CreatedAt });
+        auditLog.HasOne(item => item.User).WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.SetNull);
+        auditLog.HasOne(item => item.Competition).WithMany(item => item.AuditLogs).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.SetNull);
+
         var competitionState = modelBuilder.Entity<CompetitionState>();
         competitionState.ToTable("CompetitionState", "dbo");
         competitionState.HasKey(state => state.Id);

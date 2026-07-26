@@ -5,6 +5,14 @@ namespace StackMeet.Api.Services;
 
 public sealed class SessionTokenService(IConfiguration configuration)
 {
+    const string AccountPayloadVersion = "v2";
+
+    /// <summary>
+    /// Creates a legacy competition-scoped session token.
+    /// </summary>
+    /// <remarks>
+    /// This remains available while the frontend migrates from competition password login.
+    /// </remarks>
     public SessionTokenValue Create(string competitionId, string displayName)
     {
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(SessionMinutes());
@@ -18,6 +26,38 @@ public sealed class SessionTokenService(IConfiguration configuration)
         );
     }
 
+    /// <summary>
+    /// Creates an account-scoped session token for email/password login.
+    /// </summary>
+    /// <remarks>
+    /// The token stores identity metadata but permissions are still checked against the database.
+    /// </remarks>
+    public SessionTokenValue CreateForUser(int userId, string email, string displayName, bool isSystemAdmin)
+    {
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(SessionMinutes());
+        var payload = string.Join(
+            "|",
+            AccountPayloadVersion,
+            userId,
+            Escape(email),
+            Escape(displayName),
+            isSystemAdmin ? "1" : "0",
+            expiresAt.ToUnixTimeSeconds());
+        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+        var signature = Sign(payloadBytes);
+        return new SessionTokenValue(
+            Base64Url(payloadBytes),
+            Base64Url(signature),
+            new SessionToken("", displayName, expiresAt, userId, email, isSystemAdmin)
+        );
+    }
+
+    /// <summary>
+    /// Validates either a legacy competition token or a Phase 1 account token.
+    /// </summary>
+    /// <remarks>
+    /// The v2 payload branch keeps new account tokens backward-compatible with existing middleware flow.
+    /// </remarks>
     public bool TryValidate(string? token, out SessionToken session)
     {
         session = new SessionToken("", "", DateTimeOffset.MinValue);
@@ -41,6 +81,23 @@ public sealed class SessionTokenService(IConfiguration configuration)
         if (!CryptographicOperations.FixedTimeEquals(suppliedSignature, expectedSignature)) return false;
 
         var payload = Encoding.UTF8.GetString(payloadBytes).Split('|');
+        if (payload.Length == 6 && payload[0] == AccountPayloadVersion)
+        {
+            if (!int.TryParse(payload[1], out var userId) || !long.TryParse(payload[5], out var accountExpiresUnix)) return false;
+
+            var accountExpiresAt = DateTimeOffset.FromUnixTimeSeconds(accountExpiresUnix);
+            if (accountExpiresAt <= DateTimeOffset.UtcNow) return false;
+
+            session = new SessionToken(
+                "",
+                Unescape(payload[3]),
+                accountExpiresAt,
+                userId,
+                Unescape(payload[2]),
+                payload[4] == "1");
+            return !string.IsNullOrWhiteSpace(session.Email);
+        }
+
         if (payload.Length != 3 || !long.TryParse(payload[2], out var expiresUnix)) return false;
 
         var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresUnix);
