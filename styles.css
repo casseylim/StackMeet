@@ -743,6 +743,14 @@ input[readonly] {
   min-height: 40px;
 }
 
+.top-actions .ghost,
+.top-actions .session-pill {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -2319,14 +2327,14 @@ body.auth-pending .app { display: none; }
 .login-mark { width: 58px; height: 58px; }
 .form-error { min-height: 20px; margin: 0; color: var(--red); font-weight: 800; }
 .session-pill {
-  min-height: 34px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--muted);
   background: white;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 900;
 }
