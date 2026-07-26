@@ -8,8 +8,15 @@
 .admin-page { display: none; }
 .admin-page.active { display: block; }
 .admin-page.split.active { display: grid; }
+.admin-page[data-admin-page="users"].active { display: grid; grid-template-columns: minmax(460px, 1.1fr) minmax(360px, 0.9fr); gap: 12px; align-items: start; }
 .admin-split { grid-template-columns: minmax(460px, 1.2fr) minmax(360px, 0.8fr); }
 .admin-form { display: grid; gap: 12px; }
+.admin-user-toolbar { margin: 14px 0 8px; }
+.admin-search { width: min(420px, 100%); }
+.selected-row td { background: #e8f7f7; }
+.sort-button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 900; cursor: pointer; padding: 0; text-align: left; }
+.danger-button { border: 1px solid #dc2626; background: #fff5f5; color: #b91c1c; }
+#userEditForm input[readonly] { background: #f8fafc; }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .admin-json { max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; white-space: pre-wrap; }
 .admin-row-button { padding: 4px 8px; }
@@ -18,7 +25,7 @@
 .success-text { color: #16794c; }
 @media (max-width: 900px) {
   .admin-shell { padding: 14px; }
-  .admin-auth-panel, .admin-split { grid-template-columns: 1fr; }
+  .admin-auth-panel, .admin-split, .admin-page[data-admin-page="users"].active { grid-template-columns: 1fr; }
   .admin-page-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; }
   .admin-page-tabs button { min-height: 40px; min-width: 0; padding: 8px 6px; font-size: 0.82rem; }
 }

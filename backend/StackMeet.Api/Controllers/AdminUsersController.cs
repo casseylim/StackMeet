@@ -220,6 +220,23 @@ public sealed class AdminUsersController(
     }
 
     /// <summary>
+    /// Deactivates one competition assignment for a user.
+    /// </summary>
+    /// <remarks>
+    /// Assignments are retained for audit context but hidden from active access checks.
+    /// </remarks>
+    [HttpDelete("{id:int}/competition-access/{accessId:int}")]
+    public async Task<ActionResult<AdminUserResponse>> RemoveCompetitionAccess(int id, int accessId, CancellationToken ct)
+    {
+        var access = await database.CompetitionUsers.SingleOrDefaultAsync(item => item.Id == accessId && item.UserId == id, ct);
+        if (access is null) return NotFound();
+
+        access.IsActive = false;
+        await database.SaveChangesAsync(ct);
+        return Ok(await ReadUser(id, ct));
+    }
+
+    /// <summary>
     /// Creates or updates one competition access assignment.
     /// </summary>
     /// <remarks>

@@ -56,12 +56,40 @@
           <form id="inviteUserForm" class="admin-form">
             <label>Email<input id="inviteEmail" type="email" required /></label>
             <label>Display Name<input id="inviteDisplayName" required /></label>
-            <label>Competition<select id="inviteCompetition"></select></label>
-            <label>Access Role<select id="inviteRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
+            <label>Initial Competition<select id="inviteCompetition"></select></label>
+            <label>Initial Role<select id="inviteRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
             <label class="checkbox-field"><input id="inviteSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
             <button class="primary" type="submit">Send Activation Email</button>
           </form>
-          <div class="table-wrap"><table><thead><tr><th>Email</th><th>Status</th><th>Access</th><th></th></tr></thead><tbody id="userAdminRows"></tbody></table></div>
+          <div class="toolbar admin-user-toolbar">
+            <label class="admin-search">Search Users<input id="userSearch" placeholder="Email, name, role or competition" /></label>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th><button class="sort-button" data-user-sort="email" type="button">Email</button></th><th><button class="sort-button" data-user-sort="status" type="button">Status</button></th><th><button class="sort-button" data-user-sort="access" type="button">Access</button></th><th></th></tr></thead><tbody id="userAdminRows"></tbody></table></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><h2 id="userEditTitle">Select User</h2></div>
+          <form id="userEditForm" class="admin-form">
+            <input id="editUserId" type="hidden" />
+            <label>Email<input id="editUserEmail" readonly /></label>
+            <label>Display Name<input id="editDisplayName" /></label>
+            <label class="checkbox-field"><input id="editIsActive" type="checkbox" /> <span>Active</span></label>
+            <label class="checkbox-field"><input id="editEmailConfirmed" type="checkbox" /> <span>Email Confirmed</span></label>
+            <label class="checkbox-field"><input id="editIsSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
+            <div class="button-row">
+              <button class="primary" type="submit">Save User</button>
+              <button class="ghost" id="editPasswordReset" type="button">Send Reset Link</button>
+            </div>
+          </form>
+          <div class="panel-subhead"><h3>Competition Access</h3></div>
+          <div class="form-grid">
+            <label>Competition<select id="editAccessCompetition"></select></label>
+            <label>Role<select id="editAccessRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
+          </div>
+          <div class="button-row">
+            <button class="ghost" id="addEditAccess" type="button">Add / Update Access</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Competition</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="editAccessRows"></tbody></table></div>
         </article>
       </section>
 

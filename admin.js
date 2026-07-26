@@ -2,6 +2,9 @@
   const keyName = "stackmeet-admin-key-v1";
   let competitions = [];
   let users = [];
+  let selectedUserId = null;
+  let userSearch = "";
+  let userSort = { key: "email", direction: "asc" };
 
   const $ = id => document.getElementById(id);
   const message = text => { $("adminMessage").textContent = text || ""; };
@@ -35,7 +38,9 @@
 
   async function loadUsers() {
     users = await request("/api/admin/users");
+    if (selectedUserId && !users.some(user => user.id === selectedUserId)) selectedUserId = null;
     drawUserRows();
+    drawUserEditor();
   }
 
   async function loadEmailSettings() {
@@ -77,27 +82,112 @@
   function drawCompetitionOptions() {
     const options = ['<option value="">No competition assignment</option>'].concat(competitions.map(item => `<option value="${item.id}">${esc(item.competitionKey)} — ${esc(item.competitionName)}</option>`));
     $("inviteCompetition").innerHTML = options.join("");
+    $("editAccessCompetition").innerHTML = options.join("");
   }
 
   function drawUserRows() {
-    if (!users.length) {
+    const rows = filteredSortedUsers();
+    if (!rows.length) {
       $("userAdminRows").innerHTML = '<tr><td colspan="4" class="muted">No users found.</td></tr>';
       return;
     }
 
-    $("userAdminRows").innerHTML = users.map(user => {
+    $("userAdminRows").innerHTML = rows.map(user => {
       const access = user.isSystemAdmin
         ? "System Admin"
-        : (user.competitionAccess || []).map(item => `${item.competitionKey}: ${item.role}`).join("<br />") || "No assigned competition";
+        : (user.competitionAccess || []).filter(item => item.isActive).map(item => `${esc(item.competitionKey)}: ${esc(item.role)}`).join("<br />") || "No assigned competition";
       const status = `${user.isActive ? "Active" : "Pending"}${user.emailConfirmed ? "" : " / Unconfirmed"}`;
       return `
-        <tr>
+        <tr class="${user.id === selectedUserId ? "selected-row" : ""}" data-user-id="${user.id}">
           <td><strong>${esc(user.email)}</strong><br /><span class="muted">${esc(user.displayName)}</span></td>
           <td>${esc(status)}</td>
           <td>${access}</td>
-          <td><button class="ghost compact-button" data-access-user="${user.id}" type="button">Assign</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">Reset</button></td>
+          <td><button class="ghost compact-button" data-edit-user="${user.id}" type="button">Edit</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">Reset</button></td>
         </tr>`;
     }).join("");
+  }
+
+  // Applies the user search box and current table sort before rendering rows.
+  function filteredSortedUsers() {
+    const query = userSearch.trim().toLowerCase();
+    const rows = query
+      ? users.filter(user => {
+          const accessText = (user.competitionAccess || [])
+            .map(item => `${item.competitionKey} ${item.competitionName} ${item.role}`)
+            .join(" ");
+          return `${user.email} ${user.displayName} ${user.isSystemAdmin ? "SystemAdmin" : ""} ${accessText}`
+            .toLowerCase()
+            .includes(query);
+        })
+      : [...users];
+
+    return rows.sort((left, right) => {
+      const direction = userSort.direction === "asc" ? 1 : -1;
+      return userSortValue(left, userSort.key).localeCompare(userSortValue(right, userSort.key)) * direction;
+    });
+  }
+
+  // Returns a stable string value for the selected sortable user column.
+  function userSortValue(user, key) {
+    if (key === "status") return `${user.isActive ? "1" : "0"} ${user.emailConfirmed ? "1" : "0"} ${user.email}`;
+    if (key === "access") {
+      return user.isSystemAdmin
+        ? "System Admin"
+        : (user.competitionAccess || []).map(item => `${item.competitionKey} ${item.role}`).join(" ");
+    }
+    return `${user.email} ${user.displayName}`;
+  }
+
+  // Selects one user and refreshes both the table highlight and edit panel.
+  function selectUser(userId) {
+    selectedUserId = Number(userId);
+    drawUserRows();
+    drawUserEditor();
+  }
+
+  // Reads the currently selected user from the latest loaded user list.
+  function selectedUser() {
+    return users.find(item => item.id === selectedUserId) || null;
+  }
+
+  // Populates the user edit form and enables controls only after a user is selected.
+  function drawUserEditor() {
+    const user = selectedUser();
+    $("userEditTitle").textContent = user ? `Edit ${user.email}` : "Select User";
+    $("userEditForm").querySelectorAll("input, button").forEach(control => { control.disabled = !user; });
+    $("addEditAccess").disabled = !user;
+    $("editAccessCompetition").disabled = !user;
+    $("editAccessRole").disabled = !user;
+
+    $("editUserId").value = user?.id || "";
+    $("editUserEmail").value = user?.email || "";
+    $("editDisplayName").value = user?.displayName || "";
+    $("editIsActive").checked = Boolean(user?.isActive);
+    $("editEmailConfirmed").checked = Boolean(user?.emailConfirmed);
+    $("editIsSystemAdmin").checked = Boolean(user?.isSystemAdmin);
+    drawAccessRows(user);
+  }
+
+  // Renders all competition access rows for the selected user, including inactive history.
+  function drawAccessRows(user) {
+    if (!user) {
+      $("editAccessRows").innerHTML = '<tr><td colspan="4" class="muted">Select a user to manage competition access.</td></tr>';
+      return;
+    }
+
+    const accessRows = user.competitionAccess || [];
+    if (!accessRows.length) {
+      $("editAccessRows").innerHTML = '<tr><td colspan="4" class="muted">No competition access assigned.</td></tr>';
+      return;
+    }
+
+    $("editAccessRows").innerHTML = accessRows.map(access => `
+      <tr>
+        <td><strong>${esc(access.competitionKey)}</strong><br /><span class="muted">${esc(access.competitionName)}</span></td>
+        <td>${esc(access.role)}</td>
+        <td>${access.isActive ? "Active" : "Inactive"}</td>
+        <td>${access.isActive ? `<button class="danger-button compact-button" data-remove-access="${access.id}" type="button">Remove</button>` : ""}</td>
+      </tr>`).join("");
   }
 
   function fillForm(item) {
@@ -215,6 +305,7 @@
   async function inviteUser(event) {
     event.preventDefault();
     const competitionId = Number($("inviteCompetition").value || 0);
+    const invitedEmail = $("inviteEmail").value.trim();
     const competitionAccess = competitionId
       ? [{ competitionId, role: $("inviteRole").value, isActive: true }]
       : [];
@@ -229,7 +320,31 @@
     });
     $("inviteUserForm").reset();
     await loadUsers();
+    const invited = users.find(user => user.email.toLowerCase() === invitedEmail.toLowerCase());
+    if (invited) selectUser(invited.id);
     message(result.message || "Activation email sent.");
+  }
+
+  // Saves editable user metadata without changing password or competition access rows.
+  async function saveUser(event) {
+    event.preventDefault();
+    const userId = Number($("editUserId").value || 0);
+    if (!userId) return message("Select a user first.");
+
+    await request(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        displayName: $("editDisplayName").value.trim(),
+        isActive: $("editIsActive").checked,
+        emailConfirmed: $("editEmailConfirmed").checked,
+        isSystemAdmin: $("editIsSystemAdmin").checked
+      })
+    });
+    await loadUsers();
+    selectedUserId = userId;
+    drawUserRows();
+    drawUserEditor();
+    message("User saved.");
   }
 
   async function sendPasswordReset(userId) {
@@ -240,16 +355,43 @@
     message(result.message || "Password reset email sent.");
   }
 
-  async function assignAccess(userId) {
-    const competitionId = Number($("inviteCompetition").value || 0);
-    if (!competitionId) return message("Choose a competition in User Management before assigning access.");
+  // Adds or reactivates a competition assignment for the selected user.
+  async function assignAccess(userId = selectedUserId) {
+    if (!userId) return message("Select a user first.");
+    const competitionId = Number($("editAccessCompetition").value || 0);
+    if (!competitionId) return message("Choose a competition before assigning access.");
     const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/competition-access`, {
       method: "POST",
-      body: JSON.stringify({ competitionId, role: $("inviteRole").value, isActive: true })
+      body: JSON.stringify({ competitionId, role: $("editAccessRole").value, isActive: true })
     });
     users = users.map(item => item.id === result.id ? result : item);
+    selectedUserId = result.id;
     drawUserRows();
+    drawUserEditor();
     message("User access updated.");
+  }
+
+  // Deactivates one competition assignment while keeping the audit row in the database.
+  async function removeAccess(accessId) {
+    const user = selectedUser();
+    if (!user) return message("Select a user first.");
+    if (!confirm(`Remove this competition access from ${user.email}?`)) return;
+
+    const result = await request(`/api/admin/users/${encodeURIComponent(user.id)}/competition-access/${encodeURIComponent(accessId)}`, { method: "DELETE" });
+    users = users.map(item => item.id === result.id ? result : item);
+    drawUserRows();
+    drawUserEditor();
+    message("User access removed.");
+  }
+
+  // Toggles the user table sort direction when the same header is clicked again.
+  function setUserSort(key) {
+    if (userSort.key === key) {
+      userSort.direction = userSort.direction === "asc" ? "desc" : "asc";
+    } else {
+      userSort = { key, direction: "asc" };
+    }
+    drawUserRows();
   }
 
   function esc(value) {
@@ -263,6 +405,14 @@
   $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
   $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
   $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
+  $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
+  $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(error.message)));
+  $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(error.message)));
+  $("userSearch").addEventListener("input", event => {
+    userSearch = event.target.value;
+    drawUserRows();
+  });
+  document.querySelectorAll("[data-user-sort]").forEach(button => button.addEventListener("click", () => setUserSort(button.dataset.userSort)));
   $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");
@@ -270,18 +420,27 @@
     fillForm(competitions.find(item => item.competitionKey === button.dataset.key));
   });
   $("userAdminRows").addEventListener("click", event => {
-    const accessButton = event.target.closest("[data-access-user]");
-    if (accessButton) {
-      assignAccess(accessButton.dataset.accessUser).catch(error => message(error.message));
+    const editButton = event.target.closest("[data-edit-user]");
+    if (editButton) {
+      selectUser(editButton.dataset.editUser);
       return;
     }
-    const button = event.target.closest("[data-reset-user]");
-    if (!button) return;
-    sendPasswordReset(button.dataset.resetUser).catch(error => message(error.message));
+    const resetButton = event.target.closest("[data-reset-user]");
+    if (resetButton) {
+      sendPasswordReset(resetButton.dataset.resetUser).catch(error => message(error.message));
+      return;
+    }
+    const row = event.target.closest("[data-user-id]");
+    if (row) selectUser(row.dataset.userId);
+  });
+  $("editAccessRows").addEventListener("click", event => {
+    const removeButton = event.target.closest("[data-remove-access]");
+    if (removeButton) removeAccess(removeButton.dataset.removeAccess).catch(error => message(error.message));
   });
   document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
   setAdminPage(location.hash.replace("#", "") || "email");
   fillForm(null);
+  drawUserEditor();
   if (sessionStorage.getItem(keyName)) {
     loadAdminData().catch(error => message(error.message));
   } else {
