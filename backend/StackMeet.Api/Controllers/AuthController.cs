@@ -12,7 +12,8 @@ namespace StackMeet.Api.Controllers;
 public sealed class AuthController(
     StackMeetDbContext database,
     PasswordHashService passwords,
-    SessionTokenService tokens) : ControllerBase
+    SessionTokenService tokens,
+    AccountTokenService accountTokens) : ControllerBase
 {
     /// <summary>
     /// Authenticates either a Phase 1 email account or the legacy competition-password flow.
@@ -83,6 +84,56 @@ public sealed class AuthController(
     /// </remarks>
     [HttpPost("logout")]
     public IActionResult Logout() => NoContent();
+
+    /// <summary>
+    /// Activates an invited account and sets its first password.
+    /// </summary>
+    /// <remarks>
+    /// The activation token is single-use and marks the account active/email-confirmed.
+    /// </remarks>
+    [HttpPost("activate")]
+    public async Task<IActionResult> Activate(ActivateAccountRequest request, CancellationToken cancellationToken)
+    {
+        var validation = ValidateNewPassword(request.Password);
+        if (validation is not null) return BadRequest(new { error = validation });
+
+        var userId = await accountTokens.ConsumeToken(request.Token, AccountTokenService.ActivationPurpose, cancellationToken);
+        if (userId is null) return BadRequest(new { error = "Activation link is invalid or expired." });
+
+        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        if (user is null) return BadRequest(new { error = "Account no longer exists." });
+
+        if (!string.IsNullOrWhiteSpace(request.DisplayName)) user.DisplayName = request.DisplayName.Trim();
+        user.PasswordHash = passwords.Hash(request.Password);
+        user.IsActive = true;
+        user.EmailConfirmed = true;
+        await database.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Resets an existing account password from a one-time email link.
+    /// </summary>
+    /// <remarks>
+    /// Reset tokens do not change competition assignments or system-admin status.
+    /// </remarks>
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var validation = ValidateNewPassword(request.Password);
+        if (validation is not null) return BadRequest(new { error = validation });
+
+        var userId = await accountTokens.ConsumeToken(request.Token, AccountTokenService.PasswordResetPurpose, cancellationToken);
+        if (userId is null) return BadRequest(new { error = "Reset link is invalid or expired." });
+
+        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        if (user is null) return BadRequest(new { error = "Account no longer exists." });
+
+        user.PasswordHash = passwords.Hash(request.Password);
+        user.IsActive = true;
+        await database.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
 
     /// <summary>
     /// Authenticates an AppUser by normalized email and password hash.
@@ -184,5 +235,11 @@ public sealed class AuthController(
         return authorization?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true
             ? authorization[prefix.Length..].Trim()
             : null;
+    }
+
+    static string? ValidateNewPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8) return "Password must be at least 8 characters.";
+        return null;
     }
 }

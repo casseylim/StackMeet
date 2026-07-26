@@ -1,6 +1,7 @@
 (function () {
   const keyName = "stackmeet-admin-key-v1";
   let competitions = [];
+  let users = [];
 
   const $ = id => document.getElementById(id);
   const message = text => { $("adminMessage").textContent = text || ""; };
@@ -22,6 +23,31 @@
     message("");
     competitions = await request("/api/admin/competitions");
     drawRows();
+    drawCompetitionOptions();
+  }
+
+  async function loadUsers() {
+    users = await request("/api/admin/users");
+    drawUserRows();
+  }
+
+  async function loadEmailSettings() {
+    const settings = await request("/api/admin/email-settings");
+    $("emailFromName").value = settings.fromName || "StackMeet";
+    $("emailFromAddress").value = settings.fromAddress || "";
+    $("emailSmtpHost").value = settings.smtpHost || "smtp-relay.brevo.com";
+    $("emailSmtpPort").value = settings.smtpPort || 587;
+    $("emailUsername").value = settings.username || "";
+    $("emailPassword").value = "";
+    $("emailUseTls").checked = settings.useTls !== false;
+    $("emailSettingsStatus").textContent = settings.canStoreProtectedSecrets
+      ? `SMTP password storage is encrypted. ${settings.hasPassword ? "A password is saved." : "No password is saved yet."}`
+      : "Set Security:SettingsEncryptionKey before saving an SMTP password.";
+  }
+
+  async function loadAdminData() {
+    await loadCompetitions();
+    await Promise.all([loadUsers(), loadEmailSettings()]);
   }
 
   function drawRows() {
@@ -39,6 +65,32 @@
         <td>${esc(item.updatedAt?.slice(0, 19) || "")}</td>
         <td><button class="ghost compact-button" data-key="${esc(item.competitionKey)}" type="button">Edit</button></td>
       </tr>`).join("");
+  }
+
+  function drawCompetitionOptions() {
+    const options = ['<option value="">No competition assignment</option>'].concat(competitions.map(item => `<option value="${item.id}">${esc(item.competitionKey)} — ${esc(item.competitionName)}</option>`));
+    $("inviteCompetition").innerHTML = options.join("");
+  }
+
+  function drawUserRows() {
+    if (!users.length) {
+      $("userAdminRows").innerHTML = '<tr><td colspan="4" class="muted">No users found.</td></tr>';
+      return;
+    }
+
+    $("userAdminRows").innerHTML = users.map(user => {
+      const access = user.isSystemAdmin
+        ? "System Admin"
+        : (user.competitionAccess || []).map(item => `${item.competitionKey}: ${item.role}`).join("<br />") || "No assigned competition";
+      const status = `${user.isActive ? "Active" : "Pending"}${user.emailConfirmed ? "" : " / Unconfirmed"}`;
+      return `
+        <tr>
+          <td><strong>${esc(user.email)}</strong><br /><span class="muted">${esc(user.displayName)}</span></td>
+          <td>${esc(status)}</td>
+          <td>${access}</td>
+          <td><button class="ghost compact-button" data-access-user="${user.id}" type="button">Assign</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">Reset</button></td>
+        </tr>`;
+    }).join("");
   }
 
   function fillForm(item) {
@@ -120,7 +172,7 @@
 
     sessionStorage.setItem(keyName, value);
     try {
-      await loadCompetitions();
+      await loadAdminData();
       $("adminKey").value = "";
     } catch (error) {
       sessionStorage.removeItem(keyName);
@@ -128,23 +180,101 @@
     }
   }
 
+  async function saveEmailSettings(event) {
+    event.preventDefault();
+    await request("/api/admin/email-settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        fromName: $("emailFromName").value.trim(),
+        fromAddress: $("emailFromAddress").value.trim(),
+        smtpHost: $("emailSmtpHost").value.trim(),
+        smtpPort: Number($("emailSmtpPort").value || 587),
+        useTls: $("emailUseTls").checked,
+        username: $("emailUsername").value.trim(),
+        password: $("emailPassword").value || null
+      })
+    });
+    await loadEmailSettings();
+    message("Email setup saved.");
+  }
+
+  async function sendTestEmail() {
+    const toEmail = prompt("Send test email to:");
+    if (!toEmail) return;
+    const result = await request("/api/admin/email-settings/test", { method: "POST", body: JSON.stringify({ toEmail }) });
+    message(result.message || "Test email sent.");
+  }
+
+  async function inviteUser(event) {
+    event.preventDefault();
+    const competitionId = Number($("inviteCompetition").value || 0);
+    const competitionAccess = competitionId
+      ? [{ competitionId, role: $("inviteRole").value, isActive: true }]
+      : [];
+    const result = await request("/api/admin/users/invite", {
+      method: "POST",
+      body: JSON.stringify({
+        email: $("inviteEmail").value.trim(),
+        displayName: $("inviteDisplayName").value.trim(),
+        isSystemAdmin: $("inviteSystemAdmin").checked,
+        competitionAccess
+      })
+    });
+    $("inviteUserForm").reset();
+    await loadUsers();
+    message(result.message || "Activation email sent.");
+  }
+
+  async function sendPasswordReset(userId) {
+    const user = users.find(item => String(item.id) === String(userId));
+    if (!user) return;
+    if (!confirm(`Send password reset link to ${user.email}?`)) return;
+    const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/password-reset`, { method: "POST" });
+    message(result.message || "Password reset email sent.");
+  }
+
+  async function assignAccess(userId) {
+    const competitionId = Number($("inviteCompetition").value || 0);
+    if (!competitionId) return message("Choose a competition in User Management before assigning access.");
+    const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/competition-access`, {
+      method: "POST",
+      body: JSON.stringify({ competitionId, role: $("inviteRole").value, isActive: true })
+    });
+    users = users.map(item => item.id === result.id ? result : item);
+    drawUserRows();
+    message("User access updated.");
+  }
+
   function esc(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
 
   $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
-  $("refreshAdmin").addEventListener("click", () => loadCompetitions().catch(error => message(error.message)));
+  $("refreshAdmin").addEventListener("click", () => loadAdminData().catch(error => message(error.message)));
   $("newCompetition").addEventListener("click", () => fillForm(null));
+  $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
+  $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
+  $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
   $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");
     if (!button) return;
     fillForm(competitions.find(item => item.competitionKey === button.dataset.key));
   });
+  $("userAdminRows").addEventListener("click", event => {
+    const accessButton = event.target.closest("[data-access-user]");
+    if (accessButton) {
+      assignAccess(accessButton.dataset.accessUser).catch(error => message(error.message));
+      return;
+    }
+    const button = event.target.closest("[data-reset-user]");
+    if (!button) return;
+    sendPasswordReset(button.dataset.resetUser).catch(error => message(error.message));
+  });
   document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
   fillForm(null);
   if (sessionStorage.getItem(keyName)) {
-    loadCompetitions().catch(error => message(error.message));
+    loadAdminData().catch(error => message(error.message));
   } else {
     message("Enter the admin key to load competitions.");
   }

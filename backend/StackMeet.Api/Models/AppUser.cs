@@ -20,4 +20,5 @@ public sealed class AppUser
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public ICollection<CompetitionUser> CompetitionUsers { get; set; } = [];
+    public ICollection<AppUserToken> Tokens { get; set; } = [];
 }

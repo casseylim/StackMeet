@@ -10,6 +10,8 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<AppRole> AppRoles => Set<AppRole>();
     public DbSet<CompetitionUser> CompetitionUsers => Set<CompetitionUser>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AppUserToken> AppUserTokens => Set<AppUserToken>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<CompetitionState> CompetitionStates => Set<CompetitionState>();
     public DbSet<Competition> Competitions => Set<Competition>();
     public DbSet<Stacker> Stackers => Set<Stacker>();
@@ -30,6 +32,29 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         appUser.Property(item => item.IsSystemAdmin).IsRequired().HasDefaultValue(false);
         appUser.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
         appUser.Property(item => item.LastLoginAt).HasColumnType("datetime2");
+
+        var appUserToken = modelBuilder.Entity<AppUserToken>();
+        appUserToken.ToTable("AppUserToken", "dbo");
+        appUserToken.HasKey(item => item.Id);
+        appUserToken.Property(item => item.Id).UseIdentityColumn();
+        appUserToken.Property(item => item.Purpose).HasMaxLength(50).IsRequired();
+        appUserToken.Property(item => item.TokenHash).HasMaxLength(128).IsRequired();
+        appUserToken.Property(item => item.ExpiresAt).HasColumnType("datetime2").IsRequired();
+        appUserToken.Property(item => item.UsedAt).HasColumnType("datetime2");
+        appUserToken.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        appUserToken.HasIndex(item => item.TokenHash).IsUnique();
+        appUserToken.HasIndex(item => new { item.UserId, item.Purpose, item.UsedAt });
+        appUserToken.HasOne(item => item.User).WithMany(item => item.Tokens).HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        var appSetting = modelBuilder.Entity<AppSetting>();
+        appSetting.ToTable("AppSetting", "dbo");
+        appSetting.HasKey(item => item.Id);
+        appSetting.Property(item => item.Id).UseIdentityColumn();
+        appSetting.Property(item => item.Key).HasMaxLength(150).IsRequired();
+        appSetting.HasIndex(item => item.Key).IsUnique();
+        appSetting.Property(item => item.Value).HasColumnType("nvarchar(max)").IsRequired();
+        appSetting.Property(item => item.IsProtected).IsRequired().HasDefaultValue(false);
+        appSetting.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
 
         var appRole = modelBuilder.Entity<AppRole>();
         appRole.ToTable("AppRole", "dbo");

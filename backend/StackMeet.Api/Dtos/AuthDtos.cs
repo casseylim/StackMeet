@@ -25,3 +25,19 @@ public sealed record CompetitionAccessResponse(
     string CompetitionKey,
     string CompetitionName,
     string Role);
+
+/// <summary>
+/// Request for setting a password from an activation email link.
+/// </summary>
+/// <remarks>
+/// The token is consumed once and activates the account.
+/// </remarks>
+public sealed record ActivateAccountRequest(string Token, string Password, string? DisplayName = null);
+
+/// <summary>
+/// Request for setting a new password from a reset email link.
+/// </summary>
+/// <remarks>
+/// The token is consumed once; the account must already exist.
+/// </remarks>
+public sealed record ResetPasswordRequest(string Token, string Password);

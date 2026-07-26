@@ -26,6 +26,39 @@
 
       <section class="split admin-split">
         <article class="panel">
+          <div class="panel-head"><h2>Email Setup</h2></div>
+          <form id="emailSettingsForm" class="admin-form">
+            <label>From Name<input id="emailFromName" placeholder="StackMeet" /></label>
+            <label>From Email<input id="emailFromAddress" type="email" placeholder="noreply@example.com" /></label>
+            <label>SMTP Host<input id="emailSmtpHost" placeholder="smtp-relay.brevo.com" /></label>
+            <label>SMTP Port<input id="emailSmtpPort" type="number" min="1" max="65535" value="587" /></label>
+            <label>SMTP Login<input id="emailUsername" autocomplete="off" placeholder="Brevo SMTP login" /></label>
+            <label>SMTP Key / Password<input id="emailPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
+            <label class="checkbox-field"><input id="emailUseTls" type="checkbox" checked /> <span>Use TLS</span></label>
+            <div class="button-row">
+              <button class="primary" type="submit">Save Email Setup</button>
+              <button class="ghost" id="testEmail" type="button">Send Test</button>
+            </div>
+          </form>
+          <p class="muted" id="emailSettingsStatus">Enter the admin key to load email setup.</p>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><h2>User Management</h2></div>
+          <form id="inviteUserForm" class="admin-form">
+            <label>Email<input id="inviteEmail" type="email" required /></label>
+            <label>Display Name<input id="inviteDisplayName" required /></label>
+            <label>Competition<select id="inviteCompetition"></select></label>
+            <label>Access Role<select id="inviteRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
+            <label class="checkbox-field"><input id="inviteSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
+            <button class="primary" type="submit">Send Activation Email</button>
+          </form>
+          <div class="table-wrap"><table><thead><tr><th>Email</th><th>Status</th><th>Access</th><th></th></tr></thead><tbody id="userAdminRows"></tbody></table></div>
+        </article>
+      </section>
+
+      <section class="split admin-split">
+        <article class="panel">
           <div class="panel-head"><h2>Competitions</h2></div>
           <div id="adminMessage" class="form-error" aria-live="polite"></div>
           <div class="table-wrap"><table><thead><tr><th>Key</th><th>Name</th><th>Status</th><th>State</th><th>Updated</th><th></th></tr></thead><tbody id="competitionAdminRows"></tbody></table></div>
@@ -62,6 +95,6 @@
         </article>
       </section>
     </main>
-    <script src="admin.js"></script>
+    <script src="admin.js?v=account-email-phase2"></script>
   </body>
 </html>

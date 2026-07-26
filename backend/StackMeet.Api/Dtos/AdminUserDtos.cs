@@ -14,6 +14,18 @@ public sealed record AdminCreateUserRequest(
     bool EmailConfirmed = true);
 
 /// <summary>
+/// Request for inviting a new account by email.
+/// </summary>
+/// <remarks>
+/// The created user is inactive until they open the activation link and set a password.
+/// </remarks>
+public sealed record AdminInviteUserRequest(
+    string Email,
+    string DisplayName,
+    bool IsSystemAdmin = false,
+    IReadOnlyCollection<AdminCompetitionAccessRequest>? CompetitionAccess = null);
+
+/// <summary>
 /// Request for updating account status and display metadata.
 /// </summary>
 /// <remarks>
@@ -32,6 +44,14 @@ public sealed record AdminUpdateUserRequest(
 /// This is intentionally admin-driven until self-service reset emails are implemented.
 /// </remarks>
 public sealed record AdminSetUserPasswordRequest(string Password);
+
+/// <summary>
+/// Response returned after sending account email links.
+/// </summary>
+/// <remarks>
+/// PreviewLink is returned for local/manual testing; production UI should not expose it broadly.
+/// </remarks>
+public sealed record AdminEmailLinkResponse(string Message, string? PreviewLink);
 
 /// <summary>
 /// Request for assigning or changing one user's role for a competition.

@@ -18,7 +18,9 @@ namespace StackMeet.Api.Controllers;
 [Route("api/admin/users")]
 public sealed class AdminUsersController(
     StackMeetDbContext database,
-    PasswordHashService passwords) : ControllerBase
+    PasswordHashService passwords,
+    AccountTokenService tokens,
+    AccountEmailService emails) : ControllerBase
 {
     /// <summary>
     /// Lists all application accounts with their competition assignments.
@@ -75,6 +77,52 @@ public sealed class AdminUsersController(
         await database.SaveChangesAsync(ct);
 
         return CreatedAtAction(nameof(Get), new { id = user.Id }, await ReadUser(user.Id, ct));
+    }
+
+    /// <summary>
+    /// Creates an inactive account and sends an activation email.
+    /// </summary>
+    /// <remarks>
+    /// The user sets their own password through the emailed one-time activation link.
+    /// </remarks>
+    [HttpPost("invite")]
+    public async Task<ActionResult<AdminEmailLinkResponse>> Invite(AdminInviteUserRequest request, CancellationToken ct)
+    {
+        var validation = ValidateInvite(request, out var normalizedEmail);
+        if (validation is not null) return BadRequest(new { error = validation });
+        if (await database.AppUsers.AnyAsync(item => item.NormalizedEmail == normalizedEmail, ct))
+        {
+            return Conflict(new { error = "Email already exists." });
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var now = DateTime.UtcNow;
+        var user = new AppUser
+        {
+            Email = request.Email.Trim(),
+            NormalizedEmail = normalizedEmail,
+            DisplayName = request.DisplayName.Trim(),
+            PasswordHash = passwords.Hash(Guid.NewGuid().ToString("N")),
+            IsActive = false,
+            IsSystemAdmin = request.IsSystemAdmin,
+            EmailConfirmed = false,
+            CreatedAt = now
+        };
+        database.AppUsers.Add(user);
+        await database.SaveChangesAsync(ct);
+
+        foreach (var access in request.CompetitionAccess ?? [])
+        {
+            var result = await UpsertAccess(user.Id, access, ct);
+            if (result is not null) return BadRequest(new { error = result });
+        }
+
+        var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.ActivationPurpose, TimeSpan.FromDays(7), ct);
+        await transaction.CommitAsync(ct);
+
+        var link = AccountLink("activate", rawToken);
+        await emails.SendActivationEmail(user.Email, user.DisplayName, link, ct);
+        return Ok(new AdminEmailLinkResponse("Activation email sent.", link));
     }
 
     /// <summary>
@@ -135,6 +183,24 @@ public sealed class AdminUsersController(
     }
 
     /// <summary>
+    /// Sends a password-reset link to an existing user.
+    /// </summary>
+    /// <remarks>
+    /// This replaces manual password setting for normal operation once SMTP is configured.
+    /// </remarks>
+    [HttpPost("{id:int}/password-reset")]
+    public async Task<ActionResult<AdminEmailLinkResponse>> SendPasswordReset(int id, CancellationToken ct)
+    {
+        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
+        if (user is null) return NotFound();
+
+        var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), ct);
+        var link = AccountLink("reset", rawToken);
+        await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, ct);
+        return Ok(new AdminEmailLinkResponse("Password reset email sent.", link));
+    }
+
+    /// <summary>
     /// Assigns or updates a user's role for one competition.
     /// </summary>
     /// <remarks>
@@ -146,28 +212,42 @@ public sealed class AdminUsersController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (user is null) return NotFound();
 
+        var accessError = await UpsertAccess(id, request, ct);
+        if (accessError is not null) return BadRequest(new { error = accessError });
+
+        await database.SaveChangesAsync(ct);
+        return Ok(await ReadUser(id, ct));
+    }
+
+    /// <summary>
+    /// Creates or updates one competition access assignment.
+    /// </summary>
+    /// <remarks>
+    /// Used by both invite creation and later access-right editing.
+    /// </remarks>
+    async Task<string?> UpsertAccess(int userId, AdminCompetitionAccessRequest request, CancellationToken ct)
+    {
         if (!await database.Competitions.AnyAsync(item => item.Id == request.CompetitionId, ct))
         {
-            return BadRequest(new { error = "Competition does not exist." });
+            return "Competition does not exist.";
         }
 
         var role = await database.AppRoles.SingleOrDefaultAsync(item => item.Name == request.Role.Trim(), ct);
-        if (role is null) return BadRequest(new { error = "Role must be SystemAdmin, CompetitionManager, DataEntry or Viewer." });
+        if (role is null) return "Role must be SystemAdmin, CompetitionManager, DataEntry or Viewer.";
 
         var access = await database.CompetitionUsers
-            .SingleOrDefaultAsync(item => item.UserId == id && item.CompetitionId == request.CompetitionId, ct);
+            .SingleOrDefaultAsync(item => item.UserId == userId && item.CompetitionId == request.CompetitionId, ct);
 
         if (access is null)
         {
-            access = new CompetitionUser
+            database.CompetitionUsers.Add(new CompetitionUser
             {
-                UserId = id,
+                UserId = userId,
                 CompetitionId = request.CompetitionId,
                 RoleId = role.Id,
                 IsActive = request.IsActive,
                 AssignedAt = DateTime.UtcNow
-            };
-            database.CompetitionUsers.Add(access);
+            });
         }
         else
         {
@@ -175,8 +255,7 @@ public sealed class AdminUsersController(
             access.IsActive = request.IsActive;
         }
 
-        await database.SaveChangesAsync(ct);
-        return Ok(await ReadUser(id, ct));
+        return null;
     }
 
     /// <summary>
@@ -192,6 +271,31 @@ public sealed class AdminUsersController(
         if (string.IsNullOrWhiteSpace(request.DisplayName)) return "Display name is required.";
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8) return "Password must be at least 8 characters.";
         return null;
+    }
+
+    static string? ValidateInvite(AdminInviteUserRequest request, out string normalizedEmail)
+    {
+        normalizedEmail = EmailRules.Normalize(request.Email);
+        if (!EmailRules.IsValid(request.Email)) return "Valid email is required.";
+        if (string.IsNullOrWhiteSpace(request.DisplayName)) return "Display name is required.";
+        return null;
+    }
+
+    /// <summary>
+    /// Builds the browser link used in activation and password-reset emails.
+    /// </summary>
+    /// <remarks>
+    /// Local testing links point to localhost; deployed links point to the request host.
+    /// </remarks>
+    string AccountLink(string purpose, string rawToken)
+    {
+        var url = new UriBuilder(Request.Scheme, Request.Host.Host)
+        {
+            Path = "account.html",
+            Query = $"purpose={Uri.EscapeDataString(purpose)}&token={Uri.EscapeDataString(rawToken)}"
+        };
+        if (Request.Host.Port is { } port) url.Port = port;
+        return url.Uri.ToString();
     }
 
     /// <summary>
