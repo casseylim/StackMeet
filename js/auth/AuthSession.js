@@ -39,32 +39,53 @@
     return readSession()?.competitionId || window.COMPETITION_KEY || "DEFAULT";
   }
 
+  function defaultCompetitionId() {
+    return window.COMPETITION_KEY || "DEFAULT";
+  }
+
+  function looksLikeEmail(value) {
+    return /\S+@\S+\.\S+/.test(value || "");
+  }
+
+  function normalizeLoginSession(session, form) {
+    const competitionAccess = Array.isArray(session.competitionAccess) ? session.competitionAccess : [];
+    const firstCompetition = competitionAccess[0];
+    return {
+      ...session,
+      competitionId: session.competitionId || form.competitionId || firstCompetition?.competitionKey || defaultCompetitionId()
+    };
+  }
+
   async function login(form) {
     if (isLocalFileMode()) {
       return saveSession({
         token: "local-file-test-token",
-        competitionId: form.competitionId || window.COMPETITION_KEY || "DEFAULT",
+        competitionId: form.competitionId || defaultCompetitionId(),
         displayName: form.displayName || "Tournament desk",
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
         localFileTest: true
       });
     }
 
+    const loginId = (form.loginId || "").trim();
+    const displayName = (form.displayName || "").trim();
+    const email = looksLikeEmail(loginId) ? loginId : looksLikeEmail(displayName) ? displayName : "";
+    const competitionId = email === loginId ? defaultCompetitionId() : loginId;
+    const body = email
+      ? { email, password: form.password }
+      : { competitionId, password: form.password, displayName: displayName || "StackMeet User" };
+
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        competitionId: form.competitionId,
-        password: form.password,
-        displayName: form.displayName || "StackMeet User"
-      })
+      body: JSON.stringify(body)
     });
     if (!response.ok) {
       let message = "Login failed.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
       throw new Error(message);
     }
-    return saveSession(await response.json());
+    return saveSession(normalizeLoginSession(await response.json(), { competitionId }));
   }
 
   function updateChrome() {
@@ -92,7 +113,7 @@
         if (button) button.disabled = true;
         try {
           session = await login({
-            competitionId: document.getElementById("loginCompetitionId")?.value.trim(),
+            loginId: document.getElementById("loginCompetitionId")?.value.trim(),
             password: document.getElementById("loginPassword")?.value,
             displayName: document.getElementById("loginDisplayName")?.value.trim()
           });
