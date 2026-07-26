@@ -199,6 +199,7 @@
     $("editUserId").value = user?.id || "";
     $("editUserEmail").value = user?.email || "";
     $("editDisplayName").value = user?.displayName || "";
+    $("editPassword").value = "";
     $("editIsActive").checked = Boolean(user?.isActive);
     $("editEmailConfirmed").checked = Boolean(user?.emailConfirmed);
     $("editIsSystemAdmin").checked = Boolean(user?.isSystemAdmin);
@@ -368,11 +369,13 @@
     message(result.message || "Activation email sent.");
   }
 
-  // Saves editable user metadata without changing password or competition access rows.
+  // Saves editable user metadata and optionally replaces the stored password hash.
   async function saveUser(event) {
     event.preventDefault();
     const userId = Number($("editUserId").value || 0);
     if (!userId) return message("Select a user first.");
+    const password = $("editPassword").value;
+    if (password && password.length < 8) return message("Password must be at least 8 characters.");
 
     await request(`/api/admin/users/${encodeURIComponent(userId)}`, {
       method: "PUT",
@@ -383,11 +386,17 @@
         isSystemAdmin: $("editIsSystemAdmin").checked
       })
     });
+    if (password) {
+      await request(`/api/admin/users/${encodeURIComponent(userId)}/password`, {
+        method: "POST",
+        body: JSON.stringify({ password })
+      });
+    }
     await loadUsers();
     selectedUserId = userId;
     drawUserRows();
     drawUserEditor();
-    message("User saved.");
+    message(password ? "User and password saved." : "User saved.");
   }
 
   async function sendPasswordReset(userId) {
