@@ -407,6 +407,23 @@
     message(result.message || "Password reset email sent.");
   }
 
+  // Permanently removes a user after a typed confirmation to avoid accidental deletion.
+  async function deleteUser(userId = selectedUserId) {
+    const user = users.find(item => String(item.id) === String(userId));
+    if (!user) return message("Select a user first.");
+    const confirmationText = `DELETE ${user.email}`;
+    const confirmation = prompt(`This will permanently delete ${user.email} and remove their competition access.\n\nType ${confirmationText} to confirm.`);
+    if (confirmation !== confirmationText) return message("User deletion cancelled.");
+
+    await request(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ confirmation })
+    });
+    selectedUserId = null;
+    await loadUsers();
+    message(`${user.email} deleted.`);
+  }
+
   // Adds or reactivates a competition assignment for the selected user.
   async function assignAccess(userId = selectedUserId) {
     if (!userId) return message("Select a user first.");
@@ -492,6 +509,7 @@
   $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
   $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
   $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(error.message)));
+  $("editDeleteUser").addEventListener("click", () => deleteUser().catch(error => message(error.message)));
   $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(error.message)));
   $("userSearch").addEventListener("input", event => {
     userSearch = event.target.value;

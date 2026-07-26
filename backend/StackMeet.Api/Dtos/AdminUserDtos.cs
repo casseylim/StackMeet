@@ -46,6 +46,14 @@ public sealed record AdminUpdateUserRequest(
 public sealed record AdminSetUserPasswordRequest(string Password);
 
 /// <summary>
+/// Request for deleting an account after an explicit admin confirmation.
+/// </summary>
+/// <remarks>
+/// The confirmation text prevents accidental deletion from the admin edit screen.
+/// </remarks>
+public sealed record AdminDeleteUserRequest(string? Confirmation);
+
+/// <summary>
 /// Response returned after sending account email links.
 /// </summary>
 /// <remarks>

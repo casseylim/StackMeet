@@ -235,6 +235,75 @@ public sealed class AdminUsersController(
     }
 
     /// <summary>
+    /// Deletes one application account and its direct access records.
+    /// </summary>
+    /// <remarks>
+    /// Audit rows are preserved, and the endpoint refuses to remove the last global admin account.
+    /// </remarks>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, AdminDeleteUserRequest request, CancellationToken ct)
+    {
+        var user = await database.AppUsers
+            .Include(item => item.CompetitionUsers)
+            .Include(item => item.Tokens)
+            .SingleOrDefaultAsync(item => item.Id == id, ct);
+        if (user is null) return NotFound();
+
+        var expectedConfirmation = $"DELETE {user.Email}";
+        if (!string.Equals(request.Confirmation?.Trim(), expectedConfirmation, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = $"Type {expectedConfirmation} to confirm deletion." });
+        }
+
+        if (user.IsSystemAdmin)
+        {
+            var remainingAdminCount = await database.AppUsers.CountAsync(item => item.IsSystemAdmin && item.Id != id, ct);
+            if (remainingAdminCount == 0)
+            {
+                return BadRequest(new { error = "At least one global system admin must remain." });
+            }
+        }
+
+        var assignedByRows = await database.CompetitionUsers
+            .Where(item => item.AssignedByUserId == id)
+            .ToListAsync(ct);
+        foreach (var access in assignedByRows)
+        {
+            access.AssignedByUserId = null;
+        }
+
+        var before = new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            user.IsActive,
+            user.EmailConfirmed,
+            user.IsSystemAdmin,
+            CompetitionAccessCount = user.CompetitionUsers.Count,
+            TokenCount = user.Tokens.Count
+        };
+
+        var actorUserId = ActorUserId();
+        if (actorUserId == id) actorUserId = null;
+
+        database.CompetitionUsers.RemoveRange(user.CompetitionUsers);
+        database.AppUserTokens.RemoveRange(user.Tokens);
+        database.AppUsers.Remove(user);
+        await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.user.deleted",
+            "AppUser",
+            id.ToString(),
+            actorUserId,
+            null,
+            before,
+            new { user.Email },
+            ct);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Sends a password-reset link to an existing user.
     /// </summary>
     /// <remarks>

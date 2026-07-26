@@ -6,7 +6,7 @@
     <title>StackMeet Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=admin-mobile-tabs" />
+    <link rel="stylesheet" href="admin.css?v=admin-user-delete-layout" />
   </head>
   <body>
     <main class="admin-shell">
@@ -53,7 +53,7 @@
       </section>
 
       <section class="admin-page" data-admin-page="users">
-        <article class="panel">
+        <article class="panel admin-user-list-panel">
           <div class="panel-head"><h2>User Management</h2></div>
           <form id="inviteUserForm" class="admin-form">
             <label>Email<input id="inviteEmail" type="email" required /></label>
@@ -69,19 +69,20 @@
           <div class="table-wrap"><table><thead><tr><th><button class="sort-button" data-user-sort="email" type="button">Email</button></th><th><button class="sort-button" data-user-sort="status" type="button">Status</button></th><th><button class="sort-button" data-user-sort="access" type="button">Access</button></th><th></th></tr></thead><tbody id="userAdminRows"></tbody></table></div>
         </article>
 
-        <article class="panel">
+        <article class="panel admin-user-edit-panel">
           <div class="panel-head"><h2 id="userEditTitle">Select User</h2></div>
-          <form id="userEditForm" class="admin-form">
+          <form id="userEditForm" class="admin-form user-edit-form">
             <input id="editUserId" type="hidden" />
-            <label>Email<input id="editUserEmail" readonly /></label>
+            <label class="form-span-all">Email<input id="editUserEmail" readonly /></label>
             <label>Display Name<input id="editDisplayName" /></label>
             <label>New Password<input id="editPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
             <label class="checkbox-field"><input id="editIsActive" type="checkbox" /> <span>Active</span></label>
             <label class="checkbox-field"><input id="editEmailConfirmed" type="checkbox" /> <span>Email Confirmed</span></label>
             <label class="checkbox-field"><input id="editIsSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
-            <div class="button-row">
+            <div class="button-row form-span-all user-edit-actions">
               <button class="primary" type="submit">Save User</button>
               <button class="ghost" id="editPasswordReset" type="button">Send Reset Link</button>
+              <button class="danger-button" id="editDeleteUser" type="button">Delete User</button>
             </div>
           </form>
           <div class="panel-subhead"><h3>Competition Access</h3></div>
