@@ -6,7 +6,7 @@
     <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=admin-ui-polish" />
+    <link rel="stylesheet" href="admin.css?v=admin-logout-refresh" />
   </head>
   <body>
     <main class="admin-shell">
@@ -16,7 +16,10 @@
           <p class="eyebrow">Admin</p>
           <h1>Competition Administration</h1>
         </div>
-        <button class="ghost" id="refreshAdmin" type="button">Refresh</button>
+        <div class="admin-header-actions">
+          <button class="ghost" id="refreshAdmin" type="button">Refresh</button>
+          <button class="ghost" id="adminLogout" type="button">Log Out</button>
+        </div>
       </header>
 
       <nav class="admin-page-tabs" aria-label="Admin pages">
@@ -67,7 +70,10 @@
               <p class="muted">Use the Email Confirmed checkbox on each user to control who can pass this rule.</p>
             </div>
             <label class="checkbox-field"><input id="requireEmailConfirmed" type="checkbox" /> <span>Require Email Confirmed before login</span></label>
-            <button class="ghost" type="submit">Save Login Security</button>
+            <div class="admin-security-save">
+              <button class="primary" type="submit">Save Login Security</button>
+              <span class="muted" id="userSecurityOptionsStatus"></span>
+            </div>
           </form>
           <form id="inviteUserForm" class="admin-form">
             <label>Email<input id="inviteEmail" type="email" required /></label>
@@ -168,6 +174,6 @@
       </section>
       <datalist id="competitionOptions"></datalist>
     </main>
-    <script src="admin.js?v=admin-ui-polish"></script>
+    <script src="admin.js?v=admin-logout-refresh"></script>
   </body>
 </html>

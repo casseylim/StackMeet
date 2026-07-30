@@ -525,8 +525,9 @@ public sealed class AdminUsersController(
     /// </remarks>
     async Task<AdminUserSecurityOptionsResponse> ReadSecurityOptions(CancellationToken ct)
     {
+        var stored = await settings.Get(RequireEmailConfirmedSettingKey, ct);
         return new AdminUserSecurityOptionsResponse(
-            bool.TryParse(await settings.Get(RequireEmailConfirmedSettingKey, ct), out var required) && required);
+            string.IsNullOrWhiteSpace(stored) || (bool.TryParse(stored, out var required) && required));
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 .admin-shell { padding: 24px; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+.admin-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .admin-auth-panel { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)) auto minmax(180px, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 16px; }
 .admin-auth-panel[hidden] { display: none; }
 .admin-auth-panel .muted { grid-column: 1 / -1; margin: 0; }
@@ -18,6 +19,7 @@
 .admin-security-options { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; }
 .admin-security-options h3 { margin: 0 0 4px; }
 .admin-security-options .muted { margin: 0; }
+.admin-security-save { display: grid; gap: 6px; align-items: center; }
 .admin-form .checkbox-field { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; align-content: center; justify-content: start; min-height: 44px; gap: 10px; color: var(--ink); }
 .admin-form .checkbox-field input { width: 16px; height: 16px; min-height: 16px; margin: 0; justify-self: start; }
 .admin-form .checkbox-field span { line-height: 1.25; }
@@ -43,9 +45,11 @@
 .success-text { color: #16794c; }
 @media (max-width: 900px) {
   .admin-shell { padding: 14px; }
+  .admin-header { align-items: flex-start; }
   .admin-auth-panel, .admin-split, .admin-page[data-admin-page="users"].active { grid-template-columns: 1fr; }
   .admin-toast { right: 12px; top: 12px; }
   .admin-security-options { grid-template-columns: 1fr; }
+  .admin-header-actions { justify-content: flex-start; }
   .user-edit-form { grid-template-columns: 1fr; }
   .user-edit-actions > button { flex-basis: 100%; }
   .admin-page-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; }

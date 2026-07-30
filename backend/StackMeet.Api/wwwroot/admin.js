@@ -82,6 +82,7 @@
   async function loadUserSecurityOptions() {
     const options = await request("/api/admin/users/security-options");
     $("requireEmailConfirmed").checked = Boolean(options.requireEmailConfirmed);
+    $("userSecurityOptionsStatus").textContent = options.requireEmailConfirmed ? "Currently on." : "Currently off.";
   }
 
   async function loadEmailSettings() {
@@ -127,6 +128,12 @@
     await loadCompetitions();
     await Promise.all([loadUsers(), loadUserSecurityOptions(), loadEmailSettings(), loadAuditLogs()]);
     updateAuthPanelVisibility();
+  }
+
+  // Reloads all admin data and shows a popup so the Refresh button has visible feedback.
+  async function refreshAdminData() {
+    await loadAdminData();
+    message("Admin data refreshed.");
   }
 
   function drawRows() {
@@ -407,6 +414,36 @@
     message(`Logged in as ${session.email || session.displayName}.`);
   }
 
+  // Clears the current admin credential and returns the browser to the admin login panel.
+  async function logoutAdmin() {
+    const session = adminSession();
+    if (session?.token) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${session.token}` }
+        });
+      } catch (_) {
+        /* Local session cleanup should still happen if the network logout audit fails. */
+      }
+    }
+
+    sessionStorage.removeItem(keyName);
+    sessionStorage.removeItem(adminSessionName);
+    competitions = [];
+    users = [];
+    auditLogs = [];
+    selectedUserId = null;
+    $("adminLoginPassword").value = "";
+    $("adminKey").value = "";
+    updateAuthPanelVisibility();
+    drawRows();
+    drawUserRows();
+    drawUserEditor();
+    drawAuditRows();
+    message("Logged out.");
+  }
+
   async function saveEmailSettings(event) {
     event.preventDefault();
     await request("/api/admin/email-settings", {
@@ -471,6 +508,7 @@
       method: "PUT",
       body: JSON.stringify({ requireEmailConfirmed: $("requireEmailConfirmed").checked })
     });
+    $("userSecurityOptionsStatus").textContent = $("requireEmailConfirmed").checked ? "Currently on." : "Currently off.";
     message("Login security saved.");
   }
 
@@ -636,7 +674,8 @@
 
   $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
   $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(error.message)));
-  $("refreshAdmin").addEventListener("click", () => loadAdminData().catch(error => message(error.message)));
+  $("refreshAdmin").addEventListener("click", () => refreshAdminData().catch(error => message(error.message)));
+  $("adminLogout").addEventListener("click", () => logoutAdmin().catch(error => message(error.message)));
   $("newCompetition").addEventListener("click", () => fillForm(null));
   document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
   $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
