@@ -6,7 +6,7 @@
     <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=password-reset-security" />
+    <link rel="stylesheet" href="admin.css?v=admin-ui-polish" />
   </head>
   <body>
     <main class="admin-shell">
@@ -26,7 +26,7 @@
         <button data-admin-page-target="audit" type="button">Audit Logs</button>
       </nav>
 
-      <section class="panel admin-auth-panel">
+      <section class="panel admin-auth-panel" id="adminAuthPanel">
         <label>System Admin Email<input id="adminLoginEmail" type="email" autocomplete="username" /></label>
         <label>Password<input id="adminLoginPassword" type="password" autocomplete="current-password" /></label>
         <button class="primary" id="adminLogin" type="button">Log In</button>
@@ -72,7 +72,7 @@
           <form id="inviteUserForm" class="admin-form">
             <label>Email<input id="inviteEmail" type="email" required /></label>
             <label>Display Name<input id="inviteDisplayName" required /></label>
-            <label>Initial Competition<select id="inviteCompetition"></select></label>
+            <label>Initial Competition<input id="inviteCompetition" list="competitionOptions" autocomplete="off" placeholder="Search competition key or name" /></label>
             <label>Initial Role<select id="inviteRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
             <label class="checkbox-field"><input id="inviteSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
             <button class="primary" type="submit">Send Activation Email</button>
@@ -101,7 +101,7 @@
           </form>
           <div class="panel-subhead"><h3>Competition Access</h3></div>
           <div class="form-grid">
-            <label>Competition<select id="editAccessCompetition"></select></label>
+            <label>Competition<input id="editAccessCompetition" list="competitionOptions" autocomplete="off" placeholder="Search competition key or name" /></label>
             <label>Role<select id="editAccessRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
           </div>
           <div class="button-row">
@@ -166,7 +166,8 @@
           </div>
         </article>
       </section>
+      <datalist id="competitionOptions"></datalist>
     </main>
-    <script src="admin.js?v=password-reset-security"></script>
+    <script src="admin.js?v=admin-ui-polish"></script>
   </body>
 </html>

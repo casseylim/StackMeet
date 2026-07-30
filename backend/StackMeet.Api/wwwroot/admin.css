@@ -1,6 +1,7 @@
 .admin-shell { padding: 24px; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
 .admin-auth-panel { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)) auto minmax(180px, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 16px; }
+.admin-auth-panel[hidden] { display: none; }
 .admin-auth-panel .muted { grid-column: 1 / -1; margin: 0; }
 .admin-auth-panel label, .admin-form label { display: grid; gap: 6px; color: var(--muted); font-weight: 800; }
 .admin-page-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 8px 18px rgba(18, 32, 48, 0.08); }
@@ -17,11 +18,14 @@
 .admin-security-options { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; }
 .admin-security-options h3 { margin: 0 0 4px; }
 .admin-security-options .muted { margin: 0; }
+.admin-form .checkbox-field { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; align-content: center; justify-content: start; min-height: 44px; gap: 10px; color: var(--ink); }
+.admin-form .checkbox-field input { width: 16px; height: 16px; min-height: 16px; margin: 0; justify-self: start; }
+.admin-form .checkbox-field span { line-height: 1.25; }
 .admin-user-list-panel, .admin-user-edit-panel { min-width: 0; }
 .user-edit-form { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
 .form-span-all { grid-column: 1 / -1; }
-.user-edit-form .checkbox-field { min-height: 50px; align-content: center; }
 .user-edit-actions > button { flex: 1 1 150px; }
+#addEditAccess { font-size: 1rem; }
 .admin-user-toolbar { margin: 14px 0 8px; }
 .admin-search { width: min(420px, 100%); }
 .selected-row td { background: #e8f7f7; }
@@ -44,7 +48,6 @@
   .admin-security-options { grid-template-columns: 1fr; }
   .user-edit-form { grid-template-columns: 1fr; }
   .user-edit-actions > button { flex-basis: 100%; }
-  .user-edit-form .checkbox-field { min-height: 44px; }
   .admin-page-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; }
   .admin-page-tabs button { min-height: 40px; min-width: 0; padding: 8px 6px; font-size: 0.82rem; }
 }

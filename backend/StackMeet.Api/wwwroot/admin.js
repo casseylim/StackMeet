@@ -55,6 +55,7 @@
       if (response.status === 401) {
         sessionStorage.removeItem(keyName);
         sessionStorage.removeItem(adminSessionName);
+        updateAuthPanelVisibility();
       }
       let error = `Request failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
@@ -67,7 +68,7 @@
     message("");
     competitions = await request("/api/admin/competitions");
     drawRows();
-    drawCompetitionOptions();
+    drawCompetitionSearchOptions();
   }
 
   async function loadUsers() {
@@ -122,8 +123,10 @@
   }
 
   async function loadAdminData() {
+    updateAuthPanelVisibility();
     await loadCompetitions();
     await Promise.all([loadUsers(), loadUserSecurityOptions(), loadEmailSettings(), loadAuditLogs()]);
+    updateAuthPanelVisibility();
   }
 
   function drawRows() {
@@ -147,6 +150,13 @@
     const options = ['<option value="">No competition assignment</option>'].concat(competitions.map(item => `<option value="${item.id}">${esc(item.competitionKey)} — ${esc(item.competitionName)}</option>`));
     $("inviteCompetition").innerHTML = options.join("");
     $("editAccessCompetition").innerHTML = options.join("");
+  }
+
+  // Renders searchable competition suggestions for user invite and access assignment fields.
+  function drawCompetitionSearchOptions() {
+    $("competitionOptions").innerHTML = competitions
+      .map(item => `<option value="${esc(competitionLookupLabel(item))}"></option>`)
+      .join("");
   }
 
   function drawUserRows() {
@@ -251,6 +261,7 @@
     $("editIsActive").checked = Boolean(user?.isActive);
     $("editEmailConfirmed").checked = Boolean(user?.emailConfirmed);
     $("editIsSystemAdmin").checked = Boolean(user?.isSystemAdmin);
+    $("editAccessCompetition").value = "";
     drawAccessRows(user);
   }
 
@@ -357,8 +368,10 @@
     try {
       await loadAdminData();
       $("adminKey").value = "";
+      updateAuthPanelVisibility();
     } catch (error) {
       sessionStorage.removeItem(keyName);
+      updateAuthPanelVisibility();
       throw error;
     }
   }
@@ -389,6 +402,7 @@
     sessionStorage.removeItem(keyName);
     $("adminLoginPassword").value = "";
     $("adminKey").value = "";
+    updateAuthPanelVisibility();
     await loadAdminData();
     message(`Logged in as ${session.email || session.displayName}.`);
   }
@@ -428,7 +442,8 @@
 
   async function inviteUser(event) {
     event.preventDefault();
-    const competitionId = Number($("inviteCompetition").value || 0);
+    const competitionId = competitionIdFromInput("inviteCompetition");
+    if ($("inviteCompetition").value.trim() && !competitionId) return message("Choose an initial competition from the search suggestions.");
     const invitedEmail = $("inviteEmail").value.trim();
     const competitionAccess = competitionId
       ? [{ competitionId, role: $("inviteRole").value, isActive: true }]
@@ -517,8 +532,8 @@
   // Adds or reactivates a competition assignment for the selected user.
   async function assignAccess(userId = selectedUserId) {
     if (!userId) return message("Select a user first.");
-    const competitionId = Number($("editAccessCompetition").value || 0);
-    if (!competitionId) return message("Choose a competition before assigning access.");
+    const competitionId = competitionIdFromInput("editAccessCompetition");
+    if (!competitionId) return message("Choose a competition from the search suggestions before assigning access.");
     const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/competition-access`, {
       method: "POST",
       body: JSON.stringify({ competitionId, role: $("editAccessRole").value, isActive: true })
@@ -590,6 +605,25 @@
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
 
+  // Returns the searchable display text for a competition option.
+  function competitionLookupLabel(competition) {
+    return `${competition.competitionKey} - ${competition.competitionName}`;
+  }
+
+  // Resolves a typed competition search value to the stored competition ID.
+  function competitionIdFromInput(inputId) {
+    const value = $(inputId).value.trim().toLowerCase();
+    if (!value) return 0;
+    const match = competitions.find(item => competitionLookupLabel(item).toLowerCase() === value)
+      || competitions.find(item => item.competitionKey.toLowerCase() === value);
+    return match?.id || 0;
+  }
+
+  // Hides login/key fields after this browser has a valid admin credential.
+  function updateAuthPanelVisibility() {
+    $("adminAuthPanel").hidden = Boolean(sessionStorage.getItem(keyName) || adminSession());
+  }
+
   // Shows a short popup notification for admin actions that complete without page navigation.
   function showToast(text, isError = false) {
     const toast = $("adminToast");
@@ -646,6 +680,7 @@
   });
   document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
   setAdminPage(location.hash.replace("#", "") || "email");
+  updateAuthPanelVisibility();
   fillForm(null);
   drawUserEditor();
   if (sessionStorage.getItem(keyName) || adminSession()) {
