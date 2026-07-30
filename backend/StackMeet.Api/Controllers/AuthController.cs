@@ -18,6 +18,8 @@ public sealed class AuthController(
     AccountLinkService accountLinks,
     AuditLogService auditLogs) : ControllerBase
 {
+    static readonly TimeSpan PasswordResetRequestCooldown = TimeSpan.FromMinutes(5);
+
     /// <summary>
     /// Authenticates either a Phase 1 email account or the legacy competition-password flow.
     /// </summary>
@@ -124,6 +126,20 @@ public sealed class AuthController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail && item.IsActive, cancellationToken);
         if (user is not null)
         {
+            if (await HasRecentPasswordResetToken(user.Id, cancellationToken))
+            {
+                await auditLogs.Write(
+                    "auth.password_reset.request_throttled",
+                    "AppUser",
+                    user.Id.ToString(),
+                    user.Id,
+                    null,
+                    null,
+                    new { user.Email, WindowMinutes = PasswordResetRequestCooldown.TotalMinutes },
+                    cancellationToken);
+                return Ok(new { message = "If this email is registered, a password reset link has been sent." });
+            }
+
             var rawToken = await accountTokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), cancellationToken);
             var link = accountLinks.PasswordResetLink(rawToken);
             try
@@ -155,6 +171,22 @@ public sealed class AuthController(
             new { email = normalizedEmail, Sent = user is not null },
             cancellationToken);
         return Ok(new { message = "If this email is registered, a password reset link has been sent." });
+    }
+
+    /// <summary>
+    /// Checks whether an account recently requested a password reset.
+    /// </summary>
+    /// <remarks>
+    /// Returning the same public message avoids revealing whether the email exists while preventing repeated reset emails.
+    /// </remarks>
+    async Task<bool> HasRecentPasswordResetToken(int userId, CancellationToken cancellationToken)
+    {
+        var since = DateTime.UtcNow.Subtract(PasswordResetRequestCooldown);
+        return await database.AppUserTokens.AnyAsync(item =>
+            item.UserId == userId
+            && item.Purpose == AccountTokenService.PasswordResetPurpose
+            && item.CreatedAt >= since,
+            cancellationToken);
     }
 
     /// <summary>
