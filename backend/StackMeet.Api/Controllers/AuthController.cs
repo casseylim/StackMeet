@@ -16,9 +16,13 @@ public sealed class AuthController(
     AccountTokenService accountTokens,
     AccountEmailService emails,
     AccountLinkService accountLinks,
+    ProtectedSettingService settings,
     AuditLogService auditLogs) : ControllerBase
 {
     static readonly TimeSpan PasswordResetRequestCooldown = TimeSpan.FromMinutes(5);
+    static readonly TimeSpan PasswordResetTokenLifetime = TimeSpan.FromMinutes(60);
+    const int PasswordResetHourlyLimit = 5;
+    const string RequireEmailConfirmedSettingKey = "Auth:RequireEmailConfirmed";
 
     /// <summary>
     /// Authenticates either a Phase 1 email account or the legacy competition-password flow.
@@ -139,8 +143,21 @@ public sealed class AuthController(
                     cancellationToken);
                 return Ok(new { message = "If this email is registered, a password reset link has been sent." });
             }
+            if (await PasswordResetRequestCount(user.Id, TimeSpan.FromHours(1), cancellationToken) >= PasswordResetHourlyLimit)
+            {
+                await auditLogs.Write(
+                    "auth.password_reset.request_hourly_limit",
+                    "AppUser",
+                    user.Id.ToString(),
+                    user.Id,
+                    null,
+                    null,
+                    new { user.Email, Limit = PasswordResetHourlyLimit, WindowMinutes = 60 },
+                    cancellationToken);
+                return Ok(new { message = "If this email is registered, a password reset link has been sent." });
+            }
 
-            var rawToken = await accountTokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), cancellationToken);
+            var rawToken = await accountTokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, PasswordResetTokenLifetime, cancellationToken);
             var link = accountLinks.PasswordResetLink(rawToken);
             try
             {
@@ -168,7 +185,7 @@ public sealed class AuthController(
             user?.Id,
             null,
             null,
-            new { email = normalizedEmail, Sent = user is not null },
+            new { email = normalizedEmail, Sent = user is not null, ExpiresInMinutes = user is not null ? (double?)PasswordResetTokenLifetime.TotalMinutes : null },
             cancellationToken);
         return Ok(new { message = "If this email is registered, a password reset link has been sent." });
     }
@@ -181,8 +198,19 @@ public sealed class AuthController(
     /// </remarks>
     async Task<bool> HasRecentPasswordResetToken(int userId, CancellationToken cancellationToken)
     {
-        var since = DateTime.UtcNow.Subtract(PasswordResetRequestCooldown);
-        return await database.AppUserTokens.AnyAsync(item =>
+        return await PasswordResetRequestCount(userId, PasswordResetRequestCooldown, cancellationToken) > 0;
+    }
+
+    /// <summary>
+    /// Counts recent password-reset token requests for per-account throttling.
+    /// </summary>
+    /// <remarks>
+    /// Counting token rows avoids a new table while still enforcing cooldown and hourly caps.
+    /// </remarks>
+    async Task<int> PasswordResetRequestCount(int userId, TimeSpan window, CancellationToken cancellationToken)
+    {
+        var since = DateTime.UtcNow.Subtract(window);
+        return await database.AppUserTokens.CountAsync(item =>
             item.UserId == userId
             && item.Purpose == AccountTokenService.PasswordResetPurpose
             && item.CreatedAt >= since,
@@ -236,10 +264,25 @@ public sealed class AuthController(
         var validation = ValidateNewPassword(request.Password);
         if (validation is not null) return BadRequest(new { error = validation });
 
-        var userId = await accountTokens.ConsumeToken(request.Token, AccountTokenService.PasswordResetPurpose, cancellationToken);
-        if (userId is null) return BadRequest(new { error = "Reset link is invalid or expired." });
+        var tokenResult = await accountTokens.ConsumeTokenWithResult(request.Token, AccountTokenService.PasswordResetPurpose, cancellationToken);
+        if (tokenResult.UserId is null)
+        {
+            await auditLogs.Write(
+                tokenResult.Failure == AccountTokenService.ConsumeTokenFailure.Expired ? "auth.password_reset.expired" : "auth.password_reset.invalid",
+                "AppUserToken",
+                null,
+                null,
+                null,
+                null,
+                new { Reason = tokenResult.Failure?.ToString() ?? "Unknown" },
+                cancellationToken);
+            var error = tokenResult.Failure == AccountTokenService.ConsumeTokenFailure.Expired
+                ? "This password reset link has expired. Please request a new one."
+                : "This password reset link is invalid or has already been used. Please request a new one.";
+            return BadRequest(new { error });
+        }
 
-        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == tokenResult.UserId, cancellationToken);
         if (user is null) return BadRequest(new { error = "Account no longer exists." });
 
         user.PasswordHash = passwords.Hash(request.Password);
@@ -261,7 +304,7 @@ public sealed class AuthController(
     /// Authenticates an AppUser by normalized email and password hash.
     /// </summary>
     /// <remarks>
-    /// The account must be active; email confirmation is stored but not enforced until Phase 2.
+    /// The account must be active, and the optional Email Confirmed requirement can be enabled by a Global System Admin.
     /// </remarks>
     async Task<ActionResult<LoginResponse>> LoginAccount(LoginRequest request, CancellationToken cancellationToken)
     {
@@ -284,6 +327,20 @@ public sealed class AuthController(
                 new { email = normalizedEmail, reason = user is null ? "not_found" : "invalid_or_inactive" },
                 cancellationToken);
             return Unauthorized(new { error = "Invalid email or password." });
+        }
+
+        if (await IsEmailConfirmationRequired(cancellationToken) && !user.EmailConfirmed)
+        {
+            await auditLogs.Write(
+                "auth.login.email_unconfirmed",
+                "AppUser",
+                user.Id.ToString(),
+                user.Id,
+                null,
+                null,
+                new { user.Email },
+                cancellationToken);
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Email confirmation is required before login." });
         }
 
         user.LastLoginAt = DateTime.UtcNow;
@@ -395,6 +452,17 @@ public sealed class AuthController(
                 item.Competition.CompetitionName,
                 item.Role.Name))
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads the global email-confirmation login rule.
+    /// </summary>
+    /// <remarks>
+    /// The protected setting defaults to false to avoid locking out existing users during rollout.
+    /// </remarks>
+    async Task<bool> IsEmailConfirmationRequired(CancellationToken cancellationToken)
+    {
+        return bool.TryParse(await settings.Get(RequireEmailConfirmedSettingKey, cancellationToken), out var required) && required;
     }
 
     /// <summary>

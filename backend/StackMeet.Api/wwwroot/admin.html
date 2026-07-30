@@ -6,10 +6,11 @@
     <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=system-admin-login" />
+    <link rel="stylesheet" href="admin.css?v=password-reset-security" />
   </head>
   <body>
     <main class="admin-shell">
+      <div id="adminToast" class="admin-toast" role="status" aria-live="polite" hidden></div>
       <header class="admin-header">
         <div>
           <p class="eyebrow">Admin</p>
@@ -60,6 +61,14 @@
       <section class="admin-page" data-admin-page="users">
         <article class="panel admin-user-list-panel">
           <div class="panel-head"><h2>User Management</h2></div>
+          <form id="userSecurityOptionsForm" class="admin-form admin-security-options">
+            <div>
+              <h3>Login Security</h3>
+              <p class="muted">Use the Email Confirmed checkbox on each user to control who can pass this rule.</p>
+            </div>
+            <label class="checkbox-field"><input id="requireEmailConfirmed" type="checkbox" /> <span>Require Email Confirmed before login</span></label>
+            <button class="ghost" type="submit">Save Login Security</button>
+          </form>
           <form id="inviteUserForm" class="admin-form">
             <label>Email<input id="inviteEmail" type="email" required /></label>
             <label>Display Name<input id="inviteDisplayName" required /></label>
@@ -158,6 +167,6 @@
         </article>
       </section>
     </main>
-    <script src="admin.js?v=system-admin-login"></script>
+    <script src="admin.js?v=password-reset-security"></script>
   </body>
 </html>

@@ -7,12 +7,16 @@
   let selectedUserId = null;
   let userSearch = "";
   let userSort = { key: "email", direction: "asc" };
+  let toastTimer = null;
 
   const stackMeetTimeZone = "Asia/Kuala_Lumpur";
   const stackMeetLocale = "en-MY";
 
   const $ = id => document.getElementById(id);
-  const message = text => { $("adminMessage").textContent = text || ""; };
+  const message = text => {
+    $("adminMessage").textContent = text || "";
+    if (text) showToast(text);
+  };
   const adminKey = () => sessionStorage.getItem(keyName) || $("adminKey").value;
   const adminSession = () => {
     try {
@@ -73,6 +77,12 @@
     drawUserEditor();
   }
 
+  // Loads global account-login rules shown at the top of User Management.
+  async function loadUserSecurityOptions() {
+    const options = await request("/api/admin/users/security-options");
+    $("requireEmailConfirmed").checked = Boolean(options.requireEmailConfirmed);
+  }
+
   async function loadEmailSettings() {
     const settings = await request("/api/admin/email-settings");
     $("emailProvider").value = settings.provider || "BrevoApi";
@@ -113,7 +123,7 @@
 
   async function loadAdminData() {
     await loadCompetitions();
-    await Promise.all([loadUsers(), loadEmailSettings(), loadAuditLogs()]);
+    await Promise.all([loadUsers(), loadUserSecurityOptions(), loadEmailSettings(), loadAuditLogs()]);
   }
 
   function drawRows() {
@@ -439,6 +449,16 @@
     message(result.message || "Activation email sent.");
   }
 
+  // Saves global account-login rules without changing any individual user record.
+  async function saveUserSecurityOptions(event) {
+    event.preventDefault();
+    await request("/api/admin/users/security-options", {
+      method: "PUT",
+      body: JSON.stringify({ requireEmailConfirmed: $("requireEmailConfirmed").checked })
+    });
+    message("Login security saved.");
+  }
+
   // Saves editable user metadata and optionally replaces the stored password hash.
   async function saveUser(event) {
     event.preventDefault();
@@ -570,6 +590,16 @@
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
 
+  // Shows a short popup notification for admin actions that complete without page navigation.
+  function showToast(text, isError = false) {
+    const toast = $("adminToast");
+    clearTimeout(toastTimer);
+    toast.textContent = text || "";
+    toast.classList.toggle("error", Boolean(isError));
+    toast.hidden = !text;
+    if (text) toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
+  }
+
   $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
   $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(error.message)));
   $("refreshAdmin").addEventListener("click", () => loadAdminData().catch(error => message(error.message)));
@@ -578,6 +608,7 @@
   $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
   $("emailProvider").addEventListener("change", updateEmailProviderControls);
   $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
+  $("userSecurityOptionsForm").addEventListener("submit", event => saveUserSecurityOptions(event).catch(error => message(error.message)));
   $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
   $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
   $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(error.message)));

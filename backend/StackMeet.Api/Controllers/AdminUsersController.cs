@@ -22,8 +22,12 @@ public sealed class AdminUsersController(
     AccountTokenService tokens,
     AccountEmailService emails,
     AccountLinkService accountLinks,
+    ProtectedSettingService settings,
     AuditLogService auditLogs) : ControllerBase
 {
+    const string RequireEmailConfirmedSettingKey = "Auth:RequireEmailConfirmed";
+    static readonly TimeSpan PasswordResetTokenLifetime = TimeSpan.FromMinutes(60);
+
     /// <summary>
     /// Lists all application accounts with their competition assignments.
     /// </summary>
@@ -43,6 +47,41 @@ public sealed class AdminUsersController(
             .ToListAsync(ct);
 
         return Ok(users.Select(MapUser).ToList());
+    }
+
+    /// <summary>
+    /// Reads account-login security options for User Management.
+    /// </summary>
+    /// <remarks>
+    /// Global admins can use this to decide whether Email Confirmed is required at login.
+    /// </remarks>
+    [HttpGet("security-options")]
+    public async Task<ActionResult<AdminUserSecurityOptionsResponse>> GetSecurityOptions(CancellationToken ct)
+    {
+        return Ok(await ReadSecurityOptions(ct));
+    }
+
+    /// <summary>
+    /// Saves account-login security options for User Management.
+    /// </summary>
+    /// <remarks>
+    /// The setting is audited because it affects who can sign in.
+    /// </remarks>
+    [HttpPut("security-options")]
+    public async Task<IActionResult> SaveSecurityOptions(AdminUserSecurityOptionsRequest request, CancellationToken ct)
+    {
+        var before = await ReadSecurityOptions(ct);
+        await settings.Set(RequireEmailConfirmedSettingKey, request.RequireEmailConfirmed.ToString(), false, ct);
+        await auditLogs.Write(
+            "admin.user.security_options_updated",
+            "AppSetting",
+            RequireEmailConfirmedSettingKey,
+            ActorUserId(),
+            null,
+            before,
+            new AdminUserSecurityOptionsResponse(request.RequireEmailConfirmed),
+            ct);
+        return NoContent();
     }
 
     /// <summary>
@@ -315,7 +354,7 @@ public sealed class AdminUsersController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (user is null) return NotFound();
 
-        var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), ct);
+        var rawToken = await tokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, PasswordResetTokenLifetime, ct);
         var link = accountLinks.PasswordResetLink(rawToken);
         try
         {
@@ -332,7 +371,7 @@ public sealed class AdminUsersController(
             ActorUserId(),
             null,
             null,
-            new { user.Email },
+            new { user.Email, ExpiresInMinutes = PasswordResetTokenLifetime.TotalMinutes },
             ct);
         return Ok(new AdminEmailLinkResponse("Password reset email sent.", link));
     }
@@ -476,6 +515,18 @@ public sealed class AdminUsersController(
     ObjectResult EmailSendFailure(Exception error)
     {
         return StatusCode(StatusCodes.Status502BadGateway, new { error = $"Email could not be sent: {error.Message}" });
+    }
+
+    /// <summary>
+    /// Reads account-login security settings from protected runtime storage.
+    /// </summary>
+    /// <remarks>
+    /// Missing values default to false so existing accounts keep working until an admin enables enforcement.
+    /// </remarks>
+    async Task<AdminUserSecurityOptionsResponse> ReadSecurityOptions(CancellationToken ct)
+    {
+        return new AdminUserSecurityOptionsResponse(
+            bool.TryParse(await settings.Get(RequireEmailConfirmedSettingKey, ct), out var required) && required);
     }
 
     /// <summary>

@@ -2163,7 +2163,7 @@ function exportAwardsCsv() {
 }
 
 function ordinal(number) {
-  const labels = { 1: "First Place", 2: "2nd", 3: "3rd" };
+  const labels = { 1: "Champion", 2: "1st Runner Up", 3: "2nd Runner Up" };
   return labels[number] || `${number}th`;
 }
 

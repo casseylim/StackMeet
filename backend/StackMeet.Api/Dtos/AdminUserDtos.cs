@@ -54,6 +54,22 @@ public sealed record AdminSetUserPasswordRequest(string Password);
 public sealed record AdminDeleteUserRequest(string? Confirmation);
 
 /// <summary>
+/// Request for account-login security options.
+/// </summary>
+/// <remarks>
+/// These settings let Global Admins choose whether email confirmation is enforced during login.
+/// </remarks>
+public sealed record AdminUserSecurityOptionsRequest(bool RequireEmailConfirmed);
+
+/// <summary>
+/// Account-login security options shown in User Management.
+/// </summary>
+/// <remarks>
+/// Options are stored in protected runtime settings, not source code.
+/// </remarks>
+public sealed record AdminUserSecurityOptionsResponse(bool RequireEmailConfirmed);
+
+/// <summary>
 /// Response returned after sending account email links.
 /// </summary>
 /// <remarks>

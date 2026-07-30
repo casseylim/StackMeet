@@ -17,6 +17,16 @@ public sealed class AccountTokenService(StackMeetDbContext database)
     public const string ActivationPurpose = "Activation";
     public const string PasswordResetPurpose = "PasswordReset";
 
+    public enum ConsumeTokenFailure
+    {
+        Missing,
+        Invalid,
+        Expired,
+        Used
+    }
+
+    public sealed record ConsumeTokenResult(int? UserId, ConsumeTokenFailure? Failure);
+
     /// <summary>
     /// Creates a one-time token for a user and purpose.
     /// </summary>
@@ -52,22 +62,34 @@ public sealed class AccountTokenService(StackMeetDbContext database)
     /// </remarks>
     public async Task<int?> ConsumeToken(string rawToken, string purpose, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(rawToken)) return null;
+        var result = await ConsumeTokenWithResult(rawToken, purpose, ct);
+        return result.UserId;
+    }
+
+    /// <summary>
+    /// Consumes a valid token and reports why invalid tokens fail.
+    /// </summary>
+    /// <remarks>
+    /// Controllers use the failure reason for user-safe messages and audit entries, never for revealing token material.
+    /// </remarks>
+    public async Task<ConsumeTokenResult> ConsumeTokenWithResult(string rawToken, string purpose, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(rawToken)) return new ConsumeTokenResult(null, ConsumeTokenFailure.Missing);
 
         var hash = Hash(rawToken);
         var now = DateTime.UtcNow;
         var token = await database.AppUserTokens
             .SingleOrDefaultAsync(item =>
                 item.TokenHash == hash
-                && item.Purpose == purpose
-                && item.UsedAt == null
-                && item.ExpiresAt > now,
+                && item.Purpose == purpose,
                 ct);
-        if (token is null) return null;
+        if (token is null) return new ConsumeTokenResult(null, ConsumeTokenFailure.Invalid);
+        if (token.UsedAt is not null) return new ConsumeTokenResult(null, ConsumeTokenFailure.Used);
+        if (token.ExpiresAt <= now) return new ConsumeTokenResult(null, ConsumeTokenFailure.Expired);
 
         token.UsedAt = now;
         await database.SaveChangesAsync(ct);
-        return token.UserId;
+        return new ConsumeTokenResult(token.UserId, null);
     }
 
     /// <summary>
