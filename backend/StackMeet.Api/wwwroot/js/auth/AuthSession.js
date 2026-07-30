@@ -85,6 +85,19 @@
     return saveSession(normalizeLoginSession(await response.json()));
   }
 
+  // Requests a self-service password reset email without revealing whether the account exists.
+  async function requestPasswordReset(email) {
+    const response = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email: (email || "").trim() })
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (_) { /* keep empty payload */ }
+    if (!response.ok) throw new Error(payload.error || "Unable to send password reset email.");
+    return payload.message || "If this email is registered, a password reset link has been sent.";
+  }
+
   // Loads competition choices from assignments, or all competitions for a global admin.
   async function competitionChoices(session) {
     const assigned = Array.isArray(session?.competitionAccess) ? session.competitionAccess : [];
@@ -163,6 +176,7 @@
     const credentialsStep = document.getElementById("loginCredentialsStep");
     const competitionStep = document.getElementById("loginCompetitionStep");
     const submitButton = form?.querySelector("button[type='submit']");
+    const forgotPasswordButton = document.getElementById("forgotPasswordBtn");
     const switchAccountButton = document.getElementById("loginSwitchAccount");
     if (error) error.textContent = "";
 
@@ -174,6 +188,7 @@
       document.getElementById("loginPassword")?.toggleAttribute("disabled", visible);
       document.getElementById("loginCompetitionSelect")?.toggleAttribute("disabled", !visible);
       if (submitButton) submitButton.textContent = visible ? "Open Competition" : "Log In";
+      if (forgotPasswordButton) forgotPasswordButton.hidden = visible;
       if (switchAccountButton) switchAccountButton.hidden = !visible;
     }
 
@@ -193,6 +208,26 @@
       setCompetitionStepVisible(false);
       if (error) error.textContent = "";
       document.getElementById("loginEmail")?.focus();
+    });
+
+    forgotPasswordButton?.addEventListener("click", async () => {
+      const emailInput = document.getElementById("loginEmail");
+      const email = emailInput?.value.trim();
+      if (!email) {
+        if (error) error.textContent = "Enter your email address first.";
+        emailInput?.focus();
+        return;
+      }
+
+      forgotPasswordButton.disabled = true;
+      if (error) error.textContent = "";
+      try {
+        if (error) error.textContent = await requestPasswordReset(email);
+      } catch (resetError) {
+        if (error) error.textContent = resetError.message;
+      } finally {
+        forgotPasswordButton.disabled = false;
+      }
     });
 
     if (session && !hasSelectedCompetition(session)) {

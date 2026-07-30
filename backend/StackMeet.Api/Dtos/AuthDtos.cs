@@ -2,6 +2,14 @@ namespace StackMeet.Api.Dtos;
 
 public sealed record LoginRequest(string? CompetitionId, string? Email, string? Password, string? DisplayName);
 
+/// <summary>
+/// Request for starting a self-service password reset from the login screen.
+/// </summary>
+/// <remarks>
+/// The API returns a generic success message so unknown emails are not exposed.
+/// </remarks>
+public sealed record ForgotPasswordRequest(string Email);
+
 public sealed record LoginResponse(
     string Token,
     string? CompetitionId,

@@ -64,7 +64,7 @@ builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
 builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddScoped<AccountTokenService>();
-builder.Services.AddScoped<AccountEmailService>();
+builder.Services.AddHttpClient<AccountEmailService>();
 builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddScoped<AuditLogService>();
@@ -208,6 +208,7 @@ static bool RequiresApiAuth(PathString path)
         && !path.StartsWithSegments("/api/health")
         && !path.StartsWithSegments("/api/version")
         && !path.StartsWithSegments("/api/auth/login")
+        && !path.StartsWithSegments("/api/auth/forgot-password")
         && !path.StartsWithSegments("/api/auth/activate")
         && !path.StartsWithSegments("/api/auth/reset-password")
         && !path.StartsWithSegments("/api/public");

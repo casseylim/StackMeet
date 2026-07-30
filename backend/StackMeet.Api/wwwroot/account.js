@@ -41,7 +41,7 @@
     }
 
     $("accountForm").reset();
-    message("Password saved. You can now return to StackMeet and log in.", true);
+    message("Password saved. You can now return to NADITrack and log in.", true);
   }
 
   $("accountTitle").textContent = purpose === "reset" ? "Reset Password" : "Activate Account";

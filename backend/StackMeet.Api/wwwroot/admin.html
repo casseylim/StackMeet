@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>StackMeet Competition Admin</title>
+    <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="admin.css?v=admin-user-delete-layout" />
@@ -35,8 +35,10 @@
         <article class="panel">
           <div class="panel-head"><h2>Email Setup</h2></div>
           <form id="emailSettingsForm" class="admin-form">
-            <label>From Name<input id="emailFromName" placeholder="StackMeet" /></label>
+            <label>Provider<select id="emailProvider"><option value="BrevoApi">Brevo API</option><option value="Smtp">SMTP Relay</option></select></label>
+            <label>From Name<input id="emailFromName" placeholder="NADITrack" /></label>
             <label>From Email<input id="emailFromAddress" type="email" placeholder="noreply@example.com" /></label>
+            <label>Brevo API Key<input id="emailBrevoApiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
             <label>SMTP Host<input id="emailSmtpHost" placeholder="smtp-relay.brevo.com" /></label>
             <label>SMTP Port<input id="emailSmtpPort" type="number" min="1" max="65535" value="587" /></label>
             <label>SMTP Login<input id="emailUsername" autocomplete="off" placeholder="Brevo SMTP login" /></label>
@@ -153,6 +155,6 @@
         </article>
       </section>
     </main>
-    <script src="admin.js?v=edit-user-password-field"></script>
+    <script src="admin.js?v=brevo-api-email-setup"></script>
   </body>
 </html>

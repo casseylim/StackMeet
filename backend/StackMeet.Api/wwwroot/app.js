@@ -6,14 +6,14 @@ const eventGroups = {
 };
 
 const branding = Object.freeze({
-  organizationName: "WSSA NS Sport Stacking Centre",
-  shortName: "WSSA",
-  productName: "StackMeet",
-  reportHeader: "WSSA NS Sport Stacking Centre",
-  browserTitle: "WSSA NS Sport Stacking Centre - StackMeet",
-  sidebarTitle: "WSSA",
-  sidebarSubtitle: "Sport Stacking Centre",
-  defaultCompetitionName: "WSSA NS Sport Stacking Centre",
+  organizationName: "Sistem NADI Track",
+  shortName: "NADITrack",
+  productName: "NADITrack",
+  reportHeader: "Sistem NADI Track",
+  browserTitle: "Sistem NADI Track",
+  sidebarTitle: "NADI",
+  sidebarSubtitle: "Track",
+  defaultCompetitionName: "Sistem NADI Track",
   ...(window.StackMeetBranding || {})
 });
 
@@ -586,15 +586,25 @@ let editingRelayId = "";
 let leaderboardTimer = null;
 let leaderboardSlideIndex = 0;
 
+//const routes = [
+  //["dashboard", "Dashboard"],
+  //["settings", "Settings"],
+  //["language", "Language"],
+  //["reports", "Reports"],
+  //["stackers", "Participant"],
+  //["awards", "Awards Planner"],
+  //["competition", "Competition"],
+  //["leaderboard", "Leader Board"]
+//];
+
 const routes = [
-  ["dashboard", "Dashboard"],
-  ["settings", "Settings"],
-  ["language", "Language"],
-  ["reports", "Reports"],
-  ["stackers", "Participant"],
-  ["awards", "Awards Planner"],
-  ["competition", "Competition"],
-  ["leaderboard", "Leader Board"]
+    ["dashboard", "Dashboard"],
+    ["settings", "Settings"],
+    ["language", "Language"],
+    ["reports", "Reports"],
+    ["stackers", "Participant"],
+    ["awards", "Awards Planner"],
+    ["competition", "Competition"]
 ];
 
 const view = document.getElementById("view");
@@ -1429,7 +1439,7 @@ function exportCompetitionAuditCsv() {
   ]);
   const header = ["Time (MYT)", "Time (UTC)", "Action", "Actor Email", "Actor Name", "Entity Type", "Entity ID", "Summary", "Before JSON", "After JSON"];
   const generated = [["Competition Audit Logs"], [state.settings.name || currentCompetitionKey()], [`Exported ${stackMeetDateTime()}`], []];
-  downloadText(`stackmeet-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
+  downloadText(`NADITrack-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
 }
 
 // Provides a compact fallback summary when an audit entry has before/after snapshots only.
@@ -3304,7 +3314,7 @@ function approveQualificationSnapshot(id) {
 
 function exportFinalsCsv() {
   const definition = finalsReportDefinition();
-  downloadText("stackmeet-finals-report.csv", [[brandText("reportHeader")], [state.settings.name], [definition.title], [], definition.csvHeaders || definition.headers, ...(definition.csvRows || definition.rows)].map(csvLine).join("\n"), "text/csv");
+  downloadText("NADITrack-finals-report.csv", [[brandText("reportHeader")], [state.settings.name], [definition.title], [], definition.csvHeaders || definition.headers, ...(definition.csvRows || definition.rows)].map(csvLine).join("\n"), "text/csv");
 }
 
 function printFinalsReport() {
@@ -4076,12 +4086,12 @@ function currentCompetitionPreset() {
 function exportResults(format) {
   const rows = competitionReportRows();
   if (format === "json") {
-    downloadText("stackmeet-results.json", JSON.stringify(rows, null, 2), "application/json");
+    downloadText("NADITrack-results.json", JSON.stringify(rows, null, 2), "application/json");
     return;
   }
   const headers = ["Rank", "Event", "Name", "Division", "Time", "Gap", "Stage", "Country", "Region", "Org"];
   const csvRows = rows.map(row => [row.rank, row.event, row.name, row.division, fmt(row.time), row.gap ? fmt(row.gap) : "", row.stage, row.country, row.region, row.org]);
-  downloadText("stackmeet-results.csv", [headers, ...csvRows].map(csvLine).join("\n"), "text/csv");
+  downloadText("NADITrack-results.csv", [headers, ...csvRows].map(csvLine).join("\n"), "text/csv");
 }
 
 function csvLine(row) {
@@ -4625,7 +4635,7 @@ document.addEventListener("click", async (event) => {
     try {
       await saveState();
     } catch (error) {
-      console.error("Unable to save competition state to the StackMeet API.", error);
+      console.error("Unable to save competition state to the NADITrack API.", error);
     }
   }
 });
@@ -4673,7 +4683,7 @@ document.getElementById("exportXmlBtn").addEventListener("click", async () => {
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "stackmeet-data.xml";
+  link.download = "NADITrack-data.xml";
   link.click();
   URL.revokeObjectURL(link.href);
 });
@@ -4694,7 +4704,7 @@ document.getElementById("importXmlInput").addEventListener("change", async (even
   try {
     await saveState();
   } catch (error) {
-    console.error("Unable to save competition state to the StackMeet API.", error);
+    console.error("Unable to save competition state to the NADITrack API.", error);
   }
 });
 
@@ -4718,7 +4728,7 @@ document.getElementById("resetBtn")?.addEventListener("click", async () => {
   try {
     await saveState();
   } catch (error) {
-    console.error("Unable to save competition state to the StackMeet API.", error);
+    console.error("Unable to save competition state to the NADITrack API.", error);
   }
 });
 
@@ -5005,7 +5015,7 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for StackMeet, then click Open Display again.");
+  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
 }
 
 function addDivision() {
@@ -5261,7 +5271,7 @@ function clearStackerForm(hideAfterClear = true) {
   ["stName", "stDob", "stAge", "stDivision", "stCustomDivision", "stOrg", "stRegion", "stEmail", "stPhone"].forEach(id => setValue(id, ""));
   setValue("stGender", "M");
   setValue("stCountry", "Malaysia");
-  setValue("stPaid", "Yes");
+  setValue("stPaid", "No");
   setValue("stCheckedIn", "Yes");
   const special = document.getElementById("stSpecial");
   if (special) special.checked = false;
@@ -6098,7 +6108,7 @@ function cssEscape(value) {
 
 function showBootError(error) {
   const target = document.getElementById("loginError") || document.getElementById("view");
-  if (target) target.textContent = error?.message || String(error || "Unable to start StackMeet.");
+  if (target) target.textContent = error?.message || String(error || "Unable to start NADITrack.");
   document.body.classList.add("auth-pending");
 }
 

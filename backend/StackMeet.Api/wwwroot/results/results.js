@@ -75,7 +75,7 @@
     show("errorState", false);
 
     const competition = payload.competition || {};
-    document.title = `${competition.name || "Competition"} · StackMeet Results`;
+    document.title = `${competition.name || "Competition"} · NADITrack Results`;
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
     text("competitionCode", competition.id || competitionId);

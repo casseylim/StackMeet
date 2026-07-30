@@ -2322,6 +2322,7 @@ body.auth-pending .app { display: none; }
 .login-step { display: grid; gap: 14px; }
 .login-panel input,
 .login-panel select { width: 100%; min-height: 44px; }
+.login-forgot-button { justify-self: center; min-height: 32px; }
 .login-mark { width: 58px; height: 58px; }
 .form-error { min-height: 20px; margin: 0; color: var(--red); font-weight: 800; }
 .session-pill {

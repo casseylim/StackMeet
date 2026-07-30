@@ -14,6 +14,8 @@ public sealed class AuthController(
     PasswordHashService passwords,
     SessionTokenService tokens,
     AccountTokenService accountTokens,
+    AccountEmailService emails,
+    AccountLinkService accountLinks,
     AuditLogService auditLogs) : ControllerBase
 {
     /// <summary>
@@ -101,6 +103,58 @@ public sealed class AuthController(
         }
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Sends a password-reset link for an active account when the email exists.
+    /// </summary>
+    /// <remarks>
+    /// The response is intentionally generic to avoid exposing whether an email is registered.
+    /// </remarks>
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting("Login")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (!EmailRules.IsValid(request.Email))
+        {
+            return BadRequest(new { error = "Valid email address is required." });
+        }
+
+        var normalizedEmail = EmailRules.Normalize(request.Email);
+        var user = await database.AppUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail && item.IsActive, cancellationToken);
+        if (user is not null)
+        {
+            var rawToken = await accountTokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, TimeSpan.FromHours(2), cancellationToken);
+            var link = accountLinks.PasswordResetLink(rawToken);
+            try
+            {
+                await emails.SendPasswordResetEmail(user.Email, user.DisplayName, link, cancellationToken);
+            }
+            catch (Exception error)
+            {
+                await auditLogs.Write(
+                    "auth.password_reset.request_failed",
+                    "AppUser",
+                    user.Id.ToString(),
+                    user.Id,
+                    null,
+                    null,
+                    new { user.Email, Error = error.Message },
+                    cancellationToken);
+                return StatusCode(StatusCodes.Status502BadGateway, new { error = "Reset email could not be sent. Contact your system admin." });
+            }
+        }
+
+        await auditLogs.Write(
+            "auth.password_reset.requested",
+            "AppUser",
+            user?.Id.ToString() ?? normalizedEmail,
+            user?.Id,
+            null,
+            null,
+            new { email = normalizedEmail, Sent = user is not null },
+            cancellationToken);
+        return Ok(new { message = "If this email is registered, a password reset link has been sent." });
     }
 
     /// <summary>

@@ -1,16 +1,20 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace StackMeet.Api.Services;
 
 /// <summary>
-/// Sends account activation and password-reset emails through configured SMTP.
+/// Sends account activation and password-reset emails through configured Brevo delivery.
 /// </summary>
 /// <remarks>
-/// Brevo settings should be supplied by user secrets, environment variables or hosting configuration,
-/// never committed into appsettings.json.
+/// The preferred provider is Brevo's transactional email API; SMTP relay remains available as a fallback.
 /// </remarks>
-public sealed class AccountEmailService(IConfiguration configuration, ProtectedSettingService protectedSettings)
+public sealed class AccountEmailService(
+    HttpClient http,
+    IConfiguration configuration,
+    ProtectedSettingService protectedSettings)
 {
     /// <summary>
     /// Sends an activation email containing a password setup link.
@@ -20,16 +24,16 @@ public sealed class AccountEmailService(IConfiguration configuration, ProtectedS
     /// </remarks>
     public Task SendActivationEmail(string toEmail, string displayName, string activationLink, CancellationToken ct)
     {
-        var subject = "Activate your StackMeet account";
+        var subject = "Activate your NADITrack account";
         var body = $"""
         Hello {displayName},
 
-        Your StackMeet account has been created.
+        Your NADITrack account has been created.
 
         Set your password here:
         {activationLink}
 
-        This link is temporary. If it expires, ask a StackMeet system admin to send a new activation or reset link.
+        This link is temporary. If it expires, ask a NADITrack system admin to send a new activation or reset link.
         """;
         return Send(toEmail, subject, body, ct);
     }
@@ -42,29 +46,71 @@ public sealed class AccountEmailService(IConfiguration configuration, ProtectedS
     /// </remarks>
     public Task SendPasswordResetEmail(string toEmail, string displayName, string resetLink, CancellationToken ct)
     {
-        var subject = "Reset your StackMeet password";
+        var subject = "Reset your NADITrack password";
         var body = $"""
         Hello {displayName},
 
-        A StackMeet password reset was requested for your account.
+        A NADITrack password reset was requested for your account.
 
         Reset your password here:
         {resetLink}
 
-        If you did not expect this, contact your StackMeet system admin.
+        If you did not expect this, contact your NADITrack system admin.
         """;
         return Send(toEmail, subject, body, ct);
     }
 
     /// <summary>
-    /// Sends a plain-text email using the configured SMTP account.
+    /// Sends a plain-text account email using the selected delivery provider.
     /// </summary>
     /// <remarks>
-    /// System.Net.Mail is used to avoid adding external packages while testing the SMTP workflow.
+    /// Brevo API is selected by "BrevoApi"; any other provider value uses the legacy SMTP relay.
     /// </remarks>
     async Task Send(string toEmail, string subject, string body, CancellationToken ct)
     {
         var settingsValue = await ReadSettings(ct);
+        if (settingsValue.Provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase))
+        {
+            await SendBrevoApi(settingsValue, toEmail, subject, body, ct);
+            return;
+        }
+
+        await SendSmtp(settingsValue, toEmail, subject, body, ct);
+    }
+
+    /// <summary>
+    /// Sends one transactional email through Brevo's HTTP API.
+    /// </summary>
+    /// <remarks>
+    /// The API key is sent only in the header and is never included in error messages or audit snapshots.
+    /// </remarks>
+    async Task SendBrevoApi(EmailSettings settingsValue, string toEmail, string subject, string body, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Add("api-key", settingsValue.BrevoApiKey);
+        request.Content = JsonContent.Create(new BrevoEmailRequest(
+            new BrevoSender(settingsValue.FromName, settingsValue.FromAddress),
+            [new BrevoRecipient(toEmail, toEmail)],
+            subject,
+            body));
+
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var details = await response.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"Brevo API rejected the email with HTTP {(int)response.StatusCode}: {details}");
+        }
+    }
+
+    /// <summary>
+    /// Sends one transactional email through the legacy Brevo SMTP relay.
+    /// </summary>
+    /// <remarks>
+    /// This preserves existing saved SMTP settings while admins transition to the Brevo API key flow.
+    /// </remarks>
+    async Task SendSmtp(EmailSettings settingsValue, string toEmail, string subject, string body, CancellationToken ct)
+    {
         using var message = new MailMessage
         {
             From = new MailAddress(settingsValue.FromAddress, settingsValue.FromName),
@@ -82,25 +128,42 @@ public sealed class AccountEmailService(IConfiguration configuration, ProtectedS
     }
 
     /// <summary>
-    /// Reads and validates SMTP configuration from application configuration.
+    /// Reads and validates email delivery configuration from protected settings.
     /// </summary>
     /// <remarks>
-    /// Missing configuration throws a clear operational error returned by admin endpoints.
+    /// Missing provider-specific secrets throw a clear operational error returned by admin endpoints.
     /// </remarks>
     async Task<EmailSettings> ReadSettings(CancellationToken ct)
     {
         var section = configuration.GetSection("Email");
+        var brevoApiKey = await protectedSettings.Get("Email:BrevoApiKey", ct) ?? section["BrevoApiKey"] ?? "";
+        var provider = await protectedSettings.Get("Email:Provider", ct)
+            ?? section["Provider"]
+            ?? (string.IsNullOrWhiteSpace(brevoApiKey) ? EmailProvider.Smtp : EmailProvider.BrevoApi);
         var settings = new EmailSettings(
+            provider,
             await protectedSettings.Get("Email:FromName", ct) ?? section["FromName"] ?? "StackMeet",
             await protectedSettings.Get("Email:FromAddress", ct) ?? section["FromAddress"] ?? "",
             await protectedSettings.Get("Email:SmtpHost", ct) ?? section["SmtpHost"] ?? "",
             int.TryParse(await protectedSettings.Get("Email:SmtpPort", ct), out var port) ? port : section.GetValue("SmtpPort", 587),
             bool.TryParse(await protectedSettings.Get("Email:UseTls", ct), out var useTls) ? useTls : section.GetValue("UseTls", true),
             await protectedSettings.Get("Email:Username", ct) ?? section["Username"] ?? "",
-            await protectedSettings.Get("Email:Password", ct) ?? section["Password"] ?? "");
+            await protectedSettings.Get("Email:Password", ct) ?? section["Password"] ?? "",
+            brevoApiKey);
 
-        if (string.IsNullOrWhiteSpace(settings.FromAddress)
-            || string.IsNullOrWhiteSpace(settings.Host)
+        if (string.IsNullOrWhiteSpace(settings.FromAddress))
+        {
+            throw new InvalidOperationException("Email sender address is not configured.");
+        }
+
+        if (settings.Provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(settings.BrevoApiKey))
+            {
+                throw new InvalidOperationException("Brevo API key is not configured.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(settings.Host)
             || string.IsNullOrWhiteSpace(settings.Username)
             || string.IsNullOrWhiteSpace(settings.Password))
         {
@@ -110,12 +173,34 @@ public sealed class AccountEmailService(IConfiguration configuration, ProtectedS
         return settings;
     }
 
+    public static class EmailProvider
+    {
+        public const string BrevoApi = "BrevoApi";
+        public const string Smtp = "Smtp";
+    }
+
     sealed record EmailSettings(
+        string Provider,
         string FromName,
         string FromAddress,
         string Host,
         int Port,
         bool UseTls,
         string Username,
-        string Password);
+        string Password,
+        string BrevoApiKey);
+
+    sealed record BrevoSender(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("email")] string Email);
+
+    sealed record BrevoRecipient(
+        [property: JsonPropertyName("email")] string Email,
+        [property: JsonPropertyName("name")] string Name);
+
+    sealed record BrevoEmailRequest(
+        [property: JsonPropertyName("sender")] BrevoSender Sender,
+        [property: JsonPropertyName("to")] IReadOnlyCollection<BrevoRecipient> To,
+        [property: JsonPropertyName("subject")] string Subject,
+        [property: JsonPropertyName("textContent")] string TextContent);
 }

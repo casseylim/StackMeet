@@ -49,16 +49,18 @@
 
   async function loadEmailSettings() {
     const settings = await request("/api/admin/email-settings");
-    $("emailFromName").value = settings.fromName || "StackMeet";
+    $("emailProvider").value = settings.provider || "BrevoApi";
+    $("emailFromName").value = settings.fromName || "NADITrack";
     $("emailFromAddress").value = settings.fromAddress || "";
+    $("emailBrevoApiKey").value = "";
     $("emailSmtpHost").value = settings.smtpHost || "smtp-relay.brevo.com";
     $("emailSmtpPort").value = settings.smtpPort || 587;
     $("emailUsername").value = settings.username || "";
     $("emailPassword").value = "";
     $("emailUseTls").checked = settings.useTls !== false;
     $("emailSettingsStatus").textContent = settings.canStoreProtectedSecrets
-      ? `SMTP password storage is encrypted. ${settings.hasPassword ? "A password is saved." : "No password is saved yet."}`
-      : "Set Security:SettingsEncryptionKey before saving an SMTP password.";
+      ? `Email secret storage is encrypted. ${settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."} ${settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved."}`
+      : "Set Security:SettingsEncryptionKey before saving email secrets.";
   }
 
   async function loadAuditLogs() {
@@ -320,8 +322,10 @@
     await request("/api/admin/email-settings", {
       method: "PUT",
       body: JSON.stringify({
+        provider: $("emailProvider").value,
         fromName: $("emailFromName").value.trim(),
         fromAddress: $("emailFromAddress").value.trim(),
+        brevoApiKey: $("emailBrevoApiKey").value || null,
         smtpHost: $("emailSmtpHost").value.trim(),
         smtpPort: Number($("emailSmtpPort").value || 587),
         useTls: $("emailUseTls").checked,
