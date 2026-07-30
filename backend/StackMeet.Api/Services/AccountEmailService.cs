@@ -140,6 +140,10 @@ public sealed class AccountEmailService(
         var provider = await protectedSettings.Get("Email:Provider", ct)
             ?? section["Provider"]
             ?? (string.IsNullOrWhiteSpace(brevoApiKey) ? EmailProvider.Smtp : EmailProvider.BrevoApi);
+        var isBrevoApi = provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase);
+        var smtpPassword = isBrevoApi
+            ? ""
+            : await protectedSettings.Get("Email:Password", ct) ?? section["Password"] ?? "";
         var settings = new EmailSettings(
             provider,
             await protectedSettings.Get("Email:FromName", ct) ?? section["FromName"] ?? "StackMeet",
@@ -148,7 +152,7 @@ public sealed class AccountEmailService(
             int.TryParse(await protectedSettings.Get("Email:SmtpPort", ct), out var port) ? port : section.GetValue("SmtpPort", 587),
             bool.TryParse(await protectedSettings.Get("Email:UseTls", ct), out var useTls) ? useTls : section.GetValue("UseTls", true),
             await protectedSettings.Get("Email:Username", ct) ?? section["Username"] ?? "",
-            await protectedSettings.Get("Email:Password", ct) ?? section["Password"] ?? "",
+            smtpPassword,
             brevoApiKey);
 
         if (string.IsNullOrWhiteSpace(settings.FromAddress))
@@ -156,7 +160,7 @@ public sealed class AccountEmailService(
             throw new InvalidOperationException("Email sender address is not configured.");
         }
 
-        if (settings.Provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase))
+        if (isBrevoApi)
         {
             if (string.IsNullOrWhiteSpace(settings.BrevoApiKey))
             {

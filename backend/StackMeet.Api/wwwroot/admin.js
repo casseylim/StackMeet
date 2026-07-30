@@ -61,6 +61,16 @@
     $("emailSettingsStatus").textContent = settings.canStoreProtectedSecrets
       ? `Email secret storage is encrypted. ${settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."} ${settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved."}`
       : "Set Security:SettingsEncryptionKey before saving email secrets.";
+    updateEmailProviderControls();
+  }
+
+  // Enables only the fields used by the selected email delivery provider.
+  function updateEmailProviderControls() {
+    const isSmtp = $("emailProvider").value === "Smtp";
+    ["emailSmtpHost", "emailSmtpPort", "emailUsername", "emailPassword", "emailUseTls"].forEach(id => {
+      $(id).disabled = !isSmtp;
+    });
+    $("emailBrevoApiKey").disabled = isSmtp;
   }
 
   async function loadAuditLogs() {
@@ -509,6 +519,7 @@
   $("newCompetition").addEventListener("click", () => fillForm(null));
   document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
   $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
+  $("emailProvider").addEventListener("change", updateEmailProviderControls);
   $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
   $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
   $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
