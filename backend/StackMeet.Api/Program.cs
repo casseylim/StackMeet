@@ -111,10 +111,28 @@ app.Use(async (context, next) =>
             return;
         }
 
+        var adminTokenService = context.RequestServices.GetRequiredService<SessionTokenService>();
+        var adminBearerToken = BearerToken(context.Request.Headers.Authorization.FirstOrDefault());
+        if (adminTokenService.TryValidate(adminBearerToken, out var adminSession) && adminSession.IsAccountSession && adminSession.IsSystemAdmin)
+        {
+            var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
+            var isActiveSystemAdmin = await database.AppUsers.AsNoTracking().AnyAsync(item =>
+                item.Id == adminSession.UserId
+                && item.IsActive
+                && item.IsSystemAdmin,
+                context.RequestAborted);
+            if (isActiveSystemAdmin)
+            {
+                context.Items["StackMeetSession"] = adminSession;
+                await next();
+                return;
+            }
+        }
+
         context.Response.StatusCode = string.IsNullOrWhiteSpace(configuredAdminKey)
             ? StatusCodes.Status503ServiceUnavailable
             : StatusCodes.Status401Unauthorized;
-        await context.Response.WriteAsJsonAsync(new { error = string.IsNullOrWhiteSpace(configuredAdminKey) ? "Admin security is not configured." : "Valid admin authorization required." });
+        await context.Response.WriteAsJsonAsync(new { error = string.IsNullOrWhiteSpace(configuredAdminKey) ? "Admin security is not configured." : "Valid admin key or system admin login required." });
         return;
     }
 

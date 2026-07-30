@@ -1,6 +1,7 @@
 .admin-shell { padding: 24px; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
-.admin-auth-panel { display: grid; grid-template-columns: minmax(220px, 420px) auto 1fr; gap: 12px; align-items: end; margin-bottom: 16px; }
+.admin-auth-panel { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)) auto minmax(180px, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 16px; }
+.admin-auth-panel .muted { grid-column: 1 / -1; margin: 0; }
 .admin-auth-panel label, .admin-form label { display: grid; gap: 6px; color: var(--muted); font-weight: 800; }
 .admin-page-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 6px; margin: 0 0 16px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 8px 18px rgba(18, 32, 48, 0.08); }
 .admin-page-tabs button { min-height: 44px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-weight: 900; }

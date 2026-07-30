@@ -1,5 +1,6 @@
 (function () {
   const keyName = "stackmeet-admin-key-v1";
+  const adminSessionName = "stackmeet-admin-session-v1";
   let competitions = [];
   let users = [];
   let auditLogs = [];
@@ -13,7 +14,29 @@
   const $ = id => document.getElementById(id);
   const message = text => { $("adminMessage").textContent = text || ""; };
   const adminKey = () => sessionStorage.getItem(keyName) || $("adminKey").value;
-  const headers = () => ({ "Content-Type": "application/json", Accept: "application/json", "X-StackMeet-Admin-Key": adminKey() });
+  const adminSession = () => {
+    try {
+      const session = JSON.parse(sessionStorage.getItem(adminSessionName) || "null");
+      if (!session?.token) return null;
+      if (session.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
+        sessionStorage.removeItem(adminSessionName);
+        return null;
+      }
+      return session;
+    } catch (_) {
+      sessionStorage.removeItem(adminSessionName);
+      return null;
+    }
+  };
+  const headers = () => {
+    const session = adminSession();
+    return {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...(adminKey() ? { "X-StackMeet-Admin-Key": adminKey() } : {})
+    };
+  };
 
   function setAdminPage(page) {
     const selected = page || "email";
@@ -25,7 +48,10 @@
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
-      if (response.status === 401) sessionStorage.removeItem(keyName);
+      if (response.status === 401) {
+        sessionStorage.removeItem(keyName);
+        sessionStorage.removeItem(adminSessionName);
+      }
       let error = `Request failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
       throw new Error(error);
@@ -327,6 +353,36 @@
     }
   }
 
+  // Logs into the admin console with a Global System Admin user account.
+  async function activateSystemAdminLogin() {
+    const email = $("adminLoginEmail").value.trim();
+    const password = $("adminLoginPassword").value;
+    if (!email || !password) {
+      message("Enter system admin email and password.");
+      return;
+    }
+
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) {
+      let error = `Login failed (${response.status})`;
+      try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
+      throw new Error(error);
+    }
+
+    const session = await response.json();
+    if (!session.isSystemAdmin) throw new Error("This account is not a Global System Admin.");
+    sessionStorage.setItem(adminSessionName, JSON.stringify(session));
+    sessionStorage.removeItem(keyName);
+    $("adminLoginPassword").value = "";
+    $("adminKey").value = "";
+    await loadAdminData();
+    message(`Logged in as ${session.email || session.displayName}.`);
+  }
+
   async function saveEmailSettings(event) {
     event.preventDefault();
     await request("/api/admin/email-settings", {
@@ -515,6 +571,7 @@
   }
 
   $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
+  $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(error.message)));
   $("refreshAdmin").addEventListener("click", () => loadAdminData().catch(error => message(error.message)));
   $("newCompetition").addEventListener("click", () => fillForm(null));
   document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
@@ -560,9 +617,9 @@
   setAdminPage(location.hash.replace("#", "") || "email");
   fillForm(null);
   drawUserEditor();
-  if (sessionStorage.getItem(keyName)) {
+  if (sessionStorage.getItem(keyName) || adminSession()) {
     loadAdminData().catch(error => message(error.message));
   } else {
-    message("Enter the admin key to load competitions.");
+    message("Log in as a Global System Admin or enter the admin key to load admin data.");
   }
 })();

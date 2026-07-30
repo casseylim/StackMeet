@@ -6,7 +6,7 @@
     <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=admin-user-delete-layout" />
+    <link rel="stylesheet" href="admin.css?v=system-admin-login" />
   </head>
   <body>
     <main class="admin-shell">
@@ -26,9 +26,12 @@
       </nav>
 
       <section class="panel admin-auth-panel">
+        <label>System Admin Email<input id="adminLoginEmail" type="email" autocomplete="username" /></label>
+        <label>Password<input id="adminLoginPassword" type="password" autocomplete="current-password" /></label>
+        <button class="primary" id="adminLogin" type="button">Log In</button>
         <label>Admin Key<input id="adminKey" type="password" autocomplete="off" /></label>
         <button class="primary" id="saveAdminKey" type="button">Use Key</button>
-        <p class="muted">The admin key is entered locally for this browser session and is not stored in source code.</p>
+        <p class="muted">Log in with a Global System Admin account, or use the admin key as a fallback. Both are stored only for this browser session.</p>
       </section>
 
       <section class="admin-page active" data-admin-page="email">
@@ -155,6 +158,6 @@
         </article>
       </section>
     </main>
-    <script src="admin.js?v=brevo-api-email-setup"></script>
+    <script src="admin.js?v=system-admin-login"></script>
   </body>
 </html>
