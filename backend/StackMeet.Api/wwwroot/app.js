@@ -10,7 +10,7 @@ const branding = Object.freeze({
   organizationName: "WSSA NS Sport Stacking Centre",
   shortName: "WSSA",
   productName: "NADITrack",
-  reportHeader: "WSSA NS Sport Stacking Centre",
+  reportHeader: "Sistem NADI Track",
   browserTitle: "Sistem NADITrack",
   sidebarTitle: "WSSA",
   sidebarSubtitle: "Sport Stacking Centre",
