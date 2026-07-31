@@ -15,7 +15,8 @@ public sealed class AccountEmailService(
     HttpClient http,
     IConfiguration configuration,
     ProtectedSettingService protectedSettings,
-    ILogger<AccountEmailService> logger)
+    ILogger<AccountEmailService> logger,
+    IHostEnvironment environment)
 {
     /// <summary>
     /// Sends an activation email containing a password setup link.
@@ -97,13 +98,16 @@ public sealed class AccountEmailService(
     /// </remarks>
     async Task Send(string toEmail, string subject, string body, string? attachmentName = null, byte[]? attachment = null, CancellationToken ct = default)
     {
+        await WriteDebugLog("[Start] Account email send requested.");
         EmailSettings settingsValue;
         try
         {
             settingsValue = await ReadSettings(ct);
+            await WriteDebugLog($"Settings loaded = OK; Provider = {settingsValue.Provider}; Brevo key exists = {!string.IsNullOrWhiteSpace(settingsValue.BrevoApiKey)}.");
         }
         catch (Exception error)
         {
+            await WriteDebugLog($"Configuration/decryption exception: {error}");
             logger.LogError(error, "Email delivery configuration or protected-setting decryption failed.");
             throw;
         }
@@ -117,6 +121,7 @@ public sealed class AccountEmailService(
             return;
         }
 
+        await WriteDebugLog("SMTP provider selected; beginning SMTP send.");
         await SendSmtp(settingsValue, toEmail, subject, body, attachmentName, attachment, ct);
     }
 
@@ -128,6 +133,7 @@ public sealed class AccountEmailService(
     /// </remarks>
     async Task SendBrevoApi(EmailSettings settingsValue, string toEmail, string subject, string body, string? attachmentName, byte[]? attachment, CancellationToken ct)
     {
+        await WriteDebugLog("Creating Brevo HTTP request.");
         logger.LogInformation("Beginning outbound Brevo transactional email request for recipient {Recipient}.", RedactEmail(toEmail));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
         request.Headers.Accept.ParseAdd("application/json");
@@ -144,8 +150,10 @@ public sealed class AccountEmailService(
 
         try
         {
+            await WriteDebugLog("Sending Brevo HTTP request.");
             using var response = await http.SendAsync(request, ct);
             var details = await response.Content.ReadAsStringAsync(ct);
+            await WriteDebugLog($"Brevo HTTP status = {(int)response.StatusCode}; response = {SanitizeResponse(details)}");
             logger.LogInformation(
                 "Brevo transactional email response status {StatusCode}; response: {Response}",
                 (int)response.StatusCode,
@@ -157,11 +165,13 @@ public sealed class AccountEmailService(
         }
         catch (HttpRequestException error)
         {
+            await WriteDebugLog($"DNS/network/TLS exception: {error}");
             logger.LogError(error, "Brevo transactional email request failed at the DNS, network, or TLS layer.");
             throw;
         }
         catch (TaskCanceledException error) when (!ct.IsCancellationRequested)
         {
+            await WriteDebugLog($"Timeout exception: {error}");
             logger.LogError(error, "Brevo transactional email request timed out.");
             throw new TimeoutException("Brevo email request timed out.", error);
         }
@@ -257,6 +267,22 @@ public sealed class AccountEmailService(
     {
         var compact = string.Join(' ', response.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return compact.Length <= 500 ? compact : compact[..500] + "...";
+    }
+
+    // Writes temporary provider diagnostics for shared hosting where ASP.NET logs are unavailable.
+    async Task WriteDebugLog(string message)
+    {
+        try
+        {
+            var directory = Path.Combine(environment.ContentRootPath, "App_Data", "logs");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "email-debug.log");
+            await File.AppendAllTextAsync(path, $"[{DateTime.UtcNow:O}] {message}{Environment.NewLine}");
+        }
+        catch (Exception error)
+        {
+            logger.LogWarning(error, "Unable to write temporary email diagnostics.");
+        }
     }
 
     public static class EmailProvider
