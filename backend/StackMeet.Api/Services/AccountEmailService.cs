@@ -60,6 +60,25 @@ public sealed class AccountEmailService(
         return Send(toEmail, subject, body, ct: ct);
     }
 
+    /// <summary>Sends the reset link and explains that a permanent lockout requires password reset.</summary>
+    /// <remarks>Resetting the password automatically unlocks the account.</remarks>
+    public Task SendAccountLockedEmail(string toEmail, string displayName, string resetLink, CancellationToken ct)
+    {
+        var subject = "NADITrack account locked - password reset required";
+        var body = $"""
+        Hello {displayName},
+
+        Your NADITrack account has been locked after three rounds of failed password attempts.
+        Please reset your password using the link below. Your account will be unlocked after the password is successfully changed.
+
+        Reset your password here:
+        {resetLink}
+
+        This link expires in 60 minutes. If you did not make these attempts, contact your NADITrack system admin.
+        """;
+        return Send(toEmail, subject, body, ct: ct);
+    }
+
     /// <summary>Emails a generated CSV activity report as an attachment.</summary>
     /// <remarks>The report contents are supplied by the scheduled audit-report worker.</remarks>
     public Task SendAuditReportEmail(string toEmail, DateOnly reportDate, byte[] csv, CancellationToken ct)

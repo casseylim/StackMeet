@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
+using StackMeet.Api.Models;
 using StackMeet.Api.Services;
 
 namespace StackMeet.Api.Controllers;
@@ -287,6 +288,10 @@ public sealed class AuthController(
 
         user.PasswordHash = passwords.Hash(request.Password);
         user.IsActive = true;
+        user.FailedLoginAttempts = 0;
+        user.LoginLockoutRound = 0;
+        user.LockoutUntil = null;
+        user.IsPermanentlyLocked = false;
         await database.SaveChangesAsync(cancellationToken);
         await auditLogs.Write(
             "auth.password_reset.completed",
@@ -315,8 +320,18 @@ public sealed class AuthController(
 
         var normalizedEmail = EmailRules.Normalize(request.Email);
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail, cancellationToken);
+        if (user is not null && user.IsPermanentlyLocked)
+        {
+            return StatusCode(StatusCodes.Status423Locked, new { error = "This account is locked. Use the password reset link sent to your email to unlock it." });
+        }
+        if (user is not null && user.LockoutUntil > DateTime.UtcNow)
+        {
+            var minutes = Math.Max(1, (int)Math.Ceiling((user.LockoutUntil.Value - DateTime.UtcNow).TotalMinutes));
+            return StatusCode(StatusCodes.Status423Locked, new { error = $"Too many failed password attempts. Try again in about {minutes} minutes." });
+        }
         if (user is null || !user.IsActive || !passwords.Verify(request.Password!, user.PasswordHash))
         {
+            if (user is not null && user.IsActive) await RegisterFailedLogin(user, cancellationToken);
             await auditLogs.Write(
                 "auth.login.failed",
                 "AppUser",
@@ -324,9 +339,11 @@ public sealed class AuthController(
                 user?.Id,
                 null,
                 null,
-                new { email = normalizedEmail, reason = user is null ? "not_found" : "invalid_or_inactive" },
+                new { email = normalizedEmail, reason = user is null ? "not_found" : "invalid_password", attempts = user?.FailedLoginAttempts, lockoutRound = user?.LoginLockoutRound },
                 cancellationToken);
-            return Unauthorized(new { error = "Invalid email or password." });
+            return user is not null && user.LockoutUntil is not null
+                ? StatusCode(StatusCodes.Status423Locked, new { error = $"Too many failed password attempts. Try again in about {Math.Max(1, (int)Math.Ceiling((user.LockoutUntil.Value - DateTime.UtcNow).TotalMinutes))} minutes." })
+                : Unauthorized(new { error = "Invalid email or password." });
         }
 
         if (await IsEmailConfirmationRequired(cancellationToken) && !user.EmailConfirmed)
@@ -344,6 +361,7 @@ public sealed class AuthController(
         }
 
         user.LastLoginAt = DateTime.UtcNow;
+        user.FailedLoginAttempts = 0;
         await database.SaveChangesAsync(cancellationToken);
 
         var tokenValue = tokens.CreateForUser(user.Id, user.Email, user.DisplayName, user.IsSystemAdmin);
@@ -373,6 +391,32 @@ public sealed class AuthController(
             user.Email,
             user.IsSystemAdmin,
             access));
+    }
+
+    /// <summary>Advances the three-round lockout policy after one invalid password.</summary>
+    /// <remarks>Three failures create a 15-minute lock, then 30 minutes, then a permanent reset-required lock.</remarks>
+    async Task RegisterFailedLogin(AppUser user, CancellationToken ct)
+    {
+        user.FailedLoginAttempts++;
+        if (user.FailedLoginAttempts < 3) { await database.SaveChangesAsync(ct); return; }
+        user.FailedLoginAttempts = 0;
+        user.LoginLockoutRound++;
+        if (user.LoginLockoutRound >= 3)
+        {
+            user.IsPermanentlyLocked = true;
+            user.LockoutUntil = null;
+            var rawToken = await accountTokens.CreateToken(user.Id, AccountTokenService.PasswordResetPurpose, PasswordResetTokenLifetime, ct);
+            try { await emails.SendAccountLockedEmail(user.Email, user.DisplayName, accountLinks.PasswordResetLink(rawToken), ct); }
+            catch (Exception error) { await auditLogs.Write("auth.account_lockout.email_failed", "AppUser", user.Id.ToString(), user.Id, null, null, new { user.Email, Error = error.Message }, ct); }
+            await auditLogs.Write("auth.account_locked.permanent", "AppUser", user.Id.ToString(), user.Id, null, null, new { user.Email, ResetLinkExpiresInMinutes = PasswordResetTokenLifetime.TotalMinutes }, ct);
+        }
+        else
+        {
+            var minutes = user.LoginLockoutRound == 1 ? 15 : 30;
+            user.LockoutUntil = DateTime.UtcNow.AddMinutes(minutes);
+            await auditLogs.Write("auth.account_locked.temporary", "AppUser", user.Id.ToString(), user.Id, null, null, new { user.Email, Minutes = minutes, Round = user.LoginLockoutRound }, ct);
+        }
+        await database.SaveChangesAsync(ct);
     }
 
     /// <summary>

@@ -23,6 +23,11 @@
         </div>
         <p class="form-error" id="loginError" aria-live="polite"></p>
         <button class="primary" type="submit">Log In</button>
+        <button class="ghost" id="forgotPasswordButton" type="button">Forgot password?</button>
+        <div id="forgotPasswordPanel" class="login-step" hidden>
+          <label>Reset Email<input id="forgotPasswordEmail" type="email" autocomplete="email" /></label>
+          <button class="ghost" id="sendForgotPassword" type="button">Send reset link</button>
+        </div>
         <button class="ghost" id="loginSwitchAccount" type="button" hidden>Use Different Account</button>
       </form>
     </section>

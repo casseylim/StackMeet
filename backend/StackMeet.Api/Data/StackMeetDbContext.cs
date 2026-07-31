@@ -32,6 +32,10 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         appUser.Property(item => item.IsSystemAdmin).IsRequired().HasDefaultValue(false);
         appUser.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
         appUser.Property(item => item.LastLoginAt).HasColumnType("datetime2");
+        appUser.Property(item => item.FailedLoginAttempts).IsRequired().HasDefaultValue(0);
+        appUser.Property(item => item.LoginLockoutRound).IsRequired().HasDefaultValue(0);
+        appUser.Property(item => item.LockoutUntil).HasColumnType("datetime2");
+        appUser.Property(item => item.IsPermanentlyLocked).IsRequired().HasDefaultValue(false);
 
         var appUserToken = modelBuilder.Entity<AppUserToken>();
         appUserToken.ToTable("AppUserToken", "dbo");

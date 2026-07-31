@@ -85,6 +85,18 @@
     return saveSession(normalizeLoginSession(await response.json()));
   }
 
+  // Sends a generic self-service reset request without revealing whether the email exists.
+  async function requestPasswordReset(email) {
+    const response = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email: (email || "").trim() })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Unable to request a password reset.");
+    return data.message || "If this email is registered, a password reset link has been sent.";
+  }
+
   // Loads competition choices from assignments, or all competitions for a global admin.
   async function competitionChoices(session) {
     const assigned = Array.isArray(session?.competitionAccess) ? session.competitionAccess : [];
@@ -164,7 +176,17 @@
     const competitionStep = document.getElementById("loginCompetitionStep");
     const submitButton = form?.querySelector("button[type='submit']");
     const switchAccountButton = document.getElementById("loginSwitchAccount");
+    const forgotButton = document.getElementById("forgotPasswordButton");
+    const forgotPanel = document.getElementById("forgotPasswordPanel");
+    const forgotEmail = document.getElementById("forgotPasswordEmail");
+    const sendForgot = document.getElementById("sendForgotPassword");
     if (error) error.textContent = "";
+    forgotButton?.addEventListener("click", () => { if (forgotPanel) forgotPanel.hidden = !forgotPanel.hidden; if (forgotEmail) { forgotEmail.value = document.getElementById("loginEmail")?.value.trim() || ""; forgotEmail.focus(); } });
+    sendForgot?.addEventListener("click", async () => {
+      if (!forgotEmail?.value.trim()) { if (error) error.textContent = "Enter your email address first."; return; }
+      try { if (error) error.textContent = await requestPasswordReset(forgotEmail.value); }
+      catch (resetError) { if (error) error.textContent = resetError.message; }
+    });
 
     // Toggles form controls so browser validation only applies to the active login step.
     function setCompetitionStepVisible(visible) {
@@ -175,6 +197,8 @@
       document.getElementById("loginCompetitionSelect")?.toggleAttribute("disabled", !visible);
       if (submitButton) submitButton.textContent = visible ? "Open Competition" : "Log In";
       if (switchAccountButton) switchAccountButton.hidden = !visible;
+      if (forgotButton) forgotButton.hidden = visible;
+      if (forgotPanel) forgotPanel.hidden = true;
     }
 
     async function showCompetitionStep(accountSession) {
