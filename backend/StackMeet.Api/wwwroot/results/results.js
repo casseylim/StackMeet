@@ -79,7 +79,8 @@
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
     text("competitionCode", competition.id || competitionId);
-    const publicUrl = `https://naditrack.com/${encodeURIComponent(competition.id || competitionId)}/Results`;
+    // Preserve the exact public results section currently being viewed when sharing.
+    const publicUrl = new URL(location.pathname, "https://naditrack.com").toString();
     const publicLink = el("publicResultsLink");
     if (publicLink) { publicLink.href = publicUrl; publicLink.textContent = publicUrl; }
     const qr = el("publicResultsQr");
