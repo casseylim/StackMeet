@@ -16,6 +16,8 @@
 .admin-page[data-admin-page="users"].active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .admin-split { grid-template-columns: minmax(460px, 1.2fr) minmax(360px, 0.8fr); }
 .admin-form { display: grid; gap: 12px; }
+.admin-form label.checkbox-label { display: flex; align-items: center; gap: 10px; min-height: 42px; }
+.admin-form label.checkbox-label input[type="checkbox"] { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }
 .admin-security-options { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; }
 .admin-security-options h3 { margin: 0 0 4px; }
 .admin-security-options .muted { margin: 0; }

@@ -335,6 +335,7 @@
     }
     await loadCompetitions();
     fillForm(competitions.find(item => item.competitionKey === (originalKey || payload.competitionKey.toUpperCase())));
+    message(`Competition ${originalKey || payload.competitionKey.toUpperCase()} saved.`);
   }
 
   async function adminAction(action) {
