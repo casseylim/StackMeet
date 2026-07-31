@@ -68,7 +68,7 @@ builder.Services.AddHttpClient<AccountEmailService>();
 builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddScoped<AuditLogService>();
-builder.Services.AddHostedService<DailyAuditReportService>();
+// Daily audit-email generation is disabled to reduce background server workload; on-demand audit export remains available.
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StackMeet")));
 builder.WebHost.ConfigureKestrel(options =>

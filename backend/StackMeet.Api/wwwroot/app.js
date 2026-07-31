@@ -877,8 +877,23 @@ async function persistCompetitionAuditLog() {
   }
 }
 
-function saveState() {
-  const stateToSave = legacyStateForSave(state);
+// Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
+function mergeConcurrentState(latestState, localState) {
+  const merged = { ...latestState, ...localState };
+  ["stackers", "doubles", "relays", "results", "notifications", "auditLogs"].forEach(key => {
+    if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
+    const records = new Map(latestState[key].map(item => [String(item.id), item]));
+    localState[key].forEach(item => records.set(String(item.id), item));
+    merged[key] = [...records.values()];
+  });
+  return merged;
+}
+
+async function saveState() {
+  const latestState = await repository.load();
+  const mergedState = latestState ? mergeConcurrentState(latestState, state) : state;
+  if (latestState) state = { ...state, ...mergedState };
+  const stateToSave = legacyStateForSave(mergedState);
   queuedSaveCount += 1;
   setSaveStatus("Saving...", "saving");
 
@@ -5247,8 +5262,19 @@ async function addStacker() {
   setSaveStatus("Saving...", "saving");
   try {
     const existing = editingStackerId ? state.stackers.find(item => item.id === editingStackerId) : null;
-    if (existing) await stackerApi.update(selectedSqlCompetitionId, existing.sqlId, runtimeStackerToSql(stacker));
-    else await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+    if (existing) {
+      await stackerApi.update(selectedSqlCompetitionId, existing.sqlId, runtimeStackerToSql(stacker));
+    } else {
+      try {
+        await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+      } catch (error) {
+        // Another computer may have claimed the same next code; refresh and retry with the next server-visible code once.
+        if (!String(error.message || "").includes("409")) throw error;
+        await refreshSqlStackers({ allowEditing: true, rerender: false });
+        stacker.id = nextStackerCode();
+        await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+      }
+    }
     await refreshSqlStackers({ allowEditing: true, rerender: false });
     const savedStacker = state.stackers.find(item => item.id === stacker.id) || stacker;
     appendCompetitionAuditLog({
