@@ -1392,7 +1392,15 @@ function renderSettings() {
   document.getElementById("eventMatrix").innerHTML = Object.entries(eventGroups).map(([group, events]) => `
     <article class="check-card">
       <h3>${esc(group)}</h3>
-      ${events.map(event => `<label><input type="checkbox" data-event-group="${esc(group)}" value="${esc(event)}" ${state.events[group]?.includes(event) ? "checked" : ""}> ${esc(event)}</label>`).join("")}
+      ${events.map((event, index) => {
+        const singleSelection = ["Doubles", "Timed Relay"].includes(group);
+        const inputType = singleSelection ? "radio" : "checkbox";
+        const inputName = singleSelection ? `event-${group.replace(/\s+/g, "-").toLowerCase()}` : "";
+        const checked = singleSelection
+          ? state.events[group]?.[0] === event
+          : state.events[group]?.includes(event);
+        return `<label><input type="${inputType}" ${inputName ? `name="${inputName}"` : ""} data-event-group="${esc(group)}" value="${esc(event)}" ${checked ? "checked" : ""}> ${esc(event)}</label>`;
+      }).join("")}
     </article>
   `).join("");
 
