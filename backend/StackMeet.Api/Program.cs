@@ -68,6 +68,7 @@ builder.Services.AddHttpClient<AccountEmailService>();
 builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddHostedService<DailyAuditReportService>();
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StackMeet")));
 builder.WebHost.ConfigureKestrel(options =>

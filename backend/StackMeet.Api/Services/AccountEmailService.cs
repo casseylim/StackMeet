@@ -35,7 +35,7 @@ public sealed class AccountEmailService(
 
         This link is temporary. If it expires, ask a NADITrack system admin to send a new activation or reset link.
         """;
-        return Send(toEmail, subject, body, ct);
+        return Send(toEmail, subject, body, ct: ct);
     }
 
     /// <summary>
@@ -57,7 +57,16 @@ public sealed class AccountEmailService(
 
         If you did not expect this, contact your NADITrack system admin.
         """;
-        return Send(toEmail, subject, body, ct);
+        return Send(toEmail, subject, body, ct: ct);
+    }
+
+    /// <summary>Emails a generated CSV activity report as an attachment.</summary>
+    /// <remarks>The report contents are supplied by the scheduled audit-report worker.</remarks>
+    public Task SendAuditReportEmail(string toEmail, DateOnly reportDate, byte[] csv, CancellationToken ct)
+    {
+        var subject = $"NADITrack user activity report - {reportDate:yyyy-MM-dd}";
+        var body = $"Attached is the NADITrack user activity report for {reportDate:dd/MM/yyyy} (MYT).";
+        return Send(toEmail, subject, body, "NADITrack-user-activity-" + reportDate.ToString("yyyy-MM-dd") + ".csv", csv, ct);
     }
 
     /// <summary>
@@ -66,16 +75,16 @@ public sealed class AccountEmailService(
     /// <remarks>
     /// Brevo API is selected by "BrevoApi"; any other provider value uses the legacy SMTP relay.
     /// </remarks>
-    async Task Send(string toEmail, string subject, string body, CancellationToken ct)
+    async Task Send(string toEmail, string subject, string body, string? attachmentName = null, byte[]? attachment = null, CancellationToken ct = default)
     {
         var settingsValue = await ReadSettings(ct);
         if (settingsValue.Provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase))
         {
-            await SendBrevoApi(settingsValue, toEmail, subject, body, ct);
+            await SendBrevoApi(settingsValue, toEmail, subject, body, attachmentName, attachment, ct);
             return;
         }
 
-        await SendSmtp(settingsValue, toEmail, subject, body, ct);
+        await SendSmtp(settingsValue, toEmail, subject, body, attachmentName, attachment, ct);
     }
 
     /// <summary>
@@ -84,16 +93,20 @@ public sealed class AccountEmailService(
     /// <remarks>
     /// The API key is sent only in the header and is never included in error messages or audit snapshots.
     /// </remarks>
-    async Task SendBrevoApi(EmailSettings settingsValue, string toEmail, string subject, string body, CancellationToken ct)
+    async Task SendBrevoApi(EmailSettings settingsValue, string toEmail, string subject, string body, string? attachmentName, byte[]? attachment, CancellationToken ct)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Add("api-key", settingsValue.BrevoApiKey);
+        var attachments = attachmentName is not null && attachment is not null
+            ? [new BrevoAttachment(attachmentName, Convert.ToBase64String(attachment))]
+            : Array.Empty<BrevoAttachment>();
         request.Content = JsonContent.Create(new BrevoEmailRequest(
             new BrevoSender(settingsValue.FromName, settingsValue.FromAddress),
             [new BrevoRecipient(toEmail, toEmail)],
             subject,
-            body));
+            body,
+            attachments));
 
         using var response = await http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
@@ -109,7 +122,7 @@ public sealed class AccountEmailService(
     /// <remarks>
     /// This preserves existing saved SMTP settings while admins transition to the Brevo API key flow.
     /// </remarks>
-    async Task SendSmtp(EmailSettings settingsValue, string toEmail, string subject, string body, CancellationToken ct)
+    async Task SendSmtp(EmailSettings settingsValue, string toEmail, string subject, string body, string? attachmentName, byte[]? attachment, CancellationToken ct)
     {
         using var message = new MailMessage
         {
@@ -118,6 +131,10 @@ public sealed class AccountEmailService(
             Body = body
         };
         message.To.Add(toEmail);
+        if (attachmentName is not null && attachment is not null)
+        {
+            message.Attachments.Add(new Attachment(new MemoryStream(attachment), attachmentName, "text/csv"));
+        }
 
         using var client = new SmtpClient(settingsValue.Host, settingsValue.Port)
         {
@@ -206,5 +223,10 @@ public sealed class AccountEmailService(
         [property: JsonPropertyName("sender")] BrevoSender Sender,
         [property: JsonPropertyName("to")] IReadOnlyCollection<BrevoRecipient> To,
         [property: JsonPropertyName("subject")] string Subject,
-        [property: JsonPropertyName("textContent")] string TextContent);
+        [property: JsonPropertyName("textContent")] string TextContent,
+        [property: JsonPropertyName("attachment")] IReadOnlyCollection<BrevoAttachment> Attachment);
+
+    sealed record BrevoAttachment(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("content")] string Content);
 }
