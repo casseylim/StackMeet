@@ -64,7 +64,11 @@ builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
 builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddScoped<AccountTokenService>();
-builder.Services.AddHttpClient<AccountEmailService>();
+builder.Services.AddHttpClient<AccountEmailService>(client =>
+{
+    // Bound external email calls so a provider outage cannot hold an API request indefinitely.
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddScoped<AuditLogService>();

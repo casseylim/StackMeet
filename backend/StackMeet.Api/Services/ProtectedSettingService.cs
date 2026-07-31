@@ -12,7 +12,10 @@ namespace StackMeet.Api.Services;
 /// <remarks>
 /// Encryption depends on Security:SettingsEncryptionKey, which must be configured on each server that needs to decrypt saved secrets.
 /// </remarks>
-public sealed class ProtectedSettingService(StackMeetDbContext database, IConfiguration configuration)
+public sealed class ProtectedSettingService(
+    StackMeetDbContext database,
+    IConfiguration configuration,
+    ILogger<ProtectedSettingService> logger)
 {
     /// <summary>
     /// Gets a setting value by key.
@@ -24,7 +27,23 @@ public sealed class ProtectedSettingService(StackMeetDbContext database, IConfig
     {
         var setting = await database.AppSettings.AsNoTracking().SingleOrDefaultAsync(item => item.Key == key, ct);
         if (setting is null) return null;
-        return setting.IsProtected ? Unprotect(setting.Value) : setting.Value;
+        if (!setting.IsProtected)
+        {
+            logger.LogDebug("Runtime setting {SettingKey} loaded as unprotected value.", key);
+            return setting.Value;
+        }
+
+        try
+        {
+            var value = Unprotect(setting.Value);
+            logger.LogInformation("Protected runtime setting {SettingKey} decrypted successfully.", key);
+            return value;
+        }
+        catch (Exception error)
+        {
+            logger.LogError(error, "Protected runtime setting {SettingKey} decryption failed.", key);
+            throw;
+        }
     }
 
     /// <summary>

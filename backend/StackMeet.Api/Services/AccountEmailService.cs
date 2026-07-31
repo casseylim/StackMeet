@@ -14,7 +14,8 @@ namespace StackMeet.Api.Services;
 public sealed class AccountEmailService(
     HttpClient http,
     IConfiguration configuration,
-    ProtectedSettingService protectedSettings)
+    ProtectedSettingService protectedSettings,
+    ILogger<AccountEmailService> logger)
 {
     /// <summary>
     /// Sends an activation email containing a password setup link.
@@ -96,7 +97,20 @@ public sealed class AccountEmailService(
     /// </remarks>
     async Task Send(string toEmail, string subject, string body, string? attachmentName = null, byte[]? attachment = null, CancellationToken ct = default)
     {
-        var settingsValue = await ReadSettings(ct);
+        EmailSettings settingsValue;
+        try
+        {
+            settingsValue = await ReadSettings(ct);
+        }
+        catch (Exception error)
+        {
+            logger.LogError(error, "Email delivery configuration or protected-setting decryption failed.");
+            throw;
+        }
+        logger.LogInformation(
+            "Account email delivery selected provider {Provider}; protected Brevo API key exists: {HasBrevoApiKey}.",
+            settingsValue.Provider,
+            !string.IsNullOrWhiteSpace(settingsValue.BrevoApiKey));
         if (settingsValue.Provider.Equals(EmailProvider.BrevoApi, StringComparison.OrdinalIgnoreCase))
         {
             await SendBrevoApi(settingsValue, toEmail, subject, body, attachmentName, attachment, ct);
@@ -114,6 +128,7 @@ public sealed class AccountEmailService(
     /// </remarks>
     async Task SendBrevoApi(EmailSettings settingsValue, string toEmail, string subject, string body, string? attachmentName, byte[]? attachment, CancellationToken ct)
     {
+        logger.LogInformation("Beginning outbound Brevo transactional email request for recipient {Recipient}.", RedactEmail(toEmail));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Add("api-key", settingsValue.BrevoApiKey);
@@ -127,11 +142,28 @@ public sealed class AccountEmailService(
             body,
             attachments));
 
-        using var response = await http.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
+        try
         {
+            using var response = await http.SendAsync(request, ct);
             var details = await response.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"Brevo API rejected the email with HTTP {(int)response.StatusCode}: {details}");
+            logger.LogInformation(
+                "Brevo transactional email response status {StatusCode}; response: {Response}",
+                (int)response.StatusCode,
+                SanitizeResponse(details));
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Brevo API rejected the email with HTTP {(int)response.StatusCode}: {SanitizeResponse(details)}");
+            }
+        }
+        catch (HttpRequestException error)
+        {
+            logger.LogError(error, "Brevo transactional email request failed at the DNS, network, or TLS layer.");
+            throw;
+        }
+        catch (TaskCanceledException error) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(error, "Brevo transactional email request timed out.");
+            throw new TimeoutException("Brevo email request timed out.", error);
         }
     }
 
@@ -191,6 +223,12 @@ public sealed class AccountEmailService(
             smtpPassword,
             brevoApiKey);
 
+        logger.LogInformation(
+            "Email configuration loaded with provider {Provider}; protected Brevo API key exists: {HasBrevoApiKey}; sender configured: {HasSender}.",
+            settings.Provider,
+            !string.IsNullOrWhiteSpace(settings.BrevoApiKey),
+            !string.IsNullOrWhiteSpace(settings.FromAddress));
+
         if (string.IsNullOrWhiteSpace(settings.FromAddress))
         {
             throw new InvalidOperationException("Email sender address is not configured.");
@@ -211,6 +249,14 @@ public sealed class AccountEmailService(
         }
 
         return settings;
+    }
+
+    static string RedactEmail(string email) => string.IsNullOrWhiteSpace(email) ? "<empty>" : email.Contains('@') ? $"<redacted>@{email[(email.IndexOf('@') + 1)..]}" : "<redacted>";
+
+    static string SanitizeResponse(string response)
+    {
+        var compact = string.Join(' ', response.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return compact.Length <= 500 ? compact : compact[..500] + "...";
     }
 
     public static class EmailProvider
