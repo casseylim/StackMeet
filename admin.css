@@ -30,6 +30,8 @@
 .audit-table-wrap td { vertical-align: top; }
 .audit-detail { max-width: 360px; white-space: pre-wrap; word-break: break-word; }
 .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.admin-actions > button, .admin-actions > .file-action { min-height: 42px; padding: 9px 14px; font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1.2; }
+.admin-actions > button, .admin-actions > .file-action { min-height: 42px; padding: 9px 14px; font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1.2; }
 .admin-json { max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; white-space: pre-wrap; }
 .admin-row-button { padding: 4px 8px; }
 .account-shell { min-height: 100vh; display: grid; place-items: center; }
