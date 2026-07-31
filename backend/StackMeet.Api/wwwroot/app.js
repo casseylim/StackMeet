@@ -7,14 +7,14 @@ const eventGroups = {
 };
 
 const branding = Object.freeze({
-  organizationName: "Sistem NADI Track",
-  shortName: "NADITrack",
-  productName: "NADITrack",
-  reportHeader: "Sistem NADI Track",
-  browserTitle: "Sistem NADI Track",
-  sidebarTitle: "NADI",
-  sidebarSubtitle: "Track",
-  defaultCompetitionName: "Sistem NADI Track",
+  organizationName: "WSSA NS Sport Stacking Centre",
+  shortName: "WSSA",
+  productName: "StackMeet",
+  reportHeader: "WSSA NS Sport Stacking Centre",
+  browserTitle: "WSSA NS Sport Stacking Centre - StackMeet",
+  sidebarTitle: "WSSA",
+  sidebarSubtitle: "Sport Stacking Centre",
+  defaultCompetitionName: "WSSA NS Sport Stacking Centre",
   ...(window.StackMeetBranding || {})
 });
 
@@ -587,25 +587,15 @@ let editingRelayId = "";
 let leaderboardTimer = null;
 let leaderboardSlideIndex = 0;
 
-//const routes = [
-  //["dashboard", "Dashboard"],
-  //["settings", "Settings"],
-  //["language", "Language"],
-  //["reports", "Reports"],
-  //["stackers", "Participant"],
-  //["awards", "Awards Planner"],
-  //["competition", "Competition"],
-  //["leaderboard", "Leader Board"]
-//];
-
 const routes = [
-    ["dashboard", "Dashboard"],
-    ["settings", "Settings"],
-    ["language", "Language"],
-    ["reports", "Reports"],
-    ["stackers", "Participant"],
-    ["awards", "Awards Planner"],
-    ["competition", "Competition"]
+  ["dashboard", "Dashboard"],
+  ["settings", "Settings"],
+  ["language", "Language"],
+  ["reports", "Reports"],
+  ["stackers", "Participant"],
+  ["awards", "Awards Planner"],
+  ["competition", "Competition"],
+  ["leaderboard", "Leader Board"]
 ];
 
 const view = document.getElementById("view");
@@ -1133,6 +1123,7 @@ async function createSqlCompetition() {
     startDate: val("sqlCompetitionStart"),
     endDate: val("sqlCompetitionEnd"),
     status: val("sqlCompetitionStatus").trim()
+    ,isPubliclyListed: document.getElementById("sqlCompetitionPublicListing")?.checked === true
   };
   if (!request.competitionCode || !request.competitionName || !request.venue || !request.startDate || !request.endDate || !request.status) {
     flashMessage = { type: "error", text: "Complete the SQL competition setup fields first." };
@@ -1449,7 +1440,7 @@ function exportCompetitionAuditCsv() {
   ]);
   const header = ["Time (MYT)", "Time (UTC)", "Action", "Actor Email", "Actor Name", "Entity Type", "Entity ID", "Summary", "Before JSON", "After JSON"];
   const generated = [["Competition Audit Logs"], [state.settings.name || currentCompetitionKey()], [`Exported ${stackMeetDateTime()}`], []];
-  downloadText(`NADITrack-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
+  downloadText(`stackmeet-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
 }
 
 // Provides a compact fallback summary when an audit entry has before/after snapshots only.
@@ -2173,7 +2164,7 @@ function exportAwardsCsv() {
 }
 
 function ordinal(number) {
-  const labels = { 1: "Champion", 2: "1st Runner Up", 3: "2nd Runner Up" };
+  const labels = { 1: "First Place", 2: "2nd", 3: "3rd" };
   return labels[number] || `${number}th`;
 }
 
@@ -2991,6 +2982,51 @@ function showFinalMessage(text, isError = false) {
   message.classList.toggle("error", isError);
 }
 
+function printCurrentFinalSheet() {
+  const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
+  if (!sheet) {
+    showFinalMessage("Find a final sheet before printing.", true);
+    return;
+  }
+  buildFinalSheetPrint(sheet);
+}
+
+function buildFinalSheetPrint(sheet) {
+  document.getElementById("singleTimeSheetPrintJob")?.remove();
+  const printJob = document.createElement("section");
+  printJob.id = "singleTimeSheetPrintJob";
+  printJob.innerHTML = finalTimeSheetHtml(sheet);
+  document.body.appendChild(printJob);
+  printTimeSheetTarget("single-time-sheet", printJob);
+}
+
+function finalTimeSheetHtml(sheet) {
+  return `<article class="final-time-sheet">
+    <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
+    <header class="final-sheet-header">
+      <div class="qr-box">QR</div>
+      <div><h2>${esc(t("Finals:"))}</h2><p>${esc(t(sheet.entryType))} // ${esc(sheet.division)} // ${esc(sheet.event)}</p></div>
+      <strong>ID: ${esc(sheet.id)}</strong>
+    </header>
+    <table class="final-print-table">
+      <thead><tr><th></th><th>${esc(t("Stacker"))}</th><th>${esc(t("Prelims"))}</th><th>${esc(t("Attempt 1"))}</th><th>${esc(t("Attempt 2"))}</th><th>${esc(t("Attempt 3"))}</th><th>${esc(t("Best Time"))}</th><th>${esc(t("Place"))}</th></tr></thead>
+      <tbody>${sheet.finalists.map(finalist => `<tr>
+        <td class="final-rank">${finalist.qualifierRank}</td>
+        <td><strong>${esc(finalist.name)}</strong><br><small>${esc(finalParticipantSubline(sheet.type, finalist.participant))}</small></td>
+        <td>${esc(finalist.prelimTime.toFixed(3))}</td>
+        <td></td><td></td><td></td><td></td><td></td>
+      </tr>`).join("")}</tbody>
+    </table>
+    <ul class="final-sheet-tips">
+      <li>${esc(t("Start at the top of the page, allow 2 warm-ups prior to Attempt 1 for each stacker."))}</li>
+      <li>${esc(t("After warm-ups, the next 3 stacks must be used as Attempt 1, 2 and 3."))}</li>
+      <li>${esc(t("Indicate time using all numbers as displayed on the timer. Example: 6.523."))}</li>
+      <li>${esc(t("SCRATCH write 999."))}</li>
+      <li>${esc(t("Leave blank = did not compete."))}</li>
+    </ul>
+  </article>`;
+}
+
 function renderReports() {
   renderReportTabs();
   populateFinalsReportFilters();
@@ -3324,7 +3360,7 @@ function approveQualificationSnapshot(id) {
 
 function exportFinalsCsv() {
   const definition = finalsReportDefinition();
-  downloadText("NADITrack-finals-report.csv", [[brandText("reportHeader")], [state.settings.name], [definition.title], [], definition.csvHeaders || definition.headers, ...(definition.csvRows || definition.rows)].map(csvLine).join("\n"), "text/csv");
+  downloadText("stackmeet-finals-report.csv", [[brandText("reportHeader")], [state.settings.name], [definition.title], [], definition.csvHeaders || definition.headers, ...(definition.csvRows || definition.rows)].map(csvLine).join("\n"), "text/csv");
 }
 
 function printFinalsReport() {
@@ -4096,12 +4132,12 @@ function currentCompetitionPreset() {
 function exportResults(format) {
   const rows = competitionReportRows();
   if (format === "json") {
-    downloadText("NADITrack-results.json", JSON.stringify(rows, null, 2), "application/json");
+    downloadText("stackmeet-results.json", JSON.stringify(rows, null, 2), "application/json");
     return;
   }
   const headers = ["Rank", "Event", "Name", "Division", "Time", "Gap", "Stage", "Country", "Region", "Org"];
   const csvRows = rows.map(row => [row.rank, row.event, row.name, row.division, fmt(row.time), row.gap ? fmt(row.gap) : "", row.stage, row.country, row.region, row.org]);
-  downloadText("NADITrack-results.csv", [headers, ...csvRows].map(csvLine).join("\n"), "text/csv");
+  downloadText("stackmeet-results.csv", [headers, ...csvRows].map(csvLine).join("\n"), "text/csv");
 }
 
 function csvLine(row) {
@@ -4601,8 +4637,8 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "export-awards-csv") { exportAwardsCsv(); shouldRender = false; }
   if (action === "export-competition-audit-csv") { exportCompetitionAuditCsv(); shouldRender = false; shouldSave = false; }
-  if (action === "paperwork") { buildPaperwork(target.dataset.type); shouldRender = false; }
-  if (action === "print-paper-preview") { printPaperPreview(); shouldRender = false; }
+  if (action === "paperwork") { window.StackMeetPrintCenter.buildPaperwork(target.dataset.type); shouldRender = false; }
+  if (action === "print-paper-preview") { window.StackMeetPrintCenter.printPaperPreview(); shouldRender = false; }
   if (action === "build-bracket") { buildBracket(); shouldRender = false; }
   if (action === "lookup-prelim-participant") { loadPrelimParticipant(); shouldRender = false; }
   if (action === "load-missing-prelim") { loadMissingPrelim(target.dataset.id); shouldRender = false; }
@@ -4645,7 +4681,7 @@ document.addEventListener("click", async (event) => {
     try {
       await saveState();
     } catch (error) {
-      console.error("Unable to save competition state to the NADITrack API.", error);
+      console.error("Unable to save competition state to the StackMeet API.", error);
     }
   }
 });
@@ -4693,7 +4729,7 @@ document.getElementById("exportXmlBtn")?.addEventListener("click", async () => {
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "NADITrack-data.xml";
+  link.download = "stackmeet-data.xml";
   link.click();
   URL.revokeObjectURL(link.href);
 });
@@ -4714,7 +4750,7 @@ document.getElementById("importXmlInput")?.addEventListener("change", async (eve
   try {
     await saveState();
   } catch (error) {
-    console.error("Unable to save competition state to the NADITrack API.", error);
+    console.error("Unable to save competition state to the StackMeet API.", error);
   }
 });
 
@@ -4738,7 +4774,7 @@ document.getElementById("resetBtn")?.addEventListener("click", async () => {
   try {
     await saveState();
   } catch (error) {
-    console.error("Unable to save competition state to the NADITrack API.", error);
+    console.error("Unable to save competition state to the StackMeet API.", error);
   }
 });
 
@@ -5025,7 +5061,7 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
+  if (!display) alert("Please allow popups for StackMeet, then click Open Display again.");
 }
 
 function addDivision() {
@@ -5281,7 +5317,7 @@ function clearStackerForm(hideAfterClear = true) {
   ["stName", "stDob", "stAge", "stDivision", "stCustomDivision", "stOrg", "stRegion", "stEmail", "stPhone"].forEach(id => setValue(id, ""));
   setValue("stGender", "M");
   setValue("stCountry", "Malaysia");
-  setValue("stPaid", "No");
+  setValue("stPaid", "Yes");
   setValue("stCheckedIn", "Yes");
   const special = document.getElementById("stSpecial");
   if (special) special.checked = false;
@@ -5696,6 +5732,183 @@ function saveResult() {
     before: null,
     after: result
   });
+}
+
+function buildPaperwork(type) {
+  const out = document.getElementById("paperOutput");
+  const title = type.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (type.startsWith("finals")) {
+    buildFinalPaperwork(type);
+    return;
+  }
+  if (type === "individual-prelim") {
+    const stackers = selectedStackersForPrintRange();
+    const range = stackers.length ? `${stackers[0].id} to ${stackers[stackers.length - 1].id}` : "No stackers";
+    out.innerHTML = `<div class="panel-head no-print"><h2>Individual Time Sheets (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">Print Range</button></div>
+      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">No stackers found in this range.</p>`}</div>`;
+    return;
+  }
+  if (type === "doubles-prelim") {
+    const teams = printableDoublesTeams();
+    out.innerHTML = `<div class="panel-head no-print"><h2>Doubles Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
+      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">No completed doubles teams are available for preliminary time sheets.</p>`}</div>`;
+    return;
+  }
+  if (type === "relay-prelim") {
+    const teams = completedRelays();
+    out.innerHTML = `<div class="panel-head no-print"><h2>Relay Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
+      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">No ready relay teams are available for preliminary time sheets.</p>`}</div>`;
+    return;
+  }
+  const sample = state.stackers.slice(0, 6);
+  out.innerHTML = `<div class="panel-head no-print"><h2>${esc(title)}</h2><button class="ghost" data-action="print-paper-preview" type="button">Print</button></div>
+    ${sample.map(s => `<article class="sheet-preview"><strong>${esc(s.id)} ${esc(s.name)}</strong><p>${esc(s.division)} // ${esc(s.org)} // ${esc(s.country)}</p><p>3-3-3: _____  3-6-3: _____  Cycle: _____</p></article>`).join("")}`;
+}
+
+function buildFinalPaperwork(type) {
+  const out = document.getElementById("paperOutput");
+  const typeMap = {
+    "finals-individual": { typeKey: "1", title: "Individual Final Time Sheets" },
+    "finals-doubles": { typeKey: "2", title: "Doubles Final Time Sheets" },
+    "finals-relay": { typeKey: "3", title: "Relay Final Time Sheets" }
+  };
+  const config = typeMap[type] || { typeKey: "", title: "All Final Time Sheets" };
+  const sheets = finalSheets().filter(sheet => !config.typeKey || sheet.typeKey === config.typeKey);
+  const summary = sheets.length
+    ? `${sheets.length} ${t(sheets.length === 1 ? "sheet ready for judges" : "sheets ready for judges")}`
+    : t("No final sheets yet. Enter prelim results first.");
+  out.innerHTML = `<div class="panel-head no-print"><div><h2>${esc(t(config.title))}</h2><p class="muted">${esc(summary)}</p></div><button class="ghost" data-action="print-paper-preview" type="button"${sheets.length ? "" : " disabled"}>${esc(t("Print Finals"))}</button></div>
+    <div class="final-sheet-list">${sheets.map(finalTimeSheetHtml).join("") || `<p class="muted">${esc(t("No finalists matched this selection."))}</p>`}</div>`;
+}
+
+function selectedStackersForPrintRange() {
+  const stackers = [...state.stackers].sort((a, b) => stackerIdNumber(a.id) - stackerIdNumber(b.id));
+  if (!stackers.length) return [];
+  const fromValue = stackerIdNumber(val("printRangeFrom") || stackers[0].id);
+  const toValue = stackerIdNumber(val("printRangeTo") || stackers[stackers.length - 1].id);
+  const low = Math.min(fromValue, toValue);
+  const high = Math.max(fromValue, toValue);
+  return stackers.filter(stacker => {
+    const id = stackerIdNumber(stacker.id);
+    return id >= low && id <= high;
+  });
+}
+
+function individualTimeSheetHtml(stacker) {
+  return prelimTimeSheetHtml({
+    id: stacker.id,
+    type: "Individual",
+    name: stacker.name,
+    detail: `Division: ${stacker.division || "Open"}`,
+    location: `${stacker.country || "--"} · Organization: ${stacker.org || "Independent"}`,
+    events: ["3-3-3", "3-6-3", "Cycle"]
+  });
+}
+
+function doublesTimeSheetHtml(team) {
+  return prelimTimeSheetHtml({
+    id: team.id,
+    type: "Doubles",
+    name: participantName("Doubles", team.id),
+    detail: `Division: ${doubleDivision(team)}`,
+    location: teamCountry(team),
+    events: timeSheetEvents("Doubles", ["Cycle"])
+  });
+}
+
+function relayTimeSheetHtml(team) {
+  return prelimTimeSheetHtml({
+    id: team.id,
+    type: "Relay",
+    name: participantName("Timed Relay", team.id),
+    detail: `Stackers: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · Division: ${relayTimedDivision(team)}`,
+    location: relayLocation(team),
+    events: timeSheetEvents("Timed Relay", ["3-6-3"])
+  });
+}
+
+function timeSheetEvents(group, fallback) {
+  // Uses configured event setup; falls back so Individual/Doubles/Relay sheets still print.
+  const events = state.events?.[group];
+  return Array.isArray(events) && events.length ? events : fallback;
+}
+
+function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
+  // Shared printable time sheet for preliminary Individual, Doubles, and Timed Relay.
+  // The generated headers are Event / Attempt 1 / Attempt 2 / Attempt 3.
+  const attempts = [1, 2, 3];
+  return `<article class="individual-time-sheet">
+    <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
+    <header class="time-sheet-header">
+      <div class="time-sheet-identity"><span>${esc(type)}</span><h2>${esc(name)}</h2></div>
+      <div class="time-sheet-stacker-id"><span>ID</span><strong>${esc(id)}</strong></div>
+    </header>
+    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>Location: ${esc(location)}</span></div>
+    <table class="attempt-table">
+      <colgroup><col class="event-col" /><col class="attempt-col" /><col class="attempt-col" /><col class="attempt-col" /></colgroup>
+      <thead><tr><th>Event</th>${attempts.map(attempt => `<th>Attempt ${attempt}</th>`).join("")}</tr></thead>
+      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> Best</span></td>`).join("")}</tr>`).join("")}</tbody>
+    </table>
+    <div class="time-sheet-notes">
+      <p>Record Attempt 1, Attempt 2 and Attempt 3.</p>
+      <p>Tick the fastest valid attempt.</p>
+      <p>Use 999 for a scratch.</p>
+      <p>Leave blank if the competitor or team did not compete.</p>
+    </div>
+    <footer class="time-sheet-signoff"><span>Judge: ______________________________</span><span>Table: __________</span></footer>
+  </article>`;
+}
+
+function printSingleStackerSheet(id) {
+  const stacker = state.stackers.find(item => item.id === id);
+  if (!stacker) return;
+  document.getElementById("singleTimeSheetPrintJob")?.remove();
+  const printJob = document.createElement("section");
+  printJob.id = "singleTimeSheetPrintJob";
+  printJob.innerHTML = individualTimeSheetHtml(stacker);
+  document.body.appendChild(printJob);
+  printTimeSheetTarget("single-time-sheet", printJob);
+}
+
+function printPaperPreview() {
+  if (!document.querySelector("#paperOutput .individual-time-sheet, #paperOutput .final-time-sheet, #paperOutput .sheet-preview, #paperOutput .bracket")) return;
+  printTimeSheetTarget("print-center");
+}
+
+// Print Center bridge: keeps delegated button actions connected to the sheet builders.
+window.StackMeetPrintCenter = Object.freeze({ buildPaperwork, printPaperPreview });
+
+function printTimeSheetTarget(target, removableElement = null) {
+  // Applies a temporary print target and page orientation, then cleans it after printing.
+  const pageStyle = document.createElement("style");
+  const isFinalTimeSheetPrint = target === "single-time-sheet"
+    ? removableElement?.querySelector(".final-time-sheet")
+    : document.querySelector("#paperOutput .final-time-sheet");
+  pageStyle.textContent = isFinalTimeSheetPrint
+    ? "@media print { @page { size: A4 landscape; margin: 8mm; } }"
+    : "@media print { @page { size: A4 portrait; margin: 10mm; } }";
+  document.head.appendChild(pageStyle);
+  const originalTitle = document.title;
+  document.body.dataset.printTarget = target;
+  if (isFinalTimeSheetPrint) document.body.dataset.printMode = "final-time-sheet";
+  document.title = "";
+  const cleanup = () => {
+    document.title = originalTitle;
+    delete document.body.dataset.printTarget;
+    delete document.body.dataset.printMode;
+    pageStyle.remove();
+    removableElement?.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  setTimeout(cleanup, 1000);
+}
+
+function buildBracket() {
+  const out = document.getElementById("paperOutput");
+  const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
+  out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} Bracket</h2><button class="ghost" onclick="window.print()" type="button">Print</button></div>
+    ${Array.from({ length: size }, (_, i) => `<div class="bracket">Seed ${i + 1}: ____________________________</div>`).join("")}`;
 }
 
 function countBy(key, value) {
@@ -6118,7 +6331,7 @@ function cssEscape(value) {
 
 function showBootError(error) {
   const target = document.getElementById("loginError") || document.getElementById("view");
-  if (target) target.textContent = error?.message || String(error || "Unable to start NADITrack.");
+  if (target) target.textContent = error?.message || String(error || "Unable to start StackMeet.");
   document.body.classList.add("auth-pending");
 }
 

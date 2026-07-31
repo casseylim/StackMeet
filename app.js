@@ -1,7 +1,8 @@
+// Event catalog: Doubles and Timed Relay now expose all three disciplines; Head To Head remains unchanged.
 const eventGroups = {
   Individuals: ["3-3-3", "3-6-3", "Cycle"],
-  Doubles: ["Cycle"],
-  "Timed Relay": ["3-6-3"],
+  Doubles: ["3-3-3", "3-6-3", "Cycle"],
+  "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
   "Head To Head": ["3-6-3", "Cycle"]
 };
 
@@ -481,8 +482,8 @@ const demo = {
   awards: structuredClone(defaultAwards),
   events: {
     Individuals: ["3-3-3", "3-6-3", "Cycle"],
-    Doubles: ["Cycle"],
-    "Timed Relay": ["3-6-3"],
+    Doubles: ["3-3-3", "3-6-3", "Cycle"],
+    "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
     "Head To Head": ["3-6-3"]
   },
   divisionSettings: structuredClone(defaultDivisionSettings),
@@ -1274,8 +1275,8 @@ function t(text) {
 }
 
 function translateChrome() {
-  document.getElementById("exportXmlBtn").textContent = t("Export XML");
-  document.querySelector("label[for='importXmlInput']").textContent = t("Import XML");
+  document.getElementById("exportXmlBtn")?.setAttribute("aria-label", t("Export XML"));
+  document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
   document.querySelector(".sidebar-card span").textContent = t("Local mode");
@@ -1382,7 +1383,15 @@ function renderSettings() {
   document.getElementById("eventMatrix").innerHTML = Object.entries(eventGroups).map(([group, events]) => `
     <article class="check-card">
       <h3>${esc(group)}</h3>
-      ${events.map(event => `<label><input type="checkbox" data-event-group="${esc(group)}" value="${esc(event)}" ${state.events[group]?.includes(event) ? "checked" : ""}> ${esc(event)}</label>`).join("")}
+      ${events.map((event, index) => {
+        const singleSelection = ["Doubles", "Timed Relay"].includes(group);
+        const inputType = singleSelection ? "radio" : "checkbox";
+        const inputName = singleSelection ? `event-${group.replace(/\s+/g, "-").toLowerCase()}` : "";
+        const checked = singleSelection
+          ? state.events[group]?.[0] === event
+          : state.events[group]?.includes(event);
+        return `<label><input type="${inputType}" ${inputName ? `name="${inputName}"` : ""} data-event-group="${esc(group)}" value="${esc(event)}" ${checked ? "checked" : ""}> ${esc(event)}</label>`;
+      }).join("")}
     </article>
   `).join("");
 
@@ -4628,8 +4637,8 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "export-awards-csv") { exportAwardsCsv(); shouldRender = false; }
   if (action === "export-competition-audit-csv") { exportCompetitionAuditCsv(); shouldRender = false; shouldSave = false; }
-  if (action === "paperwork") { buildPaperwork(target.dataset.type); shouldRender = false; }
-  if (action === "print-paper-preview") { printPaperPreview(); shouldRender = false; }
+  if (action === "paperwork") { window.StackMeetPrintCenter.buildPaperwork(target.dataset.type); shouldRender = false; }
+  if (action === "print-paper-preview") { window.StackMeetPrintCenter.printPaperPreview(); shouldRender = false; }
   if (action === "build-bracket") { buildBracket(); shouldRender = false; }
   if (action === "lookup-prelim-participant") { loadPrelimParticipant(); shouldRender = false; }
   if (action === "load-missing-prelim") { loadMissingPrelim(target.dataset.id); shouldRender = false; }
@@ -4715,7 +4724,7 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
-document.getElementById("exportXmlBtn").addEventListener("click", async () => {
+document.getElementById("exportXmlBtn")?.addEventListener("click", async () => {
   if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: true, rerender: false });
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
@@ -4725,7 +4734,7 @@ document.getElementById("exportXmlBtn").addEventListener("click", async () => {
   URL.revokeObjectURL(link.href);
 });
 
-document.getElementById("importXmlInput").addEventListener("change", async (event) => {
+document.getElementById("importXmlInput")?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
@@ -5865,6 +5874,9 @@ function printPaperPreview() {
   if (!document.querySelector("#paperOutput .individual-time-sheet, #paperOutput .final-time-sheet, #paperOutput .sheet-preview, #paperOutput .bracket")) return;
   printTimeSheetTarget("print-center");
 }
+
+// Print Center bridge: keeps delegated button actions connected to the sheet builders.
+window.StackMeetPrintCenter = Object.freeze({ buildPaperwork, printPaperPreview });
 
 function printTimeSheetTarget(target, removableElement = null) {
   // Applies a temporary print target and page orientation, then cleans it after printing.
