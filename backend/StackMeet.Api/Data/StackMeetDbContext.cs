@@ -118,6 +118,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         competition.Property(item => item.CompetitionName).HasMaxLength(200).IsRequired();
         competition.Property(item => item.Venue).HasMaxLength(200).IsRequired();
         competition.Property(item => item.Status).HasMaxLength(30).IsRequired();
+        competition.Property(item => item.IsPubliclyListed).IsRequired().HasDefaultValue(false);
         competition.Property(item => item.PasswordHash).HasMaxLength(500);
         competition.Property(item => item.ArchivedAt).HasColumnType("datetime2");
         competition.Property(item => item.ArchivedBy).HasMaxLength(100);

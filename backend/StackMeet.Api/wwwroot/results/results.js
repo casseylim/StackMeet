@@ -79,6 +79,11 @@
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
     text("competitionCode", competition.id || competitionId);
+    const publicUrl = `https://naditrack.com/${encodeURIComponent(competition.id || competitionId)}/Results`;
+    const publicLink = el("publicResultsLink");
+    if (publicLink) { publicLink.href = publicUrl; publicLink.textContent = publicUrl; }
+    const qr = el("publicResultsQr");
+    if (qr) qr.src = `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`;
     text("lastUpdated", `Updated ${formatClock(payload.lastUpdatedAt)}`);
     text("latestTime", formatClock(payload.lastUpdatedAt));
 

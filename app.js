@@ -1076,7 +1076,8 @@ function sqlDashboardCompetition() {
 function publicResultsUrl() {
   const competition = sqlDashboardCompetition();
   const publicId = competition.competitionCode || window.StackMeetAuth?.competitionId?.() || window.COMPETITION_KEY || "DEFAULT";
-  return `${location.origin}/${encodeURIComponent(String(publicId))}/Results`;
+  // Public result links use the canonical NADITrack domain, including when officials work locally.
+  return `https://naditrack.com/${encodeURIComponent(String(publicId))}/Results`;
 }
 
 function qrCodeUrl(value) {
@@ -1121,6 +1122,7 @@ async function createSqlCompetition() {
     startDate: val("sqlCompetitionStart"),
     endDate: val("sqlCompetitionEnd"),
     status: val("sqlCompetitionStatus").trim()
+    ,isPubliclyListed: document.getElementById("sqlCompetitionPublicListing")?.checked === true
   };
   if (!request.competitionCode || !request.competitionName || !request.venue || !request.startDate || !request.endDate || !request.status) {
     flashMessage = { type: "error", text: "Complete the SQL competition setup fields first." };

@@ -58,6 +58,7 @@ public sealed class CompetitionAdminController(
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Status = NormalizeStatus(request.Status)!,
+            IsPubliclyListed = request.IsPubliclyListed,
             PasswordHash = passwords.Hash(request.Password!),
             CreatedAt = now,
             UpdatedAt = now
@@ -107,6 +108,7 @@ public sealed class CompetitionAdminController(
         item.StartDate = request.StartDate;
         item.EndDate = request.EndDate;
         item.Status = status;
+        item.IsPubliclyListed = request.IsPubliclyListed;
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
         await auditLogs.Write(
@@ -336,7 +338,8 @@ public sealed class CompetitionAdminController(
         item.Venue,
         item.StartDate,
         item.EndDate,
-        item.Status,
+            item.Status,
+            item.IsPubliclyListed,
         item.ArchivedAt,
         item.ArchivedBy,
         item.CreatedAt,
@@ -380,6 +383,7 @@ public sealed class CompetitionAdminController(
             competition.StartDate,
             competition.EndDate,
             competition.Status,
+            competition.IsPubliclyListed,
             competition.PasswordHash != null,
             state != null,
             state == null ? null : state.CreatedAt,

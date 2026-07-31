@@ -10,6 +10,8 @@ public sealed class Competition
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    /// <summary>Controls whether this competition appears on the public all-competitions directory.</summary>
+    public bool IsPubliclyListed { get; set; }
     public string? PasswordHash { get; set; }
     public DateTime? ArchivedAt { get; set; }
     public string? ArchivedBy { get; set; }

@@ -308,6 +308,7 @@
     $("adminStartDate").value = item?.startDate || "";
     $("adminEndDate").value = item?.endDate || "";
     $("adminStatus").value = item?.status || "Draft";
+    $("adminPublicListing").checked = item?.isPubliclyListed === true;
     $("adminPassword").value = "";
     $("adminJsonOutput").hidden = true;
   }
@@ -323,6 +324,7 @@
       startDate: $("adminStartDate").value,
       endDate: $("adminEndDate").value,
       status: $("adminStatus").value,
+      isPubliclyListed: $("adminPublicListing").checked,
       password: $("adminPassword").value || null
     };
     if (originalKey) {

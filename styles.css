@@ -261,6 +261,10 @@ th,
   color: var(--muted);
 }
 
+/* Keeps opt-in visibility switches aligned with their labels in admin and setup forms. */
+.checkbox-label { display: flex; align-items: center; gap: 10px; }
+.checkbox-label input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+
 .metric-grid span,
 label,
 th {
