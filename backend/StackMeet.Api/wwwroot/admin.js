@@ -367,6 +367,46 @@
     await loadCompetitions();
   }
 
+  // Exports the selected authoritative competition JSON inside a portable XML document.
+  async function exportCompetitionXml() {
+    const key = $("adminOriginalKey").value;
+    if (!key) return message("Select a competition first.");
+    const data = await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/export`);
+    const json = String(data.jsonData || "{}");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<naditrack-state competitionKey="${xmlAttr(key)}"><![CDATA[${json.replaceAll("]]>", "]]]]><![CDATA[>")}]]></naditrack-state>`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([xml], { type: "application/xml" }));
+    link.download = `${key}-state.xml`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    message(`${key} XML exported.`);
+  }
+
+  // Imports a previously exported XML state into the selected competition after validation.
+  async function importCompetitionXml(event) {
+    const key = $("adminOriginalKey").value;
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!key || !file) return;
+    if (!confirm(`Import XML into ${key}? This will replace the selected competition state with the contents of ${file.name}.`)) {
+      message("XML import cancelled.");
+      return;
+    }
+    try {
+      const document = new DOMParser().parseFromString(await file.text(), "application/xml");
+      const state = document.querySelector("naditrack-state")?.textContent?.trim();
+      if (document.querySelector("parsererror") || !state || document.documentElement.getAttribute("competitionKey")?.toUpperCase() !== key.toUpperCase()) throw new Error("The XML file does not match the selected competition.");
+      JSON.parse(state);
+      await request(`/api/state/${encodeURIComponent(key)}`, { method: "POST", body: state, headers: { "Content-Type": "application/json" } });
+      message(`${key} XML imported.`);
+    } catch (error) {
+      message(`XML import failed: ${error.message}`);
+    }
+  }
+
+  // Escapes a competition key for an XML attribute.
+  function xmlAttr(value) { return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
+
   async function activateAdminKey() {
     const value = $("adminKey").value.trim();
     if (!value) {
@@ -697,6 +737,8 @@
   document.querySelectorAll("[data-user-sort]").forEach(button => button.addEventListener("click", () => setUserSort(button.dataset.userSort)));
   $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(error.message)));
   $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
+  $("adminExportXml")?.addEventListener("click", () => exportCompetitionXml().catch(error => message(error.message)));
+  $("adminImportXml")?.addEventListener("change", event => importCompetitionXml(event));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");
     if (!button) return;

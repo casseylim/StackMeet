@@ -1283,8 +1283,8 @@ function t(text) {
 }
 
 function translateChrome() {
-  document.getElementById("exportXmlBtn").textContent = t("Export XML");
-  document.querySelector("label[for='importXmlInput']").textContent = t("Import XML");
+  document.getElementById("exportXmlBtn")?.setAttribute("aria-label", t("Export XML"));
+  document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
   document.querySelector(".sidebar-card span").textContent = t("Local mode");
@@ -4679,7 +4679,7 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
-document.getElementById("exportXmlBtn").addEventListener("click", async () => {
+document.getElementById("exportXmlBtn")?.addEventListener("click", async () => {
   if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: true, rerender: false });
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
@@ -4689,7 +4689,7 @@ document.getElementById("exportXmlBtn").addEventListener("click", async () => {
   URL.revokeObjectURL(link.href);
 });
 
-document.getElementById("importXmlInput").addEventListener("change", async (event) => {
+document.getElementById("importXmlInput")?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
