@@ -1149,23 +1149,46 @@ function syncCompetitionStatePolling() {
   if (competitionStatePollTimer) clearInterval(competitionStatePollTimer);
   competitionStatePollTimer = null;
   const syncRoutes = ["competition", "reports", "paperwork", "dashboard"];
-  if (!selectedSqlCompetitionId || !syncRoutes.includes(route)) return;
+  if (!syncRoutes.includes(route)) return;
   competitionStatePollTimer = setInterval(async () => {
     if (!syncRoutes.includes(route)) return;
-    if (document.activeElement?.matches("input, select, textarea")) return;
     try {
       const latest = await repository.load();
       if (!latest) return;
-      const currentSignature = JSON.stringify(state.results || []);
-      const latestSignature = JSON.stringify(latest.results || []);
+      const latestResults = normalizeResults(latest.results || []);
+      const currentSignature = resultsSyncSignature(state.results || []);
+      const latestSignature = resultsSyncSignature(latestResults);
       if (currentSignature === latestSignature) return;
-      state.results = normalizeResults(latest.results || []);
+      state.results = latestResults;
       state.auditLogs = normalizeCompetitionAuditLogs(latest.auditLogs || state.auditLogs || []);
-      render();
+      refreshResultsDisplayAfterSync();
     } catch (error) {
-      console.warn("Unable to refresh shared competition state.", error);
+      console.warn("Unable to refresh shared competition results.", error);
     }
-  }, 5000);
+  }, 3000);
+}
+
+// Creates a stable comparison that ignores UUID changes for the same logical result.
+function resultsSyncSignature(results) {
+  return JSON.stringify([...results].map(result => ({
+    key: resultLogicalKey(result),
+    attempts: result.attempts || [],
+    penalty: Number(result.penalty || 0)
+  })).sort((left, right) => left.key.localeCompare(right.key)));
+}
+
+// Refreshes only result-related surfaces so active data-entry fields are not rebuilt.
+function refreshResultsDisplayAfterSync() {
+  if (route === "competition") {
+    drawResultRows();
+    drawMissingTimes();
+    populateFinalSheetSelect();
+    if (activeFinalSheetId) loadFinalSheet(activeFinalSheetId, false);
+    return;
+  }
+  if (route === "reports") return renderReports();
+  if (route === "dashboard") return renderDashboard();
+  if (route === "paperwork") return renderPaperwork();
 }
 
 async function createSqlCompetition() {
