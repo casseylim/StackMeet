@@ -878,16 +878,29 @@ async function persistCompetitionAuditLog() {
   }
 }
 
+// Identifies one logical result independently of browser-generated UUIDs.
+function resultLogicalKey(result) {
+  return [result.stage, result.type, result.participant, normalizeEventName(result.event)].join("|");
+}
+
 // Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
 function mergeConcurrentState(latestState, localState) {
   const merged = { ...latestState, ...localState };
-  ["stackers", "doubles", "relays", "results", "notifications", "auditLogs"].forEach(key => {
+  merged.results = mergeResults(latestState?.results, localState?.results);
+  ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
     if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
     const records = new Map(latestState[key].map(item => [String(item.id), item]));
     localState[key].forEach(item => records.set(String(item.id), item));
     merged[key] = [...records.values()];
   });
   return merged;
+}
+
+// Merges results by their logical competition identity instead of transient UUIDs.
+function mergeResults(latestResults = [], localResults = []) {
+  const records = new Map((latestResults || []).map(result => [resultLogicalKey(result), result]));
+  (localResults || []).forEach(result => records.set(resultLogicalKey(result), result));
+  return [...records.values()];
 }
 
 async function saveState() {
@@ -1135,18 +1148,19 @@ function syncDashboardSqlPolling() {
 function syncCompetitionStatePolling() {
   if (competitionStatePollTimer) clearInterval(competitionStatePollTimer);
   competitionStatePollTimer = null;
-  if (!selectedSqlCompetitionId || !["stackers", "results"].includes(route)) return;
+  const syncRoutes = ["competition", "reports", "paperwork", "dashboard"];
+  if (!selectedSqlCompetitionId || !syncRoutes.includes(route)) return;
   competitionStatePollTimer = setInterval(async () => {
-    if (!["stackers", "results"].includes(route)) return;
+    if (!syncRoutes.includes(route)) return;
     if (document.activeElement?.matches("input, select, textarea")) return;
     try {
       const latest = await repository.load();
       if (!latest) return;
-      const currentSignature = JSON.stringify({ stackers: state.stackers, results: state.results });
-      const latestSignature = JSON.stringify({ stackers: latest.stackers, results: latest.results });
+      const currentSignature = JSON.stringify(state.results || []);
+      const latestSignature = JSON.stringify(latest.results || []);
       if (currentSignature === latestSignature) return;
-      state.stackers = latest.stackers || state.stackers;
-      state.results = latest.results || state.results;
+      state.results = normalizeResults(latest.results || []);
+      state.auditLogs = normalizeCompetitionAuditLogs(latest.auditLogs || state.auditLogs || []);
       render();
     } catch (error) {
       console.warn("Unable to refresh shared competition state.", error);
@@ -2955,7 +2969,8 @@ function finalTieBreakKey(result) {
   return FinalsReportEngine.finalTieKey(result);
 }
 
-function saveFinalResults() {
+async function saveFinalResults() {
+  const previousState = structuredClone(state);
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
     showFinalMessage("Find a valid final sheet before saving.", true);
@@ -2988,6 +3003,17 @@ function saveFinalResults() {
     before: changes.map(item => ({ participant: item.participant, result: item.before })),
     after: changes.map(item => ({ participant: item.participant, result: item.after }))
   });
+  try {
+    await saveState();
+    const authoritativeState = await repository.load();
+    const expectedKeys = changes.map(item => resultLogicalKey(item.after));
+    const authoritativeKeys = new Set((authoritativeState?.results || []).map(resultLogicalKey));
+    if (expectedKeys.some(key => !authoritativeKeys.has(key))) throw new Error("Saved final results could not be verified from the authoritative store.");
+  } catch (error) {
+    state = previousState;
+    showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
+    return false;
+  }
   showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
   populateFinalSheetSelect();
   clearFinalSheet();
@@ -4687,7 +4713,7 @@ document.addEventListener("click", async (event) => {
   if (action === "lookup-final-sheet") { loadFinalSheetFromInput(); shouldRender = false; }
   if (action === "load-final-missing") { loadFinalSheet(target.dataset.id); shouldRender = false; }
   if (action === "clear-final-sheet") { clearFinalSheet(); shouldRender = false; }
-  if (action === "save-final-results") { saveFinalResults(); shouldRender = false; }
+  if (action === "save-final-results") { await saveFinalResults(); shouldRender = false; shouldSave = false; }
   if (action === "print-final-sheet") { printCurrentFinalSheet(); shouldRender = false; }
   if (action === "save-result") saveResult();
   if (action === "delete-result") {
