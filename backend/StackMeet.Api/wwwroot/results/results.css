@@ -112,6 +112,15 @@ main { width: min(1180px, calc(100% - 2rem)); margin: -2.15rem auto 0; padding-b
 .stage-stat strong, .stage-stat span { display: block; }
 .stage-stat strong { margin-top: .25rem; font-size: 1.4rem; }
 .stage-stat span { color: var(--muted); font-size: .78rem; }
+/* Public competition directory rows keep each published event easy to scan. */
+#competitionDirectory.stage-stats { grid-template-columns: 1fr; gap: 0; }
+.stage-stats .summary-card { display: grid; grid-template-columns: minmax(12rem, .9fr) minmax(0, 1.5fr) auto; grid-template-rows: auto auto; align-items: center; gap: .25rem 1.25rem; min-height: 0; padding: 1.05rem 1.2rem; border-radius: 0; box-shadow: none; }
+.stage-stats .summary-card:first-child { border-radius: 1rem 1rem 0 0; }
+.stage-stats .summary-card:last-child { border-radius: 0 0 1rem 1rem; }
+.stage-stats .summary-card .card-label { grid-column: 1; grid-row: 1; }
+.stage-stats .summary-card strong { grid-column: 2; grid-row: 1 / span 2; align-self: center; overflow: hidden; text-overflow: ellipsis; font-size: 1.05rem; }
+.stage-stats .summary-card > span:last-of-type { grid-column: 1; grid-row: 2; overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.stage-stats .summary-card .back-link { grid-column: 3; grid-row: 1 / span 2; margin-top: 0; white-space: nowrap; }
 footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max(1.5rem, env(safe-area-inset-bottom)); display: flex; justify-content: space-between; color: #8490a3; font-size: .75rem; }
 [hidden] { display: none !important; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -125,6 +134,11 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   .summary-grid { grid-template-columns: 1fr 1fr; }
   .summary-card.accent { grid-column: 1 / -1; }
   .stage-stats { grid-template-columns: 1fr; }
+  .stage-stats .summary-card { grid-template-columns: minmax(0, 1fr) auto; gap: .55rem 1rem; }
+  .stage-stats .summary-card strong { grid-column: 1 / -1; grid-row: 1; }
+  .stage-stats .summary-card .card-label { grid-column: 1; grid-row: 2; }
+  .stage-stats .summary-card > span:last-of-type { grid-column: 1; grid-row: 3; }
+  .stage-stats .summary-card .back-link { grid-column: 2; grid-row: 2 / span 2; justify-self: end; }
 }
 @media (max-width: 420px) {
   .summary-grid { grid-template-columns: 1fr; }
