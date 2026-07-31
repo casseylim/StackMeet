@@ -138,9 +138,9 @@ public sealed class AccountEmailService(
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Add("api-key", settingsValue.BrevoApiKey);
-        var attachments = attachmentName is not null && attachment is not null
+        IReadOnlyCollection<BrevoAttachment>? attachments = attachmentName is not null && attachment is not null
             ? [new BrevoAttachment(attachmentName, Convert.ToBase64String(attachment))]
-            : Array.Empty<BrevoAttachment>();
+            : null;
         request.Content = JsonContent.Create(new BrevoEmailRequest(
             new BrevoSender(settingsValue.FromName, settingsValue.FromAddress),
             [new BrevoRecipient(toEmail, toEmail)],
@@ -315,7 +315,7 @@ public sealed class AccountEmailService(
         [property: JsonPropertyName("to")] IReadOnlyCollection<BrevoRecipient> To,
         [property: JsonPropertyName("subject")] string Subject,
         [property: JsonPropertyName("textContent")] string TextContent,
-        [property: JsonPropertyName("attachment")] IReadOnlyCollection<BrevoAttachment> Attachment);
+        [property: JsonPropertyName("attachment"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyCollection<BrevoAttachment>? Attachment);
 
     sealed record BrevoAttachment(
         [property: JsonPropertyName("name")] string Name,
