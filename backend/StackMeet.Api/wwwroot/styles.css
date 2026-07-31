@@ -261,6 +261,10 @@ th,
   color: var(--muted);
 }
 
+/* Keeps opt-in visibility switches aligned with their labels in admin and setup forms. */
+.checkbox-label { display: flex; align-items: center; gap: 10px; }
+.checkbox-label input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+
 .metric-grid span,
 label,
 th {
@@ -820,7 +824,7 @@ input[readonly] {
 
 table {
   width: 100%;
-  min-width: 680px;
+  min-width: 780px;
   border-collapse: collapse;
   background: white;
 }
@@ -1197,6 +1201,10 @@ tr:last-child td { border-bottom: 0; }
   color: #fff;
   background: #155f66;
   text-align: center;
+}
+
+.attempt-table thead th:first-child {
+  width: 15%;
 }
 
 .attempt-table tbody th {
@@ -2111,7 +2119,7 @@ tr:last-child td { border-bottom: 0; }
     height: 132mm;
     min-height: 0;
     padding: 3mm;
-    overflow: visible;
+    overflow: hidden;
     border: 0;
     border-bottom: 1px dashed #777;
     break-inside: avoid;
@@ -2233,17 +2241,18 @@ tr:last-child td { border-bottom: 0; }
 
   .attempt-table {
     /* Print-only: keep the Event/Attempt table inside the A4 printable area. */
-    width: 100%;
-    max-width: 175mm;
+    width: 76%;
+    max-width: 76%;
     margin: 0 auto;
+    table-layout: fixed;
   }
 
   .attempt-table .event-col {
-    width: 16%;
+    width: 28%;
   }
 
   .attempt-table .attempt-col {
-    width: 28%;
+    width: 24%;
   }
 
   .attempt-table thead th,
@@ -2256,23 +2265,20 @@ tr:last-child td { border-bottom: 0; }
     width: auto;
   }
 
-
   .attempt-table td {
-    height: 20mm;
-    padding: 1mm 0.8mm 2mm 0.8mm;
+    height: 17mm;
+    padding: 1mm 0.8mm;
   }
 
   .time-write-line {
     /* Print-only: leave a right gutter so Attempt 3 does not run past the printable edge. */
-    height: 5.5mm;
+    height: 7mm;
     width: 90%;
-    margin-bottom: 0.5mm;
   }
 
   .best-mark {
     gap: 1mm;
-    margin-top: 0mm;
-    margin-bottom: 0.5mm;
+    margin-top: 1mm;
     font-size: 7pt;
   }
 
@@ -2322,7 +2328,6 @@ body.auth-pending .app { display: none; }
 .login-step { display: grid; gap: 14px; }
 .login-panel input,
 .login-panel select { width: 100%; min-height: 44px; }
-.login-forgot-button { justify-self: center; min-height: 32px; }
 .login-mark { width: 58px; height: 58px; }
 .form-error { min-height: 20px; margin: 0; color: var(--red); font-weight: 800; }
 .session-pill {
