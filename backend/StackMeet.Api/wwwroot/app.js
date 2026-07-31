@@ -1,7 +1,8 @@
+// Event catalog: Doubles and Timed Relay now expose all three disciplines; Head To Head remains unchanged.
 const eventGroups = {
   Individuals: ["3-3-3", "3-6-3", "Cycle"],
-  Doubles: ["Cycle"],
-  "Timed Relay": ["3-6-3"],
+  Doubles: ["3-3-3", "3-6-3", "Cycle"],
+  "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
   "Head To Head": ["3-6-3", "Cycle"]
 };
 
@@ -481,8 +482,8 @@ const demo = {
   awards: structuredClone(defaultAwards),
   events: {
     Individuals: ["3-3-3", "3-6-3", "Cycle"],
-    Doubles: ["Cycle"],
-    "Timed Relay": ["3-6-3"],
+    Doubles: ["3-3-3", "3-6-3", "Cycle"],
+    "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
     "Head To Head": ["3-6-3"]
   },
   divisionSettings: structuredClone(defaultDivisionSettings),
