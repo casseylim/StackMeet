@@ -569,6 +569,7 @@ let selectedSqlCompetitionId = null;
 let sqlCompetition = null;
 let stackerRefreshInFlight = false;
 let dashboardPollTimer = null;
+let competitionStatePollTimer = null;
 let stackerSort = { key: "id", direction: "asc" };
 let reportTab = "finals";
 let adminReportSort = { index: -1, direction: "asc" };
@@ -1130,6 +1131,29 @@ function syncDashboardSqlPolling() {
   }, 5000);
 }
 
+// Refreshes shared stacker/results data for active competition screens without interrupting form entry.
+function syncCompetitionStatePolling() {
+  if (competitionStatePollTimer) clearInterval(competitionStatePollTimer);
+  competitionStatePollTimer = null;
+  if (!selectedSqlCompetitionId || !["stackers", "results"].includes(route)) return;
+  competitionStatePollTimer = setInterval(async () => {
+    if (!["stackers", "results"].includes(route)) return;
+    if (document.activeElement?.matches("input, select, textarea")) return;
+    try {
+      const latest = await repository.load();
+      if (!latest) return;
+      const currentSignature = JSON.stringify({ stackers: state.stackers, results: state.results });
+      const latestSignature = JSON.stringify({ stackers: latest.stackers, results: latest.results });
+      if (currentSignature === latestSignature) return;
+      state.stackers = latest.stackers || state.stackers;
+      state.results = latest.results || state.results;
+      render();
+    } catch (error) {
+      console.warn("Unable to refresh shared competition state.", error);
+    }
+  }, 5000);
+}
+
 async function createSqlCompetition() {
   const request = {
     competitionCode: val("sqlCompetitionCode").trim(),
@@ -1227,6 +1251,7 @@ function render() {
   syncModuleTabs();
   applyTranslations(view);
   syncDashboardSqlPolling();
+  syncCompetitionStatePolling();
   if (route === "dashboard" && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
 }
 
