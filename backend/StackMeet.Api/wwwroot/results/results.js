@@ -81,8 +81,6 @@
     text("competitionCode", competition.id || competitionId);
     // Preserve the exact public results section currently being viewed when sharing.
     const publicUrl = new URL(location.pathname, "https://naditrack.com").toString();
-    const publicLink = el("publicResultsLink");
-    if (publicLink) { publicLink.href = publicUrl; publicLink.textContent = publicUrl; }
     const qr = el("publicResultsQr");
     if (qr) qr.src = `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`;
     text("lastUpdated", `Updated ${formatClock(payload.lastUpdatedAt)}`);

@@ -67,7 +67,7 @@ main { width: min(1180px, calc(100% - 2rem)); margin: -2.15rem auto 0; padding-b
 .section-nav a.active { color: var(--navy); background: #fff; box-shadow: 0 3px 12px rgba(7,21,46,.08); }
 .panel, .summary-card { border: 1px solid var(--line); border-radius: 1.15rem; background: var(--surface); box-shadow: var(--shadow); }
 .share-panel { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.25rem; }
-.share-link { color: var(--accent); overflow-wrap: anywhere; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .share-qr { width: 160px; height: 160px; border-radius: .75rem; border: 1px solid var(--line); }
 @media (max-width: 640px) { .share-panel { align-items: flex-start; flex-direction: column; } }
 .loading-panel, .empty-state { min-height: 18rem; display: grid; place-items: center; align-content: center; text-align: center; padding: 2rem; }
