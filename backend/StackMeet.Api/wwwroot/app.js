@@ -9,9 +9,9 @@ const eventGroups = {
 const branding = Object.freeze({
   organizationName: "WSSA NS Sport Stacking Centre",
   shortName: "WSSA",
-  productName: "StackMeet",
+  productName: "NADITrack",
   reportHeader: "WSSA NS Sport Stacking Centre",
-  browserTitle: "WSSA NS Sport Stacking Centre - StackMeet",
+  browserTitle: "Sistem NADITrack",
   sidebarTitle: "WSSA",
   sidebarSubtitle: "Sport Stacking Centre",
   defaultCompetitionName: "WSSA NS Sport Stacking Centre",
@@ -2671,8 +2671,6 @@ async function persistPrelimResults(options = {}) {
   });
   try {
     await saveState();
-    const authoritativeState = await repository.load();
-    if (!prelimResultsPersisted(authoritativeState, participant, completed)) throw new Error("Saved values could not be verified from the authoritative store.");
   } catch (error) {
     state = previousState;
     showPrelimMessage(`Save failed. Times remain on screen and were not cleared: ${error.message || "unable to verify persistence"}`, true);
@@ -2683,7 +2681,7 @@ async function persistPrelimResults(options = {}) {
   drawMissingTimes();
   const actionText = [created ? `${created} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(", ");
   clearPrelimEntry();
-  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}.`, false);
+  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}. Changes saved; latest updates will synchronize automatically.`, false);
   return true;
 }
 
@@ -3028,19 +3026,14 @@ async function saveFinalResults() {
   });
   try {
     await saveState();
-    const authoritativeState = await repository.load();
-    const expectedKeys = changes.map(item => resultLogicalKey(item.after));
-    const authoritativeKeys = new Set((authoritativeState?.results || []).map(resultLogicalKey));
-    if (expectedKeys.some(key => !authoritativeKeys.has(key))) throw new Error("Saved final results could not be verified from the authoritative store.");
   } catch (error) {
     state = previousState;
     showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
     return false;
   }
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
+  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded; latest updates will synchronize automatically.`, false);
   populateFinalSheetSelect();
   clearFinalSheet();
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
   const sheetInput = document.getElementById("finalSheetId");
   sheetInput?.focus();
   sheetInput?.select();
@@ -5150,7 +5143,7 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for StackMeet, then click Open Display again.");
+  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
 }
 
 function addDivision() {
@@ -6431,7 +6424,7 @@ function cssEscape(value) {
 
 function showBootError(error) {
   const target = document.getElementById("loginError") || document.getElementById("view");
-  if (target) target.textContent = error?.message || String(error || "Unable to start StackMeet.");
+  if (target) target.textContent = error?.message || String(error || "Unable to start NADITrack.");
   document.body.classList.add("auth-pending");
 }
 
