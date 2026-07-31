@@ -18,7 +18,7 @@
 | BR-012 | Persist/reset/import/export current competition state. | Competition Package, Record | CompetitionRepository, PackageService | load/save/reset/import/export | RES-005, STO-001..STO-004 | Preserve current JSON/XML until a separately approved migration. |
 | BR-013 | Qualify finalists and order judge lanes. | Final Result, Lane, TimeSheet | FinalsService | `buildFinalSheets` | FIN-001, FIN-002 | Qualification browser coverage pending. |
 | BR-014 | Calculate final placement and tie break. | Final Result, ResultAttempt | FinalsService | `saveFinalSheet`, `getPlacements` | FIN-003 | Best → second → third attempt. |
-| BR-015 | Plan individual, doubles, relay and overall awards. | Award, Category | AwardService | `getAwardPlan` | AWD-001..AWD-003 | **Critical:** current planner throws `generatedDivisions` undefined. |
+| BR-015 | Plan individual, doubles, relay and overall awards. | Award, Category | AwardService | `getAwardPlan` | AWD-001..AWD-003 | Core individual, doubles, and relay quantities are protected by the characterization suite. |
 | BR-016 | Generate/filter/sort reports, including Special modes. | Report projection, Stacker, Team, Result | ReportService | report query/export | RPT-001..RPT-003 | Projection only; no HTML/domain coupling. |
 | BR-017 | Retain administrative routes and print behavior. | Competition Settings, Record | SettingsService, PrintDocumentService | settings/query/document model | UI-001, UI-002, UI-003 | Medium/Low browser coverage pending. |
 

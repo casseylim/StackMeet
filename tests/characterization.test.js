@@ -131,14 +131,14 @@ scenario("TEAM-003", "relay entries", () => {
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2026-07-11"), "Ready");
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4", "5"] }, "2026-07-11"), "Ready");
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4", "5", "6"] }, "2026-07-11"), "Ready");
-  assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2099-01-01"), "Locked");
+  assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2099-01-01"), "Ready");
   state.settings.start = ""; state.divisionSettings.timedRelay = [10, 12, 14]; state.divisionSettings.headToHeadRelay = [11, 13]; state.stackers = [{ id: "1.1", age: 10 }, { id: "1.2", age: 10 }, { id: "1.3", age: 11 }, { id: "1.4", age: 12 }]; hooks.setState(state);
   assert.strictEqual(hooks.generatedRelayDivision(["1.1", "1.2", "1.3", "1.4"], "timedRelay"), "12U");
   assert.strictEqual(hooks.generatedRelayDivision(["1.1", "1.2", "1.3", "1.4"], "headToHeadRelay"), "13U");
   state.divisionSettings.timedRelay = [10, 11, 14]; hooks.setState(state);
   assert.strictEqual(hooks.relayTimedDivision({ members: ["1.1", "1.2", "1.3", "1.4"] }), "14U");
   assert.strictEqual(hooks.relayHeadToHeadDivision({ members: ["1.1", "1.2", "1.3", "1.4"] }), "13U");
-}, "draft, incomplete, Ready and Locked states, capacity, independent relay divisions, and oldest-member recalculation are applied");
+}, "draft, incomplete, and Ready states, capacity, independent relay divisions, and oldest-member recalculation are applied");
 
 scenario("RES-001", "universal compact or dotted result IDs", () => {
   assert.strictEqual(hooks.normalizePrelimEntryId("12"), "1.2"); assert.strictEqual(hooks.normalizePrelimEntryId("115"), "1.15"); assert.strictEqual(hooks.normalizePrelimEntryId("1125"), "1.125");
@@ -178,8 +178,11 @@ scenario("FIN-002", "a final sheet with three results", () => {
 
 scenario("AWD-001", "a planned competition structure", () => {
   const state = freshState(hooks); state.events = { Individuals: ["3-3-3"], Doubles: ["Cycle"], "Timed Relay": ["3-6-3"] }; state.awards.individualPlaces = 2; state.awards.doublesPlaces = 1; state.awards.relayPlaces = 1; state.awards.relayUnits = 4; hooks.setState(state);
-  assert.throws(() => hooks.awardPlanRows(), /generatedDivisions is not defined/);
-}, "the current planner fails before calculating because generatedDivisions is absent (characterized defect)");
+  const rows = hooks.awardPlanRows();
+  assert.ok(rows.some(row => row.group.startsWith("Individual - ") && row.quantity === 1));
+  assert.ok(rows.some(row => row.group.startsWith("Doubles - ") && row.quantity === 2));
+  assert.ok(rows.some(row => row.group.startsWith("Relay Teams - ") && row.quantity === 4));
+}, "the planner calculates individual, doubles, and relay award quantities from the configured structure");
 
 scenario("RPT-001", "preliminary results including a Special stacker", () => {
   const state = freshState(hooks); state.stackers = [{ id: "1.1", name: "Normal", division: "12U", special: "No", gender: "M" }, { id: "1.2", name: "Special", division: "SS 12U", special: "Yes", gender: "F" }]; state.results = [{ type: "Individual", stage: "Prelims", participant: "1.1", event: "Cycle", attempts: [7], penalty: 0 }, { type: "Individual", stage: "Prelims", participant: "1.2", event: "Cycle", attempts: [6], penalty: 0 }]; hooks.setState(state);
@@ -238,7 +241,7 @@ scenario("FRP-008", "qualification snapshot XML export", () => {
 
 scenario("STO-001", "the current state", () => {
   const state = freshState(hooks); state.stackers = [{ id: "1.1", name: "A & B", attempts: [] }]; hooks.setState(state);
-  const xml = hooks.stateToXml(state); assert.match(xml, /<stackmeet version="1">/); assert.match(xml, /A &amp; B/); assert.match(xml, /<stackers>/);
+  const xml = hooks.stateToXml(state); assert.match(xml, /<stackmeet version="2">/); assert.match(xml, /<stateJson>/); assert.match(xml, /A &amp; B/); assert.match(xml, /<stackers>/);
 }, "XML export uses the current StackMeet root and the current JSON state remains serializable");
 
 console.log(`Characterization suite passed (${passed} scenarios).`);

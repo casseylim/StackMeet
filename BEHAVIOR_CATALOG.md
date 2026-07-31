@@ -54,8 +54,8 @@ Sprint 5 records observable current behavior, not a preferred future design. Eac
 | ID | Criticality | Description | Given | When | Then / Expected result |
 |---|---|---|---|---|---|
 | STO-001 | Critical | Load/save/reset | current browser state | load, save or Reset Demo is used | behavior continues using `stackmeet-stacktrack-style-v1`; reset returns normalized demo data. |
-| STO-002 | Critical | XML export | current state | Export XML is used | StackMeet version 1 XML is generated as portable backup. |
-| STO-003 | Critical | XML import | valid StackMeet version 1 XML | import is confirmed | imported state replaces current state, is normalized, and persists. |
+| STO-002 | Critical | XML export | current state | Export XML is used | StackMeet version 2 XML with a full `stateJson` snapshot is generated as the portable backup. |
+| STO-003 | Critical | XML import | valid StackMeet XML | import is confirmed | version 2 restores the full `stateJson` snapshot; legacy structured XML remains import-compatible, then state is normalized and persisted. |
 | STO-004 | Critical | Invalid storage/XML | corrupt JSON or invalid XML | app loads/imports | current recovery/error behavior is retained. |
 | UI-001 | Medium | Dashboard/settings/language | app route is selected | view renders/saves | current administrative workflow remains available. |
 | UI-002 | Medium | Print preview | paperwork/report is generated | print is requested | generated content remains available until replaced or navigation changes. |

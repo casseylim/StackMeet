@@ -1,3 +1,4 @@
+// Runtime branding and API competition-key defaults loaded before all application modules.
 // StackMeet Online Phase 3 uses the API provider exclusively.
 const COMPETITION_KEY = "Null";
 

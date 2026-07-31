@@ -16,6 +16,11 @@ const adminHtml = read("backend/StackMeet.Api/wwwroot/index.html");
 const adminClient = read("backend/StackMeet.Api/wwwroot/app.js");
 const sourceAdminClient = read("app.js");
 
+assert.match(adminClient, /const legacyCompetitionReportUiEnabled = false;/, "The unreachable legacy Competition Report UI must remain explicitly disabled.");
+assert.doesNotMatch(adminHtml, /id="competitionReportPreset"|id="competitionReportOutput"|data-action="run-competition-report"|data-action="export-results-(?:json|csv)"/, "Current HTML must not expose legacy Competition Report controls.");
+assert.match(adminClient, /legacyCompetitionReportUiEnabled && action === "run-competition-report"/, "Legacy report execution must be guarded by the disabled feature flag.");
+assert.match(adminClient, /legacyCompetitionReportUiEnabled && event\.target\.id === "competitionReportPreset"/, "Legacy report change handling must be guarded by the disabled feature flag.");
+
 assert.match(program, /AddSignalR\(\)/, "SignalR must be registered.");
 assert.match(program, /MapHub<ResultsHub>\("\/hubs\/results"\)/, "The results hub must be mapped.");
 assert.match(program, /\{competitionId\}\/Results/, "The permanent competition results route must be mapped.");

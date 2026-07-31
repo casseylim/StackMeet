@@ -1,3 +1,7 @@
+/**
+ * Pure result classifier shared by entry, ranking, and reporting workflows.
+ * A valid time outranks scratch, invalid, and missing results.
+ */
 (function (global) {
   "use strict";
 

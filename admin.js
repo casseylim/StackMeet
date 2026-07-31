@@ -1,3 +1,7 @@
+/**
+ * Administrative console for competition lifecycle operations.
+ * Calls same-origin protected admin endpoints and keeps the admin key in session storage.
+ */
 (function () {
   const keyName = "stackmeet-admin-key-v1";
   let competitions = [];

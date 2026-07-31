@@ -1,3 +1,7 @@
+/**
+ * Pure report projection engine for Preliminary and Finals rankings, filters,
+ * qualification views, all-around results, and organization credits.
+ */
 (function (global) {
   "use strict";
 

@@ -52,6 +52,10 @@ const reportPresets = {
   not_relay: { type: "individuals", group: "", columns: ["id", "name", "country", "region", "doubles_partner", "relay_team", "division", "gender", "email"], team: "not-relay" }
 };
 
+// LEGACY / CURRENTLY UNREACHABLE:
+// The former Competition Report builder controls are absent from index.html.
+// Keep this disabled while retained calculations are audited for shared use.
+const legacyCompetitionReportUiEnabled = false;
 const competitionReportPresets = {
   individual_prelim_div: { stage: "prelims", type: "i", division: "all-div", event: "all", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
   doubles_prelim_div: { stage: "prelims", type: "d", division: "all-div", event: "all-min", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
@@ -584,6 +588,16 @@ let editingRelayId = "";
 let leaderboardTimer = null;
 let leaderboardSlideIndex = 0;
 
+/**
+ * StackMeet browser application.
+ *
+ * This legacy-compatible composition root owns application state normalization,
+ * screen rendering, competition workflows, reports, XML backup/restore, and
+ * print generation. Extracted auth, persistence, result, and report engines are
+ * loaded before this file and consumed through their window namespaces.
+ *
+ * Keep source and backend/StackMeet.Api/wwwroot/app.js synchronized.
+ */
 const routes = [
   ["dashboard", "Dashboard"],
   ["settings", "Settings"],
@@ -1272,16 +1286,6 @@ function routeTitle(key) {
   if (["stackers", "doubles", "relay"].includes(key)) return "Participant";
   if (key === "paperwork") return "Reports";
   return routes.find(([routeKey]) => routeKey === key)?.[1] || "Dashboard";
-}
-
-function renderNotifications() {
-  const unread = state.notifications.filter(n => !n.read).length;
-  document.getElementById("notificationList").innerHTML = `
-    <div class="list">
-      ${state.notifications.map(n => `<div class="list-row"><span><strong>${esc(n.title)}</strong><br><small>${esc(n.time)}</small></span><span class="pill ${n.read ? "" : "warning"}">${n.read ? "Read" : "New"}</span></div>`).join("")}
-      <div class="list-row"><span>Unread</span><strong>${unread}</strong></div>
-    </div>
-  `;
 }
 
 function renderSettings() {
@@ -2003,33 +2007,6 @@ function awardRowsForPlaces({ group, basis, places, items, unitsForPlace }) {
     item: normalizeAwardItem(items[index]),
     quantity: unitsForPlace(index)
   }));
-}
-
-function groupItemsByValue(items, getValue) {
-  return items.reduce((acc, item) => {
-    const key = getValue(item) || "Open";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
-}
-
-function doubleAwardUnits(team) {
-  if (!team) return 0;
-  const registered = registeredDoubleMemberIds(team).length;
-  return Math.max(registered || 0, team.parentName ? 2 : 0, 1);
-}
-
-function eligibleOverallStackers(key) {
-  return state.stackers.filter(stacker => {
-    const special = stacker.special === "Yes" || String(stacker.division || "").startsWith("SS ");
-    if (key === "male") return !special && stacker.gender === "M";
-    if (key === "female") return !special && stacker.gender === "F";
-    if (key === "specialMale") return special && stacker.gender === "M";
-    if (key === "specialFemale") return special && stacker.gender === "F";
-    if (key === "combined") return !special;
-    return false;
-  });
 }
 
 function exportAwardsCsv() {
@@ -3680,6 +3657,7 @@ function loadMissingPrelim(id) {
   loadPrelimParticipant();
 }
 
+// LEGACY UI ONLY: no current runtime caller; retained for staged removal review.
 function populateCompetitionReportBuilder() {
   populateReportSelect("competitionCountry", uniqueReportValues(state.stackers, "country"));
   populateReportSelect("competitionRegion", uniqueReportValues(state.stackers, "region"));
@@ -3704,6 +3682,7 @@ function populateCompetitionReportBuilder() {
   }
 }
 
+// LEGACY UI ONLY: requires competitionReportOutput, which is absent from index.html.
 function runCompetitionReport() {
   const out = document.getElementById("competitionReportOutput");
   if (!out) return;
@@ -3712,6 +3691,7 @@ function runCompetitionReport() {
   out.innerHTML = competitionReportTable(title, rows);
 }
 
+// LEGACY ORCHESTRATION: builds rows for the former report builder.
 function competitionReportRows() {
   const type = val("competitionTypeReport") || "i";
   const event = val("competitionEvent") || "all";
@@ -3729,6 +3709,7 @@ function competitionReportRows() {
   return rankCompetitionRows(limit ? sorted.slice(0, limit) : sorted, false);
 }
 
+// SHARED / TEST-PROTECTED: legacy row projection still characterizes report filtering behavior.
 function eventRows(type, eventFilter) {
   const typeName = competitionResultTypeName(type);
   const allowedEvents = competitionAllowedEvents(type, eventFilter);
@@ -3738,6 +3719,7 @@ function eventRows(type, eventFilter) {
     .filter(row => Number.isFinite(row.time));
 }
 
+// SHARED / TEST-PROTECTED: legacy all-around projection remains under characterization coverage.
 function allAroundRows(type) {
   const typeName = competitionResultTypeName(type);
   const byParticipant = {};
@@ -3759,6 +3741,7 @@ function allAroundRows(type) {
     .filter(Boolean);
 }
 
+// SHARED — DO NOT REMOVE WITH LEGACY UI: used by active result and report workflows.
 function competitionRowFromResult(result, eventOverride = "") {
   const meta = competitionParticipantMeta(result.type, result.participant);
   const time = official(result);
@@ -3781,6 +3764,7 @@ function competitionRowFromResult(result, eventOverride = "") {
   };
 }
 
+// SHARED — DO NOT REMOVE WITH LEGACY UI: supplies participant metadata to active workflows.
 function competitionParticipantMeta(typeName, participantId) {
   if (typeName === "Doubles") {
     const team = findDoublesTeam(participantId) || {};
@@ -3820,6 +3804,7 @@ function competitionParticipantMeta(typeName, participantId) {
   };
 }
 
+// LEGACY UI + TEST-PROTECTED: retained until equivalent filter coverage is migrated.
 function applyCompetitionFilters(rows) {
   let filtered = [...rows];
   const division = val("competitionDivision");
@@ -3855,6 +3840,7 @@ function limitGroupedRows(rows, keyGetter, limit) {
     });
 }
 
+// SHARED — DO NOT REMOVE WITH LEGACY UI: used outside the former report builder.
 function compareCompetitionRows(a, b) {
   const left = a.sortKey || [a.time, Infinity, Infinity];
   const right = b.sortKey || [b.time, Infinity, Infinity];
@@ -3881,6 +3867,7 @@ function rankCompetitionRows(rows, groupedByDivision) {
   });
 }
 
+// LEGACY UI ONLY: renders into the absent competitionReportOutput element.
 function competitionReportTable(title, rows) {
   const groupedByDivision = val("competitionDivision") === "all-div" || val("competitionSpecialMode") === "separate";
   const highlight = val("competitionHighlight") === "yes";
@@ -3956,6 +3943,7 @@ function competitionAdvanceLimit() {
   return Number(state.settings.advanceIndividuals) || 0;
 }
 
+// LEGACY UI ONLY: requires the former competitionReportPreset control.
 function applyCompetitionReportPreset(key) {
   if (key === "export_json") return exportResults("json");
   if (key === "export_csv") return exportResults("csv");
@@ -3979,10 +3967,7 @@ function applyCompetitionReportPreset(key) {
   runCompetitionReport();
 }
 
-function currentCompetitionPreset() {
-  return competitionReportPresets[val("competitionReportPreset")] || null;
-}
-
+// LEGACY UI ONLY: current Competition Reports use exportFinalsCsv instead.
 function exportResults(format) {
   const rows = competitionReportRows();
   if (format === "json") {
@@ -4220,24 +4205,6 @@ function excelReportHtml(report) {
 
 function slugify(value) {
   return String(value || "report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "report";
-}
-
-function reportTable(title, headers, rows) {
-  return adminReportHtml({ title, headers, rows, groups: [], meta: adminReportMeta("", "") });
-}
-
-function groupedReportTable(title, columns, rows, group, type) {
-  const headers = columns.map(col => col.label);
-  const buckets = rows.reduce((acc, item) => {
-    const key = reportValue(item, group, type) || "Blank";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(columns.map(col => reportValue(item, col.key, type)));
-    return acc;
-  }, {});
-  const groups = Object.entries(buckets)
-    .sort(([a], [b]) => String(a).localeCompare(String(b), undefined, { numeric: true }))
-    .map(([name, groupRows]) => ({ name, rows: groupRows }));
-  return adminReportHtml({ title, headers, rows: groups.flatMap(item => item.rows), groups, meta: adminReportMeta(type, group) });
 }
 
 function populateReportBuilder() {
@@ -4499,9 +4466,9 @@ document.addEventListener("click", async (event) => {
   if (action === "approve-qualification-snapshot") { approveQualificationSnapshot(target.dataset.id); shouldRender = false; }
   if (action === "export-finals-csv") { exportFinalsCsv(); shouldRender = false; shouldSave = false; }
   if (action === "print-finals-report") { printFinalsReport(); shouldRender = false; shouldSave = false; }
-  if (action === "run-competition-report") { runCompetitionReport(); shouldRender = false; shouldSave = false; }
-  if (action === "export-results-json") { exportResults("json"); shouldRender = false; shouldSave = false; }
-  if (action === "export-results-csv") { exportResults("csv"); shouldRender = false; shouldSave = false; }
+  if (legacyCompetitionReportUiEnabled && action === "run-competition-report") { runCompetitionReport(); shouldRender = false; shouldSave = false; }
+  if (legacyCompetitionReportUiEnabled && action === "export-results-json") { exportResults("json"); shouldRender = false; shouldSave = false; }
+  if (legacyCompetitionReportUiEnabled && action === "export-results-csv") { exportResults("csv"); shouldRender = false; shouldSave = false; }
   if (action === "print-admin-report") { printAdminReport(); shouldRender = false; shouldSave = false; }
   if (action === "export-admin-csv") { exportAdminReport("csv"); shouldRender = false; shouldSave = false; }
   if (action === "export-admin-excel") { exportAdminReport("excel"); shouldRender = false; shouldSave = false; }
@@ -4527,11 +4494,11 @@ document.addEventListener("change", (event) => {
     adminPrintOrientation = event.target.value === "portrait" ? "portrait" : "landscape";
     return;
   }
-  if (event.target.id === "competitionReportPreset") {
+  if (legacyCompetitionReportUiEnabled && event.target.id === "competitionReportPreset") {
     applyCompetitionReportPreset(event.target.value);
     return;
   }
-  if (event.target.closest(".report-filters") && event.target.id?.startsWith("competition")) {
+  if (legacyCompetitionReportUiEnabled && event.target.closest(".report-filters") && event.target.id?.startsWith("competition")) {
     runCompetitionReport();
     return;
   }

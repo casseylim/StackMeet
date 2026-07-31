@@ -1,3 +1,7 @@
+/**
+ * Read-only public results portal.
+ * Loads competition projections, renders the selected section, and refreshes via SignalR.
+ */
 (() => {
   "use strict";
 

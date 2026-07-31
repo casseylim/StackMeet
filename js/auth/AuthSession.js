@@ -1,3 +1,6 @@
+/**
+ * Browser session boundary for competition login, expiry, and authenticated API headers.
+ */
 (function () {
   const sessionKey = "stackmeet-auth-session-v1";
 

@@ -14,9 +14,9 @@ This index connects business rules to their behavior IDs, priority, and current 
 | Result semantics | Blank means no recorded time/DNS; `999` is scratch; valid attempt parsing and official time use best attempt plus penalty. | RES-002, RES-003, RES-004 | Critical | Automated core |
 | Result storage | Current JSON state persists under the existing localStorage key. | RES-005, STO-001 | Critical | Automated core; reload browser follow-up |
 | Finals | Prelim ranking qualifies configured limits; judge order is slowest qualifier first; fastest final wins with three-attempt tie break. | FIN-001, FIN-002, FIN-003 | Critical | Tie break automated; sheet rendering/qualification browser follow-up |
-| Awards | Planned structure drives individual/doubles/relay/overall quantities. | AWD-001, AWD-002, AWD-003 | Critical | Current planner throw automated as known defect |
+| Awards | Planned structure drives individual/doubles/relay/overall quantities. | AWD-001, AWD-002, AWD-003 | Critical | Individual, doubles, and relay quantities automated; overall and browser presentation remain follow-up |
 | Reports | Reports reflect source data, filters/sort, and Special modes. | RPT-001, RPT-002, RPT-003 | High | Special filter automated; UI/browser follow-up |
-| XML | Version 1 XML is current portable backup; import replaces and normalizes state. | STO-002, STO-003 | Critical | Export automated; `DOMParser` import browser follow-up |
+| XML | Version 2 XML is the current portable backup and contains a full `stateJson` snapshot; legacy structured XML remains import-compatible. | STO-002, STO-003 | Critical | Export automated; `DOMParser` import browser follow-up |
 | Recovery | Existing corrupt storage/XML recovery must not drift. | STO-004 | Critical | Browser follow-up |
 | Administration | Dashboard/settings/language and print preview remain available. | UI-001, UI-002 | Medium | Browser follow-up |
 | Presentation | Layout, styling and button placement remain unchanged. | UI-003 | Low | Hash-protected production assets |
