@@ -322,7 +322,7 @@ public sealed class AuthController(
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail, cancellationToken);
         if (user is not null && user.IsPermanentlyLocked)
         {
-            return StatusCode(StatusCodes.Status423Locked, new { error = "This account is locked. Use the password reset link sent to your email to unlock it." });
+            return StatusCode(StatusCodes.Status423Locked, new { error = "Your account is locked after repeated failed password attempts. Check your email for the password reset link to unlock it. If you do not receive it, contact your system administrator." });
         }
         if (user is not null && user.LockoutUntil > DateTime.UtcNow)
         {
