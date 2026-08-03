@@ -908,6 +908,9 @@ tr:last-child td { border-bottom: 0; }
   background: #f8fafb;
 }
 
+.division-display-copy { display: grid; gap: 3px; min-width: 0; }
+.division-display-copy small { color: var(--muted); font-size: .75rem; font-weight: 700; }
+
 .results-share {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -2190,8 +2193,26 @@ tr:last-child td { border-bottom: 0; }
   }
 
   .final-print-table td {
-    height: 7.5mm;
+    height: 15mm;
     padding: 0.8mm;
+    vertical-align: middle;
+  }
+
+  .final-print-table td:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .final-print-table td:nth-child(2) strong {
+    display: inline;
+    font-size: 9pt;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .final-print-table tbody tr:last-child td {
+    border-bottom: 0.35mm solid #000;
   }
 
   .final-print-table small {

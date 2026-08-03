@@ -69,6 +69,8 @@ main { width: min(1180px, calc(100% - 2rem)); margin: -2.15rem auto 0; padding-b
 .share-panel { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.25rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .share-qr { width: 160px; height: 160px; border-radius: .75rem; border: 1px solid var(--line); }
+.affiliate-banner { display: block; flex: 1 1 auto; min-width: 0; text-align: center; }
+.affiliate-banner img { display: inline-block; width: min(100%, 728px); height: auto; max-height: 90px; object-fit: contain; }
 @media (max-width: 640px) { .share-panel { align-items: flex-start; flex-direction: column; } }
 .loading-panel, .empty-state { min-height: 18rem; display: grid; place-items: center; align-content: center; text-align: center; padding: 2rem; }
 .loading-panel p, .empty-state p { max-width: 34rem; margin: .75rem auto; color: var(--muted); }

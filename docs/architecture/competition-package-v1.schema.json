@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://naditrack.com/schemas/competition-package-v1.json",
+  "title": "StackMeet Competition Package v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "competition", "participants", "competitionData", "metadata"],
+  "properties": {
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageFormat", "packageVersion", "competitionKey", "exportedAt", "sourceMode", "contentHash"],
+      "properties": {
+        "packageFormat": {"const": "StackMeet.CompetitionPackage"},
+        "packageVersion": {"const": 1},
+        "competitionKey": {"type": "string", "minLength": 1},
+        "competitionId": {"type": ["integer", "string", "null"]},
+        "competitionCode": {"type": ["string", "null"]},
+        "exportedAt": {"type": "string", "format": "date-time"},
+        "exportedBy": {"type": ["string", "null"]},
+        "sourceMode": {"enum": ["online", "offline"]},
+        "sourceRevision": {"type": ["string", "null"]},
+        "contentHash": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}
+      }
+    },
+    "competition": {
+      "type": "object",
+      "required": ["metadata", "settings", "events", "divisionSettings", "divisions"],
+      "properties": {
+        "metadata": {"type": "object"},
+        "settings": {"type": "object"},
+        "events": {"type": "object"},
+        "divisionSettings": {"type": "object"},
+        "divisions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "participants": {
+      "type": "object",
+      "required": ["stackers", "doubles", "relays"],
+      "properties": {
+        "stackers": {"type": "array", "items": {"type": "object"}},
+        "doubles": {"type": "array", "items": {"type": "object"}},
+        "relays": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "competitionData": {
+      "type": "object",
+      "required": ["results", "finalQualificationSnapshots", "finals", "awards"],
+      "properties": {
+        "results": {"type": "array", "items": {"type": "object"}},
+        "finalQualificationSnapshots": {"type": "array", "items": {"type": "object"}},
+        "finals": {"type": "array", "items": {"type": "object"}},
+        "awards": {"type": "object"},
+        "notifications": {"type": "array", "items": {"type": "object"}},
+        "audit": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stackerCount", "doublesCount", "relayCount", "resultCount", "warnings"],
+      "properties": {
+        "stackerCount": {"type": "integer", "minimum": 0},
+        "doublesCount": {"type": "integer", "minimum": 0},
+        "relayCount": {"type": "integer", "minimum": 0},
+        "resultCount": {"type": "integer", "minimum": 0},
+        "warnings": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

@@ -71,10 +71,10 @@ public sealed class CompetitionStateController(StackMeetDbContext database, IHub
             updatedBy,
             cancellationToken);
 
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync(
-            "ResultsUpdated",
-            new { competitionId = normalizedKey, updatedAt = DateTime.UtcNow },
-            cancellationToken);
+        var changedAt = DateTime.UtcNow;
+        var change = new { competitionKey = normalizedKey, revision = changedAt.Ticks, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, cancellationToken);
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsUpdated", new { competitionId = normalizedKey, revision = changedAt.Ticks, updatedAt = changedAt }, cancellationToken);
 
         return NoContent();
     }

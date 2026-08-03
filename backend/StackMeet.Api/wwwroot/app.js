@@ -151,8 +151,8 @@ const defaultMalayTranslations = {
   "Access": "Akses",
   "Export XML": "Eksport XML",
   "Import XML": "Import XML",
-  "Local mode": "Mod tempatan",
-  "Saved in this browser": "Disimpan dalam pelayar ini",
+  "Online mode": "Mod dalam talian",
+  "Saved online": "Disimpan dalam talian",
   "Tournament Snapshot": "Ringkasan Kejohanan",
   "Notifications": "Notifikasi",
   "Mark All Read": "Tanda Semua Dibaca",
@@ -286,8 +286,8 @@ const defaultChineseTranslations = {
   "Access": "权限",
   "Export XML": "导出 XML",
   "Import XML": "导入 XML",
-  "Local mode": "本地模式",
-  "Saved in this browser": "已保存在此浏览器",
+  "Online mode": "线上模式",
+  "Saved online": "已保存至线上",
   "Tournament Snapshot": "赛事概览",
   "Notifications": "通知",
   "Mark All Read": "全部标为已读",
@@ -570,6 +570,8 @@ let sqlCompetition = null;
 let stackerRefreshInFlight = false;
 let dashboardPollTimer = null;
 let competitionStatePollTimer = null;
+let pendingRemoteCompetitionState = null;
+let currentCompetitionRevision = 0;
 let stackerSort = { key: "id", direction: "asc" };
 let reportTab = "finals";
 let adminReportSort = { index: -1, direction: "asc" };
@@ -655,7 +657,6 @@ function normalizeState(data) {
   data.divisionSettings.headToHeadRelay = data.divisionSettings.headToHeadRelay || structuredClone(defaultDivisionSettings.headToHeadRelay);
   data.leaderboard = normalizeLeaderboard(data.leaderboard);
   data.awards = normalizeAwards(data.awards);
-  data.divisions = generateDivisionNames(data.divisionSettings);
   data.stackers = (data.stackers || []).map(stacker => ({
     dob: "",
     age: "",
@@ -678,7 +679,14 @@ function normalizeState(data) {
     generatedAtUtc: snapshot.generatedAtUtc || "", generatedBy: snapshot.generatedBy || "", approvedAtUtc: snapshot.approvedAtUtc || "", approvedBy: snapshot.approvedBy || "",
     status: ["Draft", "Approved", "Superseded"].includes(snapshot.status) ? snapshot.status : "Draft", reconstructed: snapshot.reconstructed === true
   }));
-  data.divisions = appendStandardImportedDivisions(data.divisions, data.stackers);
+  data.divisions = appendStandardImportedDivisions(
+    [
+      ...generateDivisionNames(data.divisionSettings, data.settings.separateSpecialDivisionsByGender === true),
+      ...data.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...data.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
+    data.stackers
+  );
   return data;
 }
 
@@ -707,7 +715,7 @@ function clampNumber(value, fallback, min, max) {
 }
 
 function currentCompetitionKey() {
-  return sessionStorage.getItem(sqlCompetitionSessionKey) || window.StackMeetAuth?.competitionId?.() || state?.settings?.competitionKey || state?.settings?.name || "local";
+  return window.StackMeetAuth?.competitionId?.() || state?.settings?.competitionKey || sessionStorage.getItem(sqlCompetitionSessionKey) || state?.settings?.name || "local";
 }
 
 function normalizeAwards(awards = {}) {
@@ -919,7 +927,10 @@ async function saveState() {
   return queuedSave.then(
     () => {
       queuedSaveCount -= 1;
-      if (!queuedSaveCount) setSaveStatus("Saved", "saved");
+      if (!queuedSaveCount) {
+        setSaveStatus("Saved", "saved");
+        applyPendingCompetitionUpdate();
+      }
     },
     error => {
       queuedSaveCount -= 1;
@@ -982,7 +993,11 @@ function applyCompetitionAgeCalculation(mode) {
   state.settings.ageCalculationMode = ageCalculationMode;
   state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
   state.divisions = appendStandardImportedDivisions(
-    [...generateDivisionNames(state.divisionSettings), ...state.stackers.map(stacker => stacker.division).filter(Boolean)],
+    [
+      ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+      ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
     state.stackers
   );
 }
@@ -1054,7 +1069,11 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
     const records = await stackerApi.list(selectedSqlCompetitionId);
     state.stackers = records.map(sqlStackerToRuntime);
     state.divisions = appendStandardImportedDivisions(
-      [...generateDivisionNames(state.divisionSettings), ...state.stackers.map(stacker => stacker.division).filter(Boolean), ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)],
+      [
+        ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+        ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+        ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+      ],
       state.stackers
     );
     refreshDivisionCountBadges(divisionCountSummary(state.divisionSettings));
@@ -1066,6 +1085,10 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       renderNav();
       updateSqlDashboardPresentation();
       renderDashboard();
+    }
+    if (rerender && route === "reports") {
+      // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.
+      renderReports();
     }
     setSaveStatus("Saved", "saved");
     return true;
@@ -1152,20 +1175,121 @@ function syncCompetitionStatePolling() {
   if (!syncRoutes.includes(route)) return;
   competitionStatePollTimer = setInterval(async () => {
     if (!syncRoutes.includes(route)) return;
+    // Keep the fallback poll out of the operator's typing window. SignalR still
+    // reports changes immediately, while this fallback runs after entry/menu use.
+    if (competitionEntryInputActive()) return;
     try {
-      const latest = await repository.load();
+      const latest = await loadLatestCompetition();
       if (!latest) return;
-      const latestResults = normalizeResults(latest.results || []);
-      const currentSignature = resultsSyncSignature(state.results || []);
-      const latestSignature = resultsSyncSignature(latestResults);
-      if (currentSignature === latestSignature) return;
-      state.results = latestResults;
-      state.auditLogs = normalizeCompetitionAuditLogs(latest.auditLogs || state.auditLogs || []);
-      refreshResultsDisplayAfterSync();
+      await applyRemoteCompetitionState(latest);
     } catch (error) {
       console.warn("Unable to refresh shared competition results.", error);
     }
   }, 3000);
+}
+
+function competitionEntryInputActive() {
+  const active = document.activeElement;
+  return Boolean(active?.matches?.("#timeSheetId, #prelim333, #prelim363, #prelimCycle, #finalSheetId, .final-time-input"));
+}
+
+function competitionStateSyncSignature(value) {
+  return JSON.stringify({
+    settings: value?.settings || {}, events: value?.events || {}, divisionSettings: value?.divisionSettings || {},
+    divisions: value?.divisions || [], stackers: value?.stackers || [], doubles: value?.doubles || [],
+    relays: value?.relays || [], results: value?.results || [], finalQualificationSnapshots: value?.finalQualificationSnapshots || [],
+    awards: value?.awards || {}, notifications: value?.notifications || []
+  });
+}
+
+function loadLatestCompetition() {
+  return typeof repository.reloadLatestCompetition === "function" ? repository.reloadLatestCompetition() : repository.load();
+}
+
+async function applyRemoteCompetitionState(latest) {
+  if (!latest || competitionStateSyncSignature(latest) === competitionStateSyncSignature(state)) return false;
+  const localEditing = competitionEditorActive();
+  if (localEditing) {
+    pendingRemoteCompetitionState = latest;
+    flashMessage = { type: "info", text: "Competition updated on another computer. Finish editing, then refresh this screen." };
+    setSaveStatus("Update waiting", "saving");
+    return false;
+  }
+  state = normalizeState(withoutLegacyStackers(latest));
+  if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: localEditing, rerender: false });
+  if (!localEditing) {
+    const focusedId = document.activeElement?.id || "";
+    const focusedSelection = document.activeElement && "selectionStart" in document.activeElement
+      ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd }
+      : null;
+    // Preserve Admin report controls during live refresh; rebuilding the route template
+    // resets reportType and makes a selected Division Counts report jump to Individuals.
+    if (route === "reports") renderReports();
+    else if (route === "paperwork" && !paperworkPreviewActive()) renderPaperwork();
+    else if (route !== "paperwork") render();
+    const refreshedFocus = focusedId ? document.getElementById(focusedId) : null;
+    if (refreshedFocus) {
+      refreshedFocus.focus();
+      if (focusedSelection && "setSelectionRange" in refreshedFocus) {
+        refreshedFocus.setSelectionRange(focusedSelection.start, focusedSelection.end);
+      }
+    }
+  }
+  else setSaveStatus("Updated", "saved");
+  return true;
+}
+
+function competitionEditorActive() {
+  if (editingStackerId || stackerFormVisible || editingDoubleId || stackerDoubleEditorOpen || editingRelayId || activePrelimParticipantId || activeFinalSheetId) return true;
+  return false;
+}
+
+function applyPendingCompetitionUpdate() {
+  if (!pendingRemoteCompetitionState || competitionEditorActive()) return false;
+  const latest = pendingRemoteCompetitionState;
+  pendingRemoteCompetitionState = null;
+  return applyRemoteCompetitionState(latest);
+}
+
+let competitionStateConnection = null;
+let competitionStateReconnectTimer = null;
+
+async function connectCompetitionStateUpdates() {
+  if (!window.signalR || competitionStateConnection) return;
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hubs/results", { headers: window.StackMeetAuth?.authHeaders?.() || {} })
+    .withAutomaticReconnect([0, 1500, 5000, 10000])
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+  const receiveChange = async update => {
+    if (String(update?.competitionKey || update?.competitionId || "").toUpperCase() !== String(currentCompetitionKey()).toUpperCase()) return;
+    const revision = Number(update?.revision || 0);
+    if (revision && revision <= currentCompetitionRevision) return;
+    if (revision) currentCompetitionRevision = revision;
+    try { await applyRemoteCompetitionState(await loadLatestCompetition()); }
+    catch (error) { console.warn("Unable to apply shared competition update.", error); }
+  };
+  connection.on("CompetitionChanged", receiveChange);
+  connection.on("ResultsUpdated", receiveChange);
+  connection.onreconnected(async () => {
+    await connection.invoke("JoinCompetition", currentCompetitionKey());
+    try { await applyRemoteCompetitionState(await loadLatestCompetition()); } catch (_) { /* polling remains active */ }
+  });
+  connection.onclose(() => {
+    competitionStateConnection = null;
+    if (!competitionStateReconnectTimer) competitionStateReconnectTimer = window.setTimeout(() => {
+      competitionStateReconnectTimer = null;
+      void connectCompetitionStateUpdates();
+    }, 10000);
+  });
+  try {
+    await connection.start();
+    await connection.invoke("JoinCompetition", currentCompetitionKey());
+    competitionStateConnection = connection;
+  } catch (error) {
+    console.warn("Competition live updates unavailable; polling remains active.", error);
+    await connection.stop().catch(() => undefined);
+  }
 }
 
 // Creates a stable comparison that ignores UUID changes for the same logical result.
@@ -1289,7 +1413,7 @@ function render() {
   applyTranslations(view);
   syncDashboardSqlPolling();
   syncCompetitionStatePolling();
-  if (route === "dashboard" && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
+  if ((route === "dashboard" || route === "reports") && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
 }
 
 function syncModuleTabs() {
@@ -1356,8 +1480,8 @@ function translateChrome() {
   document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
-  document.querySelector(".sidebar-card span").textContent = t("Local mode");
-  document.querySelector(".sidebar-card strong").textContent = t("Saved in this browser");
+  document.querySelector(".sidebar-card span").textContent = t("Online mode");
+  document.querySelector(".sidebar-card strong").textContent = t("Saved online");
 }
 
 function applyTranslations(root) {
@@ -1474,10 +1598,55 @@ function renderSettings() {
 
   renderDivisionCutoffs();
 
-  document.getElementById("divisionList").innerHTML = sortedDivisions(state.divisions).map(division => `
-    <div class="tag-row"><strong>${esc(division)}</strong><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
+  document.getElementById("divisionList").innerHTML = sortedGeneratedDivisionDisplay(state.divisions).map(division => `
+    <div class="tag-row"><span class="division-display-copy"><strong>${esc(division)}</strong><small>&nbsp;${esc(generatedDivisionDisplayCategories(division).join(" · "))}</small></span><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
   `).join("");
   renderCompetitionAuditLogs();
+}
+
+// Presentation-only categorisation for the deduplicated generated division list.
+// It does not alter generation, saved divisions, or team assignment rules.
+function generatedDivisionDisplayCategories(division) {
+  const settings = state.divisionSettings || {};
+  const individual = new Set([
+    ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
+    ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
+    ...divisionRanges(settings.special || [], "Special"),
+    ...(settings.separateSpecialDivisionsByGender === true
+      ? divisionRanges(settings.special || [], "Special").flatMap(name => [`${name} M`, `${name} F`])
+      : []),
+    ...(settings.custom || [])
+  ]);
+  const doubles = new Set(teamDivisionRanges(settings.doubles || []).concat(teamDivisionRanges(settings.specialDoubles || [], "SS ")));
+  const childParent = new Set(teamDivisionRanges(settings.childParentDoubles || [], "Child/Parent ").concat(teamDivisionRanges(settings.specialChildParentDoubles || [], "SS Child/Parent ")));
+  const relay = new Set(teamDivisionRanges(settings.timedRelay || []).concat(teamDivisionRanges(settings.headToHeadRelay || [])));
+  const categories = [];
+  if (individual.has(division)) categories.push("Individual");
+  if (eventGroupEnabled("Doubles") && doubles.has(division)) categories.push("Doubles");
+  if (eventGroupEnabled("Doubles") && childParent.has(division)) categories.push("Child/Parent");
+  if (relayTeamSetupAvailable() && relay.has(division)) categories.push("Relay");
+  const legacySpecial = /^SS\s+(\d+)U$/i.exec(division);
+  if (legacySpecial) {
+    const age = Number(legacySpecial[1]);
+    if (settings.special?.includes(age) && !categories.includes("Individual")) categories.unshift("Individual");
+    if (eventGroupEnabled("Doubles") && settings.specialDoubles?.includes(age) && !categories.includes("Doubles")) categories.push("Doubles");
+  }
+  return categories.length ? categories : ["Custom / Imported"];
+}
+
+function sortedGeneratedDivisionDisplay(divisions) {
+  const categoryOrder = new Map([
+    ["Individual", 0],
+    ["Doubles", 1],
+    ["Child/Parent", 2],
+    ["Relay", 3],
+    ["Custom / Imported", 4]
+  ]);
+  return sortedDivisions(divisions).sort((left, right) => {
+    const leftCategory = categoryOrder.get(generatedDivisionDisplayCategories(left)[0]) ?? 4;
+    const rightCategory = categoryOrder.get(generatedDivisionDisplayCategories(right)[0]) ?? 4;
+    return leftCategory - rightCategory || compareDivisionNames(left, right);
+  });
 }
 
 // Renders the latest per-competition audit entries in the Settings page.
@@ -2311,6 +2480,10 @@ function renderPaperwork() {
   document.getElementById("paperOutput").innerHTML = `<h2>Preview</h2><p class="muted">Choose a print item to generate a printable preview.</p>`;
 }
 
+function paperworkPreviewActive() {
+  return Boolean(document.querySelector("#paperOutput .individual-time-sheet, #paperOutput .final-time-sheet, #paperOutput .sheet-preview, #paperOutput .bracket"));
+}
+
 function renderCompetition() {
   populateEntryTypeOptions();
   populateParticipants();
@@ -2681,6 +2854,9 @@ async function persistPrelimResults(options = {}) {
   drawMissingTimes();
   const actionText = [created ? `${created} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(", ");
   clearPrelimEntry();
+  await applyPendingCompetitionUpdate();
+  // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
+  document.getElementById("timeSheetId")?.focus();
   showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}. Changes saved; latest updates will synchronize automatically.`, false);
   return true;
 }
@@ -3083,7 +3259,8 @@ function buildFinalSheetPrint(sheet) {
 }
 
 function finalTimeSheetHtml(sheet) {
-  return `<article class="final-time-sheet">
+  const printClass = sheet.typeKey === "1" ? " final-time-sheet-individual" : "";
+  return `<article class="final-time-sheet${printClass}">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
     <header class="final-sheet-header">
       <div class="qr-box">QR</div>
@@ -3643,19 +3820,21 @@ function stackerDivisionFromForm() {
   const custom = val("stCustomDivision").trim();
   if (custom) return custom;
   const editedStacker = state.stackers.find(stacker => stacker.id === editingStackerId);
-  if (editedStacker?.standardDivision) return editedStacker.standardDivision;
+  const isSpecial = isSpecialStacker();
+  if (editedStacker?.standardDivision && !isSpecial) return editedStacker.standardDivision;
   const age = ageOnCompetitionDate(val("stDob"), state.settings.start);
   const gender = val("stGender");
-  return findDivisionFor(age, gender, isSpecialStacker(), state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true) || "";
+  return findDivisionFor(age, gender, isSpecial, state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true) || "";
 }
 
 function divisionForStacker(stacker, divisionSettings, competitionStart, separateSpecialDivisionsByGender = false) {
   const settings = divisionSettings || state.divisionSettings;
   const start = competitionStart || state.settings.start;
+  const isSpecial = stacker.special === "Yes";
   if (stacker.customDivision) return stacker.customDivision;
-  if (stacker.standardDivision) return stacker.standardDivision;
+  if (stacker.standardDivision && !isSpecial) return stacker.standardDivision;
   const age = ageOnCompetitionDate(stacker.dob, start) || Number(stacker.age);
-  return findDivisionFor(age, stacker.gender, stacker.special === "Yes", settings, separateSpecialDivisionsByGender) || "";
+  return findDivisionFor(age, stacker.gender, isSpecial, settings, separateSpecialDivisionsByGender) || "";
 }
 
 function findDivisionFor(age, gender, special = false, divisionSettings, separateSpecialDivisionsByGender = false) {
@@ -4935,18 +5114,26 @@ function saveDivisions() {
 
 function updateDivisionSettingsFromForm({ recalculateEntries = false } = {}) {
   state.divisionSettings = readDivisionSettingsFromForm();
-  state.divisions = appendStandardImportedDivisions(generateDivisionNames(state.divisionSettings), state.stackers);
-  if (!recalculateEntries) return;
-  state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
-  state.doubles = state.doubles.map(team => ({
-    ...team,
-    division: generatedDoublesDivision(team.type || "normal", team.one, team.two)
-  }));
-  state.relays = state.relays.map(team => ({
-    ...team,
-    timedRelayDivision: generatedRelayDivision(relayMemberIds(team), "timedRelay"),
-    headToHeadDivision: generatedRelayDivision(relayMemberIds(team), "headToHeadRelay")
-  }));
+  if (recalculateEntries) {
+    state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
+    state.doubles = state.doubles.map(team => ({
+      ...team,
+      division: generatedDoublesDivision(team.type || "normal", team.one, team.two)
+    }));
+    state.relays = state.relays.map(team => ({
+      ...team,
+      timedRelayDivision: generatedRelayDivision(relayMemberIds(team), "timedRelay"),
+      headToHeadDivision: generatedRelayDivision(relayMemberIds(team), "headToHeadRelay")
+    }));
+  }
+  state.divisions = appendStandardImportedDivisions(
+    [
+      ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+      ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
+    state.stackers
+  );
 }
 
 function readDivisionSettingsFromForm() {
@@ -4972,11 +5159,15 @@ function readDivisionSettingsFromForm() {
   return settings;
 }
 
-function generateDivisionNames(settings) {
+function generateDivisionNames(settings, separateSpecialDivisionsByGender = false) {
+  const specialIndividualDivisions = divisionRanges(settings.special || [], "Special");
+  const generatedSpecialIndividualDivisions = separateSpecialDivisionsByGender
+    ? specialIndividualDivisions.flatMap(division => [`${division} M`, `${division} F`])
+    : specialIndividualDivisions;
   const generated = [
     ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
     ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
-    ...divisionRanges(settings.special || [], "Special"),
+    ...generatedSpecialIndividualDivisions,
     ...teamDivisionRanges(settings.doubles || [], ""),
     ...teamDivisionRanges(settings.childParentDoubles || [], "Child/Parent "),
     ...teamDivisionRanges(settings.specialDoubles || [], "SS "),
@@ -6440,6 +6631,7 @@ async function initializeApplication() {
     flashMessage = { type: "error", text: "Save Failed: SQL-native stackers are unavailable." };
   }
   render();
+  void connectCompetitionStateUpdates();
 }
 
 initializeApplication().catch(showBootError);

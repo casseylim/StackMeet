@@ -42,7 +42,7 @@ Sprint 5 records observable current behavior, not a preferred future design. Eac
 
 | ID | Criticality | Description | Given | When | Then / Expected result |
 |---|---|---|---|---|---|
-| AWD-001 | Critical | Planner calculation | enabled events/divisions and award configuration | plan is generated | **Current observed defect:** planner throws because `generatedDivisions` is absent; preserve as a failing-current behavior until an approved corrective sprint changes the expected result. |
+| AWD-001 | Critical | Planner calculation | enabled events/divisions and award configuration | plan is generated | Individual, Doubles, Relay, and overall award rows are generated from configured and registered divisions. |
 | AWD-002 | Critical | Individual/Doubles/Relay awards | places and item choices | plan is generated | individual unit is 1; doubles unit is 2; relay unit uses configured awards per team. |
 | AWD-003 | Critical | Overall awards | overall categories and limits | plan is generated | configured category, item and Top-N quantity appear. |
 | RPT-001 | High | Generated reports | current registrations/results | report is run | rows reflect report type and available data. |
@@ -54,8 +54,8 @@ Sprint 5 records observable current behavior, not a preferred future design. Eac
 | ID | Criticality | Description | Given | When | Then / Expected result |
 |---|---|---|---|---|---|
 | STO-001 | Critical | Load/save/reset | current browser state | load, save or Reset Demo is used | behavior continues using `stackmeet-stacktrack-style-v1`; reset returns normalized demo data. |
-| STO-002 | Critical | XML export | current state | Export XML is used | StackMeet version 1 XML is generated as portable backup. |
-| STO-003 | Critical | XML import | valid StackMeet version 1 XML | import is confirmed | imported state replaces current state, is normalized, and persists. |
+| STO-002 | Critical | XML export | current state | Export XML is used | StackMeet version 2 XML with embedded normalized state is generated as portable backup. |
+| STO-003 | Critical | XML import | valid StackMeet version 2 XML | import is confirmed | imported state replaces current state, is normalized, and persists. |
 | STO-004 | Critical | Invalid storage/XML | corrupt JSON or invalid XML | app loads/imports | current recovery/error behavior is retained. |
 | UI-001 | Medium | Dashboard/settings/language | app route is selected | view renders/saves | current administrative workflow remains available. |
 | UI-002 | Medium | Print preview | paperwork/report is generated | print is requested | generated content remains available until replaced or navigation changes. |
