@@ -58,7 +58,8 @@
       }
 
       const payload = await response.json();
-      const version = String(payload.lastUpdatedAt || "");
+      const branding = payload.branding || {};
+      const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
       if (showLoader || version !== lastVersion) render(payload);
       lastVersion = version;
       setConnection("live", "Connected");
