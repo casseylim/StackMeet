@@ -90,3 +90,15 @@ test('online assembler merges SQL stackers with state-backed Doubles and Relay',
   assert.equal(pkg.competitionData.results.length, 1);
   assert.equal(await packageApi.verifyContentHash(pkg), true);
 });
+
+test('uses SQL results and revision when assembling an online package', async () => {
+  const pkg = await assembler.downloadOnlinePackage({
+    competitionKey: 'TEST', competitionId: 18,
+    loadState: async () => ({ settings: {}, results: [{ participant: 'legacy' }] }),
+    listStackers: async () => [{ stackerCode: '1.1', firstName: 'SQL', lastName: 'Stacker', club: 'Club' }],
+    listResults: async () => ({ revision: 44, results: [{ publicId: 'sql-result', stage: 'Prelims', participantType: 'Individual', participantCode: '1.1', eventCode: 'Cycle', attempts: [8.1], penalty: 0, revision: 44 }] })
+  });
+  assert.equal(pkg.manifest.resultsRevision, 44);
+  assert.deepEqual(pkg.competitionData.results.map(item => item.participant), ['1.1']);
+  assert.equal(pkg.participants.stackers[0].name, 'SQL Stacker');
+});

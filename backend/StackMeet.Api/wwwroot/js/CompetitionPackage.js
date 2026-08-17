@@ -62,7 +62,8 @@
     const stackers = clone(authoritativeParticipants.stackers ?? source.stackers ?? []);
     const doubles = clone(authoritativeParticipants.doubles ?? source.doubles ?? []);
     const relays = clone(authoritativeParticipants.relays ?? source.relays ?? []);
-    const results = clone(source.results || []);
+    const results = clone(authoritativeParticipants.results ?? source.results ?? []).map(normalizePackageResult);
+    const normalizedStackers = stackers.map(normalizePackageStacker);
     return {
       manifest: {
         packageFormat: FORMAT, packageVersion: VERSION,
@@ -70,13 +71,13 @@
         competitionId: manifest.competitionId ?? null, competitionCode: manifest.competitionCode ?? null,
         exportedAt, exportedBy: manifest.exportedBy ?? null,
         sourceMode: manifest.sourceMode === "offline" ? "offline" : "online",
-        sourceRevision: manifest.sourceRevision ?? null, contentHash: manifest.contentHash || ""
+        sourceRevision: manifest.sourceRevision ?? null, resultsRevision: manifest.resultsRevision ?? null, contentHash: manifest.contentHash || ""
       },
       competition: {
         metadata: clone(manifest.competitionMetadata || {}), settings: clone(source.settings || {}),
         events: clone(source.events || {}), divisionSettings: clone(source.divisionSettings || {}), divisions: clone(source.divisions || [])
       },
-      participants: { stackers, doubles, relays },
+      participants: { stackers: normalizedStackers, doubles, relays },
       competitionData: {
         results, finalQualificationSnapshots: clone(source.finalQualificationSnapshots || []),
         finals: clone(source.finals || []), awards: clone(source.awards || {}),
@@ -84,6 +85,14 @@
       },
       metadata: { stackerCount: stackers.length, doublesCount: doubles.length, relayCount: relays.length, resultCount: results.length, warnings: [] }
     };
+  }
+
+  function normalizePackageStacker(item) {
+    return { ...clone(item), id: item.id ?? item.stackerCode ?? "", name: item.name || [item.firstName, item.lastName].filter(Boolean).join(" ").trim(), dob: item.dob || item.birthDate || "", special: item.special || (item.isSpecialStacker ? "Yes" : "No"), org: item.org || item.club || "Independent" };
+  }
+
+  function normalizePackageResult(item) {
+    return { ...clone(item), id: item.id || item.publicId || "", stage: item.stage || "", type: item.type || item.participantType || "", participant: item.participant || item.participantCode || "", event: item.event || item.eventCode || "", attempts: Array.isArray(item.attempts) ? item.attempts : [], penalty: Number(item.penalty || 0), revision: Number(item.revision || 0) };
   }
 
   function validatePackage(pkg) {

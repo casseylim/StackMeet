@@ -523,6 +523,7 @@ const CompetitionRepository = window.StackMeetStorage.Repository;
 const repository = new CompetitionRepository();
 const SqlStackerApi = window.StackMeetStorage.StackerApi;
 const stackerApi = new SqlStackerApi();
+const resultApi = new (window.StackMeetStorage.ResultApi || class { async list() { return { revision: 0, results: [] }; } async saveBatch() { throw new Error("SQL result API is unavailable."); } })();
 const CompetitionStateProvider = window.StackMeetStorage.ApiProvider;
 const BestResultEngine = window.StackMeetBestResult || (() => {
   const statusOrder = { valid: 0, scratch: 1, invalid: 2, missing: 3 };
@@ -571,7 +572,11 @@ let stackerRefreshInFlight = false;
 let dashboardPollTimer = null;
 let competitionStatePollTimer = null;
 let pendingRemoteCompetitionState = null;
+let pendingResultsRefresh = false;
 let currentCompetitionRevision = 0;
+let currentResultsRevision = 0;
+window.__resultSyncDiagnostics = window.__resultSyncDiagnostics || { build: "phase5-sync-debug-20260817", connectionState: null, connectionId: null, currentResultsRevision: 0, lastEventRevision: null, lastEventAt: null, lastAcceptedRevision: null, lastIgnoredRevision: null, lastIgnoreReason: null, pendingResultsRevision: null, lastReloadRevision: null, lastReloadCount: null, lastReloadAt: null, hasParticipant186: null, lastRenderAt: null };
+const resultSyncDiagnostics = window.__resultSyncDiagnostics;
 let stackerSort = { key: "id", direction: "asc" };
 let reportTab = "finals";
 let adminReportSort = { index: -1, direction: "asc" };
@@ -627,6 +632,7 @@ function withoutLegacyStackers(data) {
 function legacyStateForSave(data) {
   const legacy = structuredClone(data);
   legacy.stackers = [];
+  legacy.results = [];
   delete legacy.settings?.ageCalculationMode;
   return legacy;
 }
@@ -894,7 +900,6 @@ function resultLogicalKey(result) {
 // Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
 function mergeConcurrentState(latestState, localState) {
   const merged = { ...latestState, ...localState };
-  merged.results = mergeResults(latestState?.results, localState?.results);
   ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
     if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
     const records = new Map(latestState[key].map(item => [String(item.id), item]));
@@ -902,13 +907,6 @@ function mergeConcurrentState(latestState, localState) {
     merged[key] = [...records.values()];
   });
   return merged;
-}
-
-// Merges results by their logical competition identity instead of transient UUIDs.
-function mergeResults(latestResults = [], localResults = []) {
-  const records = new Map((latestResults || []).map(result => [resultLogicalKey(result), result]));
-  (localResults || []).forEach(result => records.set(resultLogicalKey(result), result));
-  return [...records.values()];
 }
 
 async function saveState() {
@@ -1103,6 +1101,35 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
   }
 }
 
+async function refreshSqlResults({ rerender = true } = {}) {
+  if (!selectedSqlCompetitionId) return false;
+  const payload = await resultApi.list(selectedSqlCompetitionId);
+  state.results = normalizeResults(payload.results);
+  currentResultsRevision = payload.revision;
+  resultSyncDiagnostics.currentResultsRevision = currentResultsRevision;
+  resultSyncDiagnostics.lastReloadRevision = payload.revision;
+  resultSyncDiagnostics.lastReloadCount = payload.results.length;
+  resultSyncDiagnostics.lastReloadAt = new Date().toISOString();
+  resultSyncDiagnostics.hasParticipant186 = payload.results.some(result => String(result.participant || result.participantCode || "") === "1.86");
+  if (rerender && route === "competition") {
+    if (competitionEditorActive()) {
+      pendingResultsRefresh = true;
+      resultSyncDiagnostics.pendingResultsRevision = payload.revision;
+      return true;
+    }
+    refreshResultsDisplayAfterSync();
+    resultSyncDiagnostics.lastRenderAt = new Date().toISOString();
+  }
+  return true;
+}
+
+async function saveSqlResults(upserts, deletes = []) {
+  const payload = await resultApi.saveBatch(selectedSqlCompetitionId, { upserts, deletes });
+  state.results = normalizeResults(payload.results);
+  currentResultsRevision = payload.revision;
+  return payload;
+}
+
 function defaultCompetitionCode() {
   const sessionKey = window.StackMeetAuth?.competitionId?.() || window.COMPETITION_KEY || "DEFAULT";
   const normalized = String(sessionKey).trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "-");
@@ -1196,8 +1223,8 @@ function competitionEntryInputActive() {
 function competitionStateSyncSignature(value) {
   return JSON.stringify({
     settings: value?.settings || {}, events: value?.events || {}, divisionSettings: value?.divisionSettings || {},
-    divisions: value?.divisions || [], stackers: value?.stackers || [], doubles: value?.doubles || [],
-    relays: value?.relays || [], results: value?.results || [], finalQualificationSnapshots: value?.finalQualificationSnapshots || [],
+    divisions: value?.divisions || [], doubles: value?.doubles || [],
+    relays: value?.relays || [], finalQualificationSnapshots: value?.finalQualificationSnapshots || [],
     awards: value?.awards || {}, notifications: value?.notifications || []
   });
 }
@@ -1215,7 +1242,13 @@ async function applyRemoteCompetitionState(latest) {
     setSaveStatus("Update waiting", "saving");
     return false;
   }
+  const sqlOwnedStackers = state.stackers;
+  const sqlOwnedResults = state.results;
   state = normalizeState(withoutLegacyStackers(latest));
+  // CompetitionState is transitional configuration storage. SQL owns these
+  // slices and a legacy refresh must never replace them with [] from JSON.
+  state.stackers = sqlOwnedStackers;
+  state.results = sqlOwnedResults;
   if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: localEditing, rerender: false });
   if (!localEditing) {
     const focusedId = document.activeElement?.id || "";
@@ -1245,6 +1278,11 @@ function competitionEditorActive() {
 }
 
 function applyPendingCompetitionUpdate() {
+  if (pendingResultsRefresh && !competitionEditorActive()) {
+    pendingResultsRefresh = false;
+    resultSyncDiagnostics.pendingResultsRevision = null;
+    void refreshSqlResults({ rerender: true });
+  }
   if (!pendingRemoteCompetitionState || competitionEditorActive()) return false;
   const latest = pendingRemoteCompetitionState;
   pendingRemoteCompetitionState = null;
@@ -1270,12 +1308,36 @@ async function connectCompetitionStateUpdates() {
     catch (error) { console.warn("Unable to apply shared competition update.", error); }
   };
   connection.on("CompetitionChanged", receiveChange);
-  connection.on("ResultsUpdated", receiveChange);
+  connection.on("ResultsChanged", async update => {
+    const incomingCompetitionKey = String(update?.competitionKey || "").toUpperCase();
+    const expectedCompetitionKey = String(currentCompetitionKey()).toUpperCase();
+    const revision = Number(update?.revision || 0);
+    resultSyncDiagnostics.lastEventRevision = revision;
+    resultSyncDiagnostics.lastEventAt = new Date().toISOString();
+    if (incomingCompetitionKey !== expectedCompetitionKey) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "wrong-competition"; return; }
+    if (!revision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "missing-revision"; return; }
+    if (revision <= currentResultsRevision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "same-or-older-revision"; return; }
+    if (competitionEditorActive()) {
+      pendingResultsRefresh = true;
+      resultSyncDiagnostics.pendingResultsRevision = revision;
+      resultSyncDiagnostics.lastAcceptedRevision = revision;
+      resultSyncDiagnostics.lastIgnoreReason = "active-entry-queued";
+      return;
+    }
+    resultSyncDiagnostics.lastAcceptedRevision = revision;
+    try { await refreshSqlResults({ rerender: true }); } catch (error) { resultSyncDiagnostics.lastIgnoreReason = `reload-error:${error?.message || "unknown"}`; console.warn("Unable to refresh SQL results.", error); }
+  });
+  resultSyncDiagnostics.connectionState = connection.state;
+  resultSyncDiagnostics.connectionId = connection.connectionId || null;
   connection.onreconnected(async () => {
+    resultSyncDiagnostics.connectionState = connection.state;
+    resultSyncDiagnostics.connectionId = connection.connectionId || null;
     await connection.invoke("JoinCompetition", currentCompetitionKey());
     try { await applyRemoteCompetitionState(await loadLatestCompetition()); } catch (_) { /* polling remains active */ }
   });
   connection.onclose(() => {
+    resultSyncDiagnostics.connectionState = connection.state;
+    resultSyncDiagnostics.connectionId = connection.connectionId || null;
     competitionStateConnection = null;
     if (!competitionStateReconnectTimer) competitionStateReconnectTimer = window.setTimeout(() => {
       competitionStateReconnectTimer = null;
@@ -2843,7 +2905,9 @@ async function persistPrelimResults(options = {}) {
     after: changes.map(item => ({ event: item.event, result: item.after }))
   });
   try {
-    await saveState();
+    if (selectedSqlCompetitionId) {
+      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
+    } else await saveState();
   } catch (error) {
     state = previousState;
     showPrelimMessage(`Save failed. Times remain on screen and were not cleared: ${error.message || "unable to verify persistence"}`, true);
@@ -3201,7 +3265,9 @@ async function saveFinalResults() {
     after: changes.map(item => ({ participant: item.participant, result: item.after }))
   });
   try {
-    await saveState();
+    if (selectedSqlCompetitionId) {
+      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
+    } else await saveState();
   } catch (error) {
     state = previousState;
     showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
@@ -6626,6 +6692,7 @@ async function initializeApplication() {
   state = await loadState();
   try {
     await initializeSqlNativeStackers();
+    await refreshSqlResults({ rerender: false });
   } catch (error) {
     console.error("Unable to initialize SQL-native stackers.", error);
     flashMessage = { type: "error", text: "Save Failed: SQL-native stackers are unavailable." };

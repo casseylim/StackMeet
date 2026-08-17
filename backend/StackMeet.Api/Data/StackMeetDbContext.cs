@@ -15,6 +15,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<CompetitionState> CompetitionStates => Set<CompetitionState>();
     public DbSet<Competition> Competitions => Set<Competition>();
     public DbSet<Stacker> Stackers => Set<Stacker>();
+    public DbSet<CompetitionResult> CompetitionResults => Set<CompetitionResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -123,6 +124,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         competition.Property(item => item.Venue).HasMaxLength(200).IsRequired();
         competition.Property(item => item.Status).HasMaxLength(30).IsRequired();
         competition.Property(item => item.IsPubliclyListed).IsRequired().HasDefaultValue(false);
+        competition.Property(item => item.ResultsRevision).IsRequired().HasDefaultValue(0L);
         competition.Property(item => item.PasswordHash).HasMaxLength(500);
         competition.Property(item => item.ArchivedAt).HasColumnType("datetime2");
         competition.Property(item => item.ArchivedBy).HasMaxLength(100);
@@ -150,5 +152,23 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         stacker.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
         stacker.HasIndex(item => new { item.CompetitionId, item.StackerCode }).IsUnique();
         stacker.HasOne(item => item.Competition).WithMany(item => item.Stackers).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Restrict);
+
+        var result = modelBuilder.Entity<CompetitionResult>();
+        result.ToTable("CompetitionResult", "dbo");
+        result.HasKey(item => item.Id);
+        result.Property(item => item.Id).UseIdentityColumn();
+        result.Property(item => item.PublicId).IsRequired();
+        result.HasIndex(item => item.PublicId).IsUnique();
+        result.Property(item => item.Stage).HasMaxLength(30).IsRequired();
+        result.Property(item => item.ParticipantType).HasMaxLength(30).IsRequired();
+        result.Property(item => item.ParticipantCode).HasMaxLength(50).IsRequired();
+        result.Property(item => item.EventCode).HasMaxLength(50).IsRequired();
+        result.Property(item => item.AttemptsJson).HasColumnType("nvarchar(max)").IsRequired();
+        result.Property(item => item.Penalty).HasColumnType("decimal(12,3)").IsRequired();
+        result.Property(item => item.Revision).IsRequired();
+        result.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        result.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
+        result.HasIndex(item => new { item.CompetitionId, item.Stage, item.ParticipantType, item.ParticipantCode, item.EventCode }).IsUnique().HasDatabaseName("UX_CompetitionResult_LogicalResult");
+        result.HasOne(item => item.Competition).WithMany(item => item.Results).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Cascade);
     }
 }

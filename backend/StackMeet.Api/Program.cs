@@ -100,6 +100,8 @@ app.Use(async (context, next) =>
 });
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseCors("StackMeetApiCors");
@@ -197,13 +199,10 @@ app.Use(async (context, next) =>
     await context.Response.WriteAsJsonAsync(new { error = "Valid API key or login session required." });
 });
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<ResultsHub>("/hubs/results");
 app.MapGet("/{competitionId}/Results", ResultsPortal);
 app.MapGet("/{competitionId}/Results/{**section}", ResultsPortal);
-
 if (app.Environment.IsDevelopment())
 {
     app.MapGet("/debug", (IWebHostEnvironment env) => Results.Json(new
