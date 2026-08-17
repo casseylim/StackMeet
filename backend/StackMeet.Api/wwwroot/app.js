@@ -6460,6 +6460,7 @@ async function refreshCompetitionBranding() {
   if (!selectedSqlCompetitionId || !window.StackMeetStorage.CompetitionAssetApi) return;
   try {
     const assets = await competitionAssetApi.list(selectedSqlCompetitionId);
+    for (const id of ["competitionLogoPreview", "competitionBannerPreview"]) { const preview = document.getElementById(id); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } }
     for (const asset of assets) {
       const preview = document.getElementById(`competition${asset.assetType === "logo" ? "Logo" : "Banner"}Preview`);
       if (preview) { preview.src = `${asset.publicUrl}?v=${encodeURIComponent(asset.updatedAt || asset.sha256 || Date.now())}`; preview.hidden = false; }
