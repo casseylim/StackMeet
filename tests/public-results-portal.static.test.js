@@ -27,12 +27,19 @@ assert.match(stateController, /ResultsHub\.GroupName\(normalizedKey\)/, "Updates
 assert.match(hub, /AddToGroupAsync/, "Viewers must join a competition-specific group.");
 
 assert.match(publicController, /AsNoTracking\(\)/, "Public queries must be read-only.");
+assert.match(publicController, /logoUrl/);
+assert.match(publicController, /bannerUrl/);
 assert.match(publicController, /ArchivedAt is not null/, "Archived competitions must not be public.");
 assert.doesNotMatch(publicController, /email\s*=/i, "Public responses must not expose email addresses.");
 assert.doesNotMatch(publicController, /phone\s*=/i, "Public responses must not expose phone numbers.");
 assert.doesNotMatch(publicController, /paid\s*=/i, "Public responses must not expose payment state.");
 assert.doesNotMatch(publicController, /checkedIn\s*=/i, "Public responses must not expose check-in state.");
 assert.doesNotMatch(publicController, /birthDate\s*=/i, "Public responses must not expose birth dates.");
+assert.match(html, /id="competitionLogo"/);
+assert.match(html, /id="competitionBanner"/);
+assert.match(client, /payload\.branding/);
+assert.match(client, /assets\/stackmeet-logo\.png/);
+assert.match(styles, /competition-logo/);
 assert.match(publicController, /Text\(item, "division"\)/, "Computed competition divisions must be included in the safe public stacker projection.");
 assert.match(publicController, /stateStackers\.Length > 0/, "Saved competition divisions must take priority over incomplete SQL custom divisions.");
 

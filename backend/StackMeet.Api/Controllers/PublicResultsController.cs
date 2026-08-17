@@ -31,6 +31,16 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             return NotFound();
         }
 
+        var assets = await database.CompetitionAssets.AsNoTracking()
+            .Where(item => item.CompetitionId == competition.Id)
+            .Select(item => item.AssetType)
+            .ToListAsync(ct);
+        var branding = new
+        {
+            logoUrl = assets.Contains("logo") ? $"/api/public/competitions/{competition.Id}/assets/logo" : null,
+            bannerUrl = assets.Contains("banner") ? $"/api/public/competitions/{competition.Id}/assets/banner" : null
+        };
+
         var savedState = await database.CompetitionStates.AsNoTracking()
             .Where(item => item.CompetitionKey == competition.CompetitionKey)
             .Select(item => new { item.JsonData, item.UpdatedAt })
@@ -87,6 +97,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 competition.Status,
                 isOfficial = string.Equals(competition.Status, "Closed", StringComparison.OrdinalIgnoreCase)
             },
+            branding,
             lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt }).Max(),
             settings = PublicSettings(root),
             divisions = PublicDivisions(root),

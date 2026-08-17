@@ -75,6 +75,11 @@
     show("errorState", false);
 
     const competition = payload.competition || {};
+    const branding = payload.branding || {};
+    const logo = el("competitionLogo");
+    if (logo) { logo.src = branding.logoUrl || "/assets/stackmeet-logo.png"; logo.alt = `${competition.name || "Competition"} logo`; logo.hidden = false; }
+    const banner = el("competitionBanner");
+    if (banner) { banner.src = branding.bannerUrl || "/assets/competition-banner.png"; banner.alt = `${competition.name || "Competition"} banner`; banner.hidden = false; }
     document.title = `${competition.name || "Competition"} · NADITrack Results`;
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
