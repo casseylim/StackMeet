@@ -4,7 +4,15 @@ namespace StackMeet.Api.Services;
 
 public sealed class CompetitionAssetStorage(IConfiguration configuration, IWebHostEnvironment environment)
 {
-    public string RootPath => configuration["CompetitionAssetsPath"] ?? Path.Combine(environment.ContentRootPath, "competition-assets");
+    public string RootPath
+    {
+        get
+        {
+            var configured = configuration["CompetitionAssetsPath"];
+            if (string.IsNullOrWhiteSpace(configured)) return Path.Combine(environment.ContentRootPath, "competition-assets");
+            return Path.IsPathRooted(configured) ? configured : Path.Combine(environment.ContentRootPath, configured);
+        }
+    }
     public string CompetitionPath(int competitionId) => SafePath(competitionId.ToString(System.Globalization.CultureInfo.InvariantCulture));
     public string FullPath(int competitionId, string storedFileName) => SafePath(Path.Combine(competitionId.ToString(System.Globalization.CultureInfo.InvariantCulture), storedFileName));
     public async Task<(string StoredFileName, string Sha256)> SaveAsync(int competitionId, string extension, Stream content, CancellationToken ct)

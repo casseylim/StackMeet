@@ -16,6 +16,8 @@ const program = read("backend/StackMeet.Api/Program.cs");
 assert.match(model, /CompetitionId/);
 assert.match(model, /Sha256/);
 assert.match(storage, /CompetitionAssetsPath/);
+assert.match(storage, /Path\.IsPathRooted\(configured\)/);
+assert.match(storage, /Path\.Combine\(environment\.ContentRootPath, configured\)/);
 assert.match(storage, /IncrementalHash\.CreateHash/);
 assert.match(storage, /catch[\s\S]*File\.Exists\(path\)[\s\S]*File\.Delete\(path\)/);
 assert.match(controller, /RequestSizeLimit\(5 \* 1024 \* 1024\)/);
