@@ -337,6 +337,62 @@ namespace StackMeet.Api.Migrations
                     b.ToTable("Competition", "dbo");
                 });
 
+            modelBuilder.Entity("StackMeet.Api.Models.CompetitionAsset", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AssetType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("CompetitionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitionId", "AssetType")
+                        .IsUnique();
+
+                    b.ToTable("CompetitionAsset", "dbo");
+                });
+
             modelBuilder.Entity("StackMeet.Api.Models.CompetitionResult", b =>
                 {
                     b.Property<long>("Id")
@@ -608,6 +664,17 @@ namespace StackMeet.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StackMeet.Api.Models.CompetitionAsset", b =>
+                {
+                    b.HasOne("StackMeet.Api.Models.Competition", "Competition")
+                        .WithMany("Assets")
+                        .HasForeignKey("CompetitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Competition");
+                });
+
             modelBuilder.Entity("StackMeet.Api.Models.CompetitionResult", b =>
                 {
                     b.HasOne("StackMeet.Api.Models.Competition", "Competition")
@@ -678,6 +745,8 @@ namespace StackMeet.Api.Migrations
 
             modelBuilder.Entity("StackMeet.Api.Models.Competition", b =>
                 {
+                    b.Navigation("Assets");
+
                     b.Navigation("AuditLogs");
 
                     b.Navigation("CompetitionUsers");

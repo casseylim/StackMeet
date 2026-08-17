@@ -23,4 +23,5 @@ public sealed class Competition
     public ICollection<CompetitionUser> CompetitionUsers { get; set; } = [];
     public ICollection<AuditLog> AuditLogs { get; set; } = [];
     public ICollection<CompetitionResult> Results { get; set; } = [];
+    public ICollection<CompetitionAsset> Assets { get; set; } = [];
 }

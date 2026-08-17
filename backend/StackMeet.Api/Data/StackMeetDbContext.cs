@@ -16,6 +16,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<Competition> Competitions => Set<Competition>();
     public DbSet<Stacker> Stackers => Set<Stacker>();
     public DbSet<CompetitionResult> CompetitionResults => Set<CompetitionResult>();
+    public DbSet<CompetitionAsset> CompetitionAssets => Set<CompetitionAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -170,5 +171,20 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         result.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
         result.HasIndex(item => new { item.CompetitionId, item.Stage, item.ParticipantType, item.ParticipantCode, item.EventCode }).IsUnique().HasDatabaseName("UX_CompetitionResult_LogicalResult");
         result.HasOne(item => item.Competition).WithMany(item => item.Results).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Cascade);
+
+        var asset = modelBuilder.Entity<CompetitionAsset>();
+        asset.ToTable("CompetitionAsset", "dbo");
+        asset.HasKey(item => item.Id);
+        asset.Property(item => item.Id).UseIdentityColumn();
+        asset.Property(item => item.AssetType).HasMaxLength(30).IsRequired();
+        asset.Property(item => item.FileName).HasMaxLength(255).IsRequired();
+        asset.Property(item => item.StoredFileName).HasMaxLength(255).IsRequired();
+        asset.Property(item => item.ContentType).HasMaxLength(100).IsRequired();
+        asset.Property(item => item.FileSize).IsRequired();
+        asset.Property(item => item.Sha256).HasMaxLength(64).IsRequired();
+        asset.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        asset.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
+        asset.HasIndex(item => new { item.CompetitionId, item.AssetType }).IsUnique();
+        asset.HasOne(item => item.Competition).WithMany(item => item.Assets).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Cascade);
     }
 }
