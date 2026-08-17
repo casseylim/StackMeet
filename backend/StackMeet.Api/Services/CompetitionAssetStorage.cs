@@ -12,11 +12,19 @@ public sealed class CompetitionAssetStorage(IConfiguration configuration, IWebHo
         Directory.CreateDirectory(CompetitionPath(competitionId));
         var stored = $"{Guid.NewGuid():N}{extension}";
         var path = FullPath(competitionId, stored);
-        await using var output = File.Create(path);
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buffer = new byte[81920]; int read; long total = 0;
-        while ((read = await content.ReadAsync(buffer, ct)) > 0) { await output.WriteAsync(buffer.AsMemory(0, read), ct); hash.AppendData(buffer, 0, read); total += read; }
-        return (stored, Convert.ToHexString(hash.GetHashAndReset()));
+        try
+        {
+            await using var output = File.Create(path);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = new byte[81920]; int read;
+            while ((read = await content.ReadAsync(buffer, ct)) > 0) { await output.WriteAsync(buffer.AsMemory(0, read), ct); hash.AppendData(buffer, 0, read); }
+            return (stored, Convert.ToHexString(hash.GetHashAndReset()));
+        }
+        catch
+        {
+            try { if (File.Exists(path)) File.Delete(path); } catch { }
+            throw;
+        }
     }
     public void Delete(int competitionId, string storedFileName) { var path = FullPath(competitionId, storedFileName); if (File.Exists(path)) File.Delete(path); }
     string SafePath(string relative)
