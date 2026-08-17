@@ -33,13 +33,14 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
 
         var assets = await database.CompetitionAssets.AsNoTracking()
             .Where(item => item.CompetitionId == competition.Id)
-            .Select(item => item.AssetType)
+            .Select(item => new { item.AssetType, item.UpdatedAt })
             .ToListAsync(ct);
         var branding = new
         {
-            logoUrl = assets.Contains("logo") ? $"/api/public/competitions/{competition.Id}/assets/logo" : null,
-            bannerUrl = assets.Contains("banner") ? $"/api/public/competitions/{competition.Id}/assets/banner" : null
+            logoUrl = assets.Any(item => item.AssetType == "logo") ? $"/api/public/competitions/{competition.Id}/assets/logo" : null,
+            bannerUrl = assets.Any(item => item.AssetType == "banner") ? $"/api/public/competitions/{competition.Id}/assets/banner" : null
         };
+        var assetUpdatedAt = assets.Select(item => (DateTime?)item.UpdatedAt).Max();
 
         var savedState = await database.CompetitionStates.AsNoTracking()
             .Where(item => item.CompetitionKey == competition.CompetitionKey)
@@ -98,7 +99,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 isOfficial = string.Equals(competition.Status, "Closed", StringComparison.OrdinalIgnoreCase)
             },
             branding,
-            lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt }).Max(),
+            lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt, assetUpdatedAt }).Max(),
             settings = PublicSettings(root),
             divisions = PublicDivisions(root),
             results = resultRows,
