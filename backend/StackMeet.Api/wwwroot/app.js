@@ -523,6 +523,7 @@ const CompetitionRepository = window.StackMeetStorage.Repository;
 const repository = new CompetitionRepository();
 const SqlStackerApi = window.StackMeetStorage.StackerApi;
 const stackerApi = new SqlStackerApi();
+const competitionAssetApi = new (window.StackMeetStorage.CompetitionAssetApi || class { async list() { return []; } })();
 const resultApi = new (window.StackMeetStorage.ResultApi || class { async list() { return { revision: 0, results: [] }; } async saveBatch() { throw new Error("SQL result API is unavailable."); } })();
 const CompetitionStateProvider = window.StackMeetStorage.ApiProvider;
 const BestResultEngine = window.StackMeetBestResult || (() => {
@@ -1664,6 +1665,7 @@ function renderSettings() {
     <div class="tag-row"><span class="division-display-copy"><strong>${esc(division)}</strong><small>&nbsp;${esc(generatedDivisionDisplayCategories(division).join(" · "))}</small></span><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
   `).join("");
   renderCompetitionAuditLogs();
+  void refreshCompetitionBranding();
 }
 
 // Presentation-only categorisation for the deduplicated generated division list.
@@ -4920,6 +4922,8 @@ document.addEventListener("click", async (event) => {
   let shouldSave = true;
   if (action === "mark-read") state.notifications = state.notifications.map(n => ({ ...n, read: true }));
   if (action === "save-settings") await saveSettings();
+  if (action === "upload-asset") { await uploadCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
+  if (action === "remove-asset") { await removeCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
   if (action === "save-language") saveLanguage();
   if (action === "save-events") saveEvents();
   if (action === "save-leaderboard") saveLeaderboard();
@@ -6451,6 +6455,33 @@ function setOptions(id, options) {
   if (!el) return;
   el.innerHTML = options.map(option => `<option>${esc(option)}</option>`).join("");
 }
+
+async function refreshCompetitionBranding() {
+  if (!selectedSqlCompetitionId || !window.StackMeetStorage.CompetitionAssetApi) return;
+  try {
+    const assets = await competitionAssetApi.list(selectedSqlCompetitionId);
+    for (const asset of assets) {
+      const preview = document.getElementById(`competition${asset.assetType === "logo" ? "Logo" : "Banner"}Preview`);
+      if (preview) { preview.src = `${asset.publicUrl}?v=${encodeURIComponent(asset.updatedAt || asset.sha256 || Date.now())}`; preview.hidden = false; }
+    }
+  } catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+async function uploadCompetitionAsset(type) {
+  const input = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}File`);
+  const file = input?.files?.[0];
+  if (!selectedSqlCompetitionId || !file) { setCompetitionBrandingStatus("Select an image first.", true); return; }
+  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(`${type} uploaded.`); }
+  catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+async function removeCompetitionAsset(type) {
+  if (!selectedSqlCompetitionId || !window.confirm(`Remove the competition ${type}?`)) return;
+  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(`${type} removed.`); }
+  catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = message; target.dataset.status = isError ? "error" : "ok"; } }
 
 function setValue(id, value) {
   const el = document.getElementById(id);

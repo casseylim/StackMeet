@@ -116,6 +116,15 @@
         </div>
         <p class="muted">Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.</p>
       </section>
+      <section class="panel" aria-labelledby="brandingHeading">
+        <div class="panel-head"><h2 id="brandingHeading">Competition Branding</h2></div>
+        <p class="muted">Upload an optional competition logo and banner. Files are validated and stored separately from the application publish files.</p>
+        <div class="form-grid branding-assets-grid">
+          <div class="branding-asset-card"><h3>Logo</h3><img id="competitionLogoPreview" alt="Competition logo preview" hidden /><input id="competitionLogoFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="logo" type="button">Upload Logo</button><button class="ghost" data-action="remove-asset" data-asset-type="logo" type="button">Remove Logo</button></div>
+          <div class="branding-asset-card"><h3>Banner</h3><img id="competitionBannerPreview" alt="Competition banner preview" hidden /><input id="competitionBannerFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="banner" type="button">Upload Banner</button><button class="ghost" data-action="remove-asset" data-asset-type="banner" type="button">Remove Banner</button></div>
+        </div>
+        <p id="competitionBrandingStatus" class="muted" role="status"></p>
+      </section>
       <section class="panel">
         <div class="panel-head">
           <h2>Events</h2>
@@ -589,6 +598,7 @@
     <script src="js/auth/AuthSession.js?v=forgot-lockout-ui"></script>
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>
+    <script src="js/storage/CompetitionAssetApi.js?v=competition-assets-ui-1"></script>
     <script src="js/storage/ResultApi.js?v=20260817-results-phase2a"></script>
     <script src="js/storage/Repository.js?v=competition-sync-20260803b"></script>
     <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
