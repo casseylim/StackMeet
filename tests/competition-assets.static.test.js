@@ -13,6 +13,7 @@ const assetClient = read("backend/StackMeet.Api/wwwroot/js/storage/CompetitionAs
 const adminHtml = read("backend/StackMeet.Api/wwwroot/index.html");
 const adminClient = read("backend/StackMeet.Api/wwwroot/app.js");
 const program = read("backend/StackMeet.Api/Program.cs");
+const appsettings = read("backend/StackMeet.Api/appsettings.json");
 assert.match(model, /CompetitionId/);
 assert.match(model, /Sha256/);
 assert.match(storage, /CompetitionAssetsPath/);
@@ -40,6 +41,7 @@ assert.match(migration, /CreateTable\([\s\S]*CompetitionAsset/);
 assert.match(designer, /DbContext\(typeof\(StackMeetDbContext\)\)/);
 assert.match(designer, /Migration\("20260817060000_CompetitionAssetsPhase1"\)/);
 assert.match(program, /CompetitionAssetStorage/);
+assert.match(appsettings, /"CompetitionAssetsPath":\s*"App_Data\\\\competition-assets"/);
 assert.match(dto, /PublicUrl/);
 assert.match(assetClient, /FormData/);
 assert.match(assetClient, /CompetitionAssetApi/);
