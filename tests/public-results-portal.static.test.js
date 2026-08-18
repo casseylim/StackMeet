@@ -233,7 +233,7 @@ assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table/
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table \.attempt-col \{[\s\S]*width: 24%/, "Attempt columns must be narrowed for print.");
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.time-write-line \{[\s\S]*width: 90%/, "Printed attempt write lines must leave a right-side gutter.");
 assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /\.attempt-table th,[\s\S]*box-sizing: border-box/, "Attempt table cells must include padding in their printed width.");
-assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /#nav \{ grid-template-columns: 1fr; \}/, "Narrow sidebar navigation must remain a single readable column.");
+assert.match(read("backend/StackMeet.Api/wwwroot/styles.css"), /#nav \{\s*grid-template-columns: repeat\(auto-fit, minmax\(140px, 1fr\)\)/, "Narrow sidebar navigation must remain compact and readable.");
 assert.match(adminClient, /updateDivisionSettingsFromForm\(\{ recalculateEntries: false \}\)/, "Division checkbox changes must update in-memory settings before any save button is clicked.");
 assert.match(publicController, /PublicStackerDivision/, "Public SQL stackers must receive generated divisions before rendering results.");
 assert.match(publicController, /AgeOnCompetitionDate/, "Public SQL stackers must calculate generated divisions from birth date and competition date.");
