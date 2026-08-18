@@ -37,12 +37,13 @@ public sealed class CertificateTemplateDocumentService
         using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
         if (archive.Entries.Count > 200)
             throw new InvalidDataException("The DOCX package is too large after expansion.");
+        const long maxExpandedBytes = 40L * 1024 * 1024;
         long expandedBytes = 0;
         foreach (var entry in archive.Entries)
         {
-            expandedBytes += entry.Length;
-            if (expandedBytes > 40 * 1024 * 1024)
+            if (entry.Length > maxExpandedBytes - expandedBytes)
                 throw new InvalidDataException("The DOCX package is too large after expansion.");
+            expandedBytes += entry.Length;
         }
         if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry("word/document.xml") is null)
             throw new InvalidDataException("The upload is not a valid Word document.");
