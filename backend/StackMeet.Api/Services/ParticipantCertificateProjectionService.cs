@@ -52,7 +52,10 @@ public sealed class ParticipantCertificateProjectionService(StackMeetDbContext d
                 return separate ? $"{label} {(string.Equals(stacker.Gender, "F", StringComparison.OrdinalIgnoreCase) ? "F" : "M")}" : label;
             }
             var gender = string.Equals(stacker.Gender, "F", StringComparison.OrdinalIgnoreCase);
-            var path = (gender ? female : male).Select(x => (Age: x, Label: gender ? "Female" : "Male")).Concat(combined.Select(x => (Age: x, Label: "Combined"))).Where(x => x.Age > 0).OrderBy(x => x.Age).ToArray();
+            var pathByAge = new Dictionary<int, string>();
+            foreach (var cutoff in gender ? female : male) if (cutoff > 0) pathByAge[cutoff] = gender ? "Female" : "Male";
+            foreach (var cutoff in combined) if (cutoff > 0) pathByAge[cutoff] = "Combined";
+            var path = pathByAge.OrderBy(x => x.Key).Select(x => (Age: x.Key, Label: x.Value)).ToArray();
             return Range(age, path) ?? "Open / Unassigned";
         }
         catch (JsonException) { return "Open / Unassigned"; }
