@@ -600,25 +600,12 @@
 
   function orderedDivisionGroups(groups, payload) {
     const configured = configuredDivisions(payload);
-    const resultGroups = [...groups.entries()];
-    if (!configured.length) {
-      return resultGroups.sort(([left], [right]) => naturalCompare(left, right));
-    }
-
-    const groupsByKey = new Map(resultGroups.map(([division, events]) => [divisionKey(division), [division, events]]));
-    const usedKeys = new Set();
-    const ordered = configured.map(division => {
-      const key = divisionKey(division);
-      usedKeys.add(key);
-      return groupsByKey.get(key) || [division, new Map()];
+    const order = new Map(configured.map((division, index) => [divisionKey(division), index]));
+    return [...groups.entries()].sort(([left], [right]) => {
+      const leftOrder = order.get(divisionKey(left)) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = order.get(divisionKey(right)) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || naturalCompare(left, right);
     });
-
-    resultGroups
-      .filter(([division]) => !usedKeys.has(divisionKey(division)))
-      .sort(([left], [right]) => naturalCompare(left, right))
-      .forEach(entry => ordered.push(entry));
-
-    return ordered;
   }
 
   function configuredDivisions(payload) {
@@ -1251,8 +1238,16 @@
     return { key: label.toLowerCase(), label, order: 2, isFinal: false };
   }
 
+  function participantTypeKey(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "individual" || normalized === "individuals" || normalized === "i") return "individual";
+    if (normalized.includes("double")) return "doubles";
+    if (normalized.includes("relay")) return "relay";
+    return "unknown";
+  }
+
   function isDoublesType(value) {
-    return String(value || "").trim().toLowerCase().includes("double");
+    return participantTypeKey(value) === "doubles";
   }
 
   function renderRelay(payload, official) {
@@ -1419,7 +1414,7 @@
   }
 
   function isRelayType(value) {
-    return String(value || "").trim().toLowerCase().includes("relay");
+    return participantTypeKey(value) === "relay";
   }
 
   function medalPlace(rank) {
@@ -1440,8 +1435,7 @@
   }
 
   function isIndividualType(value) {
-    const normalized = String(value || "").trim().toLowerCase();
-    return !normalized.includes("double") && !normalized.includes("relay");
+    return participantTypeKey(value) === "individual";
   }
 
   function naturalCompare(left, right) {

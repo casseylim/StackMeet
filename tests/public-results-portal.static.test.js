@@ -41,7 +41,7 @@ assert.match(client, /payload\.branding/);
 assert.match(client, /assets\/stackmeet-logo\.png/);
 assert.match(client, /onerror/);
 assert.match(publicController, /assetUpdatedAt/);
-assert.match(html, /competition-branding-results-20260817b/);
+assert.match(html, /public-results-classification-20260818a/);
 assert.match(adminHtml, /responsive-navigation-20260818d/);
 assert.match(adminHtml, /styles\.css\?v=responsive-navigation-20260818d/);
 assert.match(client, /branding\.logoUrl \|\| ""/);
@@ -91,7 +91,9 @@ assert.match(client, /preliminaryAdvanceLimit\(payload\)/, "Public Preliminary r
 assert.match(client, /rank <= advanceLimit \? "Qualified" : "Provisional"/, "Preliminary rows inside the cutoff must be marked Qualified.");
 assert.match(client, /renderDivisionJumpNav/, "Preliminary and Finals standings must include division jump links.");
 assert.match(client, /orderedDivisionGroups\(groups, payload\)/, "Preliminary and Finals divisions must follow configured division order.");
-assert.match(client, /renderDivisionEmpty/, "Configured divisions without published rows must still render a public section.");
+assert.match(client, /participantTypeKey/, "Public result types must use explicit participant classification.");
+assert.doesNotMatch(client, /groupsByKey\.get\(key\) \|\| \[division, new Map\(\)\]/, "Public standings must not manufacture empty configured divisions.");
+assert.match(html, /Individual Prelim/, "The public navigation must identify the Individual Preliminary section.");
 assert.match(client, /genderSplitSpecialBase/, "Ungendered special divisions must not duplicate gender-split special divisions.");
 assert.match(styles, /division-jump/, "Division jump links must have portal styling.");
 assert.match(html, /id="allAroundGroups"/, "The All-Around page must have a standings container.");
@@ -116,7 +118,7 @@ assert.match(client, /row\.best === previousBest \? previousRank/, "Tied Doubles
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Doubles places must show podium indicators.");
 assert.match(client, /team\.one, team\.two/, "Doubles standings must resolve both team members.");
 assert.match(styles, /\.doubles-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Doubles standings must use one column.");
-assert.match(html, /results\.css\?v=competition-branding-results-20260817b/, "Results styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=public-results-classification-20260818a/, "Results styles must invalidate the browser cache.");
 assert.match(html, /id="relayGroups"/, "The Relay page must have a standings container.");
 assert.match(client, /renderRelay\(payload, official\)/, "The Relay route must render live standings.");
 assert.match(client, /isRelayType/, "Only Relay result types may enter Relay standings.");
@@ -124,7 +126,7 @@ assert.match(client, /team\.timedRelayDivision \|\| team\.division/, "Configured
 assert.match(client, /team\.members[\s\S]*team\.one, team\.two, team\.three/, "Relay standings must resolve array and positional team members.");
 assert.match(client, /isFinal \? medalPlace\(rank\)/, "Final Relay places must show podium indicators.");
 assert.match(styles, /\.relay-table tbody \{ display: grid; grid-template-columns: 1fr;/, "Mobile Relay standings must use one column.");
-assert.match(html, /results\.css\?v=competition-branding-results-20260817b/, "Relay styles must invalidate the browser cache.");
+assert.match(html, /results\.css\?v=public-results-classification-20260818a/, "Relay styles must invalidate the browser cache.");
 assert.match(html, /id="medalRows"/, "The Medal Table must have a standings body.");
 assert.match(client, /renderMedals\(payload, official\)/, "The Medals route must render live standings.");
 assert.match(client, /filter\(result => isFinalStage\(result\.stage\)\)/, "Only Final results may contribute to the Medal Table.");

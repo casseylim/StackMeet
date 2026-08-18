@@ -66,13 +66,31 @@ source = source.replace(
     renderMedals,
     renderDoubles,
     renderRelay,
-    allAroundEventKey
+    allAroundEventKey,
+    orderedDivisionGroups,
+    isIndividualType
   };
 })();`
 );
 vm.runInNewContext(source, context, { filename: "results.js" });
 const portal = context.__portalTest;
 assert.ok(portal, "Portal test hooks must load.");
+const mixedDivisionGroups = new Map([
+  ["14 & Under Male", new Map([["Cycle", []]])],
+  ["Child/Parent 10U", new Map([["Cycle", []]])]
+]);
+assert.deepEqual(
+  portal.orderedDivisionGroups(mixedDivisionGroups, {
+    divisions: ["10U", "14 & Under Male", "Child/Parent 10U", "Open"]
+  }).map(([division]) => division).join("|"),
+  "14 & Under Male|Child/Parent 10U",
+  "Public Individual standings must not inject configured empty divisions."
+);
+assert.equal(portal.isIndividualType("Individual"), true);
+assert.equal(portal.isIndividualType("Doubles"), false);
+assert.equal(portal.isIndividualType("Child/Parent Doubles"), false);
+assert.equal(portal.isIndividualType("Timed Relay"), false);
+assert.equal(portal.isIndividualType("Future Team Type"), false);
 
 const node = (id, tag = "div") => {
   const value = new TestNode(tag);
