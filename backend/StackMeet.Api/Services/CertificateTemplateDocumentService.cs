@@ -35,8 +35,15 @@ public sealed class CertificateTemplateDocumentService
 
         if (input.CanSeek) input.Position = 0;
         using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
-        if (archive.Entries.Count > 200 || archive.Entries.Sum(entry => entry.Length) > 40 * 1024 * 1024)
+        if (archive.Entries.Count > 200)
             throw new InvalidDataException("The DOCX package is too large after expansion.");
+        long expandedBytes = 0;
+        foreach (var entry in archive.Entries)
+        {
+            expandedBytes += entry.Length;
+            if (expandedBytes > 40 * 1024 * 1024)
+                throw new InvalidDataException("The DOCX package is too large after expansion.");
+        }
         if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry("word/document.xml") is null)
             throw new InvalidDataException("The upload is not a valid Word document.");
         if (archive.Entries.Any(entry => entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName)))
@@ -70,13 +77,11 @@ public sealed class CertificateTemplateDocumentService
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
             .Select(tag => tag!)
             .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
-        var nonTextControls = new HashSet<string>(StringComparer.Ordinal)
-            { "picture", "checkbox", "date", "dropDownList", "comboBox", "repeatingSection", "repeatingSectionItem", "bibliography", "citation" };
         foreach (var control in roots.SelectMany(root => root.Descendants<SdtElement>()))
         {
             var tag = control.SdtProperties?.GetFirstChild<Tag>()?.Val?.Value;
             if (tag?.StartsWith("NADI.", StringComparison.Ordinal) == true &&
-                control.SdtProperties?.Elements().Any(element => nonTextControls.Contains(element.LocalName)) == true)
+                control.SdtProperties?.Elements().Any(element => element.LocalName == "text") != true)
                 throw new InvalidDataException("NADI content controls must be text controls.");
         }
         var unknown = tags.Where(tag => tag.StartsWith("NADI.", StringComparison.Ordinal) && !SupportedTags.Contains(tag)).ToArray();
