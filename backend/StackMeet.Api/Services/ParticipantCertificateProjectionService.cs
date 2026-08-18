@@ -67,6 +67,13 @@ public sealed class ParticipantCertificateProjectionService(StackMeetDbContext d
     static string? Range(int age, int[] cutoffs, string label) => Range(age, cutoffs.OrderBy(x => x).Select(x => (Age: x, Label: label)).ToArray());
     static string? Range(int age, (int Age, string Label)[] path)
     {
-        var previous = 0; foreach (var item in path) { var start = previous + 1; if (age <= item.Age) { if (item.Label == "Special") return start <= 4 ? $"SS {item.Age} & Under L1" : start == item.Age ? $"SS {item.Age} L1" : $"SS {start}-{item.Age} L1"; if (start <= 4) return $"{item.Age} & Under {item.Label}"; if (start == item.Age) return $"{item.Age} {item.Label}"; return $"{start}-{item.Age} {item.Label}"; } previous = item.Age; } return null;
+        var previous = 0; foreach (var item in path) { var start = previous + 1; if (age <= item.Age) { if (item.Label == "Special") return start <= 4 ? $"SS {item.Age} & Under L1" : start == item.Age ? $"SS {item.Age} L1" : $"SS {start}-{item.Age} L1"; if (item.Label == "Combined") { var combined = CombinedName(start, item.Age); if (!string.IsNullOrWhiteSpace(combined)) return combined; if (age >= 19 && !string.IsNullOrWhiteSpace(combined = CombinedName(age, age))) return combined; } if (start <= 4) return $"{item.Age} & Under {item.Label}"; if (start == item.Age) return $"{item.Age} {item.Label}"; return $"{start}-{item.Age} {item.Label}"; } previous = item.Age; } return null;
     }
+    static string? CombinedName(int start, int cutoff)
+    {
+        var names = new List<string>(); if (start <= 24 && cutoff >= 19) names.Add("Collegiate C");
+        if (cutoff >= 25) { var first = Master(start < 25 ? 25 : start); var last = Master(cutoff); if (first > 0 && last > 0) names.Add(first == last ? $"Masters {first} C" : $"Masters {first}-{last} C"); }
+        return names.Count == 1 ? names[0] : null;
+    }
+    static int Master(int age) => age switch { >= 25 and <= 34 => 1, >= 35 and <= 44 => 2, >= 45 and <= 59 => 3, >= 60 => 4, _ => 0 };
 }
