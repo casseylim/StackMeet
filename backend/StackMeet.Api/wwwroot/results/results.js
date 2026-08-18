@@ -584,18 +584,36 @@
   }
 
   function renderDivisionJumpNav(divisions, stageKey) {
-    const nav = make("nav", "division-jump", "");
-    nav.setAttribute("aria-label", "Jump to division");
-    nav.append(make("span", "division-jump-label", "Division"));
-    const list = make("div", "division-jump-links", "");
-    divisions.forEach(division => {
+    return renderJumpNav("Division", divisions.map(division => ({
+      label: division,
+      id: divisionAnchorId(stageKey, division)
+    })), "Jump to division");
+  }
+
+  function renderJumpNav(label, items, ariaLabel = "Quick navigation") {
+    const nav = make("nav", "result-jump division-jump", "");
+    nav.setAttribute("aria-label", ariaLabel);
+    nav.append(make("span", "result-jump-label division-jump-label", label));
+    const list = make("div", "result-jump-links division-jump-links", "");
+    items.forEach(item => {
       const link = document.createElement("a");
-      link.href = `#${divisionAnchorId(stageKey, division)}`;
-      link.textContent = division;
+      link.href = `#${item.id}`;
+      link.textContent = item.label;
       list.append(link);
     });
     nav.append(list);
     return nav;
+  }
+
+  function anchorSlug(value) {
+    return String(value || "section")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "section";
+  }
+
+  function stageDivisionAnchorId(section, stage, division) {
+    return [section, stage, division].map(anchorSlug).join("-");
   }
 
   function orderedDivisionGroups(groups, payload) {
@@ -797,6 +815,15 @@
     }
 
     text("allAroundSummary", `${stackerCount} complete · ${incompleteCount} incomplete`);
+    const quickJumpLabels = new Map([
+      ["overall", "Overall"], ["female-overall", "Female Overall"], ["male-overall", "Male Overall"],
+      ["normal", "Normal"], ["special", "Special"], ["female-normal", "Female Normal"],
+      ["female-special", "Female Special"], ["male-normal", "Male Normal"], ["male-special", "Male Special"]
+    ]);
+    container.append(renderJumpNav("Quick Jump", [
+      ...displayGroups.map(group => ({ label: quickJumpLabels.get(group.key) || group.division, id: `allaround-${group.key}` })),
+      { label: "By Division", id: "allAroundByDivision" }
+    ]));
     displayGroups
       .sort((left, right) => (left.order || 0) - (right.order || 0) || naturalCompare(left.division, right.division))
       .forEach(group => container.append(renderAllAroundDivision(group, official)));
@@ -808,19 +835,20 @@
 
     const stage = rows[0].sourceStage || { key: "all", label: "Best" };
     const definitions = [
-      { title: "All-Around (Normal + Special)", order: 10, filter: () => true },
-      { title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
-      { title: "All-Around Male (Normal + Special)", order: 30, filter: row => row.stacker.gender === "M" },
-      { title: "All-Around (Normal)", order: 40, filter: row => !isSpecialStackerRow(row) },
-      { title: "All-Around (Special)", order: 50, filter: isSpecialStackerRow },
-      { title: "All-Around Female (Normal)", order: 60, filter: row => row.stacker.gender === "F" && !isSpecialStackerRow(row) },
-      { title: "All-Around Female (Special)", order: 70, filter: row => row.stacker.gender === "F" && isSpecialStackerRow(row) },
-      { title: "All-Around Male (Normal)", order: 80, filter: row => row.stacker.gender === "M" && !isSpecialStackerRow(row) },
-      { title: "All-Around Male (Special)", order: 90, filter: row => row.stacker.gender === "M" && isSpecialStackerRow(row) }
+      { key: "overall", title: "All-Around (Normal + Special)", order: 10, filter: () => true },
+      { key: "female-overall", title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
+      { key: "male-overall", title: "All-Around Male (Normal + Special)", order: 30, filter: row => row.stacker.gender === "M" },
+      { key: "normal", title: "All-Around (Normal)", order: 40, filter: row => !isSpecialStackerRow(row) },
+      { key: "special", title: "All-Around (Special)", order: 50, filter: isSpecialStackerRow },
+      { key: "female-normal", title: "All-Around Female (Normal)", order: 60, filter: row => row.stacker.gender === "F" && !isSpecialStackerRow(row) },
+      { key: "female-special", title: "All-Around Female (Special)", order: 70, filter: row => row.stacker.gender === "F" && isSpecialStackerRow(row) },
+      { key: "male-normal", title: "All-Around Male (Normal)", order: 80, filter: row => row.stacker.gender === "M" && !isSpecialStackerRow(row) },
+      { key: "male-special", title: "All-Around Male (Special)", order: 90, filter: row => row.stacker.gender === "M" && isSpecialStackerRow(row) }
     ];
 
     return definitions
       .map(definition => ({
+        key: definition.key,
         stage,
         division: definition.title,
         order: definition.order,
@@ -957,6 +985,7 @@
 
   function renderAllAroundDivision(group, official) {
     const section = make("section", "panel preliminary-division allaround-division");
+    if (group.aggregate && group.key) section.id = `allaround-${group.key}`;
     const heading = make("div", "division-heading allaround-heading");
     const titleBlock = make("div", "");
     titleBlock.append(make("span", "eyebrow", group.aggregate ? `${group.stage.label} all-around ranking` : `${group.stage.label} all-around`), make("h2", "", group.division));
@@ -1214,11 +1243,16 @@
       return;
     }
 
+    container.append(renderJumpNav("Stage / Division", orderedGroups.map(group => ({
+      label: `${group.stage.label} · ${group.division}`,
+      id: stageDivisionAnchorId("doubles", group.stage.key, group.division)
+    })), "Jump to Doubles stage and division"));
     orderedGroups.forEach(group => container.append(renderDoublesGroup(group, official)));
   }
 
   function renderDoublesGroup(group, official) {
     const section = make("section", "panel preliminary-division doubles-division");
+    section.id = stageDivisionAnchorId("doubles", group.stage.key, group.division);
     const heading = make("div", "division-heading doubles-heading");
     const titleBlock = make("div", "");
     titleBlock.append(
@@ -1386,11 +1420,16 @@
       return;
     }
 
+    container.append(renderJumpNav("Stage / Division", orderedGroups.map(group => ({
+      label: `${group.stage.label} · ${group.division}`,
+      id: stageDivisionAnchorId("relay", group.stage.key, group.division)
+    })), "Jump to Relay stage and division"));
     orderedGroups.forEach(group => container.append(renderRelayGroup(group, official)));
   }
 
   function renderRelayGroup(group, official) {
     const section = make("section", "panel preliminary-division relay-division");
+    section.id = stageDivisionAnchorId("relay", group.stage.key, group.division);
     const heading = make("div", "division-heading relay-heading");
     const titleBlock = make("div", "");
     titleBlock.append(

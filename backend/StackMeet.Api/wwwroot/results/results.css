@@ -247,6 +247,9 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .allaround-table th:nth-last-child(-n+5),
 .allaround-table td:nth-last-child(-n+5) { text-align: right; }
 .allaround-table-wrap { overscroll-behavior-inline: contain; }
+.result-jump a { scroll-margin-top: 1rem; }
+.preliminary-division, .allaround-division, .allaround-division-board,
+.doubles-division, .relay-division { scroll-margin-top: 1rem; }
 
 .doubles-groups { display: grid; gap: 1rem; }
 .doubles-heading { background: linear-gradient(120deg, #35225f, #6843a6); }

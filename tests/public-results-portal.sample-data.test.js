@@ -232,7 +232,7 @@ portal.renderDoubles({
     result("D3", "Final", "Doubles", "Doubles", [], 999)
   ]
 }, false);
-assert.equal(doublesGroups.children.length, 2, "Configured Doubles divisions must remain separate.");
+assert.equal(doublesGroups.children.filter(child => child.tagName === "SECTION").length, 2, "Configured Doubles divisions must remain separate.");
 const doublesBodies = descendants(doublesGroups, "tbody");
 const rankedDoublesBody = doublesBodies.find(body => body.children.length === 2);
 const scrDoublesBody = doublesBodies.find(body => body.children.length === 1);
