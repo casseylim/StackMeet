@@ -28,6 +28,7 @@ assert.doesNotMatch(css, /@media print[\s\S]*repeat\(auto-fit/);
 assert.match(css, /\.drawer-close\.ghost,\s*\.nav-menu-button\.ghost,\s*\.drawer-backdrop\s*\{\s*display:\s*none/);
 assert.match(css, /\.drawer-close\.ghost,\s*\.nav-menu-button\.ghost\s*\{\s*display:\s*inline-flex/);
 assert.match(css, /\.drawer-backdrop\[hidden\]\s*\{\s*display:\s*none/);
+assert.match(css, /\.nav-menu-button\.ghost\s*\{[\s\S]*align-self:\s*flex-start;[\s\S]*width:\s*auto/);
 assert.match(html, /id="navMenuBtn"[^>]*aria-expanded="false"[^>]*aria-controls="sidebarNav"/);
 assert.match(html, /id="sidebarNav"[^>]*aria-label="Primary navigation"/);
 assert.match(html, /id="navCloseBtn"[^>]*aria-label="Close navigation"/);

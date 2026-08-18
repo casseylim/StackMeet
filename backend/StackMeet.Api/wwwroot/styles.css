@@ -1874,7 +1874,11 @@ tr:last-child td { border-bottom: 0; }
   .drawer-close.ghost,
   .nav-menu-button.ghost { display: inline-flex; }
   .drawer-close { margin-left: auto; margin-bottom: 12px; }
-  .nav-menu-button { flex: 0 0 auto; }
+  .nav-menu-button.ghost {
+    align-self: flex-start;
+    width: auto;
+    flex: 0 0 auto;
+  }
   .drawer-backdrop {
     position: fixed;
     z-index: 1000;
