@@ -197,6 +197,8 @@ assert.deepEqual(preliminaryBody.children.map(row => cells(row)[4].textContent),
 resetNodes();
 const allAroundGroups = node("allAroundGroups");
 node("allAroundSummary");
+node("allAroundByDivision");
+node("allAroundDivisionGroups");
 portal.renderAllAround({
   stackers,
   results: [
@@ -214,6 +216,8 @@ const allAroundRows = descendants(allAroundGroups, "tbody")[0].children;
 assert.equal(allAroundRows.length, 2, "Incomplete three-event stackers must be excluded.");
 assert.deepEqual(allAroundRows.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
 assert.deepEqual(allAroundRows.map(row => cells(row)[6].textContent), ["18.000", "18.000"]);
+const allAroundTargetIds = new Set(descendants(allAroundGroups, "section").map(section => section.id));
+descendants(allAroundGroups, "a").forEach(link => assert.ok(allAroundTargetIds.has(String(link.href).slice(1)) || link.href === "#allAroundByDivision", "All-Around jump links must resolve to rendered targets."));
 
 const doubles = [
   { id: "D1", one: "A", two: "B", name: "AB", customDivision: "U12 Doubles" },
@@ -238,6 +242,8 @@ const rankedDoublesBody = doublesBodies.find(body => body.children.length === 2)
 const scrDoublesBody = doublesBodies.find(body => body.children.length === 1);
 assert.deepEqual(rankedDoublesBody.children.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
 assert.equal(cells(scrDoublesBody.children[0])[4].textContent, "SCR");
+const doublesTargetIds = new Set(descendants(doublesGroups, "section").map(section => section.id));
+descendants(doublesGroups, "a").forEach(link => assert.ok(doublesTargetIds.has(String(link.href).slice(1)), "Doubles jump links must resolve to rendered targets."));
 
 const relays = [
   { id: "R1", name: "Relay A", division: "U12 Relay", members: ["A", "D"], org: "Org A" },
@@ -256,6 +262,8 @@ portal.renderRelay({
 }, false);
 const relayRows = descendants(relayGroups, "tbody")[0].children;
 assert.deepEqual(relayRows.map(row => cells(row)[0].textContent), ["🥇 1", "🥈 2"]);
+const relayTargetIds = new Set(descendants(relayGroups, "section").map(section => section.id));
+descendants(relayGroups, "a").forEach(link => assert.ok(relayTargetIds.has(String(link.href).slice(1)), "Relay jump links must resolve to rendered targets."));
 
 resetNodes();
 const medalRows = node("medalRows", "tbody");

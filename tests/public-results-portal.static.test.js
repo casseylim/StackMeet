@@ -116,7 +116,7 @@ assert.match(client, /group\.stage\.key === "finals"/, "Complete Final totals mu
 assert.match(client, /allAroundAggregateGroups/, "All-Around must include overall, gender, and normal/special category groups.");
 assert.match(client, /allAroundAggregateRows\(payload\)/, "All-Around aggregate groups must use all complete stackers across available stages.");
 assert.match(client, /All-Around Female \(Special\)/, "All-Around must include gender plus category sections.");
-assert.match(client, /const displayGroups = aggregateGroups/, "Public All-Around must not render division-by-division sections.");
+assert.match(client, /const displayGroups = aggregateGroups/, "Aggregate All-Around groups must remain the primary standings.");
 assert.match(client, /incompleteCount/, "Public All-Around summary must show incomplete stackers.");
 assert.match(client, /row\.total === previousTotal \? previousRank/, "Tied All-Around totals must share the same rank.");
 assert.match(styles, /grid-template-areas:[\s\S]*"place stacker total"/, "Mobile All-Around rows must use a compact card layout.");
