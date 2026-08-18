@@ -68,7 +68,11 @@ public sealed class CertificateTemplatesController(
         if (access is not null) return access;
         var item = await database.CertificateTemplates.AsNoTracking().SingleOrDefaultAsync(x => x.Id == templateId && x.CompetitionId == competitionId, ct);
         if (item is null) return NotFound();
-        try { return File(storage.OpenRead(competitionId, item.StoredFileName), item.ContentType, item.OriginalFileName, enableRangeProcessing: true); }
+        try
+        {
+            Response.Headers.CacheControl = "no-store";
+            return File(storage.OpenRead(competitionId, item.StoredFileName), item.ContentType, item.OriginalFileName, enableRangeProcessing: true);
+        }
         catch (FileNotFoundException) { return NotFound(); }
     }
 

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Xml.Linq;
+using System.Xml;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -21,6 +22,14 @@ public sealed class CertificateTemplateDocumentService
 
     public CertificateTemplateDocument Inspect(Stream input, string certificateType)
     {
+        try { return InspectCore(input, certificateType); }
+        catch (InvalidDataException) { throw; }
+        catch (Exception ex) when (ex is XmlException or OpenXmlPackageException or InvalidOperationException or IOException)
+        { throw new InvalidDataException("The DOCX package is malformed or unsupported.", ex); }
+    }
+
+    CertificateTemplateDocument InspectCore(Stream input, string certificateType)
+    {
         if (!string.Equals(certificateType, Participation, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Only Participation templates are supported in Certificate Foundation Phase 1A.");
 
@@ -32,9 +41,17 @@ public sealed class CertificateTemplateDocumentService
             throw new InvalidDataException("The upload is not a valid Word document.");
         if (archive.Entries.Any(entry => entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName)))
             throw new InvalidDataException("The DOCX contains an unsafe package path.");
-        if (!string.Equals(archive.GetEntry("[Content_Types].xml")?.Name, "[Content_Types].xml", StringComparison.Ordinal) ||
-            !string.Equals(archive.GetEntry("word/document.xml")?.Name, "document.xml", StringComparison.Ordinal))
-            throw new InvalidDataException("Only ordinary DOCX packages are supported.");
+        var contentTypes = archive.GetEntry("[Content_Types].xml")!;
+        using (var contentStream = contentTypes.Open())
+        {
+            var contentXml = XDocument.Load(contentStream);
+            var mainDocument = contentXml.Descendants().FirstOrDefault(item =>
+                string.Equals(item.Attribute("PartName")?.Value, "/word/document.xml", StringComparison.OrdinalIgnoreCase));
+            if (!string.Equals(mainDocument?.Attribute("ContentType")?.Value,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+                StringComparison.Ordinal))
+                throw new InvalidDataException("Only ordinary DOCX packages are supported.");
+        }
         if (archive.Entries.Any(entry => entry.FullName.EndsWith("vbaProject.bin", StringComparison.OrdinalIgnoreCase) ||
             entry.FullName.StartsWith("word/embeddings/", StringComparison.OrdinalIgnoreCase) ||
             entry.FullName.StartsWith("word/activeX/", StringComparison.OrdinalIgnoreCase)))
@@ -53,10 +70,15 @@ public sealed class CertificateTemplateDocumentService
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
             .Select(tag => tag!)
             .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
-        var allowedProperties = new HashSet<string>(StringComparer.Ordinal) { "tag", "alias", "id", "lock", "text", "rPr", "placeholder", "showingPlcHdr" };
-        if (roots.SelectMany(root => root.Descendants<SdtElement>()).Any(control =>
-            control.SdtProperties?.Elements().Any(element => !allowedProperties.Contains(element.LocalName)) == true))
-            throw new InvalidDataException("Only text content controls are supported.");
+        var nonTextControls = new HashSet<string>(StringComparer.Ordinal)
+            { "picture", "checkbox", "date", "dropDownList", "comboBox", "repeatingSection", "repeatingSectionItem", "bibliography", "citation" };
+        foreach (var control in roots.SelectMany(root => root.Descendants<SdtElement>()))
+        {
+            var tag = control.SdtProperties?.GetFirstChild<Tag>()?.Val?.Value;
+            if (tag?.StartsWith("NADI.", StringComparison.Ordinal) == true &&
+                control.SdtProperties?.Elements().Any(element => nonTextControls.Contains(element.LocalName)) == true)
+                throw new InvalidDataException("NADI content controls must be text controls.");
+        }
         var unknown = tags.Where(tag => tag.StartsWith("NADI.", StringComparison.Ordinal) && !SupportedTags.Contains(tag)).ToArray();
         if (unknown.Length > 0) throw new InvalidDataException($"Unknown NADI content control: {unknown[0]}");
         if (!tags.Contains("NADI.Participant.Name") || !tags.Contains("NADI.Competition.Name"))
@@ -95,7 +117,11 @@ public sealed class CertificateTemplateDocumentService
     static bool HasExternalRelationship(ZipArchiveEntry entry)
     {
         using var stream = entry.Open();
-        var xml = XDocument.Load(stream);
-        return xml.Descendants().Any(node => string.Equals(node.Attribute("TargetMode")?.Value, "External", StringComparison.OrdinalIgnoreCase));
+        try
+        {
+            var xml = XDocument.Load(stream);
+            return xml.Descendants().Any(node => string.Equals(node.Attribute("TargetMode")?.Value, "External", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (XmlException ex) { throw new InvalidDataException("The DOCX relationships XML is malformed.", ex); }
     }
 }
