@@ -1417,6 +1417,32 @@ function renderNav() {
   }).join("");
 }
 
+function setNavigationDrawer(open) {
+  const menuButton = document.getElementById("navMenuBtn");
+  const backdrop = document.getElementById("navBackdrop");
+  const isOpen = Boolean(open) && window.matchMedia("(max-width: 980px)").matches;
+  document.body.classList.toggle("nav-drawer-open", isOpen);
+  menuButton?.setAttribute("aria-expanded", String(isOpen));
+  if (backdrop) backdrop.hidden = !isOpen;
+}
+
+function closeNavigationDrawer() {
+  setNavigationDrawer(false);
+}
+
+document.getElementById("navMenuBtn")?.addEventListener("click", () => {
+  const isOpen = document.body.classList.contains("nav-drawer-open");
+  setNavigationDrawer(!isOpen);
+});
+document.getElementById("navCloseBtn")?.addEventListener("click", closeNavigationDrawer);
+document.getElementById("navBackdrop")?.addEventListener("click", closeNavigationDrawer);
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeNavigationDrawer();
+});
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 980) closeNavigationDrawer();
+});
+
 function navRouteIsActive(key) {
   if (key === "reports") return route === "reports" || route === "paperwork";
   if (key === "stackers") return ["stackers", "doubles", "relay"].includes(route);
@@ -4912,6 +4938,7 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-route], [data-action]");
   if (!target) return;
   if (target.dataset.route) {
+    closeNavigationDrawer();
     if (target.dataset.reportTab) reportTab = ["finals", "admin"].includes(target.dataset.reportTab) ? target.dataset.reportTab : reportTab;
     route = target.dataset.route;
     render();

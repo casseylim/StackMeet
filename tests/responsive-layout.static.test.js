@@ -7,6 +7,14 @@ const css = fs.readFileSync(
   path.join(root, "backend/StackMeet.Api/wwwroot/styles.css"),
   "utf8"
 );
+const html = fs.readFileSync(
+  path.join(root, "backend/StackMeet.Api/wwwroot/index.html"),
+  "utf8"
+);
+const client = fs.readFileSync(
+  path.join(root, "backend/StackMeet.Api/wwwroot/app.js"),
+  "utf8"
+);
 
 assert.match(css, /\.form-grid\s*\{[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 220px\), 1fr\)\)/);
 assert.match(css, /\.result-grid\s*\{[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 145px\), 1fr\)\)/);
@@ -17,5 +25,13 @@ assert.match(css, /\.panel-head > \*/,);
 assert.match(css, /\.toolbar > \*/,);
 assert.match(css, /\.table-wrap\s*\{[\s\S]*overflow-x:\s*auto/);
 assert.doesNotMatch(css, /@media print[\s\S]*repeat\(auto-fit/);
+assert.match(html, /id="navMenuBtn"[^>]*aria-expanded="false"[^>]*aria-controls="sidebarNav"/);
+assert.match(html, /id="sidebarNav"[^>]*aria-label="Primary navigation"/);
+assert.match(html, /id="navCloseBtn"[^>]*aria-label="Close navigation"/);
+assert.match(html, /id="navBackdrop"[^>]*class="drawer-backdrop"/);
+assert.match(client, /function setNavigationDrawer\(open\)/);
+assert.match(client, /aria-expanded/);
+assert.match(client, /event\.key === "Escape"/);
+assert.match(client, /closeNavigationDrawer\(\);/);
 
 console.log("Responsive layout static tests passed.");

@@ -32,7 +32,8 @@
       </form>
     </section>
     <div class="app">
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation">
+        <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation">Close</button>
         <a class="brand" href="#dashboard" data-route="dashboard">
           <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
           <span>
@@ -49,6 +50,7 @@
 
       <div class="main">
         <header class="topbar">
+          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav">Menu</button>
           <div>
             <p class="eyebrow" id="competitionType" hidden></p>
             <h1 id="pageTitle">Dashboard</h1>
@@ -69,6 +71,7 @@
         <main id="view"></main>
       </div>
     </div>
+    <div id="navBackdrop" class="drawer-backdrop" hidden></div>
 
     <template id="dashboardView">
       <section class="metric-grid">
