@@ -29,6 +29,9 @@ assert.match(css, /\.drawer-close\.ghost,\s*\.nav-menu-button\.ghost,\s*\.drawer
 assert.match(css, /\.drawer-close\.ghost,\s*\.nav-menu-button\.ghost\s*\{\s*display:\s*inline-flex/);
 assert.match(css, /\.drawer-backdrop\[hidden\]\s*\{\s*display:\s*none/);
 assert.match(css, /\.nav-menu-button\.ghost\s*\{[\s\S]*align-self:\s*flex-start;[\s\S]*width:\s*auto/);
+assert.match(css, /\.drawer-close\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*18px;[\s\S]*right:\s*18px/);
+assert.match(css, /\.sidebar \{[\s\S]*padding-bottom:\s*28px;[\s\S]*scrollbar-width:\s*thin/);
+assert.match(css, /\.sidebar::-webkit-scrollbar-thumb[\s\S]*border-radius:\s*999px/);
 assert.match(html, /id="navMenuBtn"[^>]*aria-expanded="false"[^>]*aria-controls="sidebarNav"/);
 assert.match(html, /id="sidebarNav"[^>]*aria-label="Primary navigation"/);
 assert.match(html, /id="navCloseBtn"[^>]*aria-label="Close navigation"/);
