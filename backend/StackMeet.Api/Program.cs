@@ -72,6 +72,9 @@ builder.Services.AddHttpClient<AccountEmailService>(client =>
 builder.Services.AddScoped<AccountLinkService>();
 builder.Services.AddScoped<ProtectedSettingService>();
 builder.Services.AddSingleton<CompetitionAssetStorage>();
+builder.Services.AddSingleton<CertificateTemplateStorage>();
+builder.Services.AddSingleton<CertificateTemplateDocumentService>();
+builder.Services.AddScoped<ParticipantCertificateProjectionService>();
 builder.Services.AddScoped<AuditLogService>();
 // Daily audit-email generation is disabled to reduce background server workload; on-demand audit export remains available.
 builder.Services.AddDbContext<StackMeetDbContext>(options =>

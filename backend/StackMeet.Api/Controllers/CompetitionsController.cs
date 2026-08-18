@@ -86,6 +86,7 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
         var item=await database.Competitions.SingleOrDefaultAsync(x=>x.Id==id,ct);
         if(item is null)return NotFound();
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == id, ct)) return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
+        if (await database.CertificateTemplates.AnyAsync(x => x.CompetitionId == id, ct)) return Conflict(new { error = "Competition cannot be deleted while certificate templates exist." });
         database.Competitions.Remove(item);
         await database.SaveChangesAsync(ct);
         return NoContent();

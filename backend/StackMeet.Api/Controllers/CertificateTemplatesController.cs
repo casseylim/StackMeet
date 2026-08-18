@@ -32,6 +32,8 @@ public sealed class CertificateTemplatesController(
         var access = await Access(competitionId, ct);
         if (access is not null) return access;
         if (file is null || file.Length == 0 || file.Length > 8 * 1024 * 1024) return BadRequest(new { error = "A non-empty DOCX file up to 8 MB is required." });
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 150) return BadRequest(new { error = "Template name is required and must be 150 characters or fewer." });
+        if (string.IsNullOrWhiteSpace(file.FileName) || Path.GetFileName(file.FileName).Length > 255) return BadRequest(new { error = "The original filename must be 255 characters or fewer." });
         if (!string.Equals(certificateType, CertificateTemplateDocumentService.Participation, StringComparison.OrdinalIgnoreCase)) return BadRequest(new { error = "Only Participation templates are supported in Phase 1A." });
         await using var input = file.OpenReadStream();
         CertificateTemplateDocument inspected;
@@ -43,7 +45,7 @@ public sealed class CertificateTemplatesController(
         try
         {
             await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            var type = certificateType.Trim();
+            var type = CertificateTemplateDocumentService.Participation;
             var version = (await database.CertificateTemplates.Where(item => item.CompetitionId == competitionId && item.CertificateType == type).MaxAsync(item => (int?)item.TemplateVersion, ct) ?? 0) + 1;
             var now = DateTime.UtcNow;
             var entity = new CertificateTemplate { CompetitionId = competitionId, CertificateType = type, Name = string.IsNullOrWhiteSpace(name) ? Path.GetFileNameWithoutExtension(file.FileName) : name.Trim(), OriginalFileName = Path.GetFileName(file.FileName), StoredFileName = saved.StoredFileName, ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document", FileSize = file.Length, Sha256 = saved.Sha256, TemplateVersion = version, IsActive = false, CreatedAt = now, UpdatedAt = now, CreatedByUserId = actor, UpdatedByUserId = actor };
@@ -78,8 +80,13 @@ public sealed class CertificateTemplatesController(
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var selected = await database.CertificateTemplates.SingleOrDefaultAsync(x => x.Id == templateId && x.CompetitionId == competitionId, ct);
         if (selected is null) return NotFound();
+        if (selected.IsActive)
+        {
+            return Ok(Map(selected));
+        }
         var active = await database.CertificateTemplates.Where(x => x.CompetitionId == competitionId && x.CertificateType == selected.CertificateType && x.IsActive).ToListAsync(ct);
         active.ForEach(item => item.IsActive = false);
+        await database.SaveChangesAsync(ct);
         selected.IsActive = true;
         selected.UpdatedAt = DateTime.UtcNow;
         selected.UpdatedByUserId = (HttpContext.Items["StackMeetSession"] as SessionToken)?.UserId;
@@ -120,6 +127,7 @@ public sealed class CertificateTemplatesController(
             ["NADI.Certificate.VerificationCode"] = "PREVIEW"
         };
         var bytes = documents.Fill(source, values);
+        Response.Headers.CacheControl = "no-store";
         return File(bytes, item.ContentType, $"preview-{participant.ParticipantCode}.docx");
     }
 

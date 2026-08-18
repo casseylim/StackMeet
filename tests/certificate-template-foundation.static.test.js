@@ -19,7 +19,8 @@ assert.match(storage, /IncrementalHash\.CreateHash\(HashAlgorithmName\.SHA256\)/
 assert.match(storage, /Certificate template path escapes/);
 assert.match(document, /WordprocessingDocument\.Open/);
 assert.match(document, /vbaProject\.bin/);
-assert.match(document, /TargetMode=\\"External\\"/);
+assert.match(document, /TargetMode/);
+assert.match(document, /XDocument\.Load/);
 assert.match(document, /NADI\.Participant\.Name/);
 assert.match(document, /Unknown NADI content control/);
 assert.match(controller, /IsolationLevel\.Serializable/);

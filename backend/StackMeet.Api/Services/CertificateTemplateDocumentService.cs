@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Xml.Linq;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -31,10 +32,14 @@ public sealed class CertificateTemplateDocumentService
             throw new InvalidDataException("The upload is not a valid Word document.");
         if (archive.Entries.Any(entry => entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName)))
             throw new InvalidDataException("The DOCX contains an unsafe package path.");
-        if (archive.Entries.Any(entry => entry.FullName.EndsWith("vbaProject.bin", StringComparison.OrdinalIgnoreCase)))
+        if (!string.Equals(archive.GetEntry("[Content_Types].xml")?.Name, "[Content_Types].xml", StringComparison.Ordinal) ||
+            !string.Equals(archive.GetEntry("word/document.xml")?.Name, "document.xml", StringComparison.Ordinal))
+            throw new InvalidDataException("Only ordinary DOCX packages are supported.");
+        if (archive.Entries.Any(entry => entry.FullName.EndsWith("vbaProject.bin", StringComparison.OrdinalIgnoreCase) ||
+            entry.FullName.StartsWith("word/embeddings/", StringComparison.OrdinalIgnoreCase) ||
+            entry.FullName.StartsWith("word/activeX/", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Macro-enabled Word documents are not supported.");
-        if (archive.Entries.Where(entry => entry.FullName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase)).Any(entry =>
-            new StreamReader(entry.Open()).ReadToEnd().Contains("TargetMode=\"External\"", StringComparison.OrdinalIgnoreCase)))
+        if (archive.Entries.Where(entry => entry.FullName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase)).Any(HasExternalRelationship))
             throw new InvalidDataException("External DOCX relationships are not supported.");
 
         if (input.CanSeek) input.Position = 0;
@@ -48,6 +53,10 @@ public sealed class CertificateTemplateDocumentService
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
             .Select(tag => tag!)
             .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
+        var allowedProperties = new HashSet<string>(StringComparer.Ordinal) { "tag", "alias", "id", "lock", "text", "rPr", "placeholder", "showingPlcHdr" };
+        if (roots.SelectMany(root => root.Descendants<SdtElement>()).Any(control =>
+            control.SdtProperties?.Elements().Any(element => !allowedProperties.Contains(element.LocalName)) == true))
+            throw new InvalidDataException("Only text content controls are supported.");
         var unknown = tags.Where(tag => tag.StartsWith("NADI.", StringComparison.Ordinal) && !SupportedTags.Contains(tag)).ToArray();
         if (unknown.Length > 0) throw new InvalidDataException($"Unknown NADI content control: {unknown[0]}");
         if (!tags.Contains("NADI.Participant.Name") || !tags.Contains("NADI.Competition.Name"))
@@ -71,11 +80,22 @@ public sealed class CertificateTemplateDocumentService
             {
                 var tag = control.SdtProperties?.GetFirstChild<Tag>()?.Val?.Value;
                 if (tag is null || !values.TryGetValue(tag, out var value)) continue;
-                var text = control.Descendants<Text>().FirstOrDefault();
-                if (text is not null) text.Text = value;
+                var texts = control.Descendants<Text>().ToList();
+                if (texts.Count > 0)
+                {
+                    texts[0].Text = value;
+                    foreach (var extra in texts.Skip(1)) extra.Text = string.Empty;
+                }
             }
             document.MainDocumentPart?.Document.Save();
         }
         return output.ToArray();
+    }
+
+    static bool HasExternalRelationship(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        var xml = XDocument.Load(stream);
+        return xml.Descendants().Any(node => string.Equals(node.Attribute("TargetMode")?.Value, "External", StringComparison.OrdinalIgnoreCase));
     }
 }
