@@ -67,6 +67,9 @@ source = source.replace(
     renderDoubles,
     renderRelay,
     allAroundEventKey,
+    allAroundAggregateRows,
+    allAroundDivisionGroupsFromRows,
+    rankAllAroundMetric,
     orderedDivisionGroups,
     isIndividualType
   };
@@ -126,6 +129,29 @@ assert.ok(Number.isNaN(portal.bestTime(result("A", "Final", "Individual", "3-3-3
 assert.ok(Number.isNaN(portal.bestTime(result("A", "Final", "Individual", "3-3-3", [5], 999))));
 assert.equal(portal.allAroundEventKey("The Cycle"), "cycle");
 assert.equal(portal.allAroundEventKey("3-6-3"), "363");
+
+const divisionRows = portal.allAroundAggregateRows({
+  stackers: [
+    { id: "I1", name: "Division One", division: "10U" },
+    { id: "I2", name: "Division Two", division: "Open" },
+    { id: "I3", name: "Incomplete", division: "10U" },
+    { id: "D1", name: "Team", division: "Doubles" }
+  ],
+  results: [
+    ...[5, 6, 7].map((time, index) => result("I1", "Final", "Individual", ["3-3-3", "3-6-3", "Cycle"][index], [time])),
+    ...[5, 7, 9].map((time, index) => result("I2", "Final", "Individual", ["3-3-3", "3-6-3", "Cycle"][index], [time])),
+    result("D1", "Final", "Doubles", "3-3-3", [1])
+  ]
+});
+const divisionGroups = portal.allAroundDivisionGroupsFromRows(divisionRows, { divisions: ["Open", "10U", "Empty"] });
+assert.equal(divisionGroups.map(group => group.division).join("|"), "Open|10U");
+assert.equal(divisionGroups.find(group => group.division === "10U").rows.length, 1);
+const metricRows = [
+  { stacker: { name: "Leader" }, total: 18 },
+  { stacker: { name: "Tie A" }, total: 20 },
+  { stacker: { name: "Tie B" }, total: 20 }
+];
+assert.deepEqual(JSON.parse(JSON.stringify(portal.rankAllAroundMetric(metricRows, row => row.total).map(item => [item.rank, item.gap]))), [[1, 0], [2, 2], [2, 2]]);
 
 const availabilityPayload = {
   results: [

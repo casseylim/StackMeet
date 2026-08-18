@@ -232,6 +232,15 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
 .status-cell { color: var(--muted); font-size: .72rem; }
 .empty-state.compact { min-height: 15rem; }
 .allaround-groups { display: grid; gap: 1rem; }
+.allaround-by-division { margin-top: 1.5rem; }
+.allaround-by-division > .section-heading { margin-bottom: 1rem; }
+.allaround-division-board { overflow: hidden; margin-bottom: 1rem; }
+.allaround-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; padding: 1rem; }
+.allaround-metric-panel { min-width: 0; padding: .8rem; border: 1px solid var(--line); border-radius: .85rem; background: #fff; }
+.allaround-metric-panel h3 { margin: 0 0 .65rem; color: var(--navy); font-size: .95rem; }
+.allaround-metric-table { min-width: 0; width: 100%; }
+.allaround-metric-table th, .allaround-metric-table td { padding: .5rem .35rem; }
+.allaround-metric-table th:nth-child(n+3), .allaround-metric-table td:nth-child(n+3) { text-align: right; }
 .allaround-heading { background: linear-gradient(120deg, #133d35, #12705d); }
 .allaround-heading .eyebrow { color: #8ef0ce; }
 .allaround-total { color: #087956; font-size: 1.02rem; }
@@ -495,9 +504,11 @@ footer { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 0 0 max
   font-weight: 850;
 }
 @media (max-width: 900px) {
+  .allaround-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .section-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
+  .allaround-metric-grid { grid-template-columns: 1fr; }
   .section-status-grid { grid-template-columns: 1fr; }
   .section-status-card { min-height: 7.2rem; }
   .division-jump { grid-template-columns: 1fr; }

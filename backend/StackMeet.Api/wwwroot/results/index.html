@@ -8,7 +8,7 @@
   <title>NADITrack Live Results</title>
   <link rel="icon" type="image/png" href="/assets/stackmeet-logo.png?v=results-favicon">
   <link rel="apple-touch-icon" href="/assets/stackmeet-logo.png?v=results-favicon">
-  <link rel="stylesheet" href="/results/results.css?v=public-results-classification-20260818a">
+  <link rel="stylesheet" href="/results/results.css?v=public-results-division-allaround-20260818a">
 </head>
 <body>
   <div class="app-shell">
@@ -182,6 +182,14 @@
           <span id="allAroundSummary" class="page-summary">Waiting for results</span>
         </div>
         <div id="allAroundGroups" class="allaround-groups"></div>
+        <section id="allAroundByDivision" class="allaround-by-division" hidden>
+          <div class="section-heading">
+            <span class="eyebrow">Competition divisions</span>
+            <h3>All-Around by Division</h3>
+            <p>Rankings within each Individual division using each stacker's best published 3-3-3, 3-6-3 and Cycle times.</p>
+          </div>
+          <div id="allAroundDivisionGroups"></div>
+        </section>
       </section>
 
       <section id="doubles" hidden>
@@ -246,6 +254,6 @@
     </footer>
   </div>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=public-results-classification-20260818a"></script>
+  <script src="/results/results.js?v=public-results-division-allaround-20260818a"></script>
 </body>
 </html>

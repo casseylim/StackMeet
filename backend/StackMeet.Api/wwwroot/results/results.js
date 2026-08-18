@@ -767,7 +767,8 @@
 
     const selectedGroups = [...divisions.values()].map(groups =>
       groups.find(group => group.stage.key === "finals") || groups[0]);
-    const aggregateGroups = allAroundAggregateGroups(selectedGroups, payload);
+    const aggregateRows = allAroundAggregateRows(payload);
+    const aggregateGroups = allAroundAggregateGroups(aggregateRows);
     const displayGroups = aggregateGroups;
 
     const container = el("allAroundGroups");
@@ -791,6 +792,7 @@
         make("p", "", "A stacker appears after valid 3-3-3, 3-6-3, and Cycle results have all been published for the same stage.")
       );
       container.append(empty);
+      renderAllAroundByDivision([], payload, official);
       return;
     }
 
@@ -798,10 +800,10 @@
     displayGroups
       .sort((left, right) => (left.order || 0) - (right.order || 0) || naturalCompare(left.division, right.division))
       .forEach(group => container.append(renderAllAroundDivision(group, official)));
+    renderAllAroundByDivision(aggregateRows, payload, official);
   }
 
-  function allAroundAggregateGroups(selectedGroups, payload) {
-    const rows = allAroundAggregateRows(payload);
+  function allAroundAggregateGroups(rows) {
     if (!rows.length) return [];
 
     const stage = rows[0].sourceStage || { key: "all", label: "Best" };
@@ -869,6 +871,89 @@
     { key: "363", label: "3-6-3" },
     { key: "cycle", label: "Cycle" }
   ];
+
+  function allAroundDivisionGroupsFromRows(rows, payload) {
+    const groups = new Map();
+    rows.forEach(row => {
+      const division = String(row.stacker?.division || "Open / Unassigned").trim() || "Open / Unassigned";
+      if (!groups.has(division)) groups.set(division, []);
+      groups.get(division).push(row);
+    });
+    return orderedDivisionGroups(groups, payload).map(([division, divisionRows]) => ({ division, rows: divisionRows }));
+  }
+
+  function rankAllAroundMetric(rows, valueSelector) {
+    const ranked = rows
+      .map(row => ({ row, value: valueSelector(row) }))
+      .filter(item => Number.isFinite(item.value))
+      .sort((left, right) => left.value - right.value || naturalCompare(left.row.stacker?.name || left.row.participantId, right.row.stacker?.name || right.row.participantId));
+    const leader = ranked[0]?.value;
+    let previousValue = Number.NaN;
+    let previousRank = 0;
+    ranked.forEach((item, index) => {
+      const tied = item.value === previousValue;
+      item.rank = tied ? previousRank : index + 1;
+      item.gap = Number.isFinite(leader) ? item.value - leader : 0;
+      previousValue = item.value;
+      previousRank = item.rank;
+    });
+    return ranked;
+  }
+
+  function renderAllAroundByDivision(rows, payload, official) {
+    const section = el("allAroundByDivision");
+    const container = el("allAroundDivisionGroups");
+    if (!section || !container) return;
+    container.replaceChildren();
+    const groups = allAroundDivisionGroupsFromRows(rows, payload);
+    section.hidden = groups.length === 0;
+    if (!groups.length) return;
+
+    container.append(renderDivisionJumpNav(groups.map(group => group.division), "allaround-by-division"));
+    groups.forEach(group => {
+      const board = make("section", "panel allaround-division-board");
+      board.id = divisionAnchorId("allaround-by-division", group.division);
+      const heading = make("div", "division-heading allaround-heading");
+      const title = make("div", "");
+      title.append(make("span", "eyebrow", official ? "Official division ranking" : "Provisional division ranking"));
+      title.append(make("h2", "", group.division));
+      heading.append(title, make("span", "division-count", `${group.rows.length} complete`));
+      board.append(heading);
+      const grid = make("div", "allaround-metric-grid");
+      const metrics = [
+        { label: "3-3-3", key: "333" },
+        { label: "3-6-3", key: "363" },
+        { label: "Cycle", key: "cycle" },
+        { label: "All Around", key: "total" }
+      ];
+      metrics.forEach(metric => {
+        const panel = make("article", "allaround-metric-panel");
+        panel.append(make("h3", "", metric.label));
+        const table = make("table", "results-table allaround-metric-table");
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        ["Place", "Stacker", "Time", "Gap"].forEach(label => headRow.append(make("th", "", label)));
+        head.append(headRow);
+        table.append(head);
+        const body = document.createElement("tbody");
+        rankAllAroundMetric(group.rows, row => metric.key === "total" ? row.total : row.times[metric.key]).forEach(item => {
+          const tr = document.createElement("tr");
+          tr.append(
+            make("td", "rank-cell", medalPlace(item.rank)),
+            make("td", "stacker-cell", item.row.stacker?.name || item.row.participantId),
+            make("td", "time-cell", formatTime(item.value)),
+            make("td", "status-cell", item.gap > 0 ? `+${formatTime(item.gap)}` : "--")
+          );
+          body.append(tr);
+        });
+        table.append(body);
+        panel.append(table);
+        grid.append(panel);
+      });
+      board.append(grid);
+      container.append(board);
+    });
+  }
 
   function renderAllAroundDivision(group, official) {
     const section = make("section", "panel preliminary-division allaround-division");
