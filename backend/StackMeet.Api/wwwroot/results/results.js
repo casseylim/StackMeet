@@ -789,7 +789,7 @@
       empty.append(
         make("span", "empty-icon clock", "↗"),
         make("h2", "", "All-Around standings are not available yet"),
-        make("p", "", "A stacker appears after valid 3-3-3, 3-6-3, and Cycle results have all been published for the same stage.")
+        make("p", "", "A stacker appears after valid times have been published for 3-3-3, 3-6-3, and Cycle.")
       );
       container.append(empty);
       renderAllAroundByDivision([], payload, official);
