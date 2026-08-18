@@ -38,3 +38,4 @@ backups/
 # Imported participant data containing personal information
 backend/StackMeet.Api/wwwroot/data/stacktrack-4257-stackers.js
 data/stacktrack-4257-stackers.js
+backend/StackMeet.Api/App_Data/certificate-templates/

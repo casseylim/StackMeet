@@ -17,6 +17,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<Stacker> Stackers => Set<Stacker>();
     public DbSet<CompetitionResult> CompetitionResults => Set<CompetitionResult>();
     public DbSet<CompetitionAsset> CompetitionAssets => Set<CompetitionAsset>();
+    public DbSet<CertificateTemplate> CertificateTemplates => Set<CertificateTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -186,5 +187,27 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         asset.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
         asset.HasIndex(item => new { item.CompetitionId, item.AssetType }).IsUnique();
         asset.HasOne(item => item.Competition).WithMany(item => item.Assets).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Cascade);
+
+        var certificate = modelBuilder.Entity<CertificateTemplate>();
+        certificate.ToTable("CertificateTemplate", "dbo");
+        certificate.HasKey(item => item.Id);
+        certificate.Property(item => item.Id).UseIdentityColumn();
+        certificate.Property(item => item.CertificateType).HasMaxLength(30).IsRequired();
+        certificate.Property(item => item.Name).HasMaxLength(150).IsRequired();
+        certificate.Property(item => item.OriginalFileName).HasMaxLength(255).IsRequired();
+        certificate.Property(item => item.StoredFileName).HasMaxLength(255).IsRequired();
+        certificate.Property(item => item.ContentType).HasMaxLength(100).IsRequired();
+        certificate.Property(item => item.FileSize).IsRequired();
+        certificate.Property(item => item.Sha256).HasMaxLength(64).IsRequired();
+        certificate.Property(item => item.TemplateVersion).IsRequired();
+        certificate.Property(item => item.TemplateSchemaVersion).IsRequired();
+        certificate.Property(item => item.IsActive).IsRequired();
+        certificate.Property(item => item.CreatedAt).HasColumnType("datetime2").IsRequired();
+        certificate.Property(item => item.UpdatedAt).HasColumnType("datetime2").IsRequired();
+        certificate.HasIndex(item => new { item.CompetitionId, item.CertificateType, item.TemplateVersion }).IsUnique();
+        certificate.HasIndex(item => new { item.CompetitionId, item.CertificateType }).IsUnique().HasFilter("[IsActive] = 1");
+        certificate.HasOne(item => item.Competition).WithMany(item => item.CertificateTemplates).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Restrict);
+        certificate.HasOne(item => item.CreatedByUser).WithMany().HasForeignKey(item => item.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+        certificate.HasOne(item => item.UpdatedByUser).WithMany().HasForeignKey(item => item.UpdatedByUserId).OnDelete(DeleteBehavior.SetNull);
     }
 }

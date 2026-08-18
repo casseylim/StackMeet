@@ -1,0 +1,32 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+
+const read = file => fs.readFileSync(file, "utf8");
+const root = "backend/StackMeet.Api";
+const model = read(`${root}/Models/CertificateTemplate.cs`);
+const context = read(`${root}/Data/StackMeetDbContext.cs`);
+const storage = read(`${root}/Services/CertificateTemplateStorage.cs`);
+const document = read(`${root}/Services/CertificateTemplateDocumentService.cs`);
+const controller = read(`${root}/Controllers/CertificateTemplatesController.cs`);
+const permissions = read(`${root}/Services/CompetitionPermissionService.cs`);
+const migration = fs.readdirSync(`${root}/Migrations`).find(name => /CertificateTemplatesPhase1A\.cs$/.test(name));
+
+assert.match(model, /class CertificateTemplate/);
+assert.match(context, /HasFilter\("\[IsActive\] = 1"\)/);
+assert.match(context, /OnDelete\(DeleteBehavior\.Restrict\)/);
+assert.match(storage, /Guid\.NewGuid\(\)/);
+assert.match(storage, /IncrementalHash\.CreateHash\(HashAlgorithmName\.SHA256\)/);
+assert.match(storage, /Certificate template path escapes/);
+assert.match(document, /WordprocessingDocument\.Open/);
+assert.match(document, /vbaProject\.bin/);
+assert.match(document, /TargetMode=\\"External\\"/);
+assert.match(document, /NADI\.Participant\.Name/);
+assert.match(document, /Unknown NADI content control/);
+assert.match(controller, /IsolationLevel\.Serializable/);
+assert.match(controller, /CertificateTemplateUploaded/);
+assert.match(controller, /CertificateTemplateActivated/);
+assert.match(controller, /HttpGet\("\{templateId:long\}/);
+assert.match(controller, /HttpPost\("\{templateId:long\}\/preview"\)/);
+assert.match(permissions, /CanManageCertificates/);
+assert.ok(migration, "CertificateTemplatesPhase1A migration must exist.");
+console.log("Certificate template foundation static safety tests passed.");
