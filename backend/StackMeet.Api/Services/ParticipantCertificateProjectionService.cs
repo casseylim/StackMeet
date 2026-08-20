@@ -26,8 +26,11 @@ public sealed class ParticipantCertificateProjectionService(StackMeetDbContext d
     }
 
     static string ResolveDivision(Models.Stacker stacker, Models.Competition competition, string? json)
+        => ResolveDivisionValues(stacker.CustomDivision, stacker.BirthDate, competition.StartDate, stacker.Gender, stacker.IsSpecialStacker, json);
+
+    public static string ResolveDivisionValues(string? customDivision, DateOnly? birthDate, DateOnly competitionStart, string gender, bool isSpecialStacker, string? json)
     {
-        if (!string.IsNullOrWhiteSpace(stacker.CustomDivision)) return stacker.CustomDivision.Trim();
+        if (!string.IsNullOrWhiteSpace(customDivision)) return customDivision.Trim();
         if (string.IsNullOrWhiteSpace(json)) return "Open / Unassigned";
         try
         {
@@ -39,21 +42,21 @@ public sealed class ParticipantCertificateProjectionService(StackMeetDbContext d
             var female = Numbers(settings, "female");
             var special = Numbers(settings, "special");
             var config = root.TryGetProperty("settings", out var s) ? s : default;
-            DateOnly? start = competition.StartDate;
+            DateOnly? start = competitionStart;
             if (config.ValueKind == JsonValueKind.Object && config.TryGetProperty("start", out var startValue) && DateOnly.TryParse(startValue.GetString(), out var parsed)) start = parsed;
             var yearBorn = config.ValueKind == JsonValueKind.Object && config.TryGetProperty("ageCalculationMode", out var mode) && string.Equals(mode.GetString(), "yearBorn", StringComparison.OrdinalIgnoreCase);
             var separate = config.ValueKind == JsonValueKind.Object && config.TryGetProperty("separateSpecialDivisionsByGender", out var split) && split.ValueKind == JsonValueKind.True;
-            var age = Age(stacker.BirthDate, start, yearBorn);
+            var age = Age(birthDate, start, yearBorn);
             if (age <= 0) return "Open / Unassigned";
-            if (stacker.IsSpecialStacker)
+            if (isSpecialStacker)
             {
                 var label = Range(age, special, "Special");
                 if (string.IsNullOrWhiteSpace(label)) label = "SS";
-                return separate ? $"{label} {(string.Equals(stacker.Gender, "F", StringComparison.OrdinalIgnoreCase) ? "F" : "M")}" : label;
+                return separate ? $"{label} {(string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase) ? "F" : "M")}" : label;
             }
-            var gender = string.Equals(stacker.Gender, "F", StringComparison.OrdinalIgnoreCase);
+            var isFemale = string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase);
             var pathByAge = new Dictionary<int, string>();
-            foreach (var cutoff in gender ? female : male) if (cutoff > 0) pathByAge[cutoff] = gender ? "Female" : "Male";
+            foreach (var cutoff in isFemale ? female : male) if (cutoff > 0) pathByAge[cutoff] = isFemale ? "Female" : "Male";
             foreach (var cutoff in combined) if (cutoff > 0) pathByAge[cutoff] = "Combined";
             var path = pathByAge.OrderBy(x => x.Key).Select(x => (Age: x.Key, Label: x.Value)).ToArray();
             return Range(age, path) ?? "Open / Unassigned";
