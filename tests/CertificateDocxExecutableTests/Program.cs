@@ -20,6 +20,7 @@ var service = new CertificateTemplateDocumentService();
 var valid = Fixture.Create();
 var inspected = service.Inspect(new MemoryStream(valid), CertificateTemplateDocumentService.Participation);
 AssertEx.True(inspected.Tags.Contains("NADI.Participant.Name") && inspected.Tags.Contains("NADI.Competition.Name"), "required tags discovered");
+AssertEx.True(inspected.Tags.Contains("OTHER.Layout.Note"), "non-NADI content control accepted");
 var filled = service.Fill(new MemoryStream(valid), values);
 using (var reopened = WordprocessingDocument.Open(new MemoryStream(filled), false))
 {
@@ -46,6 +47,7 @@ Reject("unsafe traversal entry", AddEntry(valid, "../escape.txt", Encoding.UTF8.
 AssertEx.Throws<InvalidDataException>(() => service.Inspect(new MemoryStream(Mutate(valid, (n, b) => n == "[Content_Types].xml" ? "<broken" : b)), CertificateTemplateDocumentService.Participation), "malformed content types");
 AssertEx.Throws<InvalidDataException>(() => service.Inspect(new MemoryStream(Mutate(valid, (n, b) => n == "word/_rels/document.xml.rels" ? "<broken" : b)), CertificateTemplateDocumentService.Participation), "malformed relationships");
 AssertEx.Throws<InvalidDataException>(() => service.Inspect(new MemoryStream(Encoding.UTF8.GetBytes("not a docx")), CertificateTemplateDocumentService.Participation), "malformed package");
+AssertEx.Throws<InvalidDataException>(() => service.Inspect(new MemoryStream(Mutate(valid, (n, b) => n == "word/document.xml" ? "<broken" : b)), CertificateTemplateDocumentService.Participation), "malformed main document");
 Reject("entry count limit", AddEntries(valid, 201));
 Reject("expanded size limit", AddEntry(valid, "word/large.bin", new byte[40 * 1024 * 1024]));
 var boundary = AddEntry(valid, "word/boundary.bin", new byte[40 * 1024 * 1024 - (int)ExpandedSize(valid) - 1]);
@@ -75,7 +77,7 @@ sealed class Fixture
         using var ms = new MemoryStream(); using (var doc = WordprocessingDocument.Create(ms, DocumentFormat.OpenXml.WordprocessingDocumentType.Document, true))
         {
             var main = doc.AddMainDocumentPart(); main.Document = new Document(new Body(
-                P("Artwork remains"), Control("NADI.Participant.Name", "STALE-RUN", true), Control("NADI.Participant.Name", "old"), Control("NADI.Competition.Name", "old"), Control("NADI.Participant.Division", "old"))); main.Document.Save();
+                P("Artwork remains"), Control("OTHER.Layout.Note", "Unrelated layout note"), Control("NADI.Participant.Name", "STALE-RUN", true), Control("NADI.Participant.Name", "old"), Control("NADI.Competition.Name", "old"), Control("NADI.Participant.Division", "old"))); main.Document.Save();
             var header = main.AddNewPart<HeaderPart>(); header.Header = new Header(Control("NADI.Competition.Venue", "old")); header.Header.Save();
             var footer = main.AddNewPart<FooterPart>(); footer.Footer = new Footer(Control("NADI.Certificate.Number", "old")); footer.Footer.Save();
             if (main.Document.Body!.GetFirstChild<SectionProperties>() is null) main.Document.Body.AppendChild(new SectionProperties(new HeaderReference { Type = HeaderFooterValues.Default, Id = main.GetIdOfPart(header) }, new FooterReference { Type = HeaderFooterValues.Default, Id = main.GetIdOfPart(footer) }));
