@@ -1,0 +1,60 @@
+using Microsoft.AspNetCore.Hosting;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging.Abstractions;
+using StackMeet.Api.Controllers;
+using StackMeet.Api.Data;
+using StackMeet.Api.Dtos;
+using StackMeet.Api.Models;
+using StackMeet.Api.Services;
+
+const string server = @"(localdb)\MSSQLLocalDB";
+var database = $"StackMeet_CertificateApiTest_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+var connection = $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True";
+var root = Path.Combine(Path.GetTempPath(), $"stackmeet-api-certificates-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["CertificateTemplatesPath"] = root, ["Security:SessionSigningKey"] = "local-test-only-key" }).Build();
+var options = new DbContextOptionsBuilder<StackMeetDbContext>().UseSqlServer(connection).Options;
+try
+{
+    await using var db = new StackMeetDbContext(options); await db.Database.MigrateAsync();
+    var manager = new AppUser { Email = "manager@test.local", NormalizedEmail = "MANAGER@TEST.LOCAL", PasswordHash = "x", DisplayName = "Manager", IsActive = true, CreatedAt = DateTime.UtcNow };
+    var dataEntry = new AppUser { Email = "entry@test.local", NormalizedEmail = "ENTRY@TEST.LOCAL", PasswordHash = "x", DisplayName = "Entry", IsActive = true, CreatedAt = DateTime.UtcNow };
+    var c1 = Competition("API-ONE", "API One", "Draft"); var c2 = Competition("API-TWO", "API Two", "Draft"); db.AddRange(manager, dataEntry, c1, c2); await db.SaveChangesAsync();
+    db.CompetitionUsers.AddRange(new CompetitionUser { CompetitionId = c1.Id, UserId = manager.Id, RoleId = 2, AssignedAt = DateTime.UtcNow }, new CompetitionUser { CompetitionId = c1.Id, UserId = dataEntry.Id, RoleId = 3, AssignedAt = DateTime.UtcNow });
+    db.Stackers.Add(new Stacker { CompetitionId = c1.Id, StackerCode = "1.123", FirstName = "Nur Aisyah", LastName = "Ahmad", Gender = "F", BirthDate = new DateOnly(2014, 7, 12), Country = "Malaysia", Club = "Sekolah Kebangsaan Example", Paid = "Yes", CheckedIn = "Yes", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+    db.CompetitionStates.Add(new CompetitionState { CompetitionKey = c1.CompetitionKey, JsonData = "{\"divisionSettings\":{\"female\":[11,12],\"male\":[],\"combined\":[]},\"settings\":{\"start\":\"2026-07-11\",\"ageCalculationMode\":\"actual\"}}", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }); await db.SaveChangesAsync();
+    var storage = new CertificateTemplateStorage(config, new TestEnvironment(root), NullLogger<CertificateTemplateStorage>.Instance); var docs = new CertificateTemplateDocumentService(); var sessions = new SessionTokenService(config); var accessor = new HttpContextAccessor(); var audit = new AuditLogService(db, accessor, sessions); var permissions = new CompetitionPermissionService(db); var projections = new ParticipantCertificateProjectionService(db);
+
+    var controller = NewController(db, storage, docs, permissions, projections, audit, accessor, new SessionToken("", "Manager", DateTimeOffset.UtcNow.AddHours(1), manager.Id, manager.Email, false));
+    var upload = await controller.Upload(c1.Id, "Participation", "API Template", UploadFile(valid: true), CancellationToken.None); var created = (CertificateTemplateResponse)((OkObjectResult)upload.Result!).Value!; Check(created.TemplateVersion == 1 && !created.IsActive, "authorized upload creates inactive v1"); Check(Directory.Exists(storage.CompetitionPath(c1.Id)), "upload created private storage");
+    var list = await controller.List(c1.Id, CancellationToken.None); Check(((OkObjectResult)list.Result!).Value is IReadOnlyList<CertificateTemplateResponse>, "authorized list");
+    var download = await controller.Download(c1.Id, created.Id, CancellationToken.None); Check(download is FileStreamResult && accessor.HttpContext!.Response.Headers.CacheControl == "no-store", "download is private and no-store"); ((FileStreamResult)download).FileStream.Dispose();
+    var preview = await controller.Preview(c1.Id, created.Id, new CertificateTemplatePreviewRequest("1.123"), CancellationToken.None); Check(preview is FileContentResult && accessor.HttpContext.Response.Headers.CacheControl == "no-store", "preview is private and no-store"); using (var reopened = WordprocessingDocument.Open(new MemoryStream(((FileContentResult)preview).FileContents), false)) Check(reopened.MainDocumentPart!.Document.InnerText.Contains("Nur Aisyah Ahmad") && reopened.MainDocumentPart.Document.InnerText.Contains("11 & Under Female"), "preview contains SQL projection values");
+    c1.Status = "Closed"; await db.SaveChangesAsync(); var closedUpload = await controller.Upload(c1.Id, "Participation", "Closed Write", UploadFile(valid: true), CancellationToken.None); Check(closedUpload.Result is ForbidResult, "closed write blocked"); c1.Status = "Archived"; await db.SaveChangesAsync(); var archivedList = await controller.List(c1.Id, CancellationToken.None); Check(archivedList.Result is ForbidResult, "archived access blocked"); c1.Status = "Draft"; await db.SaveChangesAsync(); Check((await controller.Upload(c1.Id, "Participation", "Bad DOCX", UploadFile(valid: false), CancellationToken.None)).Result is BadRequestObjectResult, "malformed upload returns 400"); Check((await controller.Upload(c1.Id, "Invalid", "Invalid type", UploadFile(valid: true), CancellationToken.None)).Result is BadRequestObjectResult, "invalid type returns 400"); Check((await controller.Upload(c1.Id, "Participation", "", UploadFile(valid: true), CancellationToken.None)).Result is BadRequestObjectResult, "blank name returns 400");
+    c1.Status = "Draft"; await db.SaveChangesAsync();
+    var unauthorized = NewController(db, storage, docs, permissions, projections, audit, accessor, new SessionToken("", "Entry", DateTimeOffset.UtcNow.AddHours(1), dataEntry.Id, dataEntry.Email, false)); var denied = await unauthorized.List(c1.Id, CancellationToken.None); Check(denied.Result is ForbidResult, "data entry denied"); var cross = await controller.List(c2.Id, CancellationToken.None); Check(cross.Result is ForbidResult, "cross competition denied");
+    var delete1 = new CompetitionsController(db); delete1.ControllerContext = new ControllerContext { HttpContext = accessor.HttpContext }; accessor.HttpContext.Items["StackMeetMaintenanceApiKey"] = true; Check((await delete1.Delete(c1.Id, CancellationToken.None)) is ConflictObjectResult, "maintenance delete returns conflict");
+    var admin = new CompetitionAdminController(db, new PasswordHashService(), audit); admin.ControllerContext = new ControllerContext { HttpContext = accessor.HttpContext }; var delete2 = await admin.Delete(c1.CompetitionKey, new CompetitionAdminDeleteRequest($"DELETE {c1.CompetitionKey}"), CancellationToken.None); Check(delete2 is ConflictObjectResult, "admin delete returns conflict");
+    Console.WriteLine("Certificate API integration tests passed.");
+}
+finally { await using var cleanup = new StackMeetDbContext(options); await cleanup.Database.EnsureDeletedAsync(); if (Directory.Exists(root)) Directory.Delete(root, true); }
+
+static Competition Competition(string code, string name, string status) => new() { CompetitionCode = code, CompetitionKey = code, CompetitionName = name, Venue = "Kuala Lumpur", StartDate = new DateOnly(2026, 7, 11), EndDate = new DateOnly(2026, 7, 11), Status = status, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+static IFormFile UploadFile(bool valid) { var bytes = valid ? Fixture() : Array.Empty<byte>(); return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "template.docx") { Headers = new HeaderDictionary(), ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }; }
+static CertificateTemplatesController NewController(StackMeetDbContext db, CertificateTemplateStorage storage, CertificateTemplateDocumentService docs, CompetitionPermissionService permissions, ParticipantCertificateProjectionService projections, AuditLogService audit, IHttpContextAccessor accessor, SessionToken session) { accessor.HttpContext = new DefaultHttpContext(); accessor.HttpContext.Items["StackMeetSession"] = session; return new CertificateTemplatesController(db, permissions, storage, docs, projections, audit) { ControllerContext = new ControllerContext { HttpContext = accessor.HttpContext } }; }
+static byte[] Fixture()
+{
+    using var ms = new MemoryStream(); using (var doc = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document, true)) { var main = doc.AddMainDocumentPart(); main.Document = new Document(new Body(Control("NADI.Participant.Name", "old"), Control("NADI.Participant.Code", "old"), Control("NADI.Participant.Division", "old"), Control("NADI.Participant.Organization", "old"), Control("NADI.Participant.Gender", "old"), Control("NADI.Competition.Name", "old"), Control("NADI.Competition.Code", "old"), Control("NADI.Competition.StartDate", "old"), Control("NADI.Certificate.Number", "old"))); main.Document.Save(); }
+    var source = ms.ToArray(); using var input = new ZipArchive(new MemoryStream(source), ZipArchiveMode.Read); using var output = new MemoryStream(); using (var zip = new ZipArchive(output, ZipArchiveMode.Create, true)) { foreach (var e in input.Entries) { var n = zip.CreateEntry(e.FullName); using var os = n.Open(); using var es = e.Open(); using var copy = new MemoryStream(); es.CopyTo(copy); var bytes = copy.ToArray(); if (e.FullName == "[Content_Types].xml") bytes = System.Text.Encoding.UTF8.GetBytes(System.Text.Encoding.UTF8.GetString(bytes).Replace("</Types>", "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\" /></Types>")); os.Write(bytes); } } return output.ToArray();
+}
+static SdtBlock Control(string tag, string text) => new(new SdtProperties(new Tag { Val = tag }, new SdtContentText()), new SdtContentBlock(new Paragraph(new Run(new Text(text)))));
+static void Check(bool ok, string name) { if (!ok) throw new InvalidOperationException($"FAIL {name}"); Console.WriteLine($"PASS {name}"); }
+sealed class TestEnvironment(string root) : IWebHostEnvironment { public string ApplicationName { get; set; } = "CertificateApiIntegrationTests"; public string EnvironmentName { get; set; } = "Test"; public string WebRootPath { get; set; } = root; public string ContentRootPath { get; set; } = root; public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider(); public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider(); }

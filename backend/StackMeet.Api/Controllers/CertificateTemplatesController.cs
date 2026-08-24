@@ -29,7 +29,7 @@ public sealed class CertificateTemplatesController(
     [RequestSizeLimit(8 * 1024 * 1024)]
     public async Task<ActionResult<CertificateTemplateResponse>> Upload(int competitionId, [FromForm] string certificateType, [FromForm] string name, IFormFile file, CancellationToken ct)
     {
-        var access = await Access(competitionId, ct);
+        var access = await Access(competitionId, ct, write: true);
         if (access is not null) return access;
         if (file is null || file.Length == 0 || file.Length > 8 * 1024 * 1024) return BadRequest(new { error = "A non-empty DOCX file up to 8 MB is required." });
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 150) return BadRequest(new { error = "Template name is required and must be 150 characters or fewer." });
@@ -79,7 +79,7 @@ public sealed class CertificateTemplatesController(
     [HttpPost("{templateId:long}/activate")]
     public async Task<ActionResult<CertificateTemplateResponse>> Activate(int competitionId, long templateId, CancellationToken ct)
     {
-        var access = await Access(competitionId, ct);
+        var access = await Access(competitionId, ct, write: true);
         if (access is not null) return access;
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var selected = await database.CertificateTemplates.SingleOrDefaultAsync(x => x.Id == templateId && x.CompetitionId == competitionId, ct);
@@ -135,11 +135,14 @@ public sealed class CertificateTemplatesController(
         return File(bytes, item.ContentType, $"preview-{participant.ParticipantCode}.docx");
     }
 
-    async Task<ActionResult?> Access(int competitionId, CancellationToken ct)
+    async Task<ActionResult?> Access(int competitionId, CancellationToken ct, bool write = false)
     {
         if (HttpContext.Items["StackMeetSession"] is not SessionToken session || session.UserId is null) return Unauthorized();
         var role = await permissions.RoleForCompetitionId(session.UserId.Value, session.IsSystemAdmin, competitionId, ct);
-        return role is null || !CompetitionPermissionService.CanManageCertificates(role) ? Forbid() : null;
+        if (role is null || !CompetitionPermissionService.CanManageCertificates(role)) return Forbid();
+        var status = await database.Competitions.AsNoTracking().Where(item => item.Id == competitionId).Select(item => item.Status).SingleOrDefaultAsync(ct);
+        if (status is null || string.Equals(status, "Archived", StringComparison.OrdinalIgnoreCase) || (write && string.Equals(status, "Closed", StringComparison.OrdinalIgnoreCase))) return Forbid();
+        return null;
     }
 
     static CertificateTemplateResponse Map(CertificateTemplate item) => new(item.Id, item.CompetitionId, item.CertificateType, item.Name, item.OriginalFileName, item.TemplateVersion, item.IsActive, item.FileSize, item.Sha256, item.CreatedAt, item.UpdatedAt);
