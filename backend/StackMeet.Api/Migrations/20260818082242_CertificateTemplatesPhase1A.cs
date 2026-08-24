@@ -43,14 +43,14 @@ namespace StackMeet.Api.Migrations
                         principalSchema: "dbo",
                         principalTable: "AppUser",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.NoAction);
                     table.ForeignKey(
                         name: "FK_CertificateTemplate_AppUser_UpdatedByUserId",
                         column: x => x.UpdatedByUserId,
                         principalSchema: "dbo",
                         principalTable: "AppUser",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.NoAction);
                     table.ForeignKey(
                         name: "FK_CertificateTemplate_Competition_CompetitionId",
                         column: x => x.CompetitionId,

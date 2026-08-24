@@ -207,7 +207,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         certificate.HasIndex(item => new { item.CompetitionId, item.CertificateType, item.TemplateVersion }).IsUnique();
         certificate.HasIndex(item => new { item.CompetitionId, item.CertificateType }).IsUnique().HasFilter("[IsActive] = 1");
         certificate.HasOne(item => item.Competition).WithMany(item => item.CertificateTemplates).HasForeignKey(item => item.CompetitionId).OnDelete(DeleteBehavior.Restrict);
-        certificate.HasOne(item => item.CreatedByUser).WithMany().HasForeignKey(item => item.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
-        certificate.HasOne(item => item.UpdatedByUser).WithMany().HasForeignKey(item => item.UpdatedByUserId).OnDelete(DeleteBehavior.SetNull);
+        certificate.HasOne(item => item.CreatedByUser).WithMany().HasForeignKey(item => item.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        certificate.HasOne(item => item.UpdatedByUser).WithMany().HasForeignKey(item => item.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
     }
 }
