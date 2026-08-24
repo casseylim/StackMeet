@@ -109,7 +109,12 @@ public sealed class CertificateTemplatesController(
         if (item is null) return NotFound();
         var participant = await projections.Resolve(competitionId, request.ParticipantCode.Trim(), ct);
         if (participant is null) return NotFound(new { error = "Participant was not found." });
-        await using var source = storage.OpenRead(competitionId, item.StoredFileName);
+        Stream source;
+        try { source = storage.OpenRead(competitionId, item.StoredFileName); }
+        catch (FileNotFoundException) { return NotFound(); }
+        byte[] bytes;
+        await using (source)
+        {
         var competition = item.Competition;
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -130,7 +135,8 @@ public sealed class CertificateTemplatesController(
             ["NADI.Certificate.IssueDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
             ["NADI.Certificate.VerificationCode"] = "PREVIEW"
         };
-        var bytes = documents.Fill(source, values);
+        bytes = documents.Fill(source, values);
+        }
         Response.Headers.CacheControl = "no-store";
         return File(bytes, item.ContentType, $"preview-{participant.ParticipantCode}.docx");
     }
