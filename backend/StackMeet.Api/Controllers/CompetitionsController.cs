@@ -36,7 +36,14 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
         var query = database.Competitions.AsNoTracking().Where(x => x.Id == id);
         if (HttpContext.Items["StackMeetSession"] is SessionToken session)
         {
-            query = query.Where(item => item.CompetitionKey == session.CompetitionId);
+            if (session.IsAccountSession && !session.IsSystemAdmin)
+            {
+                query = query.Where(item => item.CompetitionUsers.Any(access => access.IsActive && access.UserId == session.UserId));
+            }
+            else if (!session.IsAccountSession)
+            {
+                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
+            }
         }
 
         var item = await query.SingleOrDefaultAsync(ct);
