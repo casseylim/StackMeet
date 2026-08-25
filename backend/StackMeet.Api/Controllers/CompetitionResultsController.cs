@@ -14,6 +14,8 @@ namespace StackMeet.Api.Controllers;
 [Route("api/competitions/{competitionId:int}/results")]
 public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, IHubContext<ResultsHub> resultsHub) : ControllerBase
 {
+    const int CandidateParticipantChunkSize = 300;
+
     [HttpGet]
     public async Task<ActionResult<CompetitionResultsResponse>> List(int competitionId, CancellationToken ct)
     {
@@ -39,14 +41,30 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         var keys = request.Upserts.Select(Key).Concat(request.Deletes.Select(Key)).ToArray();
         if (keys.Length != keys.Distinct(StringComparer.Ordinal).Count()) return BadRequest(new { error = "Duplicate logical result in batch." });
 
-        var existing = await database.CompetitionResults.Where(x => x.CompetitionId == competitionId).ToListAsync(ct);
+        var participantCodes = request.Upserts
+            .Select(x => x.Participant.Trim())
+            .Concat(request.Deletes.Select(x => x.Participant.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var existingByKey = new Dictionary<string, CompetitionResult>(StringComparer.Ordinal);
+        foreach (var participantChunk in participantCodes.Chunk(CandidateParticipantChunkSize))
+        {
+            var candidates = await database.CompetitionResults
+                .Where(x => x.CompetitionId == competitionId && participantChunk.Contains(x.ParticipantCode))
+                .ToListAsync(ct);
+            foreach (var row in candidates)
+            {
+                existingByKey.Add(Key(row.Stage, row.ParticipantType, row.ParticipantCode, row.EventCode), row);
+            }
+        }
+
         var touched = new HashSet<CompetitionResult>();
         var deletedCount = 0;
         var actorUserId = (HttpContext.Items["StackMeetSession"] as SessionToken)?.UserId;
 
         foreach (var item in request.Upserts)
         {
-            var row = existing.SingleOrDefault(x => Key(x.Stage, x.ParticipantType, x.ParticipantCode, x.EventCode) == Key(item));
+            existingByKey.TryGetValue(Key(item), out var row);
             if (row is not null && item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             var now = DateTime.UtcNow;
             if (row is null)
@@ -61,7 +79,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
                     CreatedAt = now
                 };
                 database.CompetitionResults.Add(row);
-                existing.Add(row);
+                existingByKey.Add(Key(item), row);
             }
 
             row.AttemptsJson = JsonSerializer.Serialize(item.Attempts);
@@ -73,8 +91,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
 
         foreach (var item in request.Deletes)
         {
-            var row = existing.SingleOrDefault(x => Key(x.Stage, x.ParticipantType, x.ParticipantCode, x.EventCode) == Key(item));
-            if (row is null) continue;
+            if (!existingByKey.TryGetValue(Key(item), out var row)) continue;
             if (item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             database.CompetitionResults.Remove(row);
             deletedCount++;
@@ -95,6 +112,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         await database.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, ct);
+        // Keep the established full response contract; response-size optimization is a separate follow-up.
         return await List(competitionId, ct);
     }
 
