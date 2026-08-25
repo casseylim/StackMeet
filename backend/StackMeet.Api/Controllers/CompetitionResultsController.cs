@@ -100,7 +100,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         if (touched.Count == 0 && deletedCount == 0)
         {
             await transaction.CommitAsync(ct);
-            return await List(competitionId, ct);
+            return Ok(new CompetitionResultsResponse(competition.ResultsRevision, []));
         }
 
         competition.ResultsRevision++;
@@ -112,8 +112,8 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         await database.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, ct);
-        // Keep the established full response contract; response-size optimization is a separate follow-up.
-        return await List(competitionId, ct);
+        // Batch responses are deltas; the full GET remains the authoritative resync path.
+        return Ok(new CompetitionResultsResponse(competition.ResultsRevision, touched.Select(Map).ToList()));
     }
 
     async Task<ActionResult?> Access(int competitionId, bool write, CancellationToken ct)
