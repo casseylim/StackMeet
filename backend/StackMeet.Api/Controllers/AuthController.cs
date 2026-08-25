@@ -507,7 +507,7 @@ public sealed class AuthController(
     async Task<bool> IsEmailConfirmationRequired(CancellationToken cancellationToken)
     {
         var stored = await settings.Get(RequireEmailConfirmedSettingKey, cancellationToken);
-        return string.IsNullOrWhiteSpace(stored) || (bool.TryParse(stored, out var required) && required);
+        return bool.TryParse(stored, out var required) && required;
     }
 
     /// <summary>
