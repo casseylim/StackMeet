@@ -60,7 +60,8 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             .Select(item => new
             {
                 item.StackerCode, item.FirstName, item.LastName, item.Gender, item.Club,
-                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker, item.BirthDate
+                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker, item.BirthDate,
+                item.UpdatedAt
             })
             .ToListAsync(ct);
         var sqlStackers = sqlStackerRows.Select(item => new PublicStacker(
@@ -80,7 +81,10 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 settings.SeparateSpecialDivisionsByGender,
                 settings.YearBorn),
             item.IsSpecialStacker ? "Yes" : "No")).ToArray();
-        var stackers = stateStackers.Length > 0 ? stateStackers : sqlStackers;
+        // SQL is the source of truth for participants. Legacy JSON remains read-only migration
+        // fallback for competitions that have not populated the SQL Stacker table yet.
+        var stackers = sqlStackers.Length > 0 ? sqlStackers : stateStackers;
+        var stackersUpdatedAt = sqlStackerRows.Select(item => (DateTime?)item.UpdatedAt).Max();
         var sqlResults = await database.CompetitionResults.AsNoTracking().Where(item => item.CompetitionId == competition.Id).OrderBy(item => item.Id)
             .Select(item => new { item.PublicId, item.Stage, item.ParticipantType, item.ParticipantCode, item.EventCode, item.AttemptsJson, item.Penalty, item.UpdatedAt }).ToListAsync(ct);
         var resultRows = sqlResults.Select(item => new { id = item.PublicId, stage = item.Stage, type = item.ParticipantType, participant = item.ParticipantCode, @event = item.EventCode, attempts = ParseAttempts(item.AttemptsJson), penalty = item.Penalty }).ToArray();
@@ -99,7 +103,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 isOfficial = string.Equals(competition.Status, "Closed", StringComparison.OrdinalIgnoreCase)
             },
             branding,
-            lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt, assetUpdatedAt }).Max(),
+            lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt, assetUpdatedAt, stackersUpdatedAt }).Max(),
             settings = PublicSettings(root),
             divisions = PublicDivisions(root),
             results = resultRows,
