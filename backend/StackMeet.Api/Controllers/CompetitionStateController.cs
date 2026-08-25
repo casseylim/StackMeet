@@ -50,7 +50,7 @@ public sealed class CompetitionStateController(
         var access = await Access(normalizedKey, true, cancellationToken);
         if (access is not null) return access;
 
-        if (!TryExpectedRevision(Request.Headers.IfMatch.FirstOrDefault(), out var expectedRevision))
+        if (!TryExpectedRevision(Request.Headers["If-Match"].FirstOrDefault(), out var expectedRevision))
         {
             return StatusCode(StatusCodes.Status428PreconditionRequired, new
             {
