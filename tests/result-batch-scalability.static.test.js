@@ -36,16 +36,18 @@ assert(/if \(row is not null && item\.ExpectedRevision is not null && row\.Revis
   "Stale upsert ExpectedRevision conflicts must remain enforced.");
 assert(/if \(item\.ExpectedRevision is not null && row\.Revision != item\.ExpectedRevision\) return Conflict/.test(batch),
   "Stale delete ExpectedRevision conflicts must remain enforced.");
-assert(/if \(touched\.Count == 0 && deletedCount == 0\)[\s\S]*return await List\(competitionId, ct\);/.test(batch),
-  "No-op batches must return without incrementing the competition revision.");
+assert(/if \(touched\.Count == 0 && deletedCount == 0\)[\s\S]*return Ok\(new CompetitionResultsResponse\(competition\.ResultsRevision, \[\]\)\);/.test(batch),
+  "No-op batches must return an empty delta without incrementing the competition revision.");
 assert(/competition\.ResultsRevision\+\+;/.test(batch),
   "A real batch must increment ResultsRevision exactly once in the mutation path.");
 assert(/foreach \(var row in touched\)[\s\S]*row\.Revision = competition\.ResultsRevision;/.test(batch),
   "Only touched upsert rows must receive the new competition results revision.");
 assert(/SendAsync\("ResultsChanged"/.test(batch),
   "Committed result changes must keep the ResultsChanged SignalR event.");
-assert(/return await List\(competitionId, ct\);/.test(batch),
-  "This optimization must preserve the established full batch response contract.");
+assert(!/return await List\(competitionId, ct\);/.test(batch),
+  "Batch responses must not reload and return the complete result set after a bounded mutation.");
+assert(/return Ok\(new CompetitionResultsResponse\(competition\.ResultsRevision, touched\.Select\(Map\)\.ToList\(\)\)\);/.test(batch),
+  "Successful batches must return only touched upsert rows as the response delta.");
 assert(/a\.Trim\(\)\.ToUpperInvariant\(\)[\s\S]*b\.Trim\(\)\.ToUpperInvariant\(\)[\s\S]*c\.Trim\(\)\.ToUpperInvariant\(\)[\s\S]*d\.Trim\(\)\.ToUpperInvariant\(\)/.test(controller),
   "Canonical logical result keys must preserve Trim plus ToUpperInvariant normalization.");
 
