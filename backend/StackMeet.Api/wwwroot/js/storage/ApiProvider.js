@@ -52,7 +52,7 @@ class ApiProvider {
   }
 
   #captureEtag(response) {
-    const etag = response.headers.get("ETag");
+    const etag = response.headers?.get?.("ETag");
     if (etag) this.stateEtag = etag;
   }
 
@@ -84,7 +84,7 @@ class ApiProvider {
     const error = new Error(`StackMeet API request failed (${response.status})${message ? `: ${message}` : ""}`);
     error.status = response.status;
     error.currentRevision = currentRevision;
-    error.etag = response.headers.get("ETag");
+    error.etag = response.headers?.get?.("ETag") || null;
     return error;
   }
 }
