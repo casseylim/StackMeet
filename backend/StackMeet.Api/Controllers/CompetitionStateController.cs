@@ -11,7 +11,10 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/state")]
-public sealed class CompetitionStateController(StackMeetDbContext database, IHubContext<ResultsHub> resultsHub) : ControllerBase
+public sealed class CompetitionStateController(
+    StackMeetDbContext database,
+    IHubContext<ResultsHub> resultsHub,
+    CompetitionPermissionService permissions) : ControllerBase
 {
     [HttpGet("{competitionKey}")]
     public async Task<IActionResult> Get(string competitionKey, CancellationToken cancellationToken)
@@ -21,6 +24,9 @@ public sealed class CompetitionStateController(StackMeetDbContext database, IHub
         {
             return BadRequest(new { error = "Competition key must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
         }
+
+        var access = await Access(normalizedKey, false, cancellationToken);
+        if (access is not null) return access;
 
         var jsonData = await ReadJsonData(normalizedKey, cancellationToken);
         return jsonData is null ? NotFound() : Content(jsonData, "application/json");
@@ -34,6 +40,9 @@ public sealed class CompetitionStateController(StackMeetDbContext database, IHub
         {
             return BadRequest(new { error = "Competition key must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
         }
+
+        var access = await Access(normalizedKey, true, cancellationToken);
+        if (access is not null) return access;
 
         using var reader = new StreamReader(Request.Body);
         var jsonData = await reader.ReadToEndAsync(cancellationToken);
@@ -77,6 +86,28 @@ public sealed class CompetitionStateController(StackMeetDbContext database, IHub
         await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsUpdated", new { competitionId = normalizedKey, revision = changedAt.Ticks, updatedAt = changedAt }, cancellationToken);
 
         return NoContent();
+    }
+
+    async Task<IActionResult?> Access(string competitionKey, bool write, CancellationToken ct)
+    {
+        // Preserve maintenance/recovery access and legacy competition-password sessions while
+        // enforcing account RBAC. Data Entry and Viewer accounts can read legacy state but cannot
+        // replace it; only Competition Manager and System Admin accounts can save configuration.
+        if (HttpContext.Items["StackMeetMaintenanceApiKey"] is true) return null;
+        if (HttpContext.Items["StackMeetSession"] is not SessionToken session) return Unauthorized();
+        if (!session.IsAccountSession) return null;
+        if (session.UserId is null) return Unauthorized();
+
+        var role = await permissions.RoleForCompetitionKey(session.UserId.Value, session.IsSystemAdmin, competitionKey, ct);
+        if (role is null
+            || (write
+                ? !CompetitionPermissionService.CanManageCompetition(role)
+                : !CompetitionPermissionService.CanViewCompetition(role)))
+        {
+            return Forbid();
+        }
+
+        return null;
     }
 
     static string? ValidateStateJson(string jsonData)
