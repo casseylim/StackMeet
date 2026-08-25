@@ -38,27 +38,62 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         if (competition.Status is "Closed" or "Archived" || competition.ArchivedAt is not null) return Conflict(new { error = "Results cannot be changed for a closed or archived competition." });
         var keys = request.Upserts.Select(Key).Concat(request.Deletes.Select(Key)).ToArray();
         if (keys.Length != keys.Distinct(StringComparer.Ordinal).Count()) return BadRequest(new { error = "Duplicate logical result in batch." });
+
         var existing = await database.CompetitionResults.Where(x => x.CompetitionId == competitionId).ToListAsync(ct);
+        var touched = new HashSet<CompetitionResult>();
+        var deletedCount = 0;
         var actorUserId = (HttpContext.Items["StackMeetSession"] as SessionToken)?.UserId;
+
         foreach (var item in request.Upserts)
         {
             var row = existing.SingleOrDefault(x => Key(x.Stage, x.ParticipantType, x.ParticipantCode, x.EventCode) == Key(item));
             if (row is not null && item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             var now = DateTime.UtcNow;
-            if (row is null) { row = new CompetitionResult { CompetitionId = competitionId, Stage = item.Stage.Trim(), ParticipantType = item.Type.Trim(), ParticipantCode = item.Participant.Trim(), EventCode = item.Event.Trim(), CreatedAt = now }; database.CompetitionResults.Add(row); existing.Add(row); }
-            row.AttemptsJson = JsonSerializer.Serialize(item.Attempts); row.Penalty = item.Penalty; row.UpdatedAt = now;
+            if (row is null)
+            {
+                row = new CompetitionResult
+                {
+                    CompetitionId = competitionId,
+                    Stage = item.Stage.Trim(),
+                    ParticipantType = item.Type.Trim(),
+                    ParticipantCode = item.Participant.Trim(),
+                    EventCode = item.Event.Trim(),
+                    CreatedAt = now
+                };
+                database.CompetitionResults.Add(row);
+                existing.Add(row);
+            }
+
+            row.AttemptsJson = JsonSerializer.Serialize(item.Attempts);
+            row.Penalty = item.Penalty;
+            row.UpdatedAt = now;
             row.UpdatedByUserId = actorUserId;
+            touched.Add(row);
         }
+
         foreach (var item in request.Deletes)
         {
             var row = existing.SingleOrDefault(x => Key(x.Stage, x.ParticipantType, x.ParticipantCode, x.EventCode) == Key(item));
             if (row is null) continue;
             if (item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             database.CompetitionResults.Remove(row);
+            deletedCount++;
         }
+
+        if (touched.Count == 0 && deletedCount == 0)
+        {
+            await transaction.CommitAsync(ct);
+            return await List(competitionId, ct);
+        }
+
         competition.ResultsRevision++;
-        foreach (var row in existing.Where(x => x.CompetitionId == competitionId && database.Entry(x).State != EntityState.Deleted)) row.Revision = competition.ResultsRevision;
-        await database.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+        foreach (var row in touched)
+        {
+            row.Revision = competition.ResultsRevision;
+        }
+
+        await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, ct);
         return await List(competitionId, ct);
     }
@@ -70,10 +105,10 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         if (role is null || (write ? !CompetitionPermissionService.CanEnterResults(role) : !CompetitionPermissionService.CanViewCompetition(role))) return Forbid();
         return null;
     }
+
     static bool Valid(string stage, string type, string participant, string ev, decimal[] attempts) => !string.IsNullOrWhiteSpace(stage) && !string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(participant) && !string.IsNullOrWhiteSpace(ev) && attempts.All(x => x >= 0 && x <= 86400);
     static string Key(ResultUpsertRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
     static string Key(ResultDeleteRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
-    static string Key(string a, string b, string c, string d) => string.Join("\u001f", a.Trim(), b.Trim(), c.Trim(), d.Trim());
-    static string Key(string a, string b, string c, string d, string _) => Key(a,b,c,d);
+    static string Key(string a, string b, string c, string d) => string.Join("\u001f", a.Trim().ToUpperInvariant(), b.Trim().ToUpperInvariant(), c.Trim().ToUpperInvariant(), d.Trim().ToUpperInvariant());
     static CompetitionResultResponse Map(CompetitionResult x) => new(x.PublicId, x.Stage, x.ParticipantType, x.ParticipantCode, x.EventCode, JsonSerializer.Deserialize<decimal[]>(x.AttemptsJson) ?? [], x.Penalty, x.Revision, x.UpdatedAt);
 }
