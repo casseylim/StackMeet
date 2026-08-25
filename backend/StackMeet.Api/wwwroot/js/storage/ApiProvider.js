@@ -6,9 +6,10 @@ class ApiProvider {
     if (!competitionKey) throw new TypeError("A competition key is required.");
     this.competitionKey = String(competitionKey);
     this.apiBaseUrl = String(apiBaseUrl).replace(/\/$/, "");
+    this.stateEtag = null;
   }
 
-  async load() {
+  async load(options = {}) {
     if (this.#useLocalStorage()) {
       const saved = localStorage.getItem(this.#localFileKey());
       return saved ? JSON.parse(saved) : null;
@@ -17,9 +18,18 @@ class ApiProvider {
     const response = await fetch(this.#stateUrl(), {
       headers: { Accept: "application/json", ...this.#authHeaders() }
     });
-    if (response.status === 404) return null;
+    const acceptRevision = this.stateEtag === null || options.acceptRevision === true;
+    if (response.status === 404) {
+      if (acceptRevision) this.stateEtag = '"0"';
+      return null;
+    }
     if (!response.ok) throw await this.#requestError(response);
+    if (acceptRevision) this.#captureEtag(response);
     return response.json();
+  }
+
+  reloadLatest() {
+    return this.load({ acceptRevision: true });
   }
 
   async save(state) {
@@ -30,10 +40,20 @@ class ApiProvider {
 
     const response = await fetch(this.#stateUrl(), {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...this.#authHeaders() },
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": this.stateEtag || '"0"',
+        ...this.#authHeaders()
+      },
       body: JSON.stringify(state)
     });
     if (!response.ok) throw await this.#requestError(response);
+    this.#captureEtag(response);
+  }
+
+  #captureEtag(response) {
+    const etag = response.headers.get("ETag");
+    if (etag) this.stateEtag = etag;
   }
 
   #authHeaders() {
@@ -54,7 +74,18 @@ class ApiProvider {
 
   async #requestError(response) {
     const detail = await response.text();
-    return new Error(`StackMeet API request failed (${response.status})${detail ? `: ${detail}` : ""}`);
+    let message = detail;
+    let currentRevision = null;
+    try {
+      const parsed = JSON.parse(detail);
+      message = parsed.error || detail;
+      currentRevision = parsed.currentRevision ?? null;
+    } catch (_) { /* use text detail */ }
+    const error = new Error(`StackMeet API request failed (${response.status})${message ? `: ${message}` : ""}`);
+    error.status = response.status;
+    error.currentRevision = currentRevision;
+    error.etag = response.headers.get("ETag");
+    return error;
   }
 }
 
