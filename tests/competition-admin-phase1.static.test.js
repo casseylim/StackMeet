@@ -40,7 +40,7 @@ assert.strictEqual(rootApp, hostedApp, "Root and hosted application scripts must
 assert.strictEqual(adminClient, hostedAdminClient, "Root and hosted admin scripts must remain synchronized.");
 assert.strictEqual(adminPage, hostedAdminPage, "Root and hosted admin pages must remain synchronized.");
 assert.strictEqual(rootIndex, hostedIndex, "Root and hosted application pages must remain synchronized.");
-assert(/["competition", "Competition"]/.test(rootApp), "The authenticated app must expose the Competition route.");
+assert(/\["competition", "Competition"\]/.test(rootApp), "The authenticated app must expose the Competition route.");
 assert(/activateAdminKey/.test(adminClient) && /Enter the admin key before selecting Use Key/.test(adminClient), "Admin authorization must reject an empty key.");
 assert(/sessionStorage\.getItem\(keyName\)/.test(adminClient) && /loadAdminData\(\)\.catch/.test(adminClient), "A valid tab-scoped admin key must reload competitions on startup.");
 assert(/readOnly = editing/.test(adminClient) && /Login ID \/ Competition Key/.test(adminPage), "Existing competition login IDs must be visibly immutable.");
