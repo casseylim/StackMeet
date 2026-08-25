@@ -82,8 +82,9 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 settings.YearBorn),
             item.IsSpecialStacker ? "Yes" : "No")).ToArray();
         // SQL is the source of truth for participants. Legacy JSON remains read-only migration
-        // fallback for competitions that have not populated the SQL Stacker table yet.
-        var stackers = sqlStackers.Length > 0 ? sqlStackers : stateStackers;
+        // fallback only for competitions that have not populated the SQL Stacker table yet.
+        var hasLegacyStackerFallback = stateStackers.Length > 0;
+        var stackers = sqlStackers.Length > 0 ? sqlStackers : hasLegacyStackerFallback ? stateStackers : [];
         var stackersUpdatedAt = sqlStackerRows.Select(item => (DateTime?)item.UpdatedAt).Max();
         var sqlResults = await database.CompetitionResults.AsNoTracking().Where(item => item.CompetitionId == competition.Id).OrderBy(item => item.Id)
             .Select(item => new { item.PublicId, item.Stage, item.ParticipantType, item.ParticipantCode, item.EventCode, item.AttemptsJson, item.Penalty, item.UpdatedAt }).ToListAsync(ct);
