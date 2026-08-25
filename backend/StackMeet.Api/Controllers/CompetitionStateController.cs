@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
 using StackMeet.Api.Hubs;
+using StackMeet.Api.Models;
 
 namespace StackMeet.Api.Controllers;
 
@@ -28,8 +29,13 @@ public sealed class CompetitionStateController(
         var access = await Access(normalizedKey, false, cancellationToken);
         if (access is not null) return access;
 
-        var jsonData = await ReadJsonData(normalizedKey, cancellationToken);
-        return jsonData is null ? NotFound() : Content(jsonData, "application/json");
+        var state = await database.CompetitionStates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, cancellationToken);
+        if (state is null) return NotFound();
+
+        SetEtag(state.StateRevision);
+        return Content(state.JsonData, "application/json");
     }
 
     [HttpPost("{competitionKey}")]
@@ -44,6 +50,14 @@ public sealed class CompetitionStateController(
         var access = await Access(normalizedKey, true, cancellationToken);
         if (access is not null) return access;
 
+        if (!TryExpectedRevision(Request.Headers.IfMatch.FirstOrDefault(), out var expectedRevision))
+        {
+            return StatusCode(StatusCodes.Status428PreconditionRequired, new
+            {
+                error = "Competition state revision is required. Refresh the latest data before saving."
+            });
+        }
+
         using var reader = new StreamReader(Request.Body);
         var jsonData = await reader.ReadToEndAsync(cancellationToken);
         var validationError = ValidateStateJson(jsonData);
@@ -53,37 +67,57 @@ public sealed class CompetitionStateController(
         }
 
         var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
-
-        await ExecuteStateCommand(
-            """
-            SET XACT_ABORT ON;
-            BEGIN TRANSACTION;
-
-            UPDATE [dbo].[CompetitionState] WITH (UPDLOCK, SERIALIZABLE)
-            SET [JsonData] = @jsonData,
-                [UpdatedAt] = SYSUTCDATETIME(),
-                [UpdatedBy] = @updatedBy
-            WHERE [CompetitionKey] = @competitionKey;
-
-            IF @@ROWCOUNT = 0
-            BEGIN
-                INSERT INTO [dbo].[CompetitionState]
-                    ([CompetitionKey], [JsonData], [SchemaVersion], [CreatedAt], [UpdatedAt], [UpdatedBy])
-                VALUES
-                    (@competitionKey, @jsonData, '0.9-online', SYSUTCDATETIME(), SYSUTCDATETIME(), @updatedBy);
-            END;
-
-            COMMIT TRANSACTION;
-            """,
-            normalizedKey,
-            jsonData,
-            updatedBy,
-            cancellationToken);
-
         var changedAt = DateTime.UtcNow;
-        var change = new { competitionKey = normalizedKey, revision = changedAt.Ticks, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
+        long committedRevision;
+
+        await using (var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
+        {
+            var state = await database.CompetitionStates
+                .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (state is null)
+            {
+                if (expectedRevision != 0)
+                {
+                    return StateConflict(0);
+                }
+
+                state = new CompetitionState
+                {
+                    CompetitionKey = normalizedKey,
+                    JsonData = jsonData,
+                    SchemaVersion = "0.9-online",
+                    StateRevision = 1,
+                    CreatedAt = changedAt,
+                    UpdatedAt = changedAt,
+                    UpdatedBy = string.IsNullOrWhiteSpace(updatedBy) ? null : updatedBy
+                };
+                database.CompetitionStates.Add(state);
+                committedRevision = 1;
+            }
+            else
+            {
+                if (state.StateRevision != expectedRevision)
+                {
+                    return StateConflict(state.StateRevision);
+                }
+
+                state.JsonData = jsonData;
+                state.StateRevision++;
+                state.UpdatedAt = changedAt;
+                state.UpdatedBy = string.IsNullOrWhiteSpace(updatedBy) ? null : updatedBy;
+                committedRevision = state.StateRevision;
+            }
+
+            await database.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        SetEtag(committedRevision);
+        var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
         await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, cancellationToken);
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsUpdated", new { competitionId = normalizedKey, revision = changedAt.Ticks, updatedAt = changedAt }, cancellationToken);
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsUpdated", new { competitionId = normalizedKey, revision = committedRevision, updatedAt = changedAt }, cancellationToken);
 
         return NoContent();
     }
@@ -110,6 +144,30 @@ public sealed class CompetitionStateController(
         return null;
     }
 
+    IActionResult StateConflict(long currentRevision)
+    {
+        SetEtag(currentRevision);
+        return Conflict(new
+        {
+            error = "Competition state changed on another computer. Refresh the latest data before saving.",
+            currentRevision
+        });
+    }
+
+    void SetEtag(long revision) => Response.Headers["ETag"] = Etag(revision);
+
+    static string Etag(long revision) => $"\"{revision}\"";
+
+    static bool TryExpectedRevision(string? ifMatch, out long revision)
+    {
+        revision = 0;
+        if (string.IsNullOrWhiteSpace(ifMatch)) return false;
+        var value = ifMatch.Trim();
+        if (value.StartsWith("W/", StringComparison.OrdinalIgnoreCase)) value = value[2..].Trim();
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"') value = value[1..^1];
+        return long.TryParse(value, out revision) && revision >= 0;
+    }
+
     static string? ValidateStateJson(string jsonData)
     {
         if (string.IsNullOrWhiteSpace(jsonData))
@@ -128,52 +186,5 @@ public sealed class CompetitionStateController(
         {
             return "Competition state contains malformed JSON.";
         }
-    }
-
-    async Task<string?> ReadJsonData(string competitionKey, CancellationToken cancellationToken)
-    {
-        var connection = database.Database.GetDbConnection();
-        var shouldClose = connection.State != ConnectionState.Open;
-        if (shouldClose) await connection.OpenAsync(cancellationToken);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP(1) [JsonData] FROM [dbo].[CompetitionState] WHERE [CompetitionKey] = @competitionKey";
-            AddParameter(command, "@competitionKey", competitionKey);
-            var result = await command.ExecuteScalarAsync(cancellationToken);
-            return result == null || result == DBNull.Value ? null : (string)result;
-        }
-        finally
-        {
-            if (shouldClose) await connection.CloseAsync();
-        }
-    }
-
-    async Task<int> ExecuteStateCommand(string sql, string competitionKey, string jsonData, string? updatedBy, CancellationToken cancellationToken)
-    {
-        var connection = database.Database.GetDbConnection();
-        var shouldClose = connection.State != ConnectionState.Open;
-        if (shouldClose) await connection.OpenAsync(cancellationToken);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            AddParameter(command, "@competitionKey", competitionKey);
-            AddParameter(command, "@jsonData", jsonData);
-            AddParameter(command, "@updatedBy", string.IsNullOrWhiteSpace(updatedBy) ? DBNull.Value : updatedBy);
-            return await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-        finally
-        {
-            if (shouldClose) await connection.CloseAsync();
-        }
-    }
-
-    static void AddParameter(IDbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
     }
 }
