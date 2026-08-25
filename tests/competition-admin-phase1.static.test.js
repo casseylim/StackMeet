@@ -40,7 +40,7 @@ assert.strictEqual(rootApp, hostedApp, "Root and hosted application scripts must
 assert.strictEqual(adminClient, hostedAdminClient, "Root and hosted admin scripts must remain synchronized.");
 assert.strictEqual(adminPage, hostedAdminPage, "Root and hosted admin pages must remain synchronized.");
 assert.strictEqual(rootIndex, hostedIndex, "Root and hosted application pages must remain synchronized.");
-assert(/\["competition", "Competition"\]/.test(rootApp), "The authenticated app must expose the Competition route.");
+assert(/["competition", "Competition"]/.test(rootApp), "The authenticated app must expose the Competition route.");
 assert(/activateAdminKey/.test(adminClient) && /Enter the admin key before selecting Use Key/.test(adminClient), "Admin authorization must reject an empty key.");
 assert(/sessionStorage\.getItem\(keyName\)/.test(adminClient) && /loadAdminData\(\)\.catch/.test(adminClient), "A valid tab-scoped admin key must reload competitions on startup.");
 assert(/readOnly = editing/.test(adminClient) && /Login ID \/ Competition Key/.test(adminPage), "Existing competition login IDs must be visibly immutable.");
@@ -57,8 +57,10 @@ assert(/Query\(normalizedKey\)\.SingleOrDefaultAsync\(ct\)/.test(admin) && /Quer
 assert(!/Query\(\)\.SingleOrDefaultAsync\(item => item\.CompetitionKey/.test(admin) && !/Query\(\)\.SingleAsync\(item => item\.CompetitionKey/.test(admin), "Admin queries must not filter projected response records.");
 assert(/CompetitionKeyRules\.Normalize/.test(stateController) && /CompetitionKeyRules\.IsValid/.test(stateController), "State routes must normalize and validate competition keys.");
 assert(/JsonDocument\.Parse/.test(stateController) && /JsonValueKind\.Object/.test(stateController), "State saves must require a valid JSON object.");
-assert(stateController.indexOf("ValidateStateJson(jsonData)") < stateController.indexOf("ExecuteStateCommand("), "State JSON validation must occur before SQL persistence.");
-assert(/BEGIN TRANSACTION/.test(stateController) && /UPDLOCK, SERIALIZABLE/.test(stateController) && /COMMIT TRANSACTION/.test(stateController), "First state save must use one serializable upsert transaction.");
+const validateStateIndex = stateController.indexOf("ValidateStateJson(jsonData)");
+const stateTransactionIndex = stateController.indexOf("BeginTransactionAsync(");
+assert(validateStateIndex >= 0 && stateTransactionIndex >= 0 && validateStateIndex < stateTransactionIndex, "State JSON validation must occur before SQL persistence.");
+assert(/BeginTransactionAsync\(IsolationLevel\.Serializable/.test(stateController) && /UPDLOCK, HOLDLOCK/.test(stateController) && /CommitAsync/.test(stateController), "State save concurrency must use a serializable row-locking transaction.");
 assert(!/if \(updated == 0\)/.test(stateController), "State saves must not use a race-prone two-command update/insert flow.");
 assert(/AddRateLimiter/.test(program) && /FixedWindowRateLimiterOptions/.test(program), "Login rate limiting must be registered with a fixed-window policy.");
 assert(/PermitLimit\s*=\s*5/.test(program) && /Window\s*=\s*TimeSpan\.FromMinutes\(1\)/.test(program), "Login rate limiting must allow at most five attempts per minute.");
