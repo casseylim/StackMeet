@@ -1628,7 +1628,8 @@
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    connection.on("ResultsUpdated", () => void refresh(false));
+    connection.on("CompetitionChanged", () => void refresh(false));
+    connection.on("ResultsChanged", () => void refresh(false));
     connection.onreconnecting(() => setConnection("connecting", "Reconnecting"));
     connection.onreconnected(async () => {
       await connection.invoke("JoinCompetition", competitionId);

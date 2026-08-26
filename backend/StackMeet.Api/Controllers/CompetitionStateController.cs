@@ -117,7 +117,7 @@ public sealed class CompetitionStateController(
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
         await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, cancellationToken);
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsUpdated", new { competitionId = normalizedKey, revision = committedRevision, updatedAt = changedAt }, cancellationToken);
+
 
         return NoContent();
     }

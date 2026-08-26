@@ -22,7 +22,8 @@ assert.match(program, /\{competitionId\}\/Results/, "The permanent competition r
 assert(program.indexOf("app.UseStaticFiles();") < program.indexOf('app.UseRouting();'), "Static files must be evaluated before broad results routes.");
 assert.match(program, /!path\.StartsWithSegments\("\/api\/public"\)/, "Public read-only endpoints must bypass staff authentication.");
 
-assert.match(stateController, /ResultsUpdated/, "Successful state saves must broadcast a live update.");
+assert.match(stateController, /CompetitionChanged/, "Successful state saves must broadcast CompetitionChanged.");
+assert.doesNotMatch(stateController, /ResultsUpdated/, "CompetitionState saves must not emit the retired results compatibility event.");
 assert.match(stateController, /ResultsHub\.GroupName\(normalizedKey\)/, "Updates must be scoped to one competition.");
 assert.match(hub, /AddToGroupAsync/, "Viewers must join a competition-specific group.");
 
@@ -41,7 +42,7 @@ assert.match(client, /payload\.branding/);
 assert.match(client, /assets\/stackmeet-logo\.png/);
 assert.match(client, /onerror/);
 assert.match(publicController, /assetUpdatedAt/);
-assert.match(html, /public-results-quick-jump-20260818a/);
+assert.match(html, /results\.js\?v=public-results-sync-events-20260826a/, "Public Results JavaScript cache token must track the modern SignalR event model.");
 assert.match(client, /function renderJumpNav/, "Public Results must use one reusable contextual jump helper.");
 assert.match(client, /Quick Jump/, "All Around must expose aggregate quick navigation.");
 assert.match(client, /Stage \/ Division/, "Doubles and Relay must expose stage/division navigation.");
@@ -75,7 +76,9 @@ assert.match(styles, /section-status-grid[\s\S]*repeat\(3/, "The desktop readine
 assert.match(styles, /max-width: 560px[\s\S]*section-status-grid \{ grid-template-columns: 1fr;/, "The mobile readiness overview must stack into one column.");
 assert.doesNotMatch(html, /\bdownload\b/i, "The public portal must not expose result downloads.");
 assert.doesNotMatch(html, /certificate/i, "The public portal must not expose certificates.");
-assert.match(client, /ResultsUpdated/, "The browser must refresh when SignalR publishes an update.");
+assert.match(client, /connection\.on\("CompetitionChanged", \(\) => void refresh\(false\)\)/, "Public Results must refresh when competition state changes.");
+assert.match(client, /connection\.on\("ResultsChanged", \(\) => void refresh\(false\)\)/, "Public Results must refresh when SQL results change.");
+assert.doesNotMatch(client, /ResultsUpdated/, "Public Results must not depend on the retired results compatibility event.");
 assert.match(client, /cache:\s*"no-store"/, "Public results must not display a stale cached response.");
 assert.match(html, /id="preliminaryGroups"/, "The Preliminary page must have a results container.");
 assert.match(client, /renderPreliminary\(payload, official\)/, "The Preliminary route must render live standings.");
