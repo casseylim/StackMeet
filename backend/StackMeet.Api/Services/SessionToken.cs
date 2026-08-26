@@ -12,7 +12,8 @@ public sealed record SessionToken(
     DateTimeOffset ExpiresAt,
     int? UserId = null,
     string? Email = null,
-    bool IsSystemAdmin = false)
+    bool IsSystemAdmin = false,
+    long? SessionVersion = null)
 {
     public bool IsAccountSession => UserId is not null;
 }
