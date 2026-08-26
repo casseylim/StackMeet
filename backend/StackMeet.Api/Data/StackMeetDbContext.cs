@@ -38,6 +38,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         appUser.Property(item => item.LoginLockoutRound).IsRequired().HasDefaultValue(0);
         appUser.Property(item => item.LockoutUntil).HasColumnType("datetime2");
         appUser.Property(item => item.IsPermanentlyLocked).IsRequired().HasDefaultValue(false);
+        appUser.Property(item => item.SessionVersion).IsRequired().HasDefaultValue(1L);
 
         var appUserToken = modelBuilder.Entity<AppUserToken>();
         appUserToken.ToTable("AppUserToken", "dbo");
@@ -157,7 +158,6 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         var result = modelBuilder.Entity<CompetitionResult>();
         result.ToTable("CompetitionResult", "dbo");
         result.HasKey(item => item.Id);
-        result.Property(item => item.Id).UseIdentityColumn();
         result.Property(item => item.PublicId).IsRequired();
         result.HasIndex(item => item.PublicId).IsUnique();
         result.Property(item => item.Stage).HasMaxLength(30).IsRequired();
