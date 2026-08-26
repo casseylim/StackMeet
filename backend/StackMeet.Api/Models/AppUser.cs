@@ -27,6 +27,8 @@ public sealed class AppUser
     public DateTime? LockoutUntil { get; set; }
     /// <summary>Marks an account that requires password reset before it can log in again.</summary>
     public bool IsPermanentlyLocked { get; set; }
+    /// <summary>Invalidates previously issued account bearer sessions when incremented.</summary>
+    public long SessionVersion { get; set; } = 1;
     public ICollection<CompetitionUser> CompetitionUsers { get; set; } = [];
     public ICollection<AppUserToken> Tokens { get; set; } = [];
 }
