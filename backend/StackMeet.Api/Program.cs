@@ -125,13 +125,17 @@ app.Use(async (context, next) =>
             && adminSession.IsAccountSession)
         {
             var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
-            if (await AccountSessionIsCurrent(adminSession, database, context.RequestAborted)
-                && adminSession.IsSystemAdmin)
+            if (!await AccountSessionIsCurrent(adminSession, database, context.RequestAborted)
+                || !adminSession.IsSystemAdmin)
             {
-                context.Items["StackMeetSession"] = adminSession;
-                await next();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new { error = "Login session is no longer valid. Sign in again." });
                 return;
             }
+
+            context.Items["StackMeetSession"] = adminSession;
+            await next();
+            return;
         }
 
         context.Response.StatusCode = string.IsNullOrWhiteSpace(configuredAdminKey)
