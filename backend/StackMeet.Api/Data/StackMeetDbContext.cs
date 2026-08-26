@@ -158,6 +158,7 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
         var result = modelBuilder.Entity<CompetitionResult>();
         result.ToTable("CompetitionResult", "dbo");
         result.HasKey(item => item.Id);
+        result.Property(item => item.Id).UseIdentityColumn();
         result.Property(item => item.PublicId).IsRequired();
         result.HasIndex(item => item.PublicId).IsUnique();
         result.Property(item => item.Stage).HasMaxLength(30).IsRequired();
