@@ -121,15 +121,12 @@ app.Use(async (context, next) =>
 
         var adminTokenService = context.RequestServices.GetRequiredService<SessionTokenService>();
         var adminBearerToken = BearerToken(context.Request.Headers.Authorization.FirstOrDefault());
-        if (adminTokenService.TryValidate(adminBearerToken, out var adminSession) && adminSession.IsAccountSession && adminSession.IsSystemAdmin)
+        if (adminTokenService.TryValidate(adminBearerToken, out var adminSession)
+            && adminSession.IsAccountSession)
         {
             var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
-            var isActiveSystemAdmin = await database.AppUsers.AsNoTracking().AnyAsync(item =>
-                item.Id == adminSession.UserId
-                && item.IsActive
-                && item.IsSystemAdmin,
-                context.RequestAborted);
-            if (isActiveSystemAdmin)
+            if (await AccountSessionIsCurrent(adminSession, database, context.RequestAborted)
+                && adminSession.IsSystemAdmin)
             {
                 context.Items["StackMeetSession"] = adminSession;
                 await next();
@@ -164,6 +161,15 @@ app.Use(async (context, next) =>
     if (tokenService.TryValidate(bearerToken, out var session))
     {
         var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
+
+        if (session.IsAccountSession
+            && !await AccountSessionIsCurrent(session, database, context.RequestAborted))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Login session is no longer valid. Sign in again." });
+            return;
+        }
+
         if (!await SessionCanAccessPath(session, path, database, context.RequestAborted))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -296,6 +302,28 @@ static bool IsWriteMethod(string method) =>
     !HttpMethods.IsGet(method)
     && !HttpMethods.IsHead(method)
     && !HttpMethods.IsOptions(method);
+
+static async Task<bool> AccountSessionIsCurrent(
+    SessionToken session,
+    StackMeetDbContext database,
+    CancellationToken ct)
+{
+    if (!session.IsAccountSession
+        || session.UserId is null
+        || session.SessionVersion is null)
+    {
+        return false;
+    }
+
+    return await database.AppUsers
+        .AsNoTracking()
+        .AnyAsync(item =>
+            item.Id == session.UserId.Value
+            && item.IsActive
+            && item.SessionVersion == session.SessionVersion.Value
+            && item.IsSystemAdmin == session.IsSystemAdmin,
+            ct);
+}
 
 static async Task<bool> SessionCanAccessPath(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
 {
