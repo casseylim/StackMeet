@@ -31,7 +31,8 @@ builder.Services.AddCors(options =>
         }
 
         policy.WithMethods("GET", "POST", "PUT", "DELETE")
-            .WithHeaders("Authorization", "Content-Type", apiKeyHeaderName, adminKeyHeaderName, "X-StackMeet-Updated-By");
+            .WithHeaders("Authorization", "Content-Type", apiKeyHeaderName, adminKeyHeaderName, "X-StackMeet-Updated-By", "If-Match")
+            .WithExposedHeaders("ETag");
     });
 });
 builder.Services.AddRateLimiter(options =>
