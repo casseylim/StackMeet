@@ -10,18 +10,24 @@ namespace StackMeet.Api.Services;
 /// Reads and writes admin-managed runtime settings, including encrypted secrets.
 /// </summary>
 /// <remarks>
-/// Encryption depends on Security:SettingsEncryptionKey, which must be configured on each server that needs to decrypt saved secrets.
+/// Protection depends on Security:SettingsEncryptionKey, which must be configured on each server that needs to decrypt saved secrets.
+/// New protected values use authenticated AES-GCM; legacy AES-CBC values remain decrypt-only and are upgraded after a successful read.
 /// </remarks>
 public sealed class ProtectedSettingService(
     StackMeetDbContext database,
     IConfiguration configuration,
     ILogger<ProtectedSettingService> logger)
 {
+    const string CurrentFormat = "v2";
+    const int GcmNonceSize = 12;
+    const int GcmTagSize = 16;
+
     /// <summary>
     /// Gets a setting value by key.
     /// </summary>
     /// <remarks>
     /// Protected values are decrypted before return; missing values return null.
+    /// Legacy protected values are transparently upgraded without overwriting a concurrent admin change.
     /// </remarks>
     public async Task<string?> Get(string key, CancellationToken ct)
     {
@@ -35,8 +41,15 @@ public sealed class ProtectedSettingService(
 
         try
         {
-            var value = Unprotect(setting.Value);
+            var isLegacy = !IsCurrentFormat(setting.Value);
+            var value = Unprotect(key, setting.Value);
             logger.LogInformation("Protected runtime setting {SettingKey} decrypted successfully.", key);
+
+            if (isLegacy)
+            {
+                await TryUpgradeLegacyValue(key, setting, value, ct);
+            }
+
             return value;
         }
         catch (Exception error)
@@ -63,7 +76,7 @@ public sealed class ProtectedSettingService(
     /// Saves or updates one runtime setting.
     /// </summary>
     /// <remarks>
-    /// When protect is true, the value is encrypted before it is written to SQL.
+    /// When protect is true, the value is authenticated and encrypted before it is written to SQL.
     /// </remarks>
     public async Task Set(string key, string value, bool protect, CancellationToken ct)
     {
@@ -74,7 +87,7 @@ public sealed class ProtectedSettingService(
             database.AppSettings.Add(setting);
         }
 
-        setting.Value = protect ? Protect(value) : value;
+        setting.Value = protect ? Protect(key, value) : value;
         setting.IsProtected = protect;
         setting.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
@@ -88,32 +101,119 @@ public sealed class ProtectedSettingService(
     /// </remarks>
     public bool CanProtect => !string.IsNullOrWhiteSpace(EncryptionKey);
 
-    string Protect(string value)
+    string Protect(string settingKey, string value)
     {
-        var key = EncryptionBytes();
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.GenerateIV();
-        using var encryptor = aes.CreateEncryptor();
-        var plainBytes = Encoding.UTF8.GetBytes(value);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
-        return $"{Convert.ToBase64String(aes.IV)}.{Convert.ToBase64String(cipherBytes)}";
+        var encryptionKey = EncryptionBytes();
+        try
+        {
+            var nonce = RandomNumberGenerator.GetBytes(GcmNonceSize);
+            var plainBytes = Encoding.UTF8.GetBytes(value);
+            var cipherBytes = new byte[plainBytes.Length];
+            var tag = new byte[GcmTagSize];
+
+            using var aes = new AesGcm(encryptionKey, GcmTagSize);
+            aes.Encrypt(nonce, plainBytes, cipherBytes, tag, AssociatedData(settingKey));
+
+            return string.Join(
+                ".",
+                CurrentFormat,
+                Convert.ToBase64String(nonce),
+                Convert.ToBase64String(tag),
+                Convert.ToBase64String(cipherBytes));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(encryptionKey);
+        }
     }
 
-    string Unprotect(string value)
+    string Unprotect(string settingKey, string value) =>
+        IsCurrentFormat(value)
+            ? UnprotectCurrent(settingKey, value)
+            : UnprotectLegacy(value);
+
+    string UnprotectCurrent(string settingKey, string value)
+    {
+        var parts = value.Split('.', 4);
+        if (parts.Length != 4 || parts[0] != CurrentFormat)
+        {
+            throw new InvalidOperationException("Protected setting value is malformed.");
+        }
+
+        var nonce = Convert.FromBase64String(parts[1]);
+        var tag = Convert.FromBase64String(parts[2]);
+        var cipherBytes = Convert.FromBase64String(parts[3]);
+        if (nonce.Length != GcmNonceSize || tag.Length != GcmTagSize)
+        {
+            throw new InvalidOperationException("Protected setting value is malformed.");
+        }
+
+        var encryptionKey = EncryptionBytes();
+        try
+        {
+            var plainBytes = new byte[cipherBytes.Length];
+            using var aes = new AesGcm(encryptionKey, GcmTagSize);
+            aes.Decrypt(nonce, cipherBytes, tag, plainBytes, AssociatedData(settingKey));
+            return Encoding.UTF8.GetString(plainBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(encryptionKey);
+        }
+    }
+
+    string UnprotectLegacy(string value)
     {
         var parts = value.Split('.', 2);
         if (parts.Length != 2) throw new InvalidOperationException("Protected setting value is malformed.");
 
-        var key = EncryptionBytes();
-        using var aes = Aes.Create();
-        aes.Key = key;
-        aes.IV = Convert.FromBase64String(parts[0]);
-        using var decryptor = aes.CreateDecryptor();
-        var cipherBytes = Convert.FromBase64String(parts[1]);
-        var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
-        return Encoding.UTF8.GetString(plainBytes);
+        var encryptionKey = EncryptionBytes();
+        try
+        {
+            using var aes = Aes.Create();
+            aes.Key = encryptionKey;
+            aes.IV = Convert.FromBase64String(parts[0]);
+            using var decryptor = aes.CreateDecryptor();
+            var cipherBytes = Convert.FromBase64String(parts[1]);
+            var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+            return Encoding.UTF8.GetString(plainBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(encryptionKey);
+        }
     }
+
+    async Task TryUpgradeLegacyValue(string settingKey, AppSetting setting, string plainValue, CancellationToken ct)
+    {
+        try
+        {
+            var upgradedValue = Protect(settingKey, plainValue);
+            var updated = await database.AppSettings
+                .Where(item => item.Id == setting.Id && item.IsProtected && item.Value == setting.Value)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Value, upgradedValue), ct);
+
+            if (updated == 1)
+            {
+                logger.LogInformation("Protected runtime setting {SettingKey} upgraded to authenticated encryption.", settingKey);
+            }
+            else
+            {
+                logger.LogDebug("Protected runtime setting {SettingKey} upgrade skipped because the stored value changed concurrently.", settingKey);
+            }
+        }
+        catch (Exception error)
+        {
+            // A legacy value that decrypts successfully must remain usable even if the opportunistic
+            // storage upgrade fails. A later read can retry the upgrade.
+            logger.LogWarning(error, "Protected runtime setting {SettingKey} legacy encryption upgrade failed; the decrypted value remains usable.", settingKey);
+        }
+    }
+
+    static bool IsCurrentFormat(string value) => value.StartsWith(CurrentFormat + ".", StringComparison.Ordinal);
+
+    static byte[] AssociatedData(string settingKey) =>
+        Encoding.UTF8.GetBytes($"StackMeet.ProtectedSetting.{CurrentFormat}|{settingKey}");
 
     byte[] EncryptionBytes()
     {
