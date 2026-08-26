@@ -18,6 +18,38 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<CompetitionResult> CompetitionResults => Set<CompetitionResult>();
     public DbSet<CompetitionAsset> CompetitionAssets => Set<CompetitionAsset>();
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyAccountSessionRevocations();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyAccountSessionRevocations();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    void ApplyAccountSessionRevocations()
+    {
+        ChangeTracker.DetectChanges();
+
+        foreach (var entry in ChangeTracker.Entries<AppUser>().Where(item => item.State == EntityState.Modified))
+        {
+            var securityChanged =
+                entry.Property(item => item.PasswordHash).IsModified
+                || entry.Property(item => item.IsActive).IsModified
+                || entry.Property(item => item.IsSystemAdmin).IsModified
+                || entry.Property(item => item.EmailConfirmed).IsModified
+                || entry.Property(item => item.IsPermanentlyLocked).IsModified;
+
+            if (securityChanged)
+            {
+                entry.Entity.SessionVersion++;
+            }
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var appUser = modelBuilder.Entity<AppUser>();
