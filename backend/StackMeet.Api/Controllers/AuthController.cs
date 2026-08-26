@@ -364,7 +364,12 @@ public sealed class AuthController(
         user.FailedLoginAttempts = 0;
         await database.SaveChangesAsync(cancellationToken);
 
-        var tokenValue = tokens.CreateForUser(user.Id, user.Email, user.DisplayName, user.IsSystemAdmin);
+        var tokenValue = tokens.CreateForUser(
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            user.IsSystemAdmin,
+            user.SessionVersion);
         var access = await CompetitionAccessFor(user.Id, cancellationToken);
         await auditLogs.Write(
             "auth.login.success",
