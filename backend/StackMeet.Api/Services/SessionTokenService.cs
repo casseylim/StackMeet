@@ -5,7 +5,7 @@ namespace StackMeet.Api.Services;
 
 public sealed class SessionTokenService(IConfiguration configuration)
 {
-    const string AccountPayloadVersion = "v2";
+    const string AccountPayloadVersion = "v3";
 
     /// <summary>
     /// Creates a legacy competition-scoped session token.
@@ -32,7 +32,12 @@ public sealed class SessionTokenService(IConfiguration configuration)
     /// <remarks>
     /// The token stores identity metadata but permissions are still checked against the database.
     /// </remarks>
-    public SessionTokenValue CreateForUser(int userId, string email, string displayName, bool isSystemAdmin)
+    public SessionTokenValue CreateForUser(
+        int userId,
+        string email,
+        string displayName,
+        bool isSystemAdmin,
+        long sessionVersion)
     {
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(SessionMinutes());
         var payload = string.Join(
@@ -42,21 +47,23 @@ public sealed class SessionTokenService(IConfiguration configuration)
             Escape(email),
             Escape(displayName),
             isSystemAdmin ? "1" : "0",
+            sessionVersion,
             expiresAt.ToUnixTimeSeconds());
         var payloadBytes = Encoding.UTF8.GetBytes(payload);
         var signature = Sign(payloadBytes);
         return new SessionTokenValue(
             Base64Url(payloadBytes),
             Base64Url(signature),
-            new SessionToken("", displayName, expiresAt, userId, email, isSystemAdmin)
+            new SessionToken("", displayName, expiresAt, userId, email, isSystemAdmin, sessionVersion)
         );
     }
 
     /// <summary>
-    /// Validates either a legacy competition token or a Phase 1 account token.
+    /// Validates either a legacy competition token or a current account token.
     /// </summary>
     /// <remarks>
-    /// The v2 payload branch keeps new account tokens backward-compatible with existing middleware flow.
+    /// Account sessions use the v3 payload with a database-backed session version;
+    /// legacy competition tokens keep their existing three-field payload.
     /// </remarks>
     public bool TryValidate(string? token, out SessionToken session)
     {
@@ -81,9 +88,15 @@ public sealed class SessionTokenService(IConfiguration configuration)
         if (!CryptographicOperations.FixedTimeEquals(suppliedSignature, expectedSignature)) return false;
 
         var payload = Encoding.UTF8.GetString(payloadBytes).Split('|');
-        if (payload.Length == 6 && payload[0] == AccountPayloadVersion)
+        if (payload.Length == 7 && payload[0] == AccountPayloadVersion)
         {
-            if (!int.TryParse(payload[1], out var userId) || !long.TryParse(payload[5], out var accountExpiresUnix)) return false;
+            if (!int.TryParse(payload[1], out var userId)
+                || !long.TryParse(payload[5], out var sessionVersion)
+                || sessionVersion < 1
+                || !long.TryParse(payload[6], out var accountExpiresUnix))
+            {
+                return false;
+            }
 
             var accountExpiresAt = DateTimeOffset.FromUnixTimeSeconds(accountExpiresUnix);
             if (accountExpiresAt <= DateTimeOffset.UtcNow) return false;
@@ -94,7 +107,8 @@ public sealed class SessionTokenService(IConfiguration configuration)
                 accountExpiresAt,
                 userId,
                 Unescape(payload[2]),
-                payload[4] == "1");
+                payload[4] == "1",
+                sessionVersion);
             return !string.IsNullOrWhiteSpace(session.Email);
         }
 
