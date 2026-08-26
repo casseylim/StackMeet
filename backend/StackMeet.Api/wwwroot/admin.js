@@ -49,7 +49,7 @@
     if (location.hash !== `#${selected}`) history.replaceState(null, "", `#${selected}`);
   }
 
-  async function request(url, options = {}) {
+  async function requestResponse(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
       if (response.status === 401) {
@@ -61,6 +61,11 @@
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
       throw new Error(error);
     }
+    return response;
+  }
+
+  async function request(url, options = {}) {
+    const response = await requestResponse(url, options);
     return response.status === 204 ? undefined : response.json();
   }
 
@@ -97,7 +102,7 @@
     $("emailPassword").value = "";
     $("emailUseTls").checked = settings.useTls !== false;
     $("emailSettingsStatus").textContent = settings.canStoreProtectedSecrets
-      ? `Email secret storage is encrypted. ${settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."} ${settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved."}`
+      ? `Email secret storage is encrypted. ${settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."} ${settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved yet."}`
       : "Set Security:SettingsEncryptionKey before saving email secrets.";
     updateEmailProviderControls();
   }
@@ -397,7 +402,15 @@
       const state = document.querySelector("naditrack-state")?.textContent?.trim();
       if (document.querySelector("parsererror") || !state || document.documentElement.getAttribute("competitionKey")?.toUpperCase() !== key.toUpperCase()) throw new Error("The XML file does not match the selected competition.");
       JSON.parse(state);
-      await request(`/api/state/${encodeURIComponent(key)}`, { method: "POST", body: state, headers: { "Content-Type": "application/json" } });
+      const currentStateResponse = await requestResponse(`/api/admin/competitions/${encodeURIComponent(key)}/state/export`);
+      const etag = currentStateResponse.headers?.get?.("ETag");
+      if (!etag) throw new Error("Current competition revision is unavailable. Refresh and try the import again.");
+      await currentStateResponse.json();
+      await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/import`, {
+        method: "POST",
+        body: state,
+        headers: { "Content-Type": "application/json", "If-Match": etag }
+      });
       message(`${key} XML imported.`);
     } catch (error) {
       message(`XML import failed: ${error.message}`);
