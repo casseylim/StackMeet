@@ -72,6 +72,12 @@ public sealed class CompetitionPermissionService(StackMeetDbContext database)
         role is StackMeetRoles.SystemAdmin or StackMeetRoles.CompetitionManager;
 
     /// <summary>
+    /// Checks whether a role can manage competition certificate templates.
+    /// </summary>
+    public static bool CanManageCertificates(string? role) =>
+        role is StackMeetRoles.SystemAdmin or StackMeetRoles.CompetitionManager;
+
+    /// <summary>
     /// Checks whether a role can enter preliminary or finals results.
     /// </summary>
     /// <remarks>

@@ -304,6 +304,10 @@ public sealed class CompetitionAdminController(
         {
             return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
         }
+        if (await database.CertificateTemplates.AnyAsync(item => item.CompetitionId == competition.Id, ct))
+        {
+            return Conflict(new { error = "Competition cannot be deleted while certificate templates exist." });
+        }
 
         var state = await database.CompetitionStates.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (state is not null && StateContainsCompetitionData(state.JsonData))
