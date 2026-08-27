@@ -287,7 +287,6 @@ public sealed class AuthController(
         if (user is null) return BadRequest(new { error = "Account no longer exists." });
 
         user.PasswordHash = passwords.Hash(request.Password);
-        user.IsActive = true;
         user.FailedLoginAttempts = 0;
         user.LoginLockoutRound = 0;
         user.LockoutUntil = null;
