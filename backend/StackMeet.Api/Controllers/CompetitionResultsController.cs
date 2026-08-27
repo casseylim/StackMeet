@@ -120,7 +120,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
     {
         if (HttpContext.Items["StackMeetSession"] is not SessionToken session || session.UserId is null) return Unauthorized();
         var role = await permissions.RoleForCompetitionId(session.UserId.Value, session.IsSystemAdmin, competitionId, ct);
-        if (role is null || (write ? !CompetitionPermissionService.CanEnterResults(role) : !CompetitionPermissionService.CanViewCompetition(role))) return Forbid();
+        if (role is null || (write ? !CompetitionPermissionService.CanEnterResults(role) : !CompetitionPermissionService.CanViewCompetition(role))) return StatusCode(StatusCodes.Status403Forbidden);
         return null;
     }
 
