@@ -33,11 +33,16 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
         if (request is null || request.Upserts is null || request.Deletes is null || request.Upserts.Length + request.Deletes.Length == 0) return BadRequest(new { error = "At least one result change is required." });
-        if (request.Upserts.Any(x => !Valid(x.Stage, x.Type, x.Participant, x.Event, x.Attempts)) || request.Deletes.Any(x => !Valid(x.Stage, x.Type, x.Participant, x.Event, []))) return BadRequest(new { error = "Invalid result identity or attempts." });
+        if (request.Upserts.Length + request.Deletes.Length > CompetitionResultRules.MaximumBatchSize) return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = $"A result batch cannot contain more than {CompetitionResultRules.MaximumBatchSize} changes." });
+        var invalid = request.Upserts.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event).Concat(CompetitionResultRules.ValidateAttempts(x.Attempts, x.Penalty))).Concat(request.Deletes.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event))).ToArray();
+        if (invalid.Length > 0) return BadRequest(new { error = invalid[0] });
+        request = new ResultBatchRequest(request.Upserts.Select(Normalize).ToArray(), request.Deletes.Select(Normalize).ToArray());
         await using var transaction = await database.Database.BeginTransactionAsync(ct);
         var competition = await database.Competitions.FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {competitionId}").SingleOrDefaultAsync(ct);
         if (competition is null) return NotFound();
         if (competition.Status is "Closed" or "Archived" || competition.ArchivedAt is not null) return Conflict(new { error = "Results cannot be changed for a closed or archived competition." });
+        var individualCodes = request.Upserts.Concat(request.Deletes.Where(item => item.Type.Equals("Individual", StringComparison.OrdinalIgnoreCase)).Select(item => new ResultUpsertRequest(item.Stage, item.Type, item.Participant, item.Event, [], 0, item.ExpectedRevision))).Where(item => item.Type.Equals("Individual", StringComparison.OrdinalIgnoreCase)).Select(item => item.Participant).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (individualCodes.Length > 0 && await database.Stackers.CountAsync(item => item.CompetitionId == competitionId && individualCodes.Contains(item.StackerCode), ct) != individualCodes.Length) return BadRequest(new { error = "Individual result participant must belong to this competition." });
         var keys = request.Upserts.Select(Key).Concat(request.Deletes.Select(Key)).ToArray();
         if (keys.Length != keys.Distinct(StringComparer.Ordinal).Count()) return BadRequest(new { error = "Duplicate logical result in batch." });
 
@@ -109,7 +114,8 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
             row.Revision = competition.ResultsRevision;
         }
 
-        await database.SaveChangesAsync(ct);
+        try { await database.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 }) { return Conflict(new { error = "A result with the same competition, stage, participant type, participant and event already exists." }); }
         await transaction.CommitAsync(ct);
         try { await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionId}.", competitionId); }
@@ -125,7 +131,8 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         return null;
     }
 
-    static bool Valid(string stage, string type, string participant, string ev, decimal[] attempts) => !string.IsNullOrWhiteSpace(stage) && !string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(participant) && !string.IsNullOrWhiteSpace(ev) && attempts.All(x => x >= 0 && x <= 86400);
+    static ResultUpsertRequest Normalize(ResultUpsertRequest x) => x with { Stage = CompetitionResultRules.NormalizeStage(x.Stage)!, Type = CompetitionResultRules.NormalizeParticipantType(x.Type)!, Participant = x.Participant.Trim(), Event = CompetitionResultRules.NormalizeEvent(x.Event)!, Attempts = x.Attempts, Penalty = x.Penalty };
+    static ResultDeleteRequest Normalize(ResultDeleteRequest x) => x with { Stage = CompetitionResultRules.NormalizeStage(x.Stage)!, Type = CompetitionResultRules.NormalizeParticipantType(x.Type)!, Participant = x.Participant.Trim(), Event = CompetitionResultRules.NormalizeEvent(x.Event)! };
     static string Key(ResultUpsertRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
     static string Key(ResultDeleteRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
     static string Key(string a, string b, string c, string d) => string.Join("\u001f", a.Trim().ToUpperInvariant(), b.Trim().ToUpperInvariant(), c.Trim().ToUpperInvariant(), d.Trim().ToUpperInvariant());
