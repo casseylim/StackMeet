@@ -9,7 +9,7 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/stackers")]
-public sealed class StackersController(StackMeetDbContext database, CompetitionPermissionService permissions) : ControllerBase
+public sealed class StackersController(StackMeetDbContext database, CompetitionPermissionService permissions, CompetitionParticipantReferenceService references) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StackerResponse>>> List(int competitionId, CancellationToken ct)
@@ -57,6 +57,7 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         var value = Normalize(request);
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
+        if (!string.Equals(value.StackerCode, item.StackerCode, StringComparison.Ordinal)) return Conflict(new { error = "StackerCode cannot be changed after participant creation." });
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == competitionId && x.Id != id && x.StackerCode == value.StackerCode, ct)) return Conflict(new { error = "StackerCode already exists for this competition." });
         item.StackerCode = value.StackerCode; item.WssaId = value.WssaId; item.FirstName = value.FirstName; item.LastName = value.LastName; item.Gender = value.Gender; item.BirthDate = value.BirthDate; item.Country = value.Country; item.Club = value.Club; item.Region = value.Region; item.Email = value.Email; item.Phone = value.Phone; item.CustomDivision = value.CustomDivision; item.Paid = value.Paid!; item.CheckedIn = value.CheckedIn!; item.IsSpecialStacker = value.IsSpecialStacker; item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
@@ -71,6 +72,10 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
+        if (await database.CompetitionResults.AnyAsync(x => x.CompetitionId == competitionId && x.ParticipantCode == item.StackerCode, ct)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
+        var key = await database.Competitions.Where(x => x.Id == competitionId).Select(x => x.CompetitionKey).SingleAsync(ct);
+        var state = await database.CompetitionStates.AsNoTracking().SingleOrDefaultAsync(x => x.CompetitionKey == key, ct);
+        if (state is not null && references.ContainsParticipant(state.JsonData, item.StackerCode)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
         database.Stackers.Remove(item);
         await database.SaveChangesAsync(ct);
         return NoContent();
