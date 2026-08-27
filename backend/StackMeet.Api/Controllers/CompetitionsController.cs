@@ -53,7 +53,7 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
     [HttpPost]
     public async Task<ActionResult<CompetitionResponse>> Create(CompetitionRequest request, CancellationToken ct)
     {
-        if (!IsMaintenanceRequest()) return Forbid();
+        if (!IsMaintenanceRequest()) return StatusCode(StatusCodes.Status403Forbidden);
         if (!Valid(request)) return BadRequest();
         var value = Normalize(request);
         if (await database.Competitions.AnyAsync(x => x.CompetitionCode == value.CompetitionCode || x.CompetitionKey == value.CompetitionCode, ct)) return Conflict(new { error = "CompetitionCode already exists." });
@@ -67,7 +67,7 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, CompetitionRequest request, CancellationToken ct)
     {
-        if (!IsMaintenanceRequest()) return Forbid();
+        if (!IsMaintenanceRequest()) return StatusCode(StatusCodes.Status403Forbidden);
         if (!Valid(request)) return BadRequest();
         var value = Normalize(request);
         var item=await database.Competitions.SingleOrDefaultAsync(x=>x.Id==id,ct);
@@ -89,7 +89,7 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        if (!IsMaintenanceRequest()) return Forbid();
+        if (!IsMaintenanceRequest()) return StatusCode(StatusCodes.Status403Forbidden);
         var item=await database.Competitions.SingleOrDefaultAsync(x=>x.Id==id,ct);
         if(item is null)return NotFound();
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == id, ct)) return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
