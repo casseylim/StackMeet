@@ -17,7 +17,8 @@ public sealed class CompetitionAdminController(
     StackMeetDbContext database,
     PasswordHashService passwords,
     AuditLogService auditLogs,
-    IHubContext<ResultsHub> resultsHub) : ControllerBase
+    IHubContext<ResultsHub> resultsHub,
+    ILogger<CompetitionAdminController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CompetitionAdminSummaryResponse>>> List(CancellationToken ct)
@@ -257,7 +258,8 @@ public sealed class CompetitionAdminController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, ct);
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit admin notification failed for competition {CompetitionKey}.", normalizedKey); }
         return NoContent();
     }
 
@@ -370,7 +372,8 @@ public sealed class CompetitionAdminController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, ct);
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit admin notification failed for competition {CompetitionKey}.", normalizedKey); }
         return NoContent();
     }
 

@@ -15,7 +15,8 @@ namespace StackMeet.Api.Controllers;
 public sealed class CompetitionStateController(
     StackMeetDbContext database,
     IHubContext<ResultsHub> resultsHub,
-    CompetitionPermissionService permissions) : ControllerBase
+    CompetitionPermissionService permissions,
+    ILogger<CompetitionStateController> logger) : ControllerBase
 {
     [HttpGet("{competitionKey}")]
     public async Task<IActionResult> Get(string competitionKey, CancellationToken cancellationToken)
@@ -116,7 +117,8 @@ public sealed class CompetitionStateController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, cancellationToken);
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit state notification failed for competition {CompetitionKey}.", normalizedKey); }
 
 
         return NoContent();

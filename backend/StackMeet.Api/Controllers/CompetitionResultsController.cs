@@ -12,7 +12,7 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/results")]
-public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, IHubContext<ResultsHub> resultsHub) : ControllerBase
+public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, IHubContext<ResultsHub> resultsHub, ILogger<CompetitionResultsController> logger) : ControllerBase
 {
     const int CandidateParticipantChunkSize = 300;
 
@@ -111,7 +111,8 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
 
         await database.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, ct);
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionId}.", competitionId); }
         // Batch responses are deltas; the full GET remains the authoritative resync path.
         return Ok(new CompetitionResultsResponse(competition.ResultsRevision, touched.Select(Map).ToList()));
     }
