@@ -3,26 +3,37 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WSSA NS Sport Stacking Centre - StackMeet</title>
+    <title>Sistem NADITrack</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="apple-touch-icon" href="assets/stackmeet-logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260725-timesheet-print-lines" />
+    <link rel="stylesheet" href="styles.css?v=responsive-navigation-20260818d" />
   </head>
   <body class="auth-pending">
     <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
       <form class="login-panel" id="loginForm">
-        <span class="brand-mark login-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
+        <span class="brand-mark login-mark"><img src="assets/stackmeet-logo.png" alt="NADITrack logo" /></span>
         <p class="eyebrow">Secure Access</p>
-        <h1 id="loginTitle">StackMeet Login</h1>
-        <label>Competition ID / Key<input id="loginCompetitionId" autocomplete="off" required /></label>
-        <label>Name<input id="loginDisplayName" autocomplete="name" placeholder="Tournament desk" /></label>
-        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+        <h1 id="loginTitle">NADITrack Login</h1>
+        <div id="loginCredentialsStep" class="login-step">
+          <label>Email Address<input id="loginEmail" type="email" autocomplete="username" required /></label>
+          <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+        </div>
+        <div id="loginCompetitionStep" class="login-step" hidden>
+          <label>Competition<select id="loginCompetitionSelect" required disabled></select></label>
+        </div>
         <p class="form-error" id="loginError" aria-live="polite"></p>
         <button class="primary" type="submit">Log In</button>
+        <button class="ghost" id="forgotPasswordButton" type="button">Forgot password?</button>
+        <div id="forgotPasswordPanel" class="login-step" hidden>
+          <label>Reset Email<input id="forgotPasswordEmail" type="email" autocomplete="email" /></label>
+          <button class="ghost" id="sendForgotPassword" type="button">Send reset link</button>
+        </div>
+        <button class="ghost" id="loginSwitchAccount" type="button" hidden>Use Different Account</button>
       </form>
     </section>
     <div class="app">
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation">
+        <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation">Close</button>
         <a class="brand" href="#dashboard" data-route="dashboard">
           <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
           <span>
@@ -39,17 +50,13 @@
 
       <div class="main">
         <header class="topbar">
+          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav">Menu</button>
           <div>
             <p class="eyebrow" id="competitionType" hidden></p>
             <h1 id="pageTitle">Dashboard</h1>
           </div>
           <div class="top-actions">
-            <span class="session-pill" id="sessionCompetition"></span>
-            <a class="ghost" href="admin.html" target="_blank" rel="noopener">Competition Admin</a>
             <button id="logoutBtn" class="ghost" type="button">Log Out</button>
-            <button id="exportXmlBtn" class="ghost" type="button">Export XML</button>
-            <label class="ghost file-action" for="importXmlInput">Import XML</label>
-            <input id="importXmlInput" class="visually-hidden" type="file" accept=".xml,text/xml,application/xml" />
           </div>
         </header>
 
@@ -64,6 +71,7 @@
         <main id="view"></main>
       </div>
     </div>
+    <div id="navBackdrop" class="drawer-backdrop" hidden></div>
 
     <template id="dashboardView">
       <section class="metric-grid">
@@ -101,7 +109,7 @@
           <label>Prelim Times Data Entry<select id="settingPrelimTimes"><option value="best">Best</option><option value="all">All</option></select></label>
           <label>Paperless Entry<select id="settingPaperless"><option value="Yes">Yes</option><option value="No">No</option></select></label>
           <label>Language<select id="settingLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
-          <label class="checkbox-field"><input id="settingSeparateSpecialGender" type="checkbox" /> <span>Separate Divisions by Gender</span></label>
+          <label class="checkbox-field"><input id="settingSeparateSpecialGender" type="checkbox" /> <span><strong>Separate Special Stacker Divisions by Gender</strong><small>When enabled, Special Stacker results will be divided into separate male and female divisions.</small></span></label>
           <label>Age Calculation<select id="settingAgeCalculation"><option value="actual">Actual Age on Competition Date</option><option value="yearBorn">Year Born Only</option></select></label>
           <label>Advance Individuals<input id="settingAdvanceIndividuals" type="number" min="0" /></label>
           <label>Advance Doubles<input id="settingAdvanceDoubles" type="number" min="0" /></label>
@@ -110,6 +118,15 @@
           <label>Time Sheets Input<select id="settingTimeSheetInput"><option value="blank">blank</option></select></label>
         </div>
         <p class="muted">Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.</p>
+      </section>
+      <section class="panel" aria-labelledby="brandingHeading">
+        <div class="panel-head"><h2 id="brandingHeading">Competition Branding</h2></div>
+        <p class="muted">Upload an optional competition logo and banner. Files are validated and stored separately from the application publish files.</p>
+        <div class="form-grid branding-assets-grid">
+          <div class="branding-asset-card"><h3>Logo</h3><img id="competitionLogoPreview" alt="Competition logo preview" hidden /><input id="competitionLogoFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="logo" type="button">Upload Logo</button><button class="ghost" data-action="remove-asset" data-asset-type="logo" type="button">Remove Logo</button></div>
+          <div class="branding-asset-card"><h3>Banner</h3><img id="competitionBannerPreview" alt="Competition banner preview" hidden /><input id="competitionBannerFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="banner" type="button">Upload Banner</button><button class="ghost" data-action="remove-asset" data-asset-type="banner" type="button">Remove Banner</button></div>
+        </div>
+        <p id="competitionBrandingStatus" class="muted" role="status"></p>
       </section>
       <section class="panel">
         <div class="panel-head">
@@ -180,6 +197,18 @@
           <label>Results Limit<input id="leaderLimit" type="number" min="3" max="50" /></label>
         </div>
       </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Competition Audit Logs</h2>
+          <button class="ghost" data-action="export-competition-audit-csv" type="button">Export CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Summary</th></tr></thead>
+            <tbody id="competitionAuditRows"></tbody>
+          </table>
+        </div>
+      </section>
     </template>
 
     <template id="languageView">
@@ -220,6 +249,7 @@
             <label>Start Date<input id="sqlCompetitionStart" type="date" /></label>
             <label>End Date<input id="sqlCompetitionEnd" type="date" /></label>
             <label>Status<input id="sqlCompetitionStatus" value="Active" /></label>
+            <label class="checkbox-label"><input id="sqlCompetitionPublicListing" type="checkbox" /> List this competition on the public ALL results page</label>
           </div>
           <div class="button-row"><button class="primary" data-action="create-sql-competition" type="button">Create Competition</button></div>
         </section>
@@ -568,12 +598,17 @@
     </template>
 
     <script src="config.js"></script>
-    <script src="js/auth/AuthSession.js?v=20260714-doubles4"></script>
+    <script src="js/auth/AuthSession.js?v=forgot-lockout-ui"></script>
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>
-    <script src="js/storage/Repository.js?v=20260714-doubles4"></script>
+    <script src="js/storage/CompetitionAssetApi.js?v=competition-assets-ui-1"></script>
+    <script src="js/storage/ResultApi.js?v=20260817-results-phase2a"></script>
+    <script src="js/storage/Repository.js?v=competition-sync-20260803b"></script>
     <script src="js/results/BestResultEngine.js?v=20260722-report-engine-fix"></script>
     <script src="js/reports/FinalsReportEngine.js?v=20260722-report-engine-fix"></script>
-    <script src="app.js?v=20260724-zero-prelim-finals"></script>
+    <script src="js/CompetitionPackage.js?v=20260803-package-v1"></script>
+    <script src="js/CompetitionPackageAssembler.js?v=20260803-package-assembler-v1"></script>
+    <script src="results/vendor/signalr.min.js?v=20260803-live-sync"></script>
+    <script src="app.js?v=responsive-navigation-20260818d"></script>
   </body>
 </html>

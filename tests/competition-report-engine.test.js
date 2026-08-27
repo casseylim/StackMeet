@@ -5,8 +5,8 @@ const vm = require("vm");
 
 const context = { window: {}, console };
 context.window.window = context.window;
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
 const reports = context.window.StackMeetFinalsReports;
 const state = {
   stackers: [

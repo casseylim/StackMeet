@@ -5,27 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07152e">
   <meta name="description" content="Live sport stacking competition results">
-  <title>StackMeet Live Results</title>
-  <link rel="stylesheet" href="/results/results.css?v=20260722-all-divisions">
+  <title>NADITrack Live Results</title>
+  <link rel="icon" type="image/png" href="/assets/stackmeet-logo.png?v=results-favicon">
+  <link rel="apple-touch-icon" href="/assets/stackmeet-logo.png?v=results-favicon">
+  <link rel="stylesheet" href="/results/results.css?v=public-results-quick-jump-20260818a">
 </head>
 <body>
   <div class="app-shell">
     <header class="hero">
       <div class="brand-row">
-        <a class="brand" href="/" aria-label="StackMeet home">
+        <a class="brand" href="/" aria-label="NADITrack home">
           <span class="brand-mark" aria-hidden="true">S</span>
-          <span>StackMeet</span>
+          <span>NADITrack</span>
         </a>
         <span id="connectionStatus" class="connection" data-state="connecting">
           <span class="connection-dot"></span><span>Connecting</span>
         </span>
       </div>
       <div class="hero-copy">
+        <img id="competitionBanner" class="competition-banner" alt="" hidden>
         <div class="status-row">
           <span id="resultStatus" class="result-status waiting">Waiting for results</span>
           <span id="lastUpdated">Waiting for results…</span>
         </div>
         <h1 id="competitionName">Competition Results</h1>
+        <img id="competitionLogo" class="competition-logo" alt="" hidden>
         <p id="competitionMeta" class="competition-meta"></p>
       </div>
     </header>
@@ -38,8 +42,8 @@
 
       <nav class="section-nav" aria-label="Results sections">
         <a class="active" data-section="Dashboard" href="#">Dashboard</a>
-        <a data-section="Preliminary" href="#">Preliminary</a>
-        <a data-section="Finals" href="#">Finals</a>
+        <a data-section="Preliminary" href="#">Individual Prelim</a>
+        <a data-section="Finals" href="#">Individual Finals</a>
         <a data-section="AllAround" href="#">All Around</a>
         <a data-section="Doubles" href="#">Doubles</a>
         <a data-section="Relay" href="#">Relay</a>
@@ -59,6 +63,13 @@
       </section>
 
       <div id="dashboard" hidden>
+        <section class="panel share-panel" aria-labelledby="shareResultsTitle">
+          <h2 id="shareResultsTitle" class="visually-hidden">Share public results</h2>
+          <img id="publicResultsQr" class="share-qr" width="160" height="160" alt="QR code for public results" loading="lazy">
+          <a class="affiliate-banner" href="https://www.myasp.net/index?r=wssans" target="_blank" rel="noopener noreferrer" aria-label="Visit MyASP">
+            <img src="https://www.myasp.net/affiliate/728X90.gif" width="728" height="90" alt="MyASP" loading="lazy">
+          </a>
+        </section>
         <section class="summary-grid">
           <article class="summary-card accent">
             <span class="card-label">Current stage</span>
@@ -141,7 +152,7 @@
         <div class="page-heading">
           <div>
             <span class="eyebrow">Competition standings</span>
-            <h2>Preliminary Results</h2>
+            <h2>Individual Preliminary Results</h2>
             <p>Rankings are grouped by division and event. Live standings may change until each event is verified.</p>
           </div>
           <span id="preliminarySummary" class="page-summary">Waiting for results</span>
@@ -153,7 +164,7 @@
         <div class="page-heading">
           <div>
             <span class="eyebrow">Championship standings</span>
-            <h2>Final Results</h2>
+            <h2>Individual Final Results</h2>
             <p>Final rankings are grouped by division and event. Medal positions remain provisional until the competition is closed and verified.</p>
           </div>
           <span id="finalsSummary" class="page-summary">Waiting for results</span>
@@ -171,6 +182,14 @@
           <span id="allAroundSummary" class="page-summary">Waiting for results</span>
         </div>
         <div id="allAroundGroups" class="allaround-groups"></div>
+        <section id="allAroundByDivision" class="allaround-by-division" hidden>
+          <div class="section-heading">
+            <span class="eyebrow">Competition divisions</span>
+            <h3>All-Around by Division</h3>
+            <p>Rankings within each Individual division using each stacker's best published 3-3-3, 3-6-3 and Cycle times.</p>
+          </div>
+          <div id="allAroundDivisionGroups"></div>
+        </section>
       </section>
 
       <section id="doubles" hidden>
@@ -230,11 +249,11 @@
     </main>
 
     <footer>
-      <span>Powered by StackMeet</span>
+      <span>Powered by NADITrack</span>
       <span id="competitionCode"></span>
     </footer>
   </div>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=20260725-prelim-qualified"></script>
+  <script src="/results/results.js?v=public-results-sync-events-20260826a"></script>
 </body>
 </html>

@@ -2,12 +2,13 @@
 const COMPETITION_KEY = "Null";
 
 window.StackMeetBranding = Object.freeze({
-  organizationName: "NS-Melaka Sport Stacking",
-  shortName: "NS-Melaka",
-  productName: "StackMeet",
-  reportHeader: "NS-Melaka Sport Stacking",
-  browserTitle: "NS-Melaka Sport Stacking - StackMeet",
-  sidebarTitle: "NS-Melaka",
+  organizationName: "Sistem NADI Track",
+  shortName: "NADI Track",
+  productName: "NADITrack",
+  reportHeader: "Sistem NADI Track",
+  browserTitle: "Sistem NADI Track",
+  sidebarTitle: "NADITrack",
   sidebarSubtitle: "Sport Stacking",
-  defaultCompetitionName: "NS-Melaka Sport Stacking"
+    defaultCompetitionName: "NS-Melaka Sport Stacking"
 });
+window.STACKMEET_VERSION = "0.9.1";

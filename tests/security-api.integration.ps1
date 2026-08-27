@@ -66,8 +66,16 @@ Assert-Status $r 401 "state rejects invalid API key"
 
 $before = Invoke-Http GET "/api/state/$StateKey" $apiHeaders
 Assert-Status $before 200 "authorized state read before malformed save"
+$etag = [string]$before.Headers["ETag"]
+if ([string]::IsNullOrWhiteSpace($etag)) {
+    throw "Authorized state read did not return an ETag required for OCC."
+}
+$malformedHeaders = @{
+    "X-StackMeet-Api-Key" = $ApiKey
+    "If-Match" = $etag
+}
 
-$invalidJson = Invoke-Http POST "/api/state/$StateKey" $apiHeaders "{invalid-json"
+$invalidJson = Invoke-Http POST "/api/state/$StateKey" $malformedHeaders "{invalid-json"
 Assert-Status $invalidJson 400 "malformed state JSON rejection"
 
 $after = Invoke-Http GET "/api/state/$StateKey" $apiHeaders

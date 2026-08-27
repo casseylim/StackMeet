@@ -31,6 +31,17 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             return NotFound();
         }
 
+        var assets = await database.CompetitionAssets.AsNoTracking()
+            .Where(item => item.CompetitionId == competition.Id)
+            .Select(item => new { item.AssetType, item.UpdatedAt })
+            .ToListAsync(ct);
+        var branding = new
+        {
+            logoUrl = assets.Any(item => item.AssetType == "logo") ? $"/api/public/competitions/{competition.Id}/assets/logo" : null,
+            bannerUrl = assets.Any(item => item.AssetType == "banner") ? $"/api/public/competitions/{competition.Id}/assets/banner" : null
+        };
+        var assetUpdatedAt = assets.Select(item => (DateTime?)item.UpdatedAt).Max();
+
         var savedState = await database.CompetitionStates.AsNoTracking()
             .Where(item => item.CompetitionKey == competition.CompetitionKey)
             .Select(item => new { item.JsonData, item.UpdatedAt })
@@ -49,7 +60,8 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             .Select(item => new
             {
                 item.StackerCode, item.FirstName, item.LastName, item.Gender, item.Club,
-                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker, item.BirthDate
+                item.Country, item.Region, item.CustomDivision, item.IsSpecialStacker, item.BirthDate,
+                item.UpdatedAt
             })
             .ToListAsync(ct);
         var sqlStackers = sqlStackerRows.Select(item => new PublicStacker(
@@ -66,9 +78,17 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 item.Gender,
                 item.IsSpecialStacker,
                 divisionSettings,
-                settings.SeparateSpecialDivisionsByGender),
+                settings.SeparateSpecialDivisionsByGender,
+                settings.YearBorn),
             item.IsSpecialStacker ? "Yes" : "No")).ToArray();
-        var stackers = stateStackers.Length > 0 ? stateStackers : sqlStackers;
+        // SQL is the source of truth for participants. Legacy JSON remains read-only migration
+        // fallback only for competitions that have not populated the SQL Stacker table yet.
+        var hasLegacyStackerFallback = stateStackers.Length > 0;
+        var stackers = sqlStackers.Length > 0 ? sqlStackers : hasLegacyStackerFallback ? stateStackers : [];
+        var stackersUpdatedAt = sqlStackerRows.Select(item => (DateTime?)item.UpdatedAt).Max();
+        var sqlResults = await database.CompetitionResults.AsNoTracking().Where(item => item.CompetitionId == competition.Id).OrderBy(item => item.Id)
+            .Select(item => new { item.PublicId, item.Stage, item.ParticipantType, item.ParticipantCode, item.EventCode, item.AttemptsJson, item.Penalty, item.UpdatedAt }).ToListAsync(ct);
+        var resultRows = sqlResults.Select(item => new { id = item.PublicId, stage = item.Stage, type = item.ParticipantType, participant = item.ParticipantCode, @event = item.EventCode, attempts = ParseAttempts(item.AttemptsJson), penalty = item.Penalty }).ToArray();
 
         return Ok(new
         {
@@ -83,10 +103,11 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 competition.Status,
                 isOfficial = string.Equals(competition.Status, "Closed", StringComparison.OrdinalIgnoreCase)
             },
-            lastUpdatedAt = savedState.UpdatedAt,
+            branding,
+            lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt, assetUpdatedAt, stackersUpdatedAt }).Max(),
             settings = PublicSettings(root),
             divisions = PublicDivisions(root),
-            results = PublicResults(root),
+            results = resultRows,
             doubles = PublicDoubles(root),
             relays = PublicRelays(root),
             stackers
@@ -120,21 +141,6 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             .Where(item => item.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-    }
-
-    private static IEnumerable<object> PublicResults(JsonElement root)
-    {
-        if (!root.TryGetProperty("results", out var items) || items.ValueKind != JsonValueKind.Array) return [];
-        return items.EnumerateArray().Select(item => (object)new
-        {
-            id = Text(item, "id"),
-            stage = Text(item, "stage"),
-            type = Text(item, "type"),
-            participant = Text(item, "participant"),
-            @event = Text(item, "event"),
-            attempts = NumberArray(item, "attempts"),
-            penalty = Number(item, "penalty")
-        }).ToArray();
     }
 
     private static PublicStacker[] PublicStackers(JsonElement root)
@@ -174,13 +180,14 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
     {
         if (!root.TryGetProperty("settings", out var settings) || settings.ValueKind != JsonValueKind.Object)
         {
-            return new PublicSettingsForDivision(null, false);
+            return new PublicSettingsForDivision(null, false, false);
         }
 
         var start = DateOnly.TryParse(Text(settings, "start"), out var parsedStart) ? parsedStart : (DateOnly?)null;
         var separateSpecial = settings.TryGetProperty("separateSpecialDivisionsByGender", out var separateValue)
             && separateValue.ValueKind == JsonValueKind.True;
-        return new PublicSettingsForDivision(start, separateSpecial);
+        var yearBorn = settings.TryGetProperty("ageCalculationMode", out var ageMode) && ageMode.ValueKind == JsonValueKind.String && string.Equals(ageMode.GetString(), "yearBorn", StringComparison.OrdinalIgnoreCase);
+        return new PublicSettingsForDivision(start, separateSpecial, yearBorn);
     }
 
     private static string PublicStackerDivision(
@@ -190,20 +197,22 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         string gender,
         bool isSpecial,
         PublicDivisionSettings settings,
-        bool separateSpecialDivisionsByGender)
+        bool separateSpecialDivisionsByGender,
+        bool yearBorn)
     {
         if (!string.IsNullOrWhiteSpace(customDivision)) return customDivision.Trim();
-        var age = AgeOnCompetitionDate(birthDate, competitionStart);
+        var age = AgeOnCompetitionDate(birthDate, competitionStart, yearBorn);
         if (age <= 0) return "";
         return isSpecial
             ? SpecialDivision(age, gender, settings.Special, separateSpecialDivisionsByGender)
             : StandardDivision(age, gender, settings);
     }
 
-    private static int AgeOnCompetitionDate(DateOnly? birthDate, DateOnly? competitionStart)
+    private static int AgeOnCompetitionDate(DateOnly? birthDate, DateOnly? competitionStart, bool yearBorn)
     {
         if (birthDate is null) return 0;
         var eventDate = competitionStart ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        if (yearBorn) return Math.Max(eventDate.Year - birthDate.Value.Year, 0);
         var age = eventDate.Year - birthDate.Value.Year;
         if (eventDate.Month < birthDate.Value.Month
             || (eventDate.Month == birthDate.Value.Month && eventDate.Day < birthDate.Value.Day))
@@ -345,7 +354,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         string Division,
         string Special);
 
-    private sealed record PublicSettingsForDivision(DateOnly? Start, bool SeparateSpecialDivisionsByGender);
+    private sealed record PublicSettingsForDivision(DateOnly? Start, bool SeparateSpecialDivisionsByGender, bool YearBorn);
 
     private sealed record DivisionPathItem(int Age, string Label);
 
@@ -373,6 +382,12 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
                 .Select(entry => entry.GetDecimal())
                 .ToArray()
             : [];
+
+    private static decimal[] ParseAttempts(string json)
+    {
+        try { return JsonSerializer.Deserialize<decimal[]>(json) ?? []; }
+        catch (JsonException) { return []; }
+    }
 
     private static string[] StringArray(JsonElement item, string name) =>
         item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array

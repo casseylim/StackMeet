@@ -3,16 +3,19 @@ using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
 using StackMeet.Api.Models;
+using StackMeet.Api.Services;
 
 namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/stackers")]
-public sealed class StackersController(StackMeetDbContext database) : ControllerBase
+public sealed class StackersController(StackMeetDbContext database, CompetitionPermissionService permissions) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StackerResponse>>> List(int competitionId, CancellationToken ct)
     {
+        var access = await Access(competitionId, false, ct);
+        if (access is not null) return access;
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         return Ok(await database.Stackers.AsNoTracking().Where(x => x.CompetitionId == competitionId)
             .OrderBy(x => x.StackerCode).Select(x => Map(x)).ToListAsync(ct));
@@ -21,6 +24,8 @@ public sealed class StackersController(StackMeetDbContext database) : Controller
     [HttpGet("{id:int}")]
     public async Task<ActionResult<StackerResponse>> Get(int competitionId, int id, CancellationToken ct)
     {
+        var access = await Access(competitionId, false, ct);
+        if (access is not null) return access;
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var item = await database.Stackers.AsNoTracking().SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         return item is null ? NotFound() : Ok(Map(item));
@@ -29,6 +34,8 @@ public sealed class StackersController(StackMeetDbContext database) : Controller
     [HttpPost]
     public async Task<ActionResult<StackerResponse>> Create(int competitionId, StackerRequest request, CancellationToken ct)
     {
+        var access = await Access(competitionId, true, ct);
+        if (access is not null) return access;
         if (!Valid(request)) return BadRequest();
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var value = Normalize(request);
@@ -43,6 +50,8 @@ public sealed class StackersController(StackMeetDbContext database) : Controller
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int competitionId, int id, StackerRequest request, CancellationToken ct)
     {
+        var access = await Access(competitionId, true, ct);
+        if (access is not null) return access;
         if (!Valid(request)) return BadRequest();
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var value = Normalize(request);
@@ -57,12 +66,35 @@ public sealed class StackersController(StackMeetDbContext database) : Controller
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int competitionId, int id, CancellationToken ct)
     {
+        var access = await Access(competitionId, true, ct);
+        if (access is not null) return access;
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
         database.Stackers.Remove(item);
         await database.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    async Task<ActionResult?> Access(int competitionId, bool write, CancellationToken ct)
+    {
+        // Preserve the existing maintenance-key recovery path and legacy competition-password
+        // sessions during the account/RBAC migration. Account sessions must honor their assigned role.
+        if (HttpContext.Items["StackMeetMaintenanceApiKey"] is true) return null;
+        if (HttpContext.Items["StackMeetSession"] is not SessionToken session) return Unauthorized();
+        if (!session.IsAccountSession) return null;
+        if (session.UserId is null) return Unauthorized();
+
+        var role = await permissions.RoleForCompetitionId(session.UserId.Value, session.IsSystemAdmin, competitionId, ct);
+        if (role is null
+            || (write
+                ? !CompetitionPermissionService.CanManageCompetition(role)
+                : !CompetitionPermissionService.CanViewCompetition(role)))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        return null;
     }
 
     Task<bool> CompetitionExists(int competitionId, CancellationToken ct) => database.Competitions.AnyAsync(x => x.Id == competitionId, ct);

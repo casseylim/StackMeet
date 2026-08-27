@@ -1,0 +1,33 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+
+const app = read('backend/StackMeet.Api/wwwroot/app.js');
+const publicApi = read('backend/StackMeet.Api/Controllers/PublicResultsController.cs');
+const resultsApi = read('backend/StackMeet.Api/Controllers/CompetitionResultsController.cs');
+const packageAssembler = read('backend/StackMeet.Api/wwwroot/js/CompetitionPackageAssembler.js');
+const packageApi = read('backend/StackMeet.Api/wwwroot/js/CompetitionPackage.js');
+
+assert.doesNotMatch(app, /function mergeResults|merged\.results\s*=\s*mergeResults/);
+assert.doesNotMatch(app, /connection\.on\("ResultsUpdated", receiveChange\)/);
+assert.match(app, /const sqlOwnedStackers = state\.stackers/);
+assert.match(app, /const sqlOwnedResults = state\.results/);
+assert.match(app, /function competitionStateSyncSignature[\s\S]*divisionSettings[\s\S]*doubles[\s\S]*relays/);
+assert.match(app, /legacy\.results\s*=\s*\[\]/);
+assert.match(app, /saveSqlResults\(/);
+assert.match(publicApi, /database\.CompetitionResults/);
+assert.doesNotMatch(publicApi, /results\s*=\s*PublicResults\(root\)/);
+assert.match(resultsApi, /BeginTransactionAsync/);
+assert.match(resultsApi, /ExpectedRevision/);
+assert.match(resultsApi, /Conflict\(/);
+assert.match(resultsApi, /ResultsChanged/);
+assert.match(resultsApi, /var touched = new HashSet<CompetitionResult>\(\)/);
+assert.match(resultsApi, /touched\.Add\(row\)/);
+assert.match(resultsApi, /foreach \(var row in touched\)[\s\S]*row\.Revision = competition\.ResultsRevision/);
+assert.doesNotMatch(resultsApi, /foreach \(var row in existing\.Where[\s\S]*row\.Revision = competition\.ResultsRevision/);
+assert.match(resultsApi, /ToUpperInvariant\(\)/, 'Logical result identity must normalize case before comparison.');
+assert.match(packageAssembler, /listResults/);
+assert.match(packageApi, /resultsRevision/);
+console.log('Result architecture hardening checks passed.');

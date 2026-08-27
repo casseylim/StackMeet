@@ -1,8 +1,11 @@
+using System.Data;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
+using StackMeet.Api.Hubs;
 using StackMeet.Api.Models;
 using StackMeet.Api.Services;
 
@@ -12,7 +15,9 @@ namespace StackMeet.Api.Controllers;
 [Route("api/admin/competitions")]
 public sealed class CompetitionAdminController(
     StackMeetDbContext database,
-    PasswordHashService passwords) : ControllerBase
+    PasswordHashService passwords,
+    AuditLogService auditLogs,
+    IHubContext<ResultsHub> resultsHub) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CompetitionAdminSummaryResponse>>> List(CancellationToken ct)
@@ -57,6 +62,7 @@ public sealed class CompetitionAdminController(
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Status = NormalizeStatus(request.Status)!,
+            IsPubliclyListed = request.IsPubliclyListed,
             PasswordHash = passwords.Hash(request.Password!),
             CreatedAt = now,
             UpdatedAt = now
@@ -75,6 +81,15 @@ public sealed class CompetitionAdminController(
             });
         }
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.created",
+            "Competition",
+            competition.CompetitionKey,
+            ActorUserId(),
+            competition.Id,
+            null,
+            CompetitionSnapshot(competition),
+            ct);
         await transaction.CommitAsync(ct);
 
         var created = await Query(key).SingleAsync(ct);
@@ -91,13 +106,24 @@ public sealed class CompetitionAdminController(
         var status = NormalizeStatus(request.Status);
         if (status is null) return BadRequest(new { error = "Status must be Draft, Active, Closed or Archived." });
 
+        var before = CompetitionSnapshot(item);
         item.CompetitionName = request.CompetitionName.Trim();
         item.Venue = request.Venue.Trim();
         item.StartDate = request.StartDate;
         item.EndDate = request.EndDate;
         item.Status = status;
+        item.IsPubliclyListed = request.IsPubliclyListed;
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.updated",
+            "Competition",
+            item.CompetitionKey,
+            ActorUserId(),
+            item.Id,
+            before,
+            CompetitionSnapshot(item),
+            ct);
         return NoContent();
     }
 
@@ -111,6 +137,15 @@ public sealed class CompetitionAdminController(
         item.PasswordHash = passwords.Hash(request.Password);
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.password_set",
+            "Competition",
+            item.CompetitionKey,
+            ActorUserId(),
+            item.Id,
+            null,
+            new { item.CompetitionKey },
+            ct);
         return NoContent();
     }
 
@@ -123,11 +158,21 @@ public sealed class CompetitionAdminController(
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
         var item = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (item is null) return NotFound();
+        var before = CompetitionSnapshot(item);
         item.Status = "Archived";
         item.ArchivedAt = DateTime.UtcNow;
         item.ArchivedBy = string.IsNullOrWhiteSpace(request.ArchivedBy) ? "admin" : request.ArchivedBy.Trim();
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.archived",
+            "Competition",
+            item.CompetitionKey,
+            ActorUserId(),
+            item.Id,
+            before,
+            CompetitionSnapshot(item),
+            ct);
         return NoContent();
     }
 
@@ -136,7 +181,84 @@ public sealed class CompetitionAdminController(
     {
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
         var state = await database.CompetitionStates.AsNoTracking().SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
+        if (state is not null)
+        {
+            SetEtag(state.StateRevision);
+            var competitionId = await CompetitionIdForKey(normalizedKey, ct);
+            await auditLogs.Write(
+                "admin.competition.state_exported",
+                "CompetitionState",
+                normalizedKey,
+                ActorUserId(),
+                competitionId,
+                null,
+                new { competitionKey = normalizedKey },
+                ct);
+        }
         return state is null ? NotFound() : Ok(new CompetitionJsonExportResponse(normalizedKey, DateTime.UtcNow, state.JsonData));
+    }
+
+    [HttpPost("{competitionKey}/state/import")]
+    public async Task<IActionResult> ImportState(string competitionKey, CancellationToken ct)
+    {
+        var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
+        if (!CompetitionKeyRules.IsValid(normalizedKey))
+        {
+            return BadRequest(new { error = "Competition key must be 3-50 characters: A-Z, 0-9, underscore or hyphen." });
+        }
+
+        if (!TryExpectedRevision(Request.Headers["If-Match"].FirstOrDefault(), out var expectedRevision))
+        {
+            return StatusCode(StatusCodes.Status428PreconditionRequired, new
+            {
+                error = "Competition state revision is required. Refresh the latest data before importing."
+            });
+        }
+
+        using var reader = new StreamReader(Request.Body);
+        var jsonData = await reader.ReadToEndAsync(ct);
+        var validationError = ValidateStateJson(jsonData);
+        if (validationError is not null)
+        {
+            return BadRequest(new { error = validationError });
+        }
+
+        var competitionId = await CompetitionIdForKey(normalizedKey, ct);
+        if (competitionId is null) return NotFound();
+
+        var changedAt = DateTime.UtcNow;
+        long committedRevision;
+        await using (var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct))
+        {
+            var state = await database.CompetitionStates
+                .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
+                .SingleOrDefaultAsync(ct);
+            if (state is null) return NotFound();
+            if (state.StateRevision != expectedRevision) return StateConflict(state.StateRevision);
+
+            var before = new { state.CompetitionKey, state.StateRevision, state.UpdatedAt, state.UpdatedBy };
+            state.JsonData = jsonData;
+            state.StateRevision++;
+            state.UpdatedAt = changedAt;
+            state.UpdatedBy = "admin:xml-import";
+            committedRevision = state.StateRevision;
+            await database.SaveChangesAsync(ct);
+            await auditLogs.Write(
+                "admin.competition.state_imported",
+                "CompetitionState",
+                normalizedKey,
+                ActorUserId(),
+                competitionId,
+                before,
+                new { state.CompetitionKey, state.StateRevision, state.UpdatedAt, state.UpdatedBy },
+                ct);
+            await transaction.CommitAsync(ct);
+        }
+
+        SetEtag(committedRevision);
+        var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, ct);
+        return NoContent();
     }
 
     [HttpPost("{competitionKey}/state/initialize")]
@@ -157,6 +279,15 @@ public sealed class CompetitionAdminController(
             UpdatedBy = "admin:initialize"
         });
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.state_initialized",
+            "CompetitionState",
+            normalizedKey,
+            ActorUserId(),
+            competition.Id,
+            null,
+            new { competitionKey = normalizedKey },
+            ct);
         return NoContent();
     }
 
@@ -184,6 +315,15 @@ public sealed class CompetitionAdminController(
         if (state is not null) database.CompetitionStates.Remove(state);
         database.Competitions.Remove(competition);
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.deleted",
+            "Competition",
+            normalizedKey,
+            ActorUserId(),
+            null,
+            CompetitionSnapshot(competition),
+            null,
+            ct);
         await transaction.CommitAsync(ct);
         return NoContent();
     }
@@ -195,16 +335,42 @@ public sealed class CompetitionAdminController(
         if (request.Confirmation != $"RESET {normalizedKey}") return BadRequest(new { error = $"Confirmation must be RESET {normalizedKey}." });
         if (normalizedKey == "DEFAULT") return BadRequest(new { error = "DEFAULT state reset is blocked in Phase 1." });
 
-        var competition = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
-        var state = await database.CompetitionStates.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
-        if (competition is null || state is null) return NotFound();
+        var competition = await database.Competitions.AsNoTracking().SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
+        if (competition is null) return NotFound();
 
-        state.JsonData = request.ResultsOnly
-            ? CompetitionStateResetService.ResetResultsOnly(state.JsonData)
-            : EmptyCompetitionStateFactory.Create(normalizedKey, competition.CompetitionName, competition.StartDate, competition.EndDate);
-        state.UpdatedAt = DateTime.UtcNow;
-        state.UpdatedBy = request.ResultsOnly ? "admin:reset-results" : "admin:reset-state";
-        await database.SaveChangesAsync(ct);
+        var changedAt = DateTime.UtcNow;
+        long committedRevision;
+        await using (var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct))
+        {
+            var state = await database.CompetitionStates
+                .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
+                .SingleOrDefaultAsync(ct);
+            if (state is null) return NotFound();
+
+            var before = new { state.CompetitionKey, state.SchemaVersion, state.StateRevision, state.UpdatedAt, state.UpdatedBy, request.ResultsOnly };
+            state.JsonData = request.ResultsOnly
+                ? CompetitionStateResetService.ResetResultsOnly(state.JsonData)
+                : EmptyCompetitionStateFactory.Create(normalizedKey, competition.CompetitionName, competition.StartDate, competition.EndDate);
+            state.StateRevision++;
+            state.UpdatedAt = changedAt;
+            state.UpdatedBy = request.ResultsOnly ? "admin:reset-results" : "admin:reset-state";
+            committedRevision = state.StateRevision;
+            await database.SaveChangesAsync(ct);
+            await auditLogs.Write(
+                request.ResultsOnly ? "admin.competition.results_reset" : "admin.competition.state_reset",
+                "CompetitionState",
+                normalizedKey,
+                ActorUserId(),
+                competition.Id,
+                before,
+                new { state.CompetitionKey, state.SchemaVersion, state.StateRevision, state.UpdatedAt, state.UpdatedBy, request.ResultsOnly },
+                ct);
+            await transaction.CommitAsync(ct);
+        }
+
+        SetEtag(committedRevision);
+        var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
+        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, ct);
         return NoContent();
     }
 
@@ -216,12 +382,110 @@ public sealed class CompetitionAdminController(
         var normalizedKey = CompetitionKeyRules.Normalize(competitionKey);
         var item = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (item is null) return NotFound();
+        var before = CompetitionSnapshot(item);
         item.Status = normalizedStatus;
         item.ArchivedAt = archivedAt;
         item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
+        await auditLogs.Write(
+            "admin.competition.status_changed",
+            "Competition",
+            item.CompetitionKey,
+            ActorUserId(),
+            item.Id,
+            before,
+            CompetitionSnapshot(item),
+            ct);
         return NoContent();
     }
+
+    IActionResult StateConflict(long currentRevision)
+    {
+        SetEtag(currentRevision);
+        return Conflict(new
+        {
+            error = "Competition state changed on another computer. Refresh the latest data before importing.",
+            currentRevision
+        });
+    }
+
+    void SetEtag(long revision) => Response.Headers["ETag"] = Etag(revision);
+
+    static string Etag(long revision) => $"\"{revision}\"";
+
+    static bool TryExpectedRevision(string? ifMatch, out long revision)
+    {
+        revision = 0;
+        if (string.IsNullOrWhiteSpace(ifMatch)) return false;
+        var value = ifMatch.Trim();
+        if (value.StartsWith("W/", StringComparison.OrdinalIgnoreCase)) value = value[2..].Trim();
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"') value = value[1..^1];
+        return long.TryParse(value, out revision) && revision >= 0;
+    }
+
+    static string? ValidateStateJson(string jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return "Competition state must contain a JSON object.";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jsonData);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                ? null
+                : "Competition state root must be a JSON object.";
+        }
+        catch (JsonException)
+        {
+            return "Competition state contains malformed JSON.";
+        }
+    }
+
+    /// <summary>
+    /// Reads the optional account actor from the current admin request.
+    /// </summary>
+    /// <remarks>
+    /// Admin-key-only operations are still audited, but their actor id remains null.
+    /// </remarks>
+    int? ActorUserId() => auditLogs.CurrentSession()?.UserId;
+
+    /// <summary>
+    /// Captures competition admin fields without password hash material.
+    /// </summary>
+    /// <remarks>
+    /// Password changes are logged as events only; the hash and raw password are never included.
+    /// </remarks>
+    static object CompetitionSnapshot(Competition item) => new
+    {
+        item.Id,
+        item.CompetitionCode,
+        item.CompetitionKey,
+        item.CompetitionName,
+        item.Venue,
+        item.StartDate,
+        item.EndDate,
+            item.Status,
+            item.IsPubliclyListed,
+        item.ArchivedAt,
+        item.ArchivedBy,
+        item.CreatedAt,
+        item.UpdatedAt
+    };
+
+    /// <summary>
+    /// Resolves a competition id for state-only admin actions.
+    /// </summary>
+    /// <remarks>
+    /// Some state rows can exist independently, so this returns null when no competition row exists.
+    /// </remarks>
+    async Task<int?> CompetitionIdForKey(string competitionKey, CancellationToken ct) =>
+        await database.Competitions
+            .AsNoTracking()
+            .Where(item => item.CompetitionKey == competitionKey)
+            .Select(item => (int?)item.Id)
+            .SingleOrDefaultAsync(ct);
 
     IQueryable<CompetitionAdminSummaryResponse> Query(string? competitionKey = null)
     {
@@ -247,6 +511,7 @@ public sealed class CompetitionAdminController(
             competition.StartDate,
             competition.EndDate,
             competition.Status,
+            competition.IsPubliclyListed,
             competition.PasswordHash != null,
             state != null,
             state == null ? null : state.CreatedAt,

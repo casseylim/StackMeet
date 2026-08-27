@@ -14,10 +14,10 @@ function loadApp() {
   const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); }, querySelector() { return null; }, querySelectorAll() { return []; }, addEventListener() {}, createElement() { return element(); }, body: { appendChild() {} } };
   const context = { console, document, location: { hash: "", search: "" }, confirm: () => true, alert() {}, crypto: { randomUUID: () => `test-${Math.random()}` }, structuredClone, URL, URLSearchParams, Blob, localStorage: { getItem() { return null; }, setItem() {} }, window: { addEventListener() {}, print() {}, open() { return { document: { write() {}, close() {} }, focus() {}, print() {}, close() {} }; } } };
   context.globalThis = context;
-  ["ApiProvider.js", "StackerApi.js", "Repository.js"].forEach(file => vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "storage", file), "utf8"), context, { filename: file }));
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
-  let source = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8").replace(/\n(?:void\s+)?initializeApplication\(\)(?:\.catch\(showBootError\))?;\s*$/, "\n");
+  ["ApiProvider.js", "StackerApi.js", "Repository.js"].forEach(file => vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "storage", file), "utf8"), context, { filename: file }));
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
+  let source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8").replace(/\n(?:void\s+)?initializeApplication\(\)(?:\.catch\(showBootError\))?;\s*$/, "\n");
   source += `\nglobalThis.__hooks = { getState: () => state, setState: value => { state = value; }, setInput: (id, value) => { document.getElementById(id).value = value; }, getInput: id => document.getElementById(id).value, getHtml: id => document.getElementById(id).innerHTML, getMessage: () => document.getElementById("prelimEntryMessage").textContent, normalizePrelimEntryId, resolvePrelimParticipant, prelimParticipantIdentity, loadPrelimParticipant, savePrelimResults, setProvider: provider => { repository.provider = provider; pendingSave = Promise.resolve(); } };`;
   vm.runInNewContext(source, context, { filename: "app.js" });
   return context.__hooks;

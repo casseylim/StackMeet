@@ -9,6 +9,7 @@ public sealed record CompetitionAdminSummaryResponse(
     DateOnly StartDate,
     DateOnly EndDate,
     string Status,
+    bool IsPubliclyListed,
     bool HasPassword,
     bool HasState,
     DateTime? StateCreatedAt,
@@ -26,7 +27,8 @@ public sealed record CompetitionAdminUpsertRequest(
     DateOnly StartDate,
     DateOnly EndDate,
     string Status,
-    string? Password);
+    string? Password,
+    bool IsPubliclyListed = false);
 
 public sealed record CompetitionAdminPasswordRequest(string Password);
 

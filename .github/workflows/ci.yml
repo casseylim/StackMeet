@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - master
+      - "feature/**"
+      - "hardening/**"
 
 permissions:
   contents: read
@@ -43,22 +45,28 @@ jobs:
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
 
-      - name: Check synchronized authentication scripts
+      - name: Check canonical authentication and storage scripts
         run: |
-          node --check js/auth/AuthSession.js
           node --check backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js
-
-      - name: Run static security regression tests
-        run: node tests/competition-admin-phase1.static.test.js
-
-      - name: Run characterization suite
-        run: node tests/characterization.test.js
+          node --check backend/StackMeet.Api/wwwroot/js/storage/ApiProvider.js
+          node --check backend/StackMeet.Api/wwwroot/js/storage/Repository.js
+          node --check backend/StackMeet.Api/wwwroot/js/storage/ResultApi.js
+          node --check backend/StackMeet.Api/wwwroot/js/storage/StackerApi.js
 
       - name: Run storage smoke tests
-        run: node js/storage/storage-smoke.test.js
+        run: node backend/StackMeet.Api/wwwroot/js/storage/storage-smoke.test.js
 
-      - name: Run preliminary save pipeline tests
-        run: node tests/prelim-save-pipeline.test.js
-
-      - name: Run competition report engine tests
-        run: node tests/competition-report-engine.test.js
+      - name: Run complete JavaScript regression suite
+        shell: pwsh
+        run: |
+          $tests = Get-ChildItem tests -Filter *.test.js | Sort-Object Name
+          Write-Host "Running $($tests.Count) JavaScript regression tests"
+          foreach ($test in $tests) {
+            Write-Host "::group::$($test.Name)"
+            node $test.FullName
+            $exitCode = $LASTEXITCODE
+            Write-Host "::endgroup::"
+            if ($exitCode -ne 0) {
+              exit $exitCode
+            }
+          }

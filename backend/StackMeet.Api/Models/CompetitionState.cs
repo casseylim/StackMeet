@@ -6,6 +6,7 @@ public sealed class CompetitionState
     public string CompetitionKey { get; set; } = string.Empty;
     public string JsonData { get; set; } = string.Empty;
     public string SchemaVersion { get; set; } = "0.9-online";
+    public long StateRevision { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }

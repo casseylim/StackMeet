@@ -66,13 +66,34 @@ source = source.replace(
     renderMedals,
     renderDoubles,
     renderRelay,
-    allAroundEventKey
+    allAroundEventKey,
+    allAroundAggregateRows,
+    allAroundDivisionGroupsFromRows,
+    rankAllAroundMetric,
+    orderedDivisionGroups,
+    isIndividualType
   };
 })();`
 );
 vm.runInNewContext(source, context, { filename: "results.js" });
 const portal = context.__portalTest;
 assert.ok(portal, "Portal test hooks must load.");
+const mixedDivisionGroups = new Map([
+  ["14 & Under Male", new Map([["Cycle", []]])],
+  ["Child/Parent 10U", new Map([["Cycle", []]])]
+]);
+assert.deepEqual(
+  portal.orderedDivisionGroups(mixedDivisionGroups, {
+    divisions: ["10U", "14 & Under Male", "Child/Parent 10U", "Open"]
+  }).map(([division]) => division).join("|"),
+  "14 & Under Male|Child/Parent 10U",
+  "Public Individual standings must not inject configured empty divisions."
+);
+assert.equal(portal.isIndividualType("Individual"), true);
+assert.equal(portal.isIndividualType("Doubles"), false);
+assert.equal(portal.isIndividualType("Child/Parent Doubles"), false);
+assert.equal(portal.isIndividualType("Timed Relay"), false);
+assert.equal(portal.isIndividualType("Future Team Type"), false);
 
 const node = (id, tag = "div") => {
   const value = new TestNode(tag);
@@ -108,6 +129,29 @@ assert.ok(Number.isNaN(portal.bestTime(result("A", "Final", "Individual", "3-3-3
 assert.ok(Number.isNaN(portal.bestTime(result("A", "Final", "Individual", "3-3-3", [5], 999))));
 assert.equal(portal.allAroundEventKey("The Cycle"), "cycle");
 assert.equal(portal.allAroundEventKey("3-6-3"), "363");
+
+const divisionRows = portal.allAroundAggregateRows({
+  stackers: [
+    { id: "I1", name: "Division One", division: "10U" },
+    { id: "I2", name: "Division Two", division: "Open" },
+    { id: "I3", name: "Incomplete", division: "10U" },
+    { id: "D1", name: "Team", division: "Doubles" }
+  ],
+  results: [
+    ...[5, 6, 7].map((time, index) => result("I1", "Final", "Individual", ["3-3-3", "3-6-3", "Cycle"][index], [time])),
+    ...[5, 7, 9].map((time, index) => result("I2", "Final", "Individual", ["3-3-3", "3-6-3", "Cycle"][index], [time])),
+    result("D1", "Final", "Doubles", "3-3-3", [1])
+  ]
+});
+const divisionGroups = portal.allAroundDivisionGroupsFromRows(divisionRows, { divisions: ["Open", "10U", "Empty"] });
+assert.equal(divisionGroups.map(group => group.division).join("|"), "Open|10U");
+assert.equal(divisionGroups.find(group => group.division === "10U").rows.length, 1);
+const metricRows = [
+  { stacker: { name: "Leader" }, total: 18 },
+  { stacker: { name: "Tie A" }, total: 20 },
+  { stacker: { name: "Tie B" }, total: 20 }
+];
+assert.deepEqual(JSON.parse(JSON.stringify(portal.rankAllAroundMetric(metricRows, row => row.total).map(item => [item.rank, item.gap]))), [[1, 0], [2, 2], [2, 2]]);
 
 const availabilityPayload = {
   results: [
@@ -153,6 +197,8 @@ assert.deepEqual(preliminaryBody.children.map(row => cells(row)[4].textContent),
 resetNodes();
 const allAroundGroups = node("allAroundGroups");
 node("allAroundSummary");
+node("allAroundByDivision");
+node("allAroundDivisionGroups");
 portal.renderAllAround({
   stackers,
   results: [
@@ -170,6 +216,8 @@ const allAroundRows = descendants(allAroundGroups, "tbody")[0].children;
 assert.equal(allAroundRows.length, 2, "Incomplete three-event stackers must be excluded.");
 assert.deepEqual(allAroundRows.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
 assert.deepEqual(allAroundRows.map(row => cells(row)[6].textContent), ["18.000", "18.000"]);
+const allAroundTargetIds = new Set(descendants(allAroundGroups, "section").map(section => section.id));
+descendants(allAroundGroups, "a").forEach(link => assert.ok(allAroundTargetIds.has(String(link.href).slice(1)) || link.href === "#allAroundByDivision", "All-Around jump links must resolve to rendered targets."));
 
 const doubles = [
   { id: "D1", one: "A", two: "B", name: "AB", customDivision: "U12 Doubles" },
@@ -188,12 +236,14 @@ portal.renderDoubles({
     result("D3", "Final", "Doubles", "Doubles", [], 999)
   ]
 }, false);
-assert.equal(doublesGroups.children.length, 2, "Configured Doubles divisions must remain separate.");
+assert.equal(doublesGroups.children.filter(child => child.tagName === "SECTION").length, 2, "Configured Doubles divisions must remain separate.");
 const doublesBodies = descendants(doublesGroups, "tbody");
 const rankedDoublesBody = doublesBodies.find(body => body.children.length === 2);
 const scrDoublesBody = doublesBodies.find(body => body.children.length === 1);
 assert.deepEqual(rankedDoublesBody.children.map(row => cells(row)[0].textContent), ["🥇 1", "🥇 1"]);
 assert.equal(cells(scrDoublesBody.children[0])[4].textContent, "SCR");
+const doublesTargetIds = new Set(descendants(doublesGroups, "section").map(section => section.id));
+descendants(doublesGroups, "a").forEach(link => assert.ok(doublesTargetIds.has(String(link.href).slice(1)), "Doubles jump links must resolve to rendered targets."));
 
 const relays = [
   { id: "R1", name: "Relay A", division: "U12 Relay", members: ["A", "D"], org: "Org A" },
@@ -212,6 +262,8 @@ portal.renderRelay({
 }, false);
 const relayRows = descendants(relayGroups, "tbody")[0].children;
 assert.deepEqual(relayRows.map(row => cells(row)[0].textContent), ["🥇 1", "🥈 2"]);
+const relayTargetIds = new Set(descendants(relayGroups, "section").map(section => section.id));
+descendants(relayGroups, "a").forEach(link => assert.ok(relayTargetIds.has(String(link.href).slice(1)), "Relay jump links must resolve to rendered targets."));
 
 resetNodes();
 const medalRows = node("medalRows", "tbody");

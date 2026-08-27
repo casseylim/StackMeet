@@ -1,16 +1,17 @@
+// Event catalog: Doubles and Timed Relay now expose all three disciplines; Head To Head remains unchanged.
 const eventGroups = {
   Individuals: ["3-3-3", "3-6-3", "Cycle"],
-  Doubles: ["Cycle"],
-  "Timed Relay": ["3-6-3"],
+  Doubles: ["3-3-3", "3-6-3", "Cycle"],
+  "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
   "Head To Head": ["3-6-3", "Cycle"]
 };
 
 const branding = Object.freeze({
   organizationName: "WSSA NS Sport Stacking Centre",
   shortName: "WSSA",
-  productName: "StackMeet",
-  reportHeader: "WSSA NS Sport Stacking Centre",
-  browserTitle: "WSSA NS Sport Stacking Centre - StackMeet",
+  productName: "NADITrack",
+  reportHeader: "Sistem NADI Track",
+  browserTitle: "Sistem NADITrack",
   sidebarTitle: "WSSA",
   sidebarSubtitle: "Sport Stacking Centre",
   defaultCompetitionName: "WSSA NS Sport Stacking Centre",
@@ -18,6 +19,8 @@ const branding = Object.freeze({
 });
 
 const STACKMEET_APP_VERSION = "0.9.28";
+const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+const stackMeetLocale = "en-MY";
 
 function brandText(key) {
   return branding[key] || "";
@@ -148,8 +151,8 @@ const defaultMalayTranslations = {
   "Access": "Akses",
   "Export XML": "Eksport XML",
   "Import XML": "Import XML",
-  "Local mode": "Mod tempatan",
-  "Saved in this browser": "Disimpan dalam pelayar ini",
+  "Online mode": "Mod dalam talian",
+  "Saved online": "Disimpan dalam talian",
   "Tournament Snapshot": "Ringkasan Kejohanan",
   "Notifications": "Notifikasi",
   "Mark All Read": "Tanda Semua Dibaca",
@@ -283,8 +286,8 @@ const defaultChineseTranslations = {
   "Access": "权限",
   "Export XML": "导出 XML",
   "Import XML": "导入 XML",
-  "Local mode": "本地模式",
-  "Saved in this browser": "已保存在此浏览器",
+  "Online mode": "线上模式",
+  "Saved online": "已保存至线上",
   "Tournament Snapshot": "赛事概览",
   "Notifications": "通知",
   "Mark All Read": "全部标为已读",
@@ -479,8 +482,8 @@ const demo = {
   awards: structuredClone(defaultAwards),
   events: {
     Individuals: ["3-3-3", "3-6-3", "Cycle"],
-    Doubles: ["Cycle"],
-    "Timed Relay": ["3-6-3"],
+    Doubles: ["3-3-3", "3-6-3", "Cycle"],
+    "Timed Relay": ["3-3-3", "3-6-3", "Cycle"],
     "Head To Head": ["3-6-3"]
   },
   divisionSettings: structuredClone(defaultDivisionSettings),
@@ -520,6 +523,8 @@ const CompetitionRepository = window.StackMeetStorage.Repository;
 const repository = new CompetitionRepository();
 const SqlStackerApi = window.StackMeetStorage.StackerApi;
 const stackerApi = new SqlStackerApi();
+const competitionAssetApi = new (window.StackMeetStorage.CompetitionAssetApi || class { async list() { return []; } })();
+const resultApi = new (window.StackMeetStorage.ResultApi || class { async list() { return { revision: 0, results: [] }; } async saveBatch() { throw new Error("SQL result API is unavailable."); } })();
 const CompetitionStateProvider = window.StackMeetStorage.ApiProvider;
 const BestResultEngine = window.StackMeetBestResult || (() => {
   const statusOrder = { valid: 0, scratch: 1, invalid: 2, missing: 3 };
@@ -566,6 +571,13 @@ let selectedSqlCompetitionId = null;
 let sqlCompetition = null;
 let stackerRefreshInFlight = false;
 let dashboardPollTimer = null;
+let competitionStatePollTimer = null;
+let pendingRemoteCompetitionState = null;
+let pendingResultsRefresh = false;
+let currentCompetitionRevision = 0;
+let currentResultsRevision = 0;
+window.__resultSyncDiagnostics = window.__resultSyncDiagnostics || { build: "phase5-sync-debug-20260817", connectionState: null, connectionId: null, currentResultsRevision: 0, lastEventRevision: null, lastEventAt: null, lastAcceptedRevision: null, lastIgnoredRevision: null, lastIgnoreReason: null, pendingResultsRevision: null, lastReloadRevision: null, lastReloadCount: null, lastReloadAt: null, hasParticipant186: null, lastRenderAt: null };
+const resultSyncDiagnostics = window.__resultSyncDiagnostics;
 let stackerSort = { key: "id", direction: "asc" };
 let reportTab = "finals";
 let adminReportSort = { index: -1, direction: "asc" };
@@ -621,6 +633,7 @@ function withoutLegacyStackers(data) {
 function legacyStateForSave(data) {
   const legacy = structuredClone(data);
   legacy.stackers = [];
+  legacy.results = [];
   delete legacy.settings?.ageCalculationMode;
   return legacy;
 }
@@ -651,7 +664,6 @@ function normalizeState(data) {
   data.divisionSettings.headToHeadRelay = data.divisionSettings.headToHeadRelay || structuredClone(defaultDivisionSettings.headToHeadRelay);
   data.leaderboard = normalizeLeaderboard(data.leaderboard);
   data.awards = normalizeAwards(data.awards);
-  data.divisions = generateDivisionNames(data.divisionSettings);
   data.stackers = (data.stackers || []).map(stacker => ({
     dob: "",
     age: "",
@@ -665,6 +677,7 @@ function normalizeState(data) {
   data.doubles = normalizeDoubles(data.doubles || []);
   data.relays = normalizeRelays(data.relays || [], data.stackers);
   data.results = normalizeResults(data.results || []);
+  data.auditLogs = normalizeCompetitionAuditLogs(data.auditLogs || []);
   data.finalQualificationSnapshots = (data.finalQualificationSnapshots || []).map(snapshot => ({
     id: snapshot.id || crypto.randomUUID(), competitionKey: snapshot.competitionKey || currentCompetitionKey(),
     participantType: snapshot.participantType || "Individual", division: snapshot.division || "", event: snapshot.event || "",
@@ -673,7 +686,14 @@ function normalizeState(data) {
     generatedAtUtc: snapshot.generatedAtUtc || "", generatedBy: snapshot.generatedBy || "", approvedAtUtc: snapshot.approvedAtUtc || "", approvedBy: snapshot.approvedBy || "",
     status: ["Draft", "Approved", "Superseded"].includes(snapshot.status) ? snapshot.status : "Draft", reconstructed: snapshot.reconstructed === true
   }));
-  data.divisions = appendStandardImportedDivisions(data.divisions, data.stackers);
+  data.divisions = appendStandardImportedDivisions(
+    [
+      ...generateDivisionNames(data.divisionSettings, data.settings.separateSpecialDivisionsByGender === true),
+      ...data.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...data.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
+    data.stackers
+  );
   return data;
 }
 
@@ -702,7 +722,7 @@ function clampNumber(value, fallback, min, max) {
 }
 
 function currentCompetitionKey() {
-  return sessionStorage.getItem(sqlCompetitionSessionKey) || window.StackMeetAuth?.competitionId?.() || state?.settings?.competitionKey || state?.settings?.name || "local";
+  return window.StackMeetAuth?.competitionId?.() || state?.settings?.competitionKey || sessionStorage.getItem(sqlCompetitionSessionKey) || state?.settings?.name || "local";
 }
 
 function normalizeAwards(awards = {}) {
@@ -812,8 +832,89 @@ function normalizeResults(results) {
   });
 }
 
-function saveState() {
-  const stateToSave = legacyStateForSave(state);
+// Normalizes per-competition audit entries stored inside the competition JSON state.
+function normalizeCompetitionAuditLogs(logs) {
+  return (Array.isArray(logs) ? logs : []).map(log => ({
+    id: log.id || crypto.randomUUID(),
+    atUtc: log.atUtc || log.at || new Date().toISOString(),
+    actorUserId: log.actorUserId ?? null,
+    actorEmail: log.actorEmail || "",
+    actorName: log.actorName || "",
+    action: log.action || "competition.unknown",
+    entityType: log.entityType || "",
+    entityId: log.entityId || "",
+    summary: log.summary || "",
+    before: log.before ?? null,
+    after: log.after ?? null
+  }));
+}
+
+// Appends one audit entry to the current competition JSON state after a successful action.
+function appendCompetitionAuditLog({ action, entityType, entityId = "", summary = "", before = null, after = null }) {
+  const actor = currentAuditActor();
+  state.auditLogs = normalizeCompetitionAuditLogs(state.auditLogs || []);
+  state.auditLogs.push({
+    id: crypto.randomUUID(),
+    atUtc: new Date().toISOString(),
+    actorUserId: actor.userId,
+    actorEmail: actor.email,
+    actorName: actor.name,
+    action,
+    entityType,
+    entityId: String(entityId || ""),
+    summary,
+    before: auditSnapshot(before),
+    after: auditSnapshot(after)
+  });
+}
+
+// Reads the current browser session identity for competition audit attribution.
+function currentAuditActor() {
+  const session = window.StackMeetAuth?.readSession?.() || {};
+  return {
+    userId: session.userId ?? null,
+    email: session.email || "",
+    name: session.displayName || ""
+  };
+}
+
+// Clones audit values through JSON to avoid storing live object references.
+function auditSnapshot(value) {
+  if (value === null || value === undefined) return null;
+  return JSON.parse(JSON.stringify(value));
+}
+
+// Persists an audit-only update without rolling back the completed user action.
+async function persistCompetitionAuditLog() {
+  try {
+    await saveState();
+  } catch (error) {
+    console.error("Unable to save competition audit log.", error);
+  }
+}
+
+// Identifies one logical result independently of browser-generated UUIDs.
+function resultLogicalKey(result) {
+  return [result.stage, result.type, result.participant, normalizeEventName(result.event)].join("|");
+}
+
+// Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
+function mergeConcurrentState(latestState, localState) {
+  const merged = { ...latestState, ...localState };
+  ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
+    if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
+    const records = new Map(latestState[key].map(item => [String(item.id), item]));
+    localState[key].forEach(item => records.set(String(item.id), item));
+    merged[key] = [...records.values()];
+  });
+  return merged;
+}
+
+async function saveState() {
+  const latestState = await repository.load();
+  const mergedState = latestState ? mergeConcurrentState(latestState, state) : state;
+  if (latestState) state = { ...state, ...mergedState };
+  const stateToSave = legacyStateForSave(mergedState);
   queuedSaveCount += 1;
   setSaveStatus("Saving...", "saving");
 
@@ -825,7 +926,10 @@ function saveState() {
   return queuedSave.then(
     () => {
       queuedSaveCount -= 1;
-      if (!queuedSaveCount) setSaveStatus("Saved", "saved");
+      if (!queuedSaveCount) {
+        setSaveStatus("Saved", "saved");
+        applyPendingCompetitionUpdate();
+      }
     },
     error => {
       queuedSaveCount -= 1;
@@ -888,7 +992,11 @@ function applyCompetitionAgeCalculation(mode) {
   state.settings.ageCalculationMode = ageCalculationMode;
   state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
   state.divisions = appendStandardImportedDivisions(
-    [...generateDivisionNames(state.divisionSettings), ...state.stackers.map(stacker => stacker.division).filter(Boolean)],
+    [
+      ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+      ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
     state.stackers
   );
 }
@@ -960,7 +1068,11 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
     const records = await stackerApi.list(selectedSqlCompetitionId);
     state.stackers = records.map(sqlStackerToRuntime);
     state.divisions = appendStandardImportedDivisions(
-      [...generateDivisionNames(state.divisionSettings), ...state.stackers.map(stacker => stacker.division).filter(Boolean), ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)],
+      [
+        ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+        ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+        ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+      ],
       state.stackers
     );
     refreshDivisionCountBadges(divisionCountSummary(state.divisionSettings));
@@ -973,6 +1085,10 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       updateSqlDashboardPresentation();
       renderDashboard();
     }
+    if (rerender && route === "reports") {
+      // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.
+      renderReports();
+    }
     setSaveStatus("Saved", "saved");
     return true;
   } catch (error) {
@@ -984,6 +1100,35 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
   } finally {
     stackerRefreshInFlight = false;
   }
+}
+
+async function refreshSqlResults({ rerender = true } = {}) {
+  if (!selectedSqlCompetitionId) return false;
+  const payload = await resultApi.list(selectedSqlCompetitionId);
+  state.results = normalizeResults(payload.results);
+  currentResultsRevision = payload.revision;
+  resultSyncDiagnostics.currentResultsRevision = currentResultsRevision;
+  resultSyncDiagnostics.lastReloadRevision = payload.revision;
+  resultSyncDiagnostics.lastReloadCount = payload.results.length;
+  resultSyncDiagnostics.lastReloadAt = new Date().toISOString();
+  resultSyncDiagnostics.hasParticipant186 = payload.results.some(result => String(result.participant || result.participantCode || "") === "1.86");
+  if (rerender && route === "competition") {
+    if (competitionEditorActive()) {
+      pendingResultsRefresh = true;
+      resultSyncDiagnostics.pendingResultsRevision = payload.revision;
+      return true;
+    }
+    refreshResultsDisplayAfterSync();
+    resultSyncDiagnostics.lastRenderAt = new Date().toISOString();
+  }
+  return true;
+}
+
+async function saveSqlResults(upserts, deletes = []) {
+  const payload = await resultApi.saveBatch(selectedSqlCompetitionId, { upserts, deletes });
+  state.results = normalizeResults(payload.results);
+  currentResultsRevision = payload.revision;
+  return payload;
 }
 
 function defaultCompetitionCode() {
@@ -1012,7 +1157,8 @@ function sqlDashboardCompetition() {
 function publicResultsUrl() {
   const competition = sqlDashboardCompetition();
   const publicId = competition.competitionCode || window.StackMeetAuth?.competitionId?.() || window.COMPETITION_KEY || "DEFAULT";
-  return `${location.origin}/${encodeURIComponent(String(publicId))}/Results`;
+  // Public result links use the canonical NADITrack domain, including when officials work locally.
+  return `https://naditrack.com/${encodeURIComponent(String(publicId))}/Results`;
 }
 
 function qrCodeUrl(value) {
@@ -1049,6 +1195,189 @@ function syncDashboardSqlPolling() {
   }, 5000);
 }
 
+// Refreshes shared stacker/results data for active competition screens without interrupting form entry.
+function syncCompetitionStatePolling() {
+  if (competitionStatePollTimer) clearInterval(competitionStatePollTimer);
+  competitionStatePollTimer = null;
+  const syncRoutes = ["competition", "reports", "paperwork", "dashboard"];
+  if (!syncRoutes.includes(route)) return;
+  competitionStatePollTimer = setInterval(async () => {
+    if (!syncRoutes.includes(route)) return;
+    // Keep the fallback poll out of the operator's typing window. SignalR still
+    // reports changes immediately, while this fallback runs after entry/menu use.
+    if (competitionEntryInputActive()) return;
+    try {
+      const latest = await loadLatestCompetition();
+      if (!latest) return;
+      await applyRemoteCompetitionState(latest);
+    } catch (error) {
+      console.warn("Unable to refresh shared competition results.", error);
+    }
+  }, 3000);
+}
+
+function competitionEntryInputActive() {
+  const active = document.activeElement;
+  return Boolean(active?.matches?.("#timeSheetId, #prelim333, #prelim363, #prelimCycle, #finalSheetId, .final-time-input"));
+}
+
+function competitionStateSyncSignature(value) {
+  return JSON.stringify({
+    settings: value?.settings || {}, events: value?.events || {}, divisionSettings: value?.divisionSettings || {},
+    divisions: value?.divisions || [], doubles: value?.doubles || [],
+    relays: value?.relays || [], finalQualificationSnapshots: value?.finalQualificationSnapshots || [],
+    awards: value?.awards || {}, notifications: value?.notifications || []
+  });
+}
+
+function loadLatestCompetition() {
+  return typeof repository.reloadLatestCompetition === "function" ? repository.reloadLatestCompetition() : repository.load();
+}
+
+async function applyRemoteCompetitionState(latest) {
+  if (!latest || competitionStateSyncSignature(latest) === competitionStateSyncSignature(state)) return false;
+  const localEditing = competitionEditorActive();
+  if (localEditing) {
+    pendingRemoteCompetitionState = latest;
+    flashMessage = { type: "info", text: "Competition updated on another computer. Finish editing, then refresh this screen." };
+    setSaveStatus("Update waiting", "saving");
+    return false;
+  }
+  const sqlOwnedStackers = state.stackers;
+  const sqlOwnedResults = state.results;
+  state = normalizeState(withoutLegacyStackers(latest));
+  // CompetitionState is transitional configuration storage. SQL owns these
+  // slices and a legacy refresh must never replace them with [] from JSON.
+  state.stackers = sqlOwnedStackers;
+  state.results = sqlOwnedResults;
+  if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: localEditing, rerender: false });
+  if (!localEditing) {
+    const focusedId = document.activeElement?.id || "";
+    const focusedSelection = document.activeElement && "selectionStart" in document.activeElement
+      ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd }
+      : null;
+    // Preserve Admin report controls during live refresh; rebuilding the route template
+    // resets reportType and makes a selected Division Counts report jump to Individuals.
+    if (route === "reports") renderReports();
+    else if (route === "paperwork" && !paperworkPreviewActive()) renderPaperwork();
+    else if (route !== "paperwork") render();
+    const refreshedFocus = focusedId ? document.getElementById(focusedId) : null;
+    if (refreshedFocus) {
+      refreshedFocus.focus();
+      if (focusedSelection && "setSelectionRange" in refreshedFocus) {
+        refreshedFocus.setSelectionRange(focusedSelection.start, focusedSelection.end);
+      }
+    }
+  }
+  else setSaveStatus("Updated", "saved");
+  return true;
+}
+
+function competitionEditorActive() {
+  if (editingStackerId || stackerFormVisible || editingDoubleId || stackerDoubleEditorOpen || editingRelayId || activePrelimParticipantId || activeFinalSheetId) return true;
+  return false;
+}
+
+function applyPendingCompetitionUpdate() {
+  if (pendingResultsRefresh && !competitionEditorActive()) {
+    pendingResultsRefresh = false;
+    resultSyncDiagnostics.pendingResultsRevision = null;
+    void refreshSqlResults({ rerender: true });
+  }
+  if (!pendingRemoteCompetitionState || competitionEditorActive()) return false;
+  const latest = pendingRemoteCompetitionState;
+  pendingRemoteCompetitionState = null;
+  return applyRemoteCompetitionState(latest);
+}
+
+let competitionStateConnection = null;
+let competitionStateReconnectTimer = null;
+
+async function connectCompetitionStateUpdates() {
+  if (!window.signalR || competitionStateConnection) return;
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hubs/results", { headers: window.StackMeetAuth?.authHeaders?.() || {} })
+    .withAutomaticReconnect([0, 1500, 5000, 10000])
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+  const receiveChange = async update => {
+    if (String(update?.competitionKey || update?.competitionId || "").toUpperCase() !== String(currentCompetitionKey()).toUpperCase()) return;
+    const revision = Number(update?.revision || 0);
+    if (revision && revision <= currentCompetitionRevision) return;
+    if (revision) currentCompetitionRevision = revision;
+    try { await applyRemoteCompetitionState(await loadLatestCompetition()); }
+    catch (error) { console.warn("Unable to apply shared competition update.", error); }
+  };
+  connection.on("CompetitionChanged", receiveChange);
+  connection.on("ResultsChanged", async update => {
+    const incomingCompetitionKey = String(update?.competitionKey || "").toUpperCase();
+    const expectedCompetitionKey = String(currentCompetitionKey()).toUpperCase();
+    const revision = Number(update?.revision || 0);
+    resultSyncDiagnostics.lastEventRevision = revision;
+    resultSyncDiagnostics.lastEventAt = new Date().toISOString();
+    if (incomingCompetitionKey !== expectedCompetitionKey) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "wrong-competition"; return; }
+    if (!revision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "missing-revision"; return; }
+    if (revision <= currentResultsRevision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "same-or-older-revision"; return; }
+    if (competitionEditorActive()) {
+      pendingResultsRefresh = true;
+      resultSyncDiagnostics.pendingResultsRevision = revision;
+      resultSyncDiagnostics.lastAcceptedRevision = revision;
+      resultSyncDiagnostics.lastIgnoreReason = "active-entry-queued";
+      return;
+    }
+    resultSyncDiagnostics.lastAcceptedRevision = revision;
+    try { await refreshSqlResults({ rerender: true }); } catch (error) { resultSyncDiagnostics.lastIgnoreReason = `reload-error:${error?.message || "unknown"}`; console.warn("Unable to refresh SQL results.", error); }
+  });
+  resultSyncDiagnostics.connectionState = connection.state;
+  resultSyncDiagnostics.connectionId = connection.connectionId || null;
+  connection.onreconnected(async () => {
+    resultSyncDiagnostics.connectionState = connection.state;
+    resultSyncDiagnostics.connectionId = connection.connectionId || null;
+    await connection.invoke("JoinCompetition", currentCompetitionKey());
+    try { await applyRemoteCompetitionState(await loadLatestCompetition()); } catch (_) { /* polling remains active */ }
+  });
+  connection.onclose(() => {
+    resultSyncDiagnostics.connectionState = connection.state;
+    resultSyncDiagnostics.connectionId = connection.connectionId || null;
+    competitionStateConnection = null;
+    if (!competitionStateReconnectTimer) competitionStateReconnectTimer = window.setTimeout(() => {
+      competitionStateReconnectTimer = null;
+      void connectCompetitionStateUpdates();
+    }, 10000);
+  });
+  try {
+    await connection.start();
+    await connection.invoke("JoinCompetition", currentCompetitionKey());
+    competitionStateConnection = connection;
+  } catch (error) {
+    console.warn("Competition live updates unavailable; polling remains active.", error);
+    await connection.stop().catch(() => undefined);
+  }
+}
+
+// Creates a stable comparison that ignores UUID changes for the same logical result.
+function resultsSyncSignature(results) {
+  return JSON.stringify([...results].map(result => ({
+    key: resultLogicalKey(result),
+    attempts: result.attempts || [],
+    penalty: Number(result.penalty || 0)
+  })).sort((left, right) => left.key.localeCompare(right.key)));
+}
+
+// Refreshes only result-related surfaces so active data-entry fields are not rebuilt.
+function refreshResultsDisplayAfterSync() {
+  if (route === "competition") {
+    drawResultRows();
+    drawMissingTimes();
+    populateFinalSheetSelect();
+    if (activeFinalSheetId) loadFinalSheet(activeFinalSheetId, false);
+    return;
+  }
+  if (route === "reports") return renderReports();
+  if (route === "dashboard") return renderDashboard();
+  if (route === "paperwork") return renderPaperwork();
+}
+
 async function createSqlCompetition() {
   const request = {
     competitionCode: val("sqlCompetitionCode").trim(),
@@ -1057,6 +1386,7 @@ async function createSqlCompetition() {
     startDate: val("sqlCompetitionStart"),
     endDate: val("sqlCompetitionEnd"),
     status: val("sqlCompetitionStatus").trim()
+    ,isPubliclyListed: document.getElementById("sqlCompetitionPublicListing")?.checked === true
   };
   if (!request.competitionCode || !request.competitionName || !request.venue || !request.startDate || !request.endDate || !request.status) {
     flashMessage = { type: "error", text: "Complete the SQL competition setup fields first." };
@@ -1086,6 +1416,32 @@ function renderNav() {
     `;
   }).join("");
 }
+
+function setNavigationDrawer(open) {
+  const menuButton = document.getElementById("navMenuBtn");
+  const backdrop = document.getElementById("navBackdrop");
+  const isOpen = Boolean(open) && window.matchMedia("(max-width: 980px)").matches;
+  document.body.classList.toggle("nav-drawer-open", isOpen);
+  menuButton?.setAttribute("aria-expanded", String(isOpen));
+  if (backdrop) backdrop.hidden = !isOpen;
+}
+
+function closeNavigationDrawer() {
+  setNavigationDrawer(false);
+}
+
+document.getElementById("navMenuBtn")?.addEventListener("click", () => {
+  const isOpen = document.body.classList.contains("nav-drawer-open");
+  setNavigationDrawer(!isOpen);
+});
+document.getElementById("navCloseBtn")?.addEventListener("click", closeNavigationDrawer);
+document.getElementById("navBackdrop")?.addEventListener("click", closeNavigationDrawer);
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeNavigationDrawer();
+});
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 980) closeNavigationDrawer();
+});
 
 function navRouteIsActive(key) {
   if (key === "reports") return route === "reports" || route === "paperwork";
@@ -1145,7 +1501,8 @@ function render() {
   syncModuleTabs();
   applyTranslations(view);
   syncDashboardSqlPolling();
-  if (route === "dashboard" && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
+  syncCompetitionStatePolling();
+  if ((route === "dashboard" || route === "reports") && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
 }
 
 function syncModuleTabs() {
@@ -1208,12 +1565,12 @@ function t(text) {
 }
 
 function translateChrome() {
-  document.getElementById("exportXmlBtn").textContent = t("Export XML");
-  document.querySelector("label[for='importXmlInput']").textContent = t("Import XML");
+  document.getElementById("exportXmlBtn")?.setAttribute("aria-label", t("Export XML"));
+  document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
-  document.querySelector(".sidebar-card span").textContent = t("Local mode");
-  document.querySelector(".sidebar-card strong").textContent = t("Saved in this browser");
+  document.querySelector(".sidebar-card span").textContent = t("Online mode");
+  document.querySelector(".sidebar-card strong").textContent = t("Saved online");
 }
 
 function applyTranslations(root) {
@@ -1316,15 +1673,118 @@ function renderSettings() {
   document.getElementById("eventMatrix").innerHTML = Object.entries(eventGroups).map(([group, events]) => `
     <article class="check-card">
       <h3>${esc(group)}</h3>
-      ${events.map(event => `<label><input type="checkbox" data-event-group="${esc(group)}" value="${esc(event)}" ${state.events[group]?.includes(event) ? "checked" : ""}> ${esc(event)}</label>`).join("")}
+      ${events.map((event, index) => {
+        const singleSelection = ["Doubles", "Timed Relay"].includes(group);
+        const inputType = singleSelection ? "radio" : "checkbox";
+        const inputName = singleSelection ? `event-${group.replace(/\s+/g, "-").toLowerCase()}` : "";
+        const checked = singleSelection
+          ? state.events[group]?.[0] === event
+          : state.events[group]?.includes(event);
+        return `<label><input type="${inputType}" ${inputName ? `name="${inputName}"` : ""} data-event-group="${esc(group)}" value="${esc(event)}" ${checked ? "checked" : ""}> ${esc(event)}</label>`;
+      }).join("")}
     </article>
   `).join("");
 
   renderDivisionCutoffs();
 
-  document.getElementById("divisionList").innerHTML = sortedDivisions(state.divisions).map(division => `
-    <div class="tag-row"><strong>${esc(division)}</strong><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
+  document.getElementById("divisionList").innerHTML = sortedGeneratedDivisionDisplay(state.divisions).map(division => `
+    <div class="tag-row"><span class="division-display-copy"><strong>${esc(division)}</strong><small>&nbsp;${esc(generatedDivisionDisplayCategories(division).join(" · "))}</small></span><button class="icon-button" data-action="remove-division" data-division="${esc(division)}" type="button">x</button></div>
   `).join("");
+  renderCompetitionAuditLogs();
+  void refreshCompetitionBranding();
+}
+
+// Presentation-only categorisation for the deduplicated generated division list.
+// It does not alter generation, saved divisions, or team assignment rules.
+function generatedDivisionDisplayCategories(division) {
+  const settings = state.divisionSettings || {};
+  const individual = new Set([
+    ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
+    ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
+    ...divisionRanges(settings.special || [], "Special"),
+    ...(settings.separateSpecialDivisionsByGender === true
+      ? divisionRanges(settings.special || [], "Special").flatMap(name => [`${name} M`, `${name} F`])
+      : []),
+    ...(settings.custom || [])
+  ]);
+  const doubles = new Set(teamDivisionRanges(settings.doubles || []).concat(teamDivisionRanges(settings.specialDoubles || [], "SS ")));
+  const childParent = new Set(teamDivisionRanges(settings.childParentDoubles || [], "Child/Parent ").concat(teamDivisionRanges(settings.specialChildParentDoubles || [], "SS Child/Parent ")));
+  const relay = new Set(teamDivisionRanges(settings.timedRelay || []).concat(teamDivisionRanges(settings.headToHeadRelay || [])));
+  const categories = [];
+  if (individual.has(division)) categories.push("Individual");
+  if (eventGroupEnabled("Doubles") && doubles.has(division)) categories.push("Doubles");
+  if (eventGroupEnabled("Doubles") && childParent.has(division)) categories.push("Child/Parent");
+  if (relayTeamSetupAvailable() && relay.has(division)) categories.push("Relay");
+  const legacySpecial = /^SS\s+(\d+)U$/i.exec(division);
+  if (legacySpecial) {
+    const age = Number(legacySpecial[1]);
+    if (settings.special?.includes(age) && !categories.includes("Individual")) categories.unshift("Individual");
+    if (eventGroupEnabled("Doubles") && settings.specialDoubles?.includes(age) && !categories.includes("Doubles")) categories.push("Doubles");
+  }
+  return categories.length ? categories : ["Custom / Imported"];
+}
+
+function sortedGeneratedDivisionDisplay(divisions) {
+  const categoryOrder = new Map([
+    ["Individual", 0],
+    ["Doubles", 1],
+    ["Child/Parent", 2],
+    ["Relay", 3],
+    ["Custom / Imported", 4]
+  ]);
+  return sortedDivisions(divisions).sort((left, right) => {
+    const leftCategory = categoryOrder.get(generatedDivisionDisplayCategories(left)[0]) ?? 4;
+    const rightCategory = categoryOrder.get(generatedDivisionDisplayCategories(right)[0]) ?? 4;
+    return leftCategory - rightCategory || compareDivisionNames(left, right);
+  });
+}
+
+// Renders the latest per-competition audit entries in the Settings page.
+function renderCompetitionAuditLogs() {
+  const body = document.getElementById("competitionAuditRows");
+  if (!body) return;
+  const logs = [...(state.auditLogs || [])].sort((left, right) => String(right.atUtc).localeCompare(String(left.atUtc))).slice(0, 200);
+  if (!logs.length) {
+    body.innerHTML = '<tr><td colspan="5" class="muted">No competition audit logs yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = logs.map(log => `
+    <tr>
+      <td>${esc(stackMeetDateTime(parseUtcDate(log.atUtc)))}</td>
+      <td>${esc(log.action)}</td>
+      <td>${esc(log.actorEmail || log.actorName || "Competition user")}</td>
+      <td>${esc([log.entityType, log.entityId].filter(Boolean).join(" #"))}</td>
+      <td>${esc(log.summary || auditChangeSummary(log))}</td>
+    </tr>
+  `).join("");
+}
+
+// Exports the per-competition audit trail with MYT display time and raw UTC time.
+function exportCompetitionAuditCsv() {
+  const rows = (state.auditLogs || []).map(log => [
+    stackMeetDateTime(parseUtcDate(log.atUtc)),
+    log.atUtc,
+    log.action,
+    log.actorEmail || "",
+    log.actorName || "",
+    log.entityType || "",
+    log.entityId || "",
+    log.summary || "",
+    JSON.stringify(log.before ?? null),
+    JSON.stringify(log.after ?? null)
+  ]);
+  const header = ["Time (MYT)", "Time (UTC)", "Action", "Actor Email", "Actor Name", "Entity Type", "Entity ID", "Summary", "Before JSON", "After JSON"];
+  const generated = [["Competition Audit Logs"], [state.settings.name || currentCompetitionKey()], [`Exported ${stackMeetDateTime()}`], []];
+  downloadText(`stackmeet-audit-${currentCompetitionKey()}.csv`, [...generated, header, ...rows].map(csvLine).join("\n"), "text/csv");
+}
+
+// Provides a compact fallback summary when an audit entry has before/after snapshots only.
+function auditChangeSummary(log) {
+  if (log.before && log.after) return "Updated";
+  if (log.after) return "Created";
+  if (log.before) return "Removed";
+  return "";
 }
 
 function renderLanguage() {
@@ -2110,6 +2570,10 @@ function renderPaperwork() {
   document.getElementById("paperOutput").innerHTML = `<h2>Preview</h2><p class="muted">Choose a print item to generate a printable preview.</p>`;
 }
 
+function paperworkPreviewActive() {
+  return Boolean(document.querySelector("#paperOutput .individual-time-sheet, #paperOutput .final-time-sheet, #paperOutput .sheet-preview, #paperOutput .bracket"));
+}
+
 function renderCompetition() {
   populateEntryTypeOptions();
   populateParticipants();
@@ -2437,6 +2901,7 @@ async function persistPrelimResults(options = {}) {
   const resultStage = prelimEntryResultStage();
   let created = 0;
   let updated = 0;
+  const changes = [];
   completed.forEach(entry => {
     const existing = findPrelimEntryResult(participant, entry.event);
     const result = {
@@ -2448,6 +2913,7 @@ async function persistPrelimResults(options = {}) {
       attempts: [entry.parsed.value],
       penalty: entry.parsed.kind === "scratch" ? 999 : 0
     };
+    changes.push({ event: entry.event, before: existing || null, after: result });
     if (existing) {
       state.results = state.results.filter(item => !(prelimEntryLookupStages().includes(item.stage) && item.type === participant.type && item.participant === participant.id && normalizeEventName(item.event) === normalizeEventName(entry.event)));
       state.results.push(result);
@@ -2458,10 +2924,18 @@ async function persistPrelimResults(options = {}) {
     }
     setValue(entry.fieldId, entry.parsed.kind === "scratch" ? "999" : entry.parsed.value.toFixed(3));
   });
+  appendCompetitionAuditLog({
+    action: "results.prelim_saved",
+    entityType: "Result",
+    entityId: participant.id,
+    summary: `${participant.id} ${participant.name}: ${created} added, ${updated} updated for ${resultStage}.`,
+    before: changes.map(item => ({ event: item.event, result: item.before })),
+    after: changes.map(item => ({ event: item.event, result: item.after }))
+  });
   try {
-    await saveState();
-    const authoritativeState = await repository.load();
-    if (!prelimResultsPersisted(authoritativeState, participant, completed)) throw new Error("Saved values could not be verified from the authoritative store.");
+    if (selectedSqlCompetitionId) {
+      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
+    } else await saveState();
   } catch (error) {
     state = previousState;
     showPrelimMessage(`Save failed. Times remain on screen and were not cleared: ${error.message || "unable to verify persistence"}`, true);
@@ -2472,7 +2946,10 @@ async function persistPrelimResults(options = {}) {
   drawMissingTimes();
   const actionText = [created ? `${created} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(", ");
   clearPrelimEntry();
-  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}.`, false);
+  await applyPendingCompetitionUpdate();
+  // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
+  document.getElementById("timeSheetId")?.focus();
+  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}. Changes saved; latest updates will synchronize automatically.`, false);
   return true;
 }
 
@@ -2781,7 +3258,8 @@ function finalTieBreakKey(result) {
   return FinalsReportEngine.finalTieKey(result);
 }
 
-function saveFinalResults() {
+async function saveFinalResults() {
+  const previousState = structuredClone(state);
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
     showFinalMessage("Find a valid final sheet before saving.", true);
@@ -2796,16 +3274,36 @@ function saveFinalResults() {
   }
   const draftRows = finalDraftResults(sheet);
   let saved = 0;
+  const changes = [];
   draftRows.forEach(row => {
+    const before = state.results.find(result => result.stage === "Finals" && result.type === row.type && result.participant === row.participant && normalizeEventName(result.event) === normalizeEventName(row.event)) || null;
     state.results = state.results.filter(result => !(result.stage === "Finals" && result.type === row.type && result.participant === row.participant && normalizeEventName(result.event) === normalizeEventName(row.event)));
     if (!row.attempts.length) return;
-    state.results.push({ id: crypto.randomUUID(), stage: "Finals", type: row.type, participant: row.participant, event: row.event, attempts: row.attempts, penalty: 0 });
+    const after = { id: crypto.randomUUID(), stage: "Finals", type: row.type, participant: row.participant, event: row.event, attempts: row.attempts, penalty: 0 };
+    state.results.push(after);
+    changes.push({ participant: row.participant, before, after });
     saved += 1;
   });
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
+  appendCompetitionAuditLog({
+    action: "results.final_saved",
+    entityType: "Result",
+    entityId: sheet.id,
+    summary: `${sheet.id}: ${saved} final result${saved === 1 ? "" : "s"} recorded.`,
+    before: changes.map(item => ({ participant: item.participant, result: item.before })),
+    after: changes.map(item => ({ participant: item.participant, result: item.after }))
+  });
+  try {
+    if (selectedSqlCompetitionId) {
+      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
+    } else await saveState();
+  } catch (error) {
+    state = previousState;
+    showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
+    return false;
+  }
+  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded; latest updates will synchronize automatically.`, false);
   populateFinalSheetSelect();
   clearFinalSheet();
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded.`, false);
   const sheetInput = document.getElementById("finalSheetId");
   sheetInput?.focus();
   sheetInput?.select();
@@ -2855,7 +3353,8 @@ function buildFinalSheetPrint(sheet) {
 }
 
 function finalTimeSheetHtml(sheet) {
-  return `<article class="final-time-sheet">
+  const printClass = sheet.typeKey === "1" ? " final-time-sheet-individual" : "";
+  return `<article class="final-time-sheet${printClass}">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
     <header class="final-sheet-header">
       <div class="qr-box">QR</div>
@@ -3124,7 +3623,7 @@ function stageBoardDisplayRow(row, champion, highlighted) {
 
 function finalsReportMeta(definition) {
   const filters = definition.filters;
-  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", new Date().toLocaleString()], ["Returned rows", definition.rows.length]];
+  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", stackMeetDateTime()], ["Returned rows", definition.rows.length]];
 }
 
 function finalsReportPrintFilterSummary(definition) {
@@ -3415,19 +3914,21 @@ function stackerDivisionFromForm() {
   const custom = val("stCustomDivision").trim();
   if (custom) return custom;
   const editedStacker = state.stackers.find(stacker => stacker.id === editingStackerId);
-  if (editedStacker?.standardDivision) return editedStacker.standardDivision;
+  const isSpecial = isSpecialStacker();
+  if (editedStacker?.standardDivision && !isSpecial) return editedStacker.standardDivision;
   const age = ageOnCompetitionDate(val("stDob"), state.settings.start);
   const gender = val("stGender");
-  return findDivisionFor(age, gender, isSpecialStacker(), state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true) || "";
+  return findDivisionFor(age, gender, isSpecial, state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true) || "";
 }
 
 function divisionForStacker(stacker, divisionSettings, competitionStart, separateSpecialDivisionsByGender = false) {
   const settings = divisionSettings || state.divisionSettings;
   const start = competitionStart || state.settings.start;
+  const isSpecial = stacker.special === "Yes";
   if (stacker.customDivision) return stacker.customDivision;
-  if (stacker.standardDivision) return stacker.standardDivision;
+  if (stacker.standardDivision && !isSpecial) return stacker.standardDivision;
   const age = ageOnCompetitionDate(stacker.dob, start) || Number(stacker.age);
-  return findDivisionFor(age, stacker.gender, stacker.special === "Yes", settings, separateSpecialDivisionsByGender) || "";
+  return findDivisionFor(age, stacker.gender, isSpecial, settings, separateSpecialDivisionsByGender) || "";
 }
 
 function findDivisionFor(age, gender, special = false, divisionSettings, separateSpecialDivisionsByGender = false) {
@@ -4098,7 +4599,7 @@ function adminReportMeta(type, group) {
     ["Region", filterSummary("reportRegion", "reportRegionOp")],
     ["Org", filterSummary("reportOrg", "reportOrgOp")],
     ["Team", selectedOptionText("reportTeam") || "--"],
-    ["Generated", new Date().toLocaleString()]
+    ["Generated", stackMeetDateTime()]
   ];
 }
 
@@ -4437,6 +4938,7 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-route], [data-action]");
   if (!target) return;
   if (target.dataset.route) {
+    closeNavigationDrawer();
     if (target.dataset.reportTab) reportTab = ["finals", "admin"].includes(target.dataset.reportTab) ? target.dataset.reportTab : reportTab;
     route = target.dataset.route;
     render();
@@ -4447,6 +4949,8 @@ document.addEventListener("click", async (event) => {
   let shouldSave = true;
   if (action === "mark-read") state.notifications = state.notifications.map(n => ({ ...n, read: true }));
   if (action === "save-settings") await saveSettings();
+  if (action === "upload-asset") { await uploadCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
+  if (action === "remove-asset") { await removeCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
   if (action === "save-language") saveLanguage();
   if (action === "save-events") saveEvents();
   if (action === "save-leaderboard") saveLeaderboard();
@@ -4477,10 +4981,22 @@ document.addEventListener("click", async (event) => {
   if (action === "cancel-relay-edit") { clearRelayForm(); shouldRender = false; }
   if (action === "delete-relay") deleteRelay(target.dataset.id);
   if (action === "switch-relay-tab") { relayTab = target.dataset.relayTab || "ready"; shouldRender = false; renderRelay(); }
-  if (action === "save-awards") { saveAwards(); shouldRender = false; }
+  if (action === "save-awards") {
+    const beforeAwards = auditSnapshot(state.awards);
+    saveAwards();
+    appendCompetitionAuditLog({
+      action: "awards.updated",
+      entityType: "Awards",
+      summary: "Award planner settings updated.",
+      before: beforeAwards,
+      after: state.awards
+    });
+    shouldRender = false;
+  }
   if (action === "export-awards-csv") { exportAwardsCsv(); shouldRender = false; }
-  if (action === "paperwork") { buildPaperwork(target.dataset.type); shouldRender = false; }
-  if (action === "print-paper-preview") { printPaperPreview(); shouldRender = false; }
+  if (action === "export-competition-audit-csv") { exportCompetitionAuditCsv(); shouldRender = false; shouldSave = false; }
+  if (action === "paperwork") { window.StackMeetPrintCenter.buildPaperwork(target.dataset.type); shouldRender = false; }
+  if (action === "print-paper-preview") { window.StackMeetPrintCenter.printPaperPreview(); shouldRender = false; }
   if (action === "build-bracket") { buildBracket(); shouldRender = false; }
   if (action === "lookup-prelim-participant") { loadPrelimParticipant(); shouldRender = false; }
   if (action === "load-missing-prelim") { loadMissingPrelim(target.dataset.id); shouldRender = false; }
@@ -4489,10 +5005,21 @@ document.addEventListener("click", async (event) => {
   if (action === "lookup-final-sheet") { loadFinalSheetFromInput(); shouldRender = false; }
   if (action === "load-final-missing") { loadFinalSheet(target.dataset.id); shouldRender = false; }
   if (action === "clear-final-sheet") { clearFinalSheet(); shouldRender = false; }
-  if (action === "save-final-results") { saveFinalResults(); shouldRender = false; }
+  if (action === "save-final-results") { await saveFinalResults(); shouldRender = false; shouldSave = false; }
   if (action === "print-final-sheet") { printCurrentFinalSheet(); shouldRender = false; }
   if (action === "save-result") saveResult();
-  if (action === "delete-result") state.results = state.results.filter(r => r.id !== target.dataset.id);
+  if (action === "delete-result") {
+    const result = state.results.find(item => item.id === target.dataset.id);
+    state.results = state.results.filter(r => r.id !== target.dataset.id);
+    if (result) appendCompetitionAuditLog({
+      action: "results.deleted",
+      entityType: "Result",
+      entityId: result.id,
+      summary: `${result.stage} ${result.event} result deleted for ${result.participant}.`,
+      before: result,
+      after: null
+    });
+  }
   if (action === "switch-report-tab") { switchReportTab(target.dataset.reportTab); shouldRender = false; shouldSave = false; }
   if (action === "run-finals-report") { runFinalsReport(); shouldRender = false; shouldSave = false; }
   if (action === "generate-qualification-snapshots") { generateQualificationSnapshots(); shouldRender = false; }
@@ -4555,7 +5082,7 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
-document.getElementById("exportXmlBtn").addEventListener("click", async () => {
+document.getElementById("exportXmlBtn")?.addEventListener("click", async () => {
   if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: true, rerender: false });
   const blob = new Blob([stateToXml(state)], { type: "application/xml" });
   const link = document.createElement("a");
@@ -4565,7 +5092,7 @@ document.getElementById("exportXmlBtn").addEventListener("click", async () => {
   URL.revokeObjectURL(link.href);
 });
 
-document.getElementById("importXmlInput").addEventListener("change", async (event) => {
+document.getElementById("importXmlInput")?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
@@ -4610,6 +5137,7 @@ document.getElementById("resetBtn")?.addEventListener("click", async () => {
 });
 
 async function saveSettings() {
+  const before = auditSnapshot(state.settings);
   const selectedAgeMode = val("settingAgeCalculation") === "yearBorn" ? "yearBorn" : "actual";
   if (selectedSqlCompetitionId) await saveCompetitionAgeCalculation(selectedAgeMode);
   ageCalculationMode = selectedAgeMode;
@@ -4635,6 +5163,13 @@ async function saveSettings() {
   };
   applyCompetitionAgeCalculation(selectedAgeMode);
   refreshDivisionCountBadges(divisionCountSummary(state.divisionSettings));
+  appendCompetitionAuditLog({
+    action: "settings.updated",
+    entityType: "Settings",
+    summary: "Competition settings updated.",
+    before,
+    after: state.settings
+  });
 }
 
 function saveLanguage() {
@@ -4647,31 +5182,55 @@ function saveLanguage() {
 }
 
 function saveEvents() {
+  const before = auditSnapshot(state.events);
   state.events = {};
   document.querySelectorAll("[data-event-group]").forEach(input => {
     if (!state.events[input.dataset.eventGroup]) state.events[input.dataset.eventGroup] = [];
     if (input.checked) state.events[input.dataset.eventGroup].push(input.value);
   });
+  appendCompetitionAuditLog({
+    action: "events.updated",
+    entityType: "Events",
+    summary: "Competition event setup updated.",
+    before,
+    after: state.events
+  });
 }
 
 function saveDivisions() {
+  const before = auditSnapshot({ divisionSettings: state.divisionSettings, divisions: state.divisions });
   updateDivisionSettingsFromForm({ recalculateEntries: true });
+  appendCompetitionAuditLog({
+    action: "divisions.updated",
+    entityType: "Divisions",
+    summary: "Competition division setup updated.",
+    before,
+    after: { divisionSettings: state.divisionSettings, divisions: state.divisions }
+  });
 }
 
 function updateDivisionSettingsFromForm({ recalculateEntries = false } = {}) {
   state.divisionSettings = readDivisionSettingsFromForm();
-  state.divisions = appendStandardImportedDivisions(generateDivisionNames(state.divisionSettings), state.stackers);
-  if (!recalculateEntries) return;
-  state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
-  state.doubles = state.doubles.map(team => ({
-    ...team,
-    division: generatedDoublesDivision(team.type || "normal", team.one, team.two)
-  }));
-  state.relays = state.relays.map(team => ({
-    ...team,
-    timedRelayDivision: generatedRelayDivision(relayMemberIds(team), "timedRelay"),
-    headToHeadDivision: generatedRelayDivision(relayMemberIds(team), "headToHeadRelay")
-  }));
+  if (recalculateEntries) {
+    state.stackers = recalculateStackerDivisions(state.stackers, state.divisionSettings, state.settings.start, state.settings.separateSpecialDivisionsByGender === true);
+    state.doubles = state.doubles.map(team => ({
+      ...team,
+      division: generatedDoublesDivision(team.type || "normal", team.one, team.two)
+    }));
+    state.relays = state.relays.map(team => ({
+      ...team,
+      timedRelayDivision: generatedRelayDivision(relayMemberIds(team), "timedRelay"),
+      headToHeadDivision: generatedRelayDivision(relayMemberIds(team), "headToHeadRelay")
+    }));
+  }
+  state.divisions = appendStandardImportedDivisions(
+    [
+      ...generateDivisionNames(state.divisionSettings, state.settings.separateSpecialDivisionsByGender === true),
+      ...state.stackers.map(stacker => stacker.division).filter(Boolean),
+      ...state.stackers.map(stacker => stacker.customDivision).filter(Boolean)
+    ],
+    state.stackers
+  );
 }
 
 function readDivisionSettingsFromForm() {
@@ -4697,11 +5256,15 @@ function readDivisionSettingsFromForm() {
   return settings;
 }
 
-function generateDivisionNames(settings) {
+function generateDivisionNames(settings, separateSpecialDivisionsByGender = false) {
+  const specialIndividualDivisions = divisionRanges(settings.special || [], "Special");
+  const generatedSpecialIndividualDivisions = separateSpecialDivisionsByGender
+    ? specialIndividualDivisions.flatMap(division => [`${division} M`, `${division} F`])
+    : specialIndividualDivisions;
   const generated = [
     ...divisionRanges(divisionPath(settings, "male", "Male")).flat(),
     ...divisionRanges(divisionPath(settings, "female", "Female")).flat(),
-    ...divisionRanges(settings.special || [], "Special"),
+    ...generatedSpecialIndividualDivisions,
     ...teamDivisionRanges(settings.doubles || [], ""),
     ...teamDivisionRanges(settings.childParentDoubles || [], "Child/Parent "),
     ...teamDivisionRanges(settings.specialDoubles || [], "SS "),
@@ -4868,7 +5431,7 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for StackMeet, then click Open Display again.");
+  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
 }
 
 function addDivision() {
@@ -5054,9 +5617,30 @@ async function addStacker() {
   setSaveStatus("Saving...", "saving");
   try {
     const existing = editingStackerId ? state.stackers.find(item => item.id === editingStackerId) : null;
-    if (existing) await stackerApi.update(selectedSqlCompetitionId, existing.sqlId, runtimeStackerToSql(stacker));
-    else await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+    if (existing) {
+      await stackerApi.update(selectedSqlCompetitionId, existing.sqlId, runtimeStackerToSql(stacker));
+    } else {
+      try {
+        await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+      } catch (error) {
+        // Another computer may have claimed the same next code; refresh and retry with the next server-visible code once.
+        if (!String(error.message || "").includes("409")) throw error;
+        await refreshSqlStackers({ allowEditing: true, rerender: false });
+        stacker.id = nextStackerCode();
+        await stackerApi.create(selectedSqlCompetitionId, runtimeStackerToSql(stacker));
+      }
+    }
     await refreshSqlStackers({ allowEditing: true, rerender: false });
+    const savedStacker = state.stackers.find(item => item.id === stacker.id) || stacker;
+    appendCompetitionAuditLog({
+      action: existing ? "stacker.updated" : "stacker.created",
+      entityType: "Stacker",
+      entityId: stacker.id,
+      summary: `${stacker.id} ${stacker.name} ${existing ? "updated" : "created"}.`,
+      before: existing,
+      after: savedStacker
+    });
+    await persistCompetitionAuditLog();
     flashMessage = { type: "success", text: existing ? `${stacker.name} was updated.` : `${stacker.name} was added as stacker ${stacker.id}.` };
     editingStackerId = "";
     stackerFormVisible = false;
@@ -5163,6 +5747,15 @@ async function deleteStacker(id) {
   state.doubles = state.doubles.filter(d => !registeredDoubleMemberIds(d).includes(id));
   state.relays = state.relays.map(team => ({ ...team, members: relayMemberIds(team).filter(member => member !== id) }));
   state.results = state.results.filter(r => r.participant !== id);
+  appendCompetitionAuditLog({
+    action: "stacker.deleted",
+    entityType: "Stacker",
+    entityId: id,
+    summary: `Stacker ${id} deleted.`,
+    before: stacker,
+    after: null
+  });
+  await persistCompetitionAuditLog();
   if (editingStackerId === id) editingStackerId = "";
   pendingDeleteStackerId = "";
   flashMessage = { type: "success", text: `Stacker ${id} was removed.` };
@@ -5172,6 +5765,7 @@ async function deleteStacker(id) {
 function saveStackerDoubleAssignment() {
   if (!editingStackerId) return;
   const currentTeam = doublesForStacker(editingStackerId)[0];
+  const before = auditSnapshot(currentTeam);
   const status = val("stDoubleStatus") || "complete";
   const partnerId = status === "pending" ? "" : selectedStackerId("stDoublePartner");
   const parentName = val("stDoubleParentName").trim();
@@ -5202,6 +5796,14 @@ function saveStackerDoubleAssignment() {
   } else {
     state.doubles.push(team);
   }
+  appendCompetitionAuditLog({
+    action: currentTeam ? "doubles.updated" : "doubles.created",
+    entityType: "Doubles",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Doubles", team.id)} saved from stacker profile.`,
+    before,
+    after: team
+  });
   flashMessage = {
     type: "success",
     text: `${team.id} ${participantName("Doubles", team.id)} was saved${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}`
@@ -5226,6 +5828,7 @@ function addDouble() {
   const first = state.stackers.find(stacker => stacker.id === one) || {};
   const second = state.stackers.find(stacker => stacker.id === two) || {};
   const displaced = removeConflictingDoubles([one, two].filter(Boolean), editingDoubleId);
+  const before = auditSnapshot(editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null);
   const team = {
     id: editingDoubleId || nextTeamCode("2"),
     type,
@@ -5242,6 +5845,14 @@ function addDouble() {
   } else {
     state.doubles.push(team);
   }
+  appendCompetitionAuditLog({
+    action: editingDoubleId ? "doubles.updated" : "doubles.created",
+    entityType: "Doubles",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Doubles", team.id)} ${editingDoubleId ? "updated" : "created"}.`,
+    before,
+    after: team
+  });
   doublesTab = status === "pending" ? "incomplete" : "completed";
   doubleFlashMessage = { type: "success", text: `${team.id} ${participantName("Doubles", team.id)} was ${editingDoubleId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
   clearDoubleForm(false);
@@ -5300,8 +5911,17 @@ function removeConflictingDoubles(stackerIds, exceptTeamId = "") {
 function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
   if (!team) return;
+  const teamName = participantName("Doubles", id);
   if (!confirm(`Delete ${team.id} ${participantName("Doubles", team.id)}?`)) return;
   state.doubles = state.doubles.filter(d => d.id !== id);
+  appendCompetitionAuditLog({
+    action: "doubles.deleted",
+    entityType: "Doubles",
+    entityId: id,
+    summary: `${id} ${teamName} deleted.`,
+    before: team,
+    after: null
+  });
 }
 
 function addRelay() {
@@ -5314,6 +5934,7 @@ function addRelay() {
   }
   const members = [...new Set(selectedMembers)];
   const displaced = removeConflictingRelays(members, editingRelayId);
+  const before = auditSnapshot(editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null);
   const team = {
     id: editingRelayId || nextTeamCode("3"),
     name: relayName,
@@ -5333,6 +5954,14 @@ function addRelay() {
   } else {
     state.relays.push(team);
   }
+  appendCompetitionAuditLog({
+    action: editingRelayId ? "relay.updated" : "relay.created",
+    entityType: "Relay",
+    entityId: team.id,
+    summary: `${team.id} ${participantName("Timed Relay", team.id)} ${editingRelayId ? "updated" : "created"}.`,
+    before,
+    after: team
+  });
   relayTab = relayTeamStatus(team) === "Ready" ? "ready" : relayTeamStatus(team).toLowerCase();
   relayFlashMessage = { type: "success", text: `${team.id} ${participantName("Timed Relay", team.id)} was ${editingRelayId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
   clearRelayForm(false);
@@ -5392,9 +6021,18 @@ function clearRelayForm(renderNow = true) {
 function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
   if (!team) return;
+  const teamName = participantName("Timed Relay", id);
   if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
+  appendCompetitionAuditLog({
+    action: "relay.deleted",
+    entityType: "Relay",
+    entityId: id,
+    summary: `${id} ${teamName} deleted.`,
+    before: team,
+    after: null
+  });
 }
 
 function relayForStacker(stackerId) {
@@ -5465,7 +6103,16 @@ function saveResult() {
   const participant = val("participantSelect").split(" - ")[0];
   const attempts = [Number(val("attempt1")), Number(val("attempt2")), Number(val("attempt3"))].filter(n => n > 0);
   if (!participant || !attempts.length) return;
-  state.results.push({ id: crypto.randomUUID(), stage: val("resultStage"), type, participant, event: val("resultEvent"), attempts, penalty: Number(val("penalty")) });
+  const result = { id: crypto.randomUUID(), stage: val("resultStage"), type, participant, event: val("resultEvent"), attempts, penalty: Number(val("penalty")) };
+  state.results.push(result);
+  appendCompetitionAuditLog({
+    action: "results.created",
+    entityType: "Result",
+    entityId: result.id,
+    summary: `${result.stage} ${result.event} result created for ${result.participant}.`,
+    before: null,
+    after: result
+  });
 }
 
 function buildPaperwork(type) {
@@ -5608,6 +6255,9 @@ function printPaperPreview() {
   if (!document.querySelector("#paperOutput .individual-time-sheet, #paperOutput .final-time-sheet, #paperOutput .sheet-preview, #paperOutput .bracket")) return;
   printTimeSheetTarget("print-center");
 }
+
+// Print Center bridge: keeps delegated button actions connected to the sheet builders.
+window.StackMeetPrintCenter = Object.freeze({ buildPaperwork, printPaperPreview });
 
 function printTimeSheetTarget(target, removableElement = null) {
   // Applies a temporary print target and page orientation, then cleans it after printing.
@@ -5833,6 +6483,34 @@ function setOptions(id, options) {
   el.innerHTML = options.map(option => `<option>${esc(option)}</option>`).join("");
 }
 
+async function refreshCompetitionBranding() {
+  if (!selectedSqlCompetitionId || !window.StackMeetStorage.CompetitionAssetApi) return;
+  try {
+    const assets = await competitionAssetApi.list(selectedSqlCompetitionId);
+    for (const id of ["competitionLogoPreview", "competitionBannerPreview"]) { const preview = document.getElementById(id); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } }
+    for (const asset of assets) {
+      const preview = document.getElementById(`competition${asset.assetType === "logo" ? "Logo" : "Banner"}Preview`);
+      if (preview) { preview.src = `${asset.publicUrl}?v=${encodeURIComponent(asset.updatedAt || asset.sha256 || Date.now())}`; preview.hidden = false; }
+    }
+  } catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+async function uploadCompetitionAsset(type) {
+  const input = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}File`);
+  const file = input?.files?.[0];
+  if (!selectedSqlCompetitionId || !file) { setCompetitionBrandingStatus("Select an image first.", true); return; }
+  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(`${type} uploaded.`); }
+  catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+async function removeCompetitionAsset(type) {
+  if (!selectedSqlCompetitionId || !window.confirm(`Remove the competition ${type}?`)) return;
+  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(`${type} removed.`); }
+  catch (error) { setCompetitionBrandingStatus(error.message, true); }
+}
+
+function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = message; target.dataset.status = isError ? "error" : "ok"; } }
+
 function setValue(id, value) {
   const el = document.getElementById(id);
   if (el) el.value = value;
@@ -5840,7 +6518,40 @@ function setValue(id, value) {
 
 
 function todayIsoDate() {
-  return new Date().toLocaleDateString("en-CA");
+  return stackMeetDateOnly();
+}
+
+// Formats browser-generated timestamps in StackMeet's fixed GMT+8 operating timezone.
+function stackMeetDateTime(value = new Date()) {
+  return new Intl.DateTimeFormat(stackMeetLocale, {
+    timeZone: stackMeetTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short"
+  }).format(value);
+}
+
+// Parses UTC timestamps that may arrive from SQL JSON without an explicit offset.
+// Parses an audit timestamp safely before formatting it in StackMeet's configured timezone.
+function parseUtcDate(value) {
+  if (!value) return new Date();
+  const textValue = String(value);
+  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(textValue) ? textValue : `${textValue}Z`);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+// Returns today's date for defaults using GMT+8 instead of the browser's local timezone.
+function stackMeetDateOnly(value = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: stackMeetTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(value);
 }
 
 function isoDateValue(value) {
@@ -6029,7 +6740,7 @@ function cssEscape(value) {
 
 function showBootError(error) {
   const target = document.getElementById("loginError") || document.getElementById("view");
-  if (target) target.textContent = error?.message || String(error || "Unable to start StackMeet.");
+  if (target) target.textContent = error?.message || String(error || "Unable to start NADITrack.");
   document.body.classList.add("auth-pending");
 }
 
@@ -6040,11 +6751,13 @@ async function initializeApplication() {
   state = await loadState();
   try {
     await initializeSqlNativeStackers();
+    await refreshSqlResults({ rerender: false });
   } catch (error) {
     console.error("Unable to initialize SQL-native stackers.", error);
     flashMessage = { type: "error", text: "Save Failed: SQL-native stackers are unavailable." };
   }
   render();
+  void connectCompetitionStateUpdates();
 }
 
 initializeApplication().catch(showBootError);

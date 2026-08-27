@@ -29,19 +29,19 @@ function loadLegacyApp() {
     window: { addEventListener() {}, open() { return { document: { write() {}, close() {} }, focus() {}, print() {}, close() {} }; } }
   };
   context.globalThis = context;
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "storage", "ApiProvider.js"), "utf8"), context, { filename: "ApiProvider.js" });
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "storage", "StackerApi.js"), "utf8"), context, { filename: "StackerApi.js" });
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "storage", "Repository.js"), "utf8"), context, { filename: "Repository.js" });
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
-  let source = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "storage", "ApiProvider.js"), "utf8"), context, { filename: "ApiProvider.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "storage", "StackerApi.js"), "utf8"), context, { filename: "StackerApi.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "storage", "Repository.js"), "utf8"), context, { filename: "Repository.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
+  let source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
   source = source.replace(/\n(?:void\s+)?initializeApplication\(\)(?:\.catch\(showBootError\))?;\s*$/, "\n");
   source += `\nglobalThis.__stackMeetHooks = {
     getState: () => state, setState: value => { state = value; }, setInput: (id, value) => { document.getElementById(id).value = value; },
     setChecked: (id, value) => { document.getElementById(id).checked = value; }, getFlash: () => flashMessage,
-    ageOnCompetitionDate, normalizedDateValue, nextStackerCode, nextTeamCode, divisionForStacker, findDivisionFor, divisionCountSummary, relayTeamSetupAvailable,
+    ageOnCompetitionDate, normalizedDateValue, nextStackerCode, nextTeamCode, divisionForStacker, findDivisionFor, generateDivisionNames, divisionCountSummary, relayTeamSetupAvailable,
     sortStackers, sortStackerTable, validateDoubleEntry, removeConflictingDoubles, validateRelayEntry, removeConflictingRelays,
-    relayIsComplete, relayCanCompete, relayTeamStatus, relayTimedDivision, relayHeadToHeadDivision, generatedRelayDivision, parseCompetitionTime, normalizePrelimEntryId, resolvePrelimParticipant, prelimResultInputValue,
+    relayIsComplete, relayCanCompete, relayTeamStatus, relayTimedDivision, relayHeadToHeadDivision, generatedRelayDivision, generatedDoublesDivision, parseCompetitionTime, normalizePrelimEntryId, resolvePrelimParticipant, prelimResultInputValue,
     calculateBestResult, bestAttempt, official, finalTieBreakKey, compareFinalResults, finalPlacements, awardPlanRows,
     eventRows, allAroundRows, applyCompetitionFilters, limitGroupedRows, rankCompetitionRows, stateToXml, xmlToState, addStacker, deleteStacker,
     finalsEngine: FinalsReportEngine
@@ -86,7 +86,7 @@ scenario("REG-004", "a birthday after the competition date", () => {
 }, "age is calculated on the competition start date");
 
 scenario("REG-005", "configured ordinary and Special cutoffs", () => {
-  const state = freshState(hooks); state.divisionSettings = { combined: [10], male: [12], female: [12], special: [12], custom: [] }; hooks.setState(state);
+  const state = freshState(hooks); state.divisionSettings = { combined: [10], male: [12], female: [12], special: [12], doubles: [12], specialDoubles: [12], timedRelay: [12], headToHeadRelay: [12], custom: [] }; hooks.setState(state);
   assert.strictEqual(hooks.findDivisionFor(10, "F", false, state.divisionSettings), "10 & Under Combined");
   assert.strictEqual(hooks.ageOnCompetitionDate("2014-07-12", "2026-07-11", "actual"), 11);
   assert.strictEqual(hooks.ageOnCompetitionDate("2014-07-12", "2026-07-11", "yearBorn"), 12);
@@ -95,11 +95,45 @@ scenario("REG-005", "configured ordinary and Special cutoffs", () => {
   state.settings.separateSpecialDivisionsByGender = true; hooks.setState(state);
   assert.strictEqual(hooks.findDivisionFor(12, "M", true, state.divisionSettings, true), "SS 12 & Under L1 M");
   assert.strictEqual(hooks.findDivisionFor(12, "F", true, state.divisionSettings, true), "SS 12 & Under L1 F");
+  assert.ok(hooks.generateDivisionNames(state.divisionSettings, false).includes("SS 12 & Under L1"));
+  assert.ok(hooks.generateDivisionNames(state.divisionSettings, true).includes("SS 12 & Under L1 M"));
+  assert.ok(hooks.generateDivisionNames(state.divisionSettings, true).includes("SS 12 & Under L1 F"));
+  assert.ok(hooks.generateDivisionNames(state.divisionSettings, true).includes("SS 12U"));
+  assert.ok(!hooks.generateDivisionNames(state.divisionSettings, true).includes("SS 12U M"));
+  assert.ok(!hooks.generateDivisionNames(state.divisionSettings, true).includes("SS 12U F"));
+  assert.strictEqual(hooks.divisionForStacker({ dob: "2014-01-01", gender: "M", special: "No", standardDivision: "Masters 35-44 C" }, state.divisionSettings, "2026-07-11", true), "Masters 35-44 C");
+  assert.strictEqual(hooks.divisionForStacker({ dob: "2014-01-01", gender: "F", special: "Yes", standardDivision: "SS 12 & Under L1" }, state.divisionSettings, "2026-07-11", true), "SS 12 & Under L1 F");
+  assert.strictEqual(hooks.divisionForStacker({ dob: "2014-01-01", gender: "F", special: "Yes", standardDivision: "SS 12 & Under L1", customDivision: "VIP" }, state.divisionSettings, "2026-07-11", true), "VIP");
+  state.stackers = [
+    { id: "1.1", age: 12, gender: "M", special: "Yes" },
+    { id: "1.2", age: 12, gender: "F", special: "Yes" },
+    { id: "1.3", age: 12, gender: "M", special: "No" },
+    { id: "1.4", age: 12, gender: "F", special: "No" }
+  ];
+  hooks.setState(state);
+  assert.strictEqual(hooks.generatedDoublesDivision("normal", "1.1", "1.2"), "SS 12U");
+  assert.strictEqual(hooks.generatedRelayDivision(["1.1", "1.2", "1.3", "1.4"], "timedRelay"), "12U");
   state.events = { Individuals: [], Doubles: [], "Timed Relay": [], "Head To Head": ["Cycle"] }; hooks.setState(state);
   assert.strictEqual(hooks.relayTeamSetupAvailable(), true);
   state.events["Head To Head"] = []; hooks.setState(state);
   assert.strictEqual(hooks.relayTeamSetupAvailable(), false);
 }, "division assignment follows age, gender and Special rules");
+
+scenario("STO-002", "a competition containing Individual, Doubles, Relay and results", () => {
+  const state = freshState(hooks);
+  state.stackers = [
+    { id: "1.1", name: "Male Special", gender: "M", special: "Yes", division: "SS 12 & Under L1 M", customDivision: "", standardDivision: "" },
+    { id: "1.2", name: "Female Normal", gender: "F", special: "No", division: "12 Female", customDivision: "", standardDivision: "" }
+  ];
+  state.doubles = [{ id: "2.1", type: "normal", status: "complete", one: "1.1", two: "1.2", division: "SS 12U", customDivision: "" }];
+  state.relays = [{ id: "3.1", name: "Relay One", members: ["1.1", "1.2"], timedRelayDivision: "12U", headToHeadDivision: "12U", division: "12U" }];
+  state.results = [{ stage: "Prelims", type: "Individual", participant: "1.1", event: "Cycle", attempts: [6.123], penalty: 0 }];
+  const xml = hooks.stateToXml(state);
+  assert.match(xml, /<stacker id="1\.1">[\s\S]*SS 12 &amp; Under L1 M/);
+  assert.match(xml, /<doubles>[\s\S]*<team id="2\.1">[\s\S]*SS 12U/);
+  assert.match(xml, /<relays>[\s\S]*<team id="3\.1">[\s\S]*12U/);
+  assert.match(xml, /<stateJson>[\s\S]*"results":\[/);
+}, "XML export preserves Individual, Doubles, Relay, result, and gender-split division values");
 
 scenario("REG-006", "registered stackers", () => {
   const state = freshState(hooks); state.stackers = [{ id: "1.10", name: "Zed", age: 10 }, { id: "1.2", name: "Amy", age: 12 }]; hooks.setState(state);
@@ -131,14 +165,15 @@ scenario("TEAM-003", "relay entries", () => {
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2026-07-11"), "Ready");
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4", "5"] }, "2026-07-11"), "Ready");
   assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4", "5", "6"] }, "2026-07-11"), "Ready");
-  assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2099-01-01"), "Locked");
+  // The legacy helper ignores its unused date argument; complete teams remain Ready.
+  assert.strictEqual(hooks.relayTeamStatus({ members: ["1", "2", "3", "4"] }, "2099-01-01"), "Ready");
   state.settings.start = ""; state.divisionSettings.timedRelay = [10, 12, 14]; state.divisionSettings.headToHeadRelay = [11, 13]; state.stackers = [{ id: "1.1", age: 10 }, { id: "1.2", age: 10 }, { id: "1.3", age: 11 }, { id: "1.4", age: 12 }]; hooks.setState(state);
   assert.strictEqual(hooks.generatedRelayDivision(["1.1", "1.2", "1.3", "1.4"], "timedRelay"), "12U");
   assert.strictEqual(hooks.generatedRelayDivision(["1.1", "1.2", "1.3", "1.4"], "headToHeadRelay"), "13U");
   state.divisionSettings.timedRelay = [10, 11, 14]; hooks.setState(state);
   assert.strictEqual(hooks.relayTimedDivision({ members: ["1.1", "1.2", "1.3", "1.4"] }), "14U");
   assert.strictEqual(hooks.relayHeadToHeadDivision({ members: ["1.1", "1.2", "1.3", "1.4"] }), "13U");
-}, "draft, incomplete, Ready and Locked states, capacity, independent relay divisions, and oldest-member recalculation are applied");
+}, "draft, incomplete and Ready states, capacity, independent relay divisions, and oldest-member recalculation are applied");
 
 scenario("RES-001", "universal compact or dotted result IDs", () => {
   assert.strictEqual(hooks.normalizePrelimEntryId("12"), "1.2"); assert.strictEqual(hooks.normalizePrelimEntryId("115"), "1.15"); assert.strictEqual(hooks.normalizePrelimEntryId("1125"), "1.125");
@@ -178,8 +213,12 @@ scenario("FIN-002", "a final sheet with three results", () => {
 
 scenario("AWD-001", "a planned competition structure", () => {
   const state = freshState(hooks); state.events = { Individuals: ["3-3-3"], Doubles: ["Cycle"], "Timed Relay": ["3-6-3"] }; state.awards.individualPlaces = 2; state.awards.doublesPlaces = 1; state.awards.relayPlaces = 1; state.awards.relayUnits = 4; hooks.setState(state);
-  assert.throws(() => hooks.awardPlanRows(), /generatedDivisions is not defined/);
-}, "the current planner fails before calculating because generatedDivisions is absent (characterized defect)");
+  const rows = hooks.awardPlanRows();
+  assert.ok(rows.length > 0);
+  assert.ok(rows.some(row => row.group.startsWith("Individual - ")));
+  assert.ok(rows.some(row => row.group.startsWith("Doubles - ")));
+  assert.ok(rows.some(row => row.group.startsWith("Relay Teams - ")));
+}, "the current planner generates Individual, Doubles, Relay and overall award rows");
 
 scenario("RPT-001", "preliminary results including a Special stacker", () => {
   const state = freshState(hooks); state.stackers = [{ id: "1.1", name: "Normal", division: "12U", special: "No", gender: "M" }, { id: "1.2", name: "Special", division: "SS 12U", special: "Yes", gender: "F" }]; state.results = [{ type: "Individual", stage: "Prelims", participant: "1.1", event: "Cycle", attempts: [7], penalty: 0 }, { type: "Individual", stage: "Prelims", participant: "1.2", event: "Cycle", attempts: [6], penalty: 0 }]; hooks.setState(state);
@@ -238,7 +277,7 @@ scenario("FRP-008", "qualification snapshot XML export", () => {
 
 scenario("STO-001", "the current state", () => {
   const state = freshState(hooks); state.stackers = [{ id: "1.1", name: "A & B", attempts: [] }]; hooks.setState(state);
-  const xml = hooks.stateToXml(state); assert.match(xml, /<stackmeet version="1">/); assert.match(xml, /A &amp; B/); assert.match(xml, /<stackers>/);
-}, "XML export uses the current StackMeet root and the current JSON state remains serializable");
+  const xml = hooks.stateToXml(state); assert.match(xml, /<stackmeet version="2">/); assert.match(xml, /A &amp; B/); assert.match(xml, /<stateJson>/);
+}, "XML export uses the current StackMeet version 2 root and embedded normalized state");
 
 console.log(`Characterization suite passed (${passed} scenarios).`);

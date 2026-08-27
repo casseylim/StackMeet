@@ -3,28 +3,121 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>StackMeet Competition Admin</title>
+    <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css" />
+    <link rel="stylesheet" href="admin.css?v=xml-controls-ui" />
   </head>
   <body>
     <main class="admin-shell">
+      <div id="adminToast" class="admin-toast" role="status" aria-live="polite" hidden></div>
       <header class="admin-header">
         <div>
           <p class="eyebrow">Admin</p>
           <h1>Competition Administration</h1>
         </div>
-        <button class="ghost" id="refreshAdmin" type="button">Refresh</button>
+        <div class="admin-header-actions">
+          <button class="ghost" id="refreshAdmin" type="button">Refresh</button>
+          <button class="ghost" id="adminLogout" type="button">Log Out</button>
+        </div>
       </header>
 
-      <section class="panel admin-auth-panel">
+      <nav class="admin-page-tabs" aria-label="Admin pages">
+        <button class="active" data-admin-page-target="email" type="button">Email Setup</button>
+        <button data-admin-page-target="users" type="button">User Management</button>
+        <button data-admin-page-target="competition" type="button">Competition</button>
+        <button data-admin-page-target="audit" type="button">Audit Logs</button>
+      </nav>
+
+      <section class="panel admin-auth-panel" id="adminAuthPanel">
+        <label>System Admin Email<input id="adminLoginEmail" type="email" autocomplete="username" /></label>
+        <label>Password<input id="adminLoginPassword" type="password" autocomplete="current-password" /></label>
+        <button class="primary" id="adminLogin" type="button">Log In</button>
         <label>Admin Key<input id="adminKey" type="password" autocomplete="off" /></label>
         <button class="primary" id="saveAdminKey" type="button">Use Key</button>
-        <p class="muted">The admin key is entered locally for this browser session and is not stored in source code.</p>
+        <p class="muted">Log in with a Global System Admin account, or use the admin key as a fallback. Both are stored only for this browser session.</p>
       </section>
 
-      <section class="split admin-split">
+      <section class="admin-page active" data-admin-page="email">
+        <article class="panel">
+          <div class="panel-head"><h2>Email Setup</h2></div>
+          <form id="emailSettingsForm" class="admin-form">
+            <label>Provider<select id="emailProvider"><option value="BrevoApi">Brevo API</option><option value="Smtp">SMTP Relay</option></select></label>
+            <label>From Name<input id="emailFromName" placeholder="NADITrack" /></label>
+            <label>From Email<input id="emailFromAddress" type="email" placeholder="noreply@example.com" /></label>
+            <label>Brevo API Key<input id="emailBrevoApiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
+            <label>SMTP Host<input id="emailSmtpHost" placeholder="smtp-relay.brevo.com" /></label>
+            <label>SMTP Port<input id="emailSmtpPort" type="number" min="1" max="65535" value="587" /></label>
+            <label>SMTP Login<input id="emailUsername" autocomplete="off" placeholder="Brevo SMTP login" /></label>
+            <label>SMTP Key / Password<input id="emailPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
+            <label>Test Recipient<input id="emailTestRecipient" autocomplete="email" placeholder="name@example.com" type="email" /></label>
+            <label class="checkbox-field"><input id="emailUseTls" type="checkbox" checked /> <span>Use TLS (SMTP only)</span></label>
+            <div class="button-row">
+              <button class="primary" type="submit">Save Email Setup</button>
+              <button class="ghost" id="testEmail" type="button">Send Test</button>
+            </div>
+          </form>
+          <p class="muted" id="emailSettingsStatus">Enter the admin key to load email setup.</p>
+        </article>
+      </section>
+
+      <section class="admin-page" data-admin-page="users">
+        <article class="panel admin-user-list-panel">
+          <div class="panel-head"><h2>User Management</h2></div>
+          <form id="userSecurityOptionsForm" class="admin-form admin-security-options">
+            <div>
+              <h3>Login Security</h3>
+              <p class="muted">Use the Email Confirmed checkbox on each user to control who can pass this rule.</p>
+            </div>
+            <label class="checkbox-field"><input id="requireEmailConfirmed" type="checkbox" /> <span>Require Email Confirmed before login</span></label>
+            <div class="admin-security-save">
+              <button class="primary" type="submit">Save Login Security</button>
+              <span class="muted" id="userSecurityOptionsStatus"></span>
+            </div>
+          </form>
+          <form id="inviteUserForm" class="admin-form">
+            <label>Email<input id="inviteEmail" type="email" required /></label>
+            <label>Display Name<input id="inviteDisplayName" required /></label>
+            <label>Initial Competition<input id="inviteCompetition" list="competitionOptions" autocomplete="off" placeholder="Search competition key or name" /></label>
+            <label>Initial Role<select id="inviteRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
+            <label class="checkbox-field"><input id="inviteSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
+            <button class="primary" type="submit">Send Activation Email</button>
+          </form>
+          <div class="toolbar admin-user-toolbar">
+            <label class="admin-search">Search Users<input id="userSearch" placeholder="Email, name, role or competition" /></label>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th><button class="sort-button" data-user-sort="email" type="button">Email</button></th><th><button class="sort-button" data-user-sort="status" type="button">Status</button></th><th><button class="sort-button" data-user-sort="access" type="button">Access</button></th><th></th></tr></thead><tbody id="userAdminRows"></tbody></table></div>
+        </article>
+
+        <article class="panel admin-user-edit-panel">
+          <div class="panel-head"><h2 id="userEditTitle">Select User</h2></div>
+          <form id="userEditForm" class="admin-form user-edit-form">
+            <input id="editUserId" type="hidden" />
+            <label class="form-span-all">Email<input id="editUserEmail" readonly /></label>
+            <label>Display Name<input id="editDisplayName" /></label>
+            <label>New Password<input id="editPassword" type="password" autocomplete="new-password" placeholder="Leave blank to keep existing" /></label>
+            <label class="checkbox-field"><input id="editIsActive" type="checkbox" /> <span>Active</span></label>
+            <label class="checkbox-field"><input id="editEmailConfirmed" type="checkbox" /> <span>Email Confirmed</span></label>
+            <label class="checkbox-field"><input id="editIsSystemAdmin" type="checkbox" /> <span>Global System Admin</span></label>
+            <div class="button-row form-span-all user-edit-actions">
+              <button class="primary" type="submit">Save User</button>
+              <button class="ghost" id="editPasswordReset" type="button">Send Reset Link</button>
+              <button class="danger-button" id="editDeleteUser" type="button">Delete User</button>
+            </div>
+          </form>
+          <div class="panel-subhead"><h3>Competition Access</h3></div>
+          <div class="form-grid">
+            <label>Competition<input id="editAccessCompetition" list="competitionOptions" autocomplete="off" placeholder="Search competition key or name" /></label>
+            <label>Role<select id="editAccessRole"><option value="CompetitionManager">Competition Manager</option><option value="DataEntry">Data Entry</option><option value="Viewer">Viewer</option><option value="SystemAdmin">System Admin</option></select></label>
+          </div>
+          <div class="button-row">
+            <button class="ghost" id="addEditAccess" type="button">Add / Update Access</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Competition</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="editAccessRows"></tbody></table></div>
+        </article>
+      </section>
+
+      <section class="admin-page split admin-split" data-admin-page="competition">
         <article class="panel">
           <div class="panel-head"><h2>Competitions</h2></div>
           <div id="adminMessage" class="form-error" aria-live="polite"></div>
@@ -43,6 +136,7 @@
             <label>Start Date<input id="adminStartDate" type="date" required /></label>
             <label>End Date<input id="adminEndDate" type="date" required /></label>
             <label>Status<select id="adminStatus"><option>Draft</option><option>Active</option><option>Closed</option><option>Archived</option></select></label>
+            <label class="checkbox-label"><input id="adminPublicListing" type="checkbox" /> List this competition on the public ALL results page</label>
             <label>Password<input id="adminPassword" type="password" autocomplete="new-password" /></label>
             <div class="button-row">
               <button class="primary" type="submit">Save</button>
@@ -52,6 +146,9 @@
 
           <div class="admin-actions">
             <button class="ghost" data-admin-action="export" type="button">Export JSON</button>
+            <button class="ghost" id="adminExportXml" type="button">Export XML</button>
+            <label class="ghost file-action" for="adminImportXml">Import XML</label>
+            <input id="adminImportXml" class="visually-hidden" type="file" accept=".xml,text/xml,application/xml" />
             <button class="ghost" data-admin-action="init" type="button">Initialize State</button>
             <button class="ghost" data-admin-action="close" type="button">Close</button>
             <button class="ghost" data-admin-action="archive" type="button">Archive</button>
@@ -61,7 +158,26 @@
           <pre id="adminJsonOutput" class="admin-json" hidden></pre>
         </article>
       </section>
+
+      <section class="admin-page" data-admin-page="audit">
+        <article class="panel">
+          <div class="panel-head"><h2>Audit Logs</h2></div>
+          <div class="form-grid audit-filter-grid">
+            <label>Action<input id="auditActionFilter" placeholder="login, user, competition" /></label>
+            <label>Entity<select id="auditEntityFilter"><option value="">All</option><option value="AppUser">AppUser</option><option value="Competition">Competition</option><option value="CompetitionState">CompetitionState</option><option value="CompetitionUser">CompetitionUser</option><option value="AppSetting">AppSetting</option></select></label>
+            <label>Limit<input id="auditLimit" min="1" max="500" type="number" value="100" /></label>
+            <button class="primary" id="refreshAuditLogs" type="button">Refresh Logs</button>
+          </div>
+          <div class="table-wrap audit-table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Details</th></tr></thead>
+              <tbody id="auditLogRows"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+      <datalist id="competitionOptions"></datalist>
     </main>
-    <script src="admin.js"></script>
+    <script src="admin.js?v=xml-controls-ui"></script>
   </body>
 </html>

@@ -7,6 +7,8 @@
   const section = resultsIndex >= 0 && parts[resultsIndex + 1] ? parts[resultsIndex + 1] : "Dashboard";
   const resultsRoot = competitionId ? `/${encodeURIComponent(competitionId)}/Results` : "";
   const endpoint = `/api/public/competitions/${encodeURIComponent(competitionId)}/results`;
+  const stackMeetTimeZone = "Asia/Kuala_Lumpur";
+  const stackMeetLocale = "en-MY";
   let lastVersion = "";
   let refreshInFlight = false;
 
@@ -56,7 +58,8 @@
       }
 
       const payload = await response.json();
-      const version = String(payload.lastUpdatedAt || "");
+      const branding = payload.branding || {};
+      const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
       if (showLoader || version !== lastVersion) render(payload);
       lastVersion = version;
       setConnection("live", "Connected");
@@ -73,10 +76,19 @@
     show("errorState", false);
 
     const competition = payload.competition || {};
-    document.title = `${competition.name || "Competition"} · StackMeet Results`;
+    const branding = payload.branding || {};
+    const logo = el("competitionLogo");
+    if (logo) { logo.onerror = () => { logo.onerror = null; logo.src = "/assets/stackmeet-logo.png"; }; logo.src = branding.logoUrl || "/assets/stackmeet-logo.png"; logo.alt = `${competition.name || "Competition"} logo`; logo.hidden = false; }
+    const banner = el("competitionBanner");
+    if (banner) { banner.onerror = () => { banner.onerror = null; banner.src = "/assets/competition-banner.png"; }; banner.src = branding.bannerUrl || "/assets/competition-banner.png"; banner.alt = `${competition.name || "Competition"} banner`; banner.hidden = false; }
+    document.title = `${competition.name || "Competition"} · NADITrack Results`;
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
     text("competitionCode", competition.id || competitionId);
+    // Preserve the exact public results section currently being viewed when sharing.
+    const publicUrl = new URL(location.pathname, "https://naditrack.com").toString();
+    const qr = el("publicResultsQr");
+    if (qr) qr.src = `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`;
     text("lastUpdated", `Updated ${formatClock(payload.lastUpdatedAt)}`);
     text("latestTime", formatClock(payload.lastUpdatedAt));
 
@@ -572,41 +584,46 @@
   }
 
   function renderDivisionJumpNav(divisions, stageKey) {
-    const nav = make("nav", "division-jump", "");
-    nav.setAttribute("aria-label", "Jump to division");
-    nav.append(make("span", "division-jump-label", "Division"));
-    const list = make("div", "division-jump-links", "");
-    divisions.forEach(division => {
+    return renderJumpNav("Division", divisions.map(division => ({
+      label: division,
+      id: divisionAnchorId(stageKey, division)
+    })), "Jump to division");
+  }
+
+  function renderJumpNav(label, items, ariaLabel = "Quick navigation") {
+    const nav = make("nav", "result-jump division-jump", "");
+    nav.setAttribute("aria-label", ariaLabel);
+    nav.append(make("span", "result-jump-label division-jump-label", label));
+    const list = make("div", "result-jump-links division-jump-links", "");
+    items.forEach(item => {
       const link = document.createElement("a");
-      link.href = `#${divisionAnchorId(stageKey, division)}`;
-      link.textContent = division;
+      link.href = `#${item.id}`;
+      link.textContent = item.label;
       list.append(link);
     });
     nav.append(list);
     return nav;
   }
 
+  function anchorSlug(value) {
+    return String(value || "section")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "section";
+  }
+
+  function stageDivisionAnchorId(section, stage, division) {
+    return [section, stage, division].map(anchorSlug).join("-");
+  }
+
   function orderedDivisionGroups(groups, payload) {
     const configured = configuredDivisions(payload);
-    const resultGroups = [...groups.entries()];
-    if (!configured.length) {
-      return resultGroups.sort(([left], [right]) => naturalCompare(left, right));
-    }
-
-    const groupsByKey = new Map(resultGroups.map(([division, events]) => [divisionKey(division), [division, events]]));
-    const usedKeys = new Set();
-    const ordered = configured.map(division => {
-      const key = divisionKey(division);
-      usedKeys.add(key);
-      return groupsByKey.get(key) || [division, new Map()];
+    const order = new Map(configured.map((division, index) => [divisionKey(division), index]));
+    return [...groups.entries()].sort(([left], [right]) => {
+      const leftOrder = order.get(divisionKey(left)) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = order.get(divisionKey(right)) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || naturalCompare(left, right);
     });
-
-    resultGroups
-      .filter(([division]) => !usedKeys.has(divisionKey(division)))
-      .sort(([left], [right]) => naturalCompare(left, right))
-      .forEach(entry => ordered.push(entry));
-
-    return ordered;
   }
 
   function configuredDivisions(payload) {
@@ -768,7 +785,8 @@
 
     const selectedGroups = [...divisions.values()].map(groups =>
       groups.find(group => group.stage.key === "finals") || groups[0]);
-    const aggregateGroups = allAroundAggregateGroups(selectedGroups, payload);
+    const aggregateRows = allAroundAggregateRows(payload);
+    const aggregateGroups = allAroundAggregateGroups(aggregateRows);
     const displayGroups = aggregateGroups;
 
     const container = el("allAroundGroups");
@@ -789,37 +807,48 @@
       empty.append(
         make("span", "empty-icon clock", "↗"),
         make("h2", "", "All-Around standings are not available yet"),
-        make("p", "", "A stacker appears after valid 3-3-3, 3-6-3, and Cycle results have all been published for the same stage.")
+        make("p", "", "A stacker appears after valid times have been published for 3-3-3, 3-6-3, and Cycle.")
       );
       container.append(empty);
+      renderAllAroundByDivision([], payload, official);
       return;
     }
 
     text("allAroundSummary", `${stackerCount} complete · ${incompleteCount} incomplete`);
+    const quickJumpLabels = new Map([
+      ["overall", "Overall"], ["female-overall", "Female Overall"], ["male-overall", "Male Overall"],
+      ["normal", "Normal"], ["special", "Special"], ["female-normal", "Female Normal"],
+      ["female-special", "Female Special"], ["male-normal", "Male Normal"], ["male-special", "Male Special"]
+    ]);
+    container.append(renderJumpNav("Quick Jump", [
+      ...displayGroups.map(group => ({ label: quickJumpLabels.get(group.key) || group.division, id: `allaround-${group.key}` })),
+      { label: "By Division", id: "allAroundByDivision" }
+    ]));
     displayGroups
       .sort((left, right) => (left.order || 0) - (right.order || 0) || naturalCompare(left.division, right.division))
       .forEach(group => container.append(renderAllAroundDivision(group, official)));
+    renderAllAroundByDivision(aggregateRows, payload, official);
   }
 
-  function allAroundAggregateGroups(selectedGroups, payload) {
-    const rows = allAroundAggregateRows(payload);
+  function allAroundAggregateGroups(rows) {
     if (!rows.length) return [];
 
     const stage = rows[0].sourceStage || { key: "all", label: "Best" };
     const definitions = [
-      { title: "All-Around (Normal + Special)", order: 10, filter: () => true },
-      { title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
-      { title: "All-Around Male (Normal + Special)", order: 30, filter: row => row.stacker.gender === "M" },
-      { title: "All-Around (Normal)", order: 40, filter: row => !isSpecialStackerRow(row) },
-      { title: "All-Around (Special)", order: 50, filter: isSpecialStackerRow },
-      { title: "All-Around Female (Normal)", order: 60, filter: row => row.stacker.gender === "F" && !isSpecialStackerRow(row) },
-      { title: "All-Around Female (Special)", order: 70, filter: row => row.stacker.gender === "F" && isSpecialStackerRow(row) },
-      { title: "All-Around Male (Normal)", order: 80, filter: row => row.stacker.gender === "M" && !isSpecialStackerRow(row) },
-      { title: "All-Around Male (Special)", order: 90, filter: row => row.stacker.gender === "M" && isSpecialStackerRow(row) }
+      { key: "overall", title: "All-Around (Normal + Special)", order: 10, filter: () => true },
+      { key: "female-overall", title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
+      { key: "male-overall", title: "All-Around Male (Normal + Special)", order: 30, filter: row => row.stacker.gender === "M" },
+      { key: "normal", title: "All-Around (Normal)", order: 40, filter: row => !isSpecialStackerRow(row) },
+      { key: "special", title: "All-Around (Special)", order: 50, filter: isSpecialStackerRow },
+      { key: "female-normal", title: "All-Around Female (Normal)", order: 60, filter: row => row.stacker.gender === "F" && !isSpecialStackerRow(row) },
+      { key: "female-special", title: "All-Around Female (Special)", order: 70, filter: row => row.stacker.gender === "F" && isSpecialStackerRow(row) },
+      { key: "male-normal", title: "All-Around Male (Normal)", order: 80, filter: row => row.stacker.gender === "M" && !isSpecialStackerRow(row) },
+      { key: "male-special", title: "All-Around Male (Special)", order: 90, filter: row => row.stacker.gender === "M" && isSpecialStackerRow(row) }
     ];
 
     return definitions
       .map(definition => ({
+        key: definition.key,
         stage,
         division: definition.title,
         order: definition.order,
@@ -871,8 +900,92 @@
     { key: "cycle", label: "Cycle" }
   ];
 
+  function allAroundDivisionGroupsFromRows(rows, payload) {
+    const groups = new Map();
+    rows.forEach(row => {
+      const division = String(row.stacker?.division || "Open / Unassigned").trim() || "Open / Unassigned";
+      if (!groups.has(division)) groups.set(division, []);
+      groups.get(division).push(row);
+    });
+    return orderedDivisionGroups(groups, payload).map(([division, divisionRows]) => ({ division, rows: divisionRows }));
+  }
+
+  function rankAllAroundMetric(rows, valueSelector) {
+    const ranked = rows
+      .map(row => ({ row, value: valueSelector(row) }))
+      .filter(item => Number.isFinite(item.value))
+      .sort((left, right) => left.value - right.value || naturalCompare(left.row.stacker?.name || left.row.participantId, right.row.stacker?.name || right.row.participantId));
+    const leader = ranked[0]?.value;
+    let previousValue = Number.NaN;
+    let previousRank = 0;
+    ranked.forEach((item, index) => {
+      const tied = item.value === previousValue;
+      item.rank = tied ? previousRank : index + 1;
+      item.gap = Number.isFinite(leader) ? item.value - leader : 0;
+      previousValue = item.value;
+      previousRank = item.rank;
+    });
+    return ranked;
+  }
+
+  function renderAllAroundByDivision(rows, payload, official) {
+    const section = el("allAroundByDivision");
+    const container = el("allAroundDivisionGroups");
+    if (!section || !container) return;
+    container.replaceChildren();
+    const groups = allAroundDivisionGroupsFromRows(rows, payload);
+    section.hidden = groups.length === 0;
+    if (!groups.length) return;
+
+    container.append(renderDivisionJumpNav(groups.map(group => group.division), "allaround-by-division"));
+    groups.forEach(group => {
+      const board = make("section", "panel allaround-division-board");
+      board.id = divisionAnchorId("allaround-by-division", group.division);
+      const heading = make("div", "division-heading allaround-heading");
+      const title = make("div", "");
+      title.append(make("span", "eyebrow", official ? "Official division ranking" : "Provisional division ranking"));
+      title.append(make("h2", "", group.division));
+      heading.append(title, make("span", "division-count", `${group.rows.length} complete`));
+      board.append(heading);
+      const grid = make("div", "allaround-metric-grid");
+      const metrics = [
+        { label: "3-3-3", key: "333" },
+        { label: "3-6-3", key: "363" },
+        { label: "Cycle", key: "cycle" },
+        { label: "All Around", key: "total" }
+      ];
+      metrics.forEach(metric => {
+        const panel = make("article", "allaround-metric-panel");
+        panel.append(make("h3", "", metric.label));
+        const table = make("table", "results-table allaround-metric-table");
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        ["Place", "Stacker", "Time", "Gap"].forEach(label => headRow.append(make("th", "", label)));
+        head.append(headRow);
+        table.append(head);
+        const body = document.createElement("tbody");
+        rankAllAroundMetric(group.rows, row => metric.key === "total" ? row.total : row.times[metric.key]).forEach(item => {
+          const tr = document.createElement("tr");
+          tr.append(
+            make("td", "rank-cell", medalPlace(item.rank)),
+            make("td", "stacker-cell", item.row.stacker?.name || item.row.participantId),
+            make("td", "time-cell", formatTime(item.value)),
+            make("td", "status-cell", item.gap > 0 ? `+${formatTime(item.gap)}` : "--")
+          );
+          body.append(tr);
+        });
+        table.append(body);
+        panel.append(table);
+        grid.append(panel);
+      });
+      board.append(grid);
+      container.append(board);
+    });
+  }
+
   function renderAllAroundDivision(group, official) {
     const section = make("section", "panel preliminary-division allaround-division");
+    if (group.aggregate && group.key) section.id = `allaround-${group.key}`;
     const heading = make("div", "division-heading allaround-heading");
     const titleBlock = make("div", "");
     titleBlock.append(make("span", "eyebrow", group.aggregate ? `${group.stage.label} all-around ranking` : `${group.stage.label} all-around`), make("h2", "", group.division));
@@ -1130,11 +1243,16 @@
       return;
     }
 
+    container.append(renderJumpNav("Stage / Division", orderedGroups.map(group => ({
+      label: `${group.stage.label} · ${group.division}`,
+      id: stageDivisionAnchorId("doubles", group.stage.key, group.division)
+    })), "Jump to Doubles stage and division"));
     orderedGroups.forEach(group => container.append(renderDoublesGroup(group, official)));
   }
 
   function renderDoublesGroup(group, official) {
     const section = make("section", "panel preliminary-division doubles-division");
+    section.id = stageDivisionAnchorId("doubles", group.stage.key, group.division);
     const heading = make("div", "division-heading doubles-heading");
     const titleBlock = make("div", "");
     titleBlock.append(
@@ -1239,8 +1357,16 @@
     return { key: label.toLowerCase(), label, order: 2, isFinal: false };
   }
 
+  function participantTypeKey(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "individual" || normalized === "individuals" || normalized === "i") return "individual";
+    if (normalized.includes("double")) return "doubles";
+    if (normalized.includes("relay")) return "relay";
+    return "unknown";
+  }
+
   function isDoublesType(value) {
-    return String(value || "").trim().toLowerCase().includes("double");
+    return participantTypeKey(value) === "doubles";
   }
 
   function renderRelay(payload, official) {
@@ -1294,11 +1420,16 @@
       return;
     }
 
+    container.append(renderJumpNav("Stage / Division", orderedGroups.map(group => ({
+      label: `${group.stage.label} · ${group.division}`,
+      id: stageDivisionAnchorId("relay", group.stage.key, group.division)
+    })), "Jump to Relay stage and division"));
     orderedGroups.forEach(group => container.append(renderRelayGroup(group, official)));
   }
 
   function renderRelayGroup(group, official) {
     const section = make("section", "panel preliminary-division relay-division");
+    section.id = stageDivisionAnchorId("relay", group.stage.key, group.division);
     const heading = make("div", "division-heading relay-heading");
     const titleBlock = make("div", "");
     titleBlock.append(
@@ -1407,7 +1538,7 @@
   }
 
   function isRelayType(value) {
-    return String(value || "").trim().toLowerCase().includes("relay");
+    return participantTypeKey(value) === "relay";
   }
 
   function medalPlace(rank) {
@@ -1428,8 +1559,7 @@
   }
 
   function isIndividualType(value) {
-    const normalized = String(value || "").trim().toLowerCase();
-    return !normalized.includes("double") && !normalized.includes("relay");
+    return participantTypeKey(value) === "individual";
   }
 
   function naturalCompare(left, right) {
@@ -1498,7 +1628,8 @@
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    connection.on("ResultsUpdated", () => void refresh(false));
+    connection.on("CompetitionChanged", () => void refresh(false));
+    connection.on("ResultsChanged", () => void refresh(false));
     connection.onreconnecting(() => setConnection("connecting", "Reconnecting"));
     connection.onreconnected(async () => {
       await connection.invoke("JoinCompetition", competitionId);
@@ -1568,8 +1699,17 @@
   }
 
   function formatClock(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "just now" : new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
+    const date = parseUtcDate(value);
+    return date
+      ? new Intl.DateTimeFormat(stackMeetLocale, { timeZone: stackMeetTimeZone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)
+      : "just now";
+  }
+
+  function parseUtcDate(value) {
+    if (!value) return null;
+    const textValue = String(value);
+    const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(textValue) ? textValue : `${textValue}Z`);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   function formatDateRange(start, end) {

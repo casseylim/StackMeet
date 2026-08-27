@@ -14,6 +14,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
@@ -30,7 +31,8 @@ builder.Services.AddCors(options =>
         }
 
         policy.WithMethods("GET", "POST", "PUT", "DELETE")
-            .WithHeaders("Authorization", "Content-Type", apiKeyHeaderName, adminKeyHeaderName, "X-StackMeet-Updated-By");
+            .WithHeaders("Authorization", "Content-Type", apiKeyHeaderName, adminKeyHeaderName, "X-StackMeet-Updated-By", "If-Match")
+            .WithExposedHeaders("ETag");
     });
 });
 builder.Services.AddRateLimiter(options =>
@@ -61,6 +63,18 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
+builder.Services.AddScoped<CompetitionPermissionService>();
+builder.Services.AddScoped<AccountTokenService>();
+builder.Services.AddHttpClient<AccountEmailService>(client =>
+{
+    // Bound external email calls so a provider outage cannot hold an API request indefinitely.
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<AccountLinkService>();
+builder.Services.AddScoped<ProtectedSettingService>();
+builder.Services.AddSingleton<CompetitionAssetStorage>();
+builder.Services.AddScoped<AuditLogService>();
+// Daily audit-email generation is disabled to reduce background server workload; on-demand audit export remains available.
 builder.Services.AddDbContext<StackMeetDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StackMeet")));
 builder.WebHost.ConfigureKestrel(options =>
@@ -88,6 +102,8 @@ app.Use(async (context, next) =>
 });
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseCors("StackMeetApiCors");
@@ -104,10 +120,29 @@ app.Use(async (context, next) =>
             return;
         }
 
+        var adminTokenService = context.RequestServices.GetRequiredService<SessionTokenService>();
+        var adminBearerToken = BearerToken(context.Request.Headers.Authorization.FirstOrDefault());
+        if (adminTokenService.TryValidate(adminBearerToken, out var adminSession)
+            && adminSession.IsAccountSession)
+        {
+            var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
+            if (!await AccountSessionIsCurrent(adminSession, database, context.RequestAborted)
+                || !adminSession.IsSystemAdmin)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new { error = "Login session is no longer valid. Sign in again." });
+                return;
+            }
+
+            context.Items["StackMeetSession"] = adminSession;
+            await next();
+            return;
+        }
+
         context.Response.StatusCode = string.IsNullOrWhiteSpace(configuredAdminKey)
             ? StatusCodes.Status503ServiceUnavailable
             : StatusCodes.Status401Unauthorized;
-        await context.Response.WriteAsJsonAsync(new { error = string.IsNullOrWhiteSpace(configuredAdminKey) ? "Admin security is not configured." : "Valid admin authorization required." });
+        await context.Response.WriteAsJsonAsync(new { error = string.IsNullOrWhiteSpace(configuredAdminKey) ? "Admin security is not configured." : "Valid admin key or system admin login required." });
         return;
     }
 
@@ -131,6 +166,15 @@ app.Use(async (context, next) =>
     if (tokenService.TryValidate(bearerToken, out var session))
     {
         var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
+
+        if (session.IsAccountSession
+            && !await AccountSessionIsCurrent(session, database, context.RequestAborted))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Login session is no longer valid. Sign in again." });
+            return;
+        }
+
         if (!await SessionCanAccessPath(session, path, database, context.RequestAborted))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -140,6 +184,7 @@ app.Use(async (context, next) =>
 
         var statusRestriction = await CompetitionStatusRestriction(
             session,
+            path,
             context.Request.Method,
             database,
             context.RequestAborted);
@@ -166,13 +211,10 @@ app.Use(async (context, next) =>
     await context.Response.WriteAsJsonAsync(new { error = "Valid API key or login session required." });
 });
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<ResultsHub>("/hubs/results");
 app.MapGet("/{competitionId}/Results", ResultsPortal);
 app.MapGet("/{competitionId}/Results/{**section}", ResultsPortal);
-
 if (app.Environment.IsDevelopment())
 {
     app.MapGet("/debug", (IWebHostEnvironment env) => Results.Json(new
@@ -200,6 +242,9 @@ static bool RequiresApiAuth(PathString path)
         && !path.StartsWithSegments("/api/health")
         && !path.StartsWithSegments("/api/version")
         && !path.StartsWithSegments("/api/auth/login")
+        && !path.StartsWithSegments("/api/auth/forgot-password")
+        && !path.StartsWithSegments("/api/auth/activate")
+        && !path.StartsWithSegments("/api/auth/reset-password")
         && !path.StartsWithSegments("/api/public");
 }
 
@@ -221,13 +266,20 @@ static string? BearerToken(string? authorization)
 
 static async Task<(int StatusCode, string Error)?> CompetitionStatusRestriction(
     SessionToken session,
+    PathString path,
     string method,
     StackMeetDbContext database,
     CancellationToken ct)
 {
+    var competitionKey = await RequestedCompetitionKey(session, path, database, ct);
+    if (competitionKey is null)
+    {
+        return null;
+    }
+
     var lifecycle = await database.Competitions
         .AsNoTracking()
-        .Where(item => item.CompetitionKey == session.CompetitionId)
+        .Where(item => item.CompetitionKey == competitionKey)
         .Select(item => new { item.Status, item.ArchivedAt })
         .SingleOrDefaultAsync(ct);
 
@@ -256,12 +308,45 @@ static bool IsWriteMethod(string method) =>
     && !HttpMethods.IsHead(method)
     && !HttpMethods.IsOptions(method);
 
+static async Task<bool> AccountSessionIsCurrent(
+    SessionToken session,
+    StackMeetDbContext database,
+    CancellationToken ct)
+{
+    if (!session.IsAccountSession
+        || session.UserId is null
+        || session.SessionVersion is null)
+    {
+        return false;
+    }
+
+    return await database.AppUsers
+        .AsNoTracking()
+        .AnyAsync(item =>
+            item.Id == session.UserId.Value
+            && item.IsActive
+            && item.SessionVersion == session.SessionVersion.Value
+            && item.IsSystemAdmin == session.IsSystemAdmin,
+            ct);
+}
+
 static async Task<bool> SessionCanAccessPath(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
 {
     if (path.StartsWithSegments("/api/state", out var stateRemaining))
     {
         var requestedCompetition = stateRemaining.Value?.Trim('/').Split('/')[0];
-        return string.Equals(requestedCompetition, session.CompetitionId, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(requestedCompetition)) return false;
+        if (!session.IsAccountSession)
+        {
+            return string.Equals(requestedCompetition, session.CompetitionId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
+            item.IsActive
+            && item.UserId == session.UserId
+            && item.User.IsActive
+            && item.Competition.CompetitionKey == requestedCompetition,
+            ct);
     }
 
     if (path.StartsWithSegments("/api/competitions", out var competitionRemaining))
@@ -269,9 +354,49 @@ static async Task<bool> SessionCanAccessPath(SessionToken session, PathString pa
         var firstSegment = competitionRemaining.Value?.Trim('/').Split('/')[0];
         if (int.TryParse(firstSegment, out var competitionId))
         {
-            return await database.Competitions.AsNoTracking().AnyAsync(item => item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
+            if (!session.IsAccountSession)
+            {
+                return await database.Competitions.AsNoTracking().AnyAsync(item => item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
+            }
+
+            return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
+                item.IsActive
+                && item.UserId == session.UserId
+                && item.User.IsActive
+                && item.CompetitionId == competitionId,
+                ct);
         }
     }
 
     return true;
+}
+
+// Resolves the competition key affected by the current request so account sessions can reuse
+// the existing competition lifecycle restrictions during the auth migration.
+static async Task<string?> RequestedCompetitionKey(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
+{
+    if (!session.IsAccountSession && !string.IsNullOrWhiteSpace(session.CompetitionId))
+    {
+        return session.CompetitionId;
+    }
+
+    if (path.StartsWithSegments("/api/state", out var stateRemaining))
+    {
+        return stateRemaining.Value?.Trim('/').Split('/')[0];
+    }
+
+    if (path.StartsWithSegments("/api/competitions", out var competitionRemaining))
+    {
+        var firstSegment = competitionRemaining.Value?.Trim('/').Split('/')[0];
+        if (int.TryParse(firstSegment, out var competitionId))
+        {
+            return await database.Competitions
+                .AsNoTracking()
+                .Where(item => item.Id == competitionId)
+                .Select(item => item.CompetitionKey)
+                .SingleOrDefaultAsync(ct);
+        }
+    }
+
+    return null;
 }
