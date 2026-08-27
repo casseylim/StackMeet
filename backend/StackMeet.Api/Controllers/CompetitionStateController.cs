@@ -67,6 +67,19 @@ public sealed class CompetitionStateController(
             return BadRequest(new { error = validationError });
         }
 
+        var referencedCodes = ExtractReferencedCodes(jsonData, out validationError);
+        if (validationError is not null) return BadRequest(new { error = validationError });
+        var competitionId = await database.Competitions.Where(item => item.CompetitionKey == normalizedKey).Select(item => (int?)item.Id).SingleOrDefaultAsync(cancellationToken);
+        if (competitionId is null) return NotFound();
+        foreach (var chunk in referencedCodes.Chunk(500))
+        {
+            var existing = await database.Stackers.AsNoTracking()
+                .Where(item => item.CompetitionId == competitionId && chunk.Contains(item.StackerCode))
+                .Select(item => item.StackerCode).ToListAsync(cancellationToken);
+            if (existing.Count != chunk.Length)
+                return BadRequest(new { error = "Competition state contains a participant reference that does not belong to this competition." });
+        }
+
         var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
         var changedAt = DateTime.UtcNow;
         long committedRevision;
@@ -188,5 +201,12 @@ public sealed class CompetitionStateController(
         {
             return "Competition state contains malformed JSON.";
         }
+    }
+
+    static IReadOnlySet<string> ExtractReferencedCodes(string jsonData, out string? error)
+    {
+        error = null;
+        try { return new CompetitionParticipantReferenceService().ExtractReferencedCodes(jsonData); }
+        catch (JsonException) { error = "Competition state contains malformed JSON."; return new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
     }
 }

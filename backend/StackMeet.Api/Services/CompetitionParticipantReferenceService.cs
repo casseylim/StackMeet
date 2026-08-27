@@ -28,6 +28,22 @@ public sealed class CompetitionParticipantReferenceService
         }
     }
 
+    public IReadOnlySet<string> ExtractReferencedCodes(string? json)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(json)) return result;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            Collect(document.RootElement, result);
+            return result;
+        }
+        catch (JsonException)
+        {
+            throw;
+        }
+    }
+
     static bool Visit(JsonElement element, string code)
     {
         if (element.ValueKind == JsonValueKind.Object)
@@ -46,6 +62,35 @@ public sealed class CompetitionParticipantReferenceService
         }
 
         return false;
+    }
+
+    static void Collect(JsonElement element, HashSet<string> result)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (ReferenceFields.Contains(property.Name)) AddValues(property.Value, result);
+                Collect(property.Value, result);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in element.EnumerateArray()) Collect(child, result);
+        }
+    }
+
+    static void AddValues(JsonElement element, HashSet<string> result)
+    {
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var value = element.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(value)) result.Add(value);
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in element.EnumerateArray()) AddValues(child, result);
+        }
     }
 
     static bool ContainsReferenceValue(JsonElement element, string code)
