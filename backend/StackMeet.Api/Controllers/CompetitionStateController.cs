@@ -138,7 +138,7 @@ public sealed class CompetitionStateController(
                 ? !CompetitionPermissionService.CanManageCompetition(role)
                 : !CompetitionPermissionService.CanViewCompetition(role)))
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         return null;
