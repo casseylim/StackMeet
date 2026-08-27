@@ -302,10 +302,11 @@ public sealed class CompetitionAdminController(
 
         var competition = await database.Competitions.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (competition is null) return NotFound();
-        if (await database.Stackers.AnyAsync(item => item.CompetitionId == competition.Id, ct))
-        {
-            return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
-        }
+        if (await database.Stackers.AnyAsync(item => item.CompetitionId == competition.Id, ct) ||
+            await database.CompetitionResults.AnyAsync(item => item.CompetitionId == competition.Id, ct) ||
+            await database.CompetitionAssets.AnyAsync(item => item.CompetitionId == competition.Id, ct) ||
+            await database.CompetitionUsers.AnyAsync(item => item.CompetitionId == competition.Id, ct))
+            return Conflict(new { error = "Competition cannot be deleted while durable participant, result, asset or access data exists." });
 
         var state = await database.CompetitionStates.SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
         if (state is not null && StateContainsCompetitionData(state.JsonData))
@@ -337,19 +338,25 @@ public sealed class CompetitionAdminController(
         if (request.Confirmation != $"RESET {normalizedKey}") return BadRequest(new { error = $"Confirmation must be RESET {normalizedKey}." });
         if (normalizedKey == "DEFAULT") return BadRequest(new { error = "DEFAULT state reset is blocked in Phase 1." });
 
-        var competition = await database.Competitions.AsNoTracking().SingleOrDefaultAsync(item => item.CompetitionKey == normalizedKey, ct);
-        if (competition is null) return NotFound();
-
         var changedAt = DateTime.UtcNow;
         long committedRevision;
+        long committedResultsRevision;
         await using (var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct))
         {
+            var competition = await database.Competitions.FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}").SingleOrDefaultAsync(ct);
+            if (competition is null) return NotFound();
             var state = await database.CompetitionStates
                 .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
                 .SingleOrDefaultAsync(ct);
             if (state is null) return NotFound();
 
-            var before = new { state.CompetitionKey, state.SchemaVersion, state.StateRevision, state.UpdatedAt, state.UpdatedBy, request.ResultsOnly };
+            var previousResultsRevision = competition.ResultsRevision;
+            var previousStateRevision = state.StateRevision;
+            var results = await database.CompetitionResults.Where(item => item.CompetitionId == competition.Id).ToListAsync(ct);
+            database.CompetitionResults.RemoveRange(results);
+            competition.ResultsRevision++;
+            committedResultsRevision = competition.ResultsRevision;
+            var before = new { state.CompetitionKey, state.SchemaVersion, previousStateRevision, state.UpdatedAt, state.UpdatedBy, previousResultsRevision, deletedResultCount = results.Count, request.ResultsOnly };
             state.JsonData = request.ResultsOnly
                 ? CompetitionStateResetService.ResetResultsOnly(state.JsonData)
                 : EmptyCompetitionStateFactory.Create(normalizedKey, competition.CompetitionName, competition.StartDate, competition.EndDate);
@@ -365,7 +372,7 @@ public sealed class CompetitionAdminController(
                 ActorUserId(),
                 competition.Id,
                 before,
-                new { state.CompetitionKey, state.SchemaVersion, state.StateRevision, state.UpdatedAt, state.UpdatedBy, request.ResultsOnly },
+                new { state.CompetitionKey, state.SchemaVersion, state.StateRevision, state.UpdatedAt, state.UpdatedBy, previousResultsRevision, newResultsRevision = competition.ResultsRevision, previousStateRevision, newStateRevision = state.StateRevision, deletedResultCount = results.Count, request.ResultsOnly },
                 ct);
             await transaction.CommitAsync(ct);
         }
@@ -374,6 +381,9 @@ public sealed class CompetitionAdminController(
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
         try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit admin notification failed for competition {CompetitionKey}.", normalizedKey); }
+        var resultsChange = new { competitionKey = normalizedKey, revision = committedResultsRevision, scope = "results", type = "ResultsChanged", updatedAt = changedAt };
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsChanged", resultsChange, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionKey}.", normalizedKey); }
         return NoContent();
     }
 
