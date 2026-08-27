@@ -1,0 +1,11 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const state = fs.readFileSync(path.join(root, 'backend/StackMeet.Api/Controllers/CompetitionStateController.cs'), 'utf8');
+const service = fs.readFileSync(path.join(root, 'backend/StackMeet.Api/Services/CompetitionParticipantReferenceService.cs'), 'utf8');
+const harness = fs.readFileSync(path.join(root, 'tests/CoreIntegrityIntegrationTests/Program.cs'), 'utf8');
+for (const value of ['ExtractReferencedCodes', 'competitionId', '.Chunk(500)', 'participant reference that does not belong']) if (!state.includes(value)) throw new Error(`missing state validation guard: ${value}`);
+for (const value of ['stackerOneId', 'stackerTwoId', 'childStackerId', 'parentStackerId', 'selectedQualifiers', 'participantIds', 'participantCodes', 'members']) if (!service.includes(`"${value}"`)) throw new Error(`missing reference field: ${value}`);
+if (service.includes('"parentName"')) throw new Error('external parentName must not be a reference field');
+for (const value of ['state participant references', 'external parentName ignored']) if (!harness.includes(value)) throw new Error(`missing Phase E harness scenario: ${value}`);
+console.log('core-integrity-v2 phase E static guards passed');

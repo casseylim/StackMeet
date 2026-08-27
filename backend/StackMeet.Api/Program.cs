@@ -64,6 +64,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
 builder.Services.AddScoped<CompetitionPermissionService>();
+builder.Services.AddScoped<CompetitionParticipantReferenceService>();
 builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddHttpClient<AccountEmailService>(client =>
 {

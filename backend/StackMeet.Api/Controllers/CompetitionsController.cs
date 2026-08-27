@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
 using StackMeet.Api.Models;
@@ -72,9 +73,8 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
         var value = Normalize(request);
         var item=await database.Competitions.SingleOrDefaultAsync(x=>x.Id==id,ct);
         if(item is null)return NotFound();
-        if(await database.Competitions.AnyAsync(x=>x.Id!=id&&(x.CompetitionCode==value.CompetitionCode || x.CompetitionKey == value.CompetitionCode),ct))return Conflict(new { error="CompetitionCode already exists."});
+        if(await database.Competitions.AnyAsync(x=>x.Id!=id&&x.CompetitionCode==value.CompetitionCode,ct))return Conflict(new { error="CompetitionCode already exists."});
         item.CompetitionCode=value.CompetitionCode;
-        item.CompetitionKey=value.CompetitionCode;
         item.CompetitionName=value.CompetitionName;
         item.Venue=value.Venue;
         item.StartDate=value.StartDate;
@@ -92,7 +92,13 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
         if (!IsMaintenanceRequest()) return StatusCode(StatusCodes.Status403Forbidden);
         var item=await database.Competitions.SingleOrDefaultAsync(x=>x.Id==id,ct);
         if(item is null)return NotFound();
-        if (await database.Stackers.AnyAsync(x => x.CompetitionId == id, ct)) return Conflict(new { error = "Competition cannot be deleted while it has stackers." });
+        var state = await database.CompetitionStates.AsNoTracking().SingleOrDefaultAsync(x => x.CompetitionKey == item.CompetitionKey, ct);
+        if (item.CompetitionKey.Equals("DEFAULT", StringComparison.OrdinalIgnoreCase) ||
+            await database.Stackers.AnyAsync(x => x.CompetitionId == id, ct) ||
+            await database.CompetitionResults.AnyAsync(x => x.CompetitionId == id, ct) ||
+            await database.CompetitionAssets.AnyAsync(x => x.CompetitionId == id, ct) ||
+            await database.CompetitionUsers.AnyAsync(x => x.CompetitionId == id, ct) ||
+            StateHasMeaningfulData(state?.JsonData)) return Conflict(new { error = "Competition cannot be deleted while durable participant, result, asset or access data exists." });
         database.Competitions.Remove(item);
         await database.SaveChangesAsync(ct);
         return NoContent();
@@ -103,4 +109,10 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
     static CompetitionRequest Normalize(CompetitionRequest x) => x with { CompetitionCode = CompetitionKeyRules.Normalize(x.CompetitionCode), CompetitionName = x.CompetitionName.Trim(), Venue = x.Venue.Trim(), Status = NormalizeStatus(x.Status)! };
     static string? NormalizeStatus(string? status) => status?.Trim().ToUpperInvariant() switch { "ACTIVE" => "Active", "CLOSED" => "Closed", "ARCHIVED" => "Archived", "DRAFT" => "Draft", _ => null };
     static CompetitionResponse Map(Competition x)=>new(x.Id,x.CompetitionCode,x.CompetitionName,x.Venue,x.StartDate,x.EndDate,x.Status,x.IsPubliclyListed,x.CreatedAt,x.UpdatedAt);
+    static bool StateHasMeaningfulData(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try { using var doc = JsonDocument.Parse(json); foreach (var key in new[] { "stackers", "doubles", "relays", "finalQualificationSnapshots", "results" }) if (doc.RootElement.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Array && value.GetArrayLength() > 0) return true; return false; }
+        catch (JsonException) { return true; }
+    }
 }

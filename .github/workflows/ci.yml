@@ -45,6 +45,15 @@ jobs:
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
 
+      - name: Start LocalDB for core integrity harness
+        shell: pwsh
+        run: |
+          SqlLocalDB.exe start MSSQLLocalDB
+          SqlLocalDB.exe info MSSQLLocalDB
+
+      - name: Run CoreIntegrity LocalDB integration tests
+        run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
+
       - name: Check canonical authentication and storage scripts
         run: |
           node --check backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js
@@ -55,6 +64,12 @@ jobs:
 
       - name: Run storage smoke tests
         run: node backend/StackMeet.Api/wwwroot/js/storage/storage-smoke.test.js
+
+      - name: Run core integrity Phase C static guards
+        run: node tests/core-integrity-v2-phase-c.static.test.js
+
+      - name: Run core integrity Phase D static guards
+        run: node tests/core-integrity-v2-phase-d.static.test.js
 
       - name: Run complete JavaScript regression suite
         shell: pwsh

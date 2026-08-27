@@ -15,7 +15,8 @@ namespace StackMeet.Api.Controllers;
 public sealed class CompetitionStateController(
     StackMeetDbContext database,
     IHubContext<ResultsHub> resultsHub,
-    CompetitionPermissionService permissions) : ControllerBase
+    CompetitionPermissionService permissions,
+    ILogger<CompetitionStateController> logger) : ControllerBase
 {
     [HttpGet("{competitionKey}")]
     public async Task<IActionResult> Get(string competitionKey, CancellationToken cancellationToken)
@@ -64,6 +65,19 @@ public sealed class CompetitionStateController(
         if (validationError is not null)
         {
             return BadRequest(new { error = validationError });
+        }
+
+        var referencedCodes = ExtractReferencedCodes(jsonData, out validationError);
+        if (validationError is not null) return BadRequest(new { error = validationError });
+        var competitionId = await database.Competitions.Where(item => item.CompetitionKey == normalizedKey).Select(item => (int?)item.Id).SingleOrDefaultAsync(cancellationToken);
+        if (competitionId is null) return NotFound();
+        foreach (var chunk in referencedCodes.Chunk(500))
+        {
+            var existing = await database.Stackers.AsNoTracking()
+                .Where(item => item.CompetitionId == competitionId && chunk.Contains(item.StackerCode))
+                .Select(item => item.StackerCode).ToListAsync(cancellationToken);
+            if (existing.Count != chunk.Length)
+                return BadRequest(new { error = "Competition state contains a participant reference that does not belong to this competition." });
         }
 
         var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
@@ -116,7 +130,8 @@ public sealed class CompetitionStateController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, cancellationToken);
+        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        catch (Exception ex) { logger.LogWarning(ex, "Post-commit state notification failed for competition {CompetitionKey}.", normalizedKey); }
 
 
         return NoContent();
@@ -186,5 +201,12 @@ public sealed class CompetitionStateController(
         {
             return "Competition state contains malformed JSON.";
         }
+    }
+
+    static IReadOnlySet<string> ExtractReferencedCodes(string jsonData, out string? error)
+    {
+        error = null;
+        try { return new CompetitionParticipantReferenceService().ExtractReferencedCodes(jsonData); }
+        catch (JsonException) { error = "Competition state contains malformed JSON."; return new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
     }
 }

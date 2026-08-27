@@ -1,0 +1,14 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+const rules = read('backend/StackMeet.Api/Services/CompetitionResultRules.cs');
+const results = read('backend/StackMeet.Api/Controllers/CompetitionResultsController.cs');
+const stackers = read('backend/StackMeet.Api/Controllers/StackersController.cs');
+const ci = read('.github/workflows/ci.yml');
+for (const value of ['Prelims','Finals','Individual','Doubles','Timed Relay','3-3-3','3-6-3','Cycle']) if (!rules.includes(`"${value}"`)) throw new Error(`missing canonical result value: ${value}`);
+for (const value of ['MaximumBatchSize = 500','ValidateIdentity','ValidateAttempts','NormalizeStage','NormalizeParticipantType','NormalizeEvent']) if (!rules.includes(value)) throw new Error(`missing result rule: ${value}`);
+for (const value of ['StatusCodes.Status413PayloadTooLarge','CompetitionResultRules.ValidateIdentity','CompetitionResultRules.ValidateAttempts','DbUpdateException','Individual result participant must belong to this competition']) if (!results.includes(value)) throw new Error(`missing API enforcement: ${value}`);
+for (const value of ['("StackerCode", x.StackerCode, 50)','("First name", x.FirstName, 100)','("Last name", x.LastName, 100)','StackerCode cannot be changed']) if (!stackers.includes(value)) throw new Error(`missing stacker enforcement: ${value}`);
+if (!ci.includes('dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj')) throw new Error('LocalDB integration harness is not enforced by CI');
+console.log('core-integrity-v2 phase C static guards passed');

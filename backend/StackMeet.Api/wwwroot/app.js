@@ -1021,6 +1021,9 @@ function sqlStackerToRuntime(record) {
   const stacker = {
     sqlId: record.id,
     id: record.stackerCode,
+    wssaId: record.wssaId || "",
+    firstName: record.firstName || "",
+    lastName: record.lastName || "",
     name,
     gender: String(record.gender || "M").toUpperCase().startsWith("F") ? "F" : "M",
     dob: record.birthDate || "",
@@ -1042,9 +1045,9 @@ function sqlStackerToRuntime(record) {
 function runtimeStackerToSql(stacker) {
   return {
     stackerCode: stacker.id,
-    wssaId: null,
-    firstName: stacker.name,
-    lastName: "-",
+    wssaId: stacker.wssaId || null,
+    firstName: stacker.firstName || "",
+    lastName: stacker.lastName || "",
     gender: stacker.gender,
     birthDate: stacker.dob || null,
     country: stacker.country,
@@ -5577,7 +5580,9 @@ function parseCsv(text) {
 }
 
 async function addStacker() {
-  const name = val("stName").trim();
+  const firstName = val("stFirstName").trim();
+  const lastName = val("stLastName").trim();
+  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   if (!name) {
     flashMessage = { type: "error", text: "Please enter the stacker name first." };
     return;
@@ -5595,6 +5600,9 @@ async function addStacker() {
 
   const stacker = {
     id,
+    wssaId: val("stWssaId").trim(),
+    firstName,
+    lastName,
     name,
     gender: val("stGender"),
     dob: normalizedDateValue(val("stDob")) || val("stDob"),
@@ -5662,7 +5670,9 @@ function loadStackerForEdit(id) {
   const showFormButton = document.getElementById("showStackerFormBtn");
   if (showFormButton) showFormButton.hidden = true;
   stackerDoubleEditorOpen = false;
-  setValue("stName", stacker.name);
+  setValue("stFirstName", stacker.firstName || stacker.name || "");
+  setValue("stLastName", stacker.lastName || "");
+  setValue("stWssaId", stacker.wssaId || "");
   setValue("stGender", stacker.gender || "M");
   setValue("stDob", normalizedDateValue(stacker.dob) || stacker.dob || "");
   setValue("stAge", ageOnCompetitionDate(stacker.dob, state.settings.start) || stacker.age || "");
@@ -5678,7 +5688,7 @@ function loadStackerForEdit(id) {
   setValue("stCheckedIn", stacker.checkedIn || "No");
   updateStackerDivisionPreview();
   syncStackerEditState();
-  document.getElementById("stName")?.focus();
+  document.getElementById("stFirstName")?.focus();
 }
 
 function showStackerForm() {
@@ -5689,13 +5699,13 @@ function showStackerForm() {
   const showFormButton = document.getElementById("showStackerFormBtn");
   if (showFormButton) showFormButton.hidden = true;
   syncStackerEditState();
-  document.getElementById("stName")?.focus();
+  document.getElementById("stFirstName")?.focus();
 }
 
 function clearStackerForm(hideAfterClear = true) {
   editingStackerId = "";
   stackerDoubleEditorOpen = false;
-  ["stName", "stDob", "stAge", "stDivision", "stCustomDivision", "stOrg", "stRegion", "stEmail", "stPhone"].forEach(id => setValue(id, ""));
+  ["stFirstName", "stLastName", "stWssaId", "stDob", "stAge", "stDivision", "stCustomDivision", "stOrg", "stRegion", "stEmail", "stPhone"].forEach(id => setValue(id, ""));
   setValue("stGender", "M");
   setValue("stCountry", "Malaysia");
   setValue("stPaid", "Yes");

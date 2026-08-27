@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
@@ -221,8 +222,12 @@ public sealed class AdminUsersController(
     {
         if (string.IsNullOrWhiteSpace(request.DisplayName)) return BadRequest(new { error = "Display name is required." });
 
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var user = await database.AppUsers.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (user is null) return NotFound();
+
+        if (user.IsActive && user.IsSystemAdmin && (!request.IsActive || !request.IsSystemAdmin) && await database.AppUsers.CountAsync(item => item.IsActive && item.IsSystemAdmin, ct) <= 1)
+            return Conflict(new { error = "At least one active global system administrator must remain." });
 
         var before = new { user.DisplayName, user.IsActive, user.IsSystemAdmin, user.EmailConfirmed };
         user.DisplayName = request.DisplayName.Trim();
@@ -230,6 +235,7 @@ public sealed class AdminUsersController(
         user.IsSystemAdmin = request.IsSystemAdmin;
         user.EmailConfirmed = request.EmailConfirmed;
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         await auditLogs.Write(
             "admin.user.updated",
             "AppUser",
@@ -282,6 +288,7 @@ public sealed class AdminUsersController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, AdminDeleteUserRequest request, CancellationToken ct)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var user = await database.AppUsers
             .Include(item => item.CompetitionUsers)
             .Include(item => item.Tokens)
@@ -294,9 +301,9 @@ public sealed class AdminUsersController(
             return BadRequest(new { error = $"Type {expectedConfirmation} to confirm deletion." });
         }
 
-        if (user.IsSystemAdmin)
+        if (user.IsActive && user.IsSystemAdmin)
         {
-            var remainingAdminCount = await database.AppUsers.CountAsync(item => item.IsSystemAdmin && item.Id != id, ct);
+            var remainingAdminCount = await database.AppUsers.CountAsync(item => item.IsActive && item.IsSystemAdmin && item.Id != id, ct);
             if (remainingAdminCount == 0)
             {
                 return BadRequest(new { error = "At least one global system admin must remain." });
@@ -330,6 +337,7 @@ public sealed class AdminUsersController(
         database.AppUserTokens.RemoveRange(user.Tokens);
         database.AppUsers.Remove(user);
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         await auditLogs.Write(
             "admin.user.deleted",
             "AppUser",

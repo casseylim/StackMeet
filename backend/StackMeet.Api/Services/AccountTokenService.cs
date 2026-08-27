@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Models;
@@ -36,12 +37,10 @@ public sealed class AccountTokenService(StackMeetDbContext database)
     public async Task<string> CreateToken(int userId, string purpose, TimeSpan lifetime, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
-        var existing = await database.AppUserTokens
-            .Where(item => item.UserId == userId && item.Purpose == purpose && item.UsedAt == null)
-            .ToListAsync(ct);
-        foreach (var token in existing) token.UsedAt = now;
-
         var rawToken = Base64Url(RandomNumberGenerator.GetBytes(32));
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var existing = await database.AppUserTokens.Where(item => item.UserId == userId && item.Purpose == purpose && item.UsedAt == null).ToListAsync(ct);
+        foreach (var token in existing) token.UsedAt = now;
         database.AppUserTokens.Add(new AppUserToken
         {
             UserId = userId,
@@ -51,6 +50,7 @@ public sealed class AccountTokenService(StackMeetDbContext database)
             ExpiresAt = now.Add(lifetime)
         });
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return rawToken;
     }
 
@@ -78,18 +78,15 @@ public sealed class AccountTokenService(StackMeetDbContext database)
 
         var hash = Hash(rawToken);
         var now = DateTime.UtcNow;
-        var token = await database.AppUserTokens
-            .SingleOrDefaultAsync(item =>
+        var token = await database.AppUserTokens.AsNoTracking().SingleOrDefaultAsync(item =>
                 item.TokenHash == hash
                 && item.Purpose == purpose,
                 ct);
         if (token is null) return new ConsumeTokenResult(null, ConsumeTokenFailure.Invalid);
         if (token.UsedAt is not null) return new ConsumeTokenResult(null, ConsumeTokenFailure.Used);
         if (token.ExpiresAt <= now) return new ConsumeTokenResult(null, ConsumeTokenFailure.Expired);
-
-        token.UsedAt = now;
-        await database.SaveChangesAsync(ct);
-        return new ConsumeTokenResult(token.UserId, null);
+        var claimed = await database.AppUserTokens.Where(item => item.TokenHash == hash && item.Purpose == purpose && item.UsedAt == null && item.ExpiresAt > now).ExecuteUpdateAsync(update => update.SetProperty(item => item.UsedAt, now), ct);
+        return claimed == 1 ? new ConsumeTokenResult(token.UserId, null) : new ConsumeTokenResult(null, ConsumeTokenFailure.Used);
     }
 
     /// <summary>

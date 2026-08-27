@@ -9,7 +9,7 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/stackers")]
-public sealed class StackersController(StackMeetDbContext database, CompetitionPermissionService permissions) : ControllerBase
+public sealed class StackersController(StackMeetDbContext database, CompetitionPermissionService permissions, CompetitionParticipantReferenceService references) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StackerResponse>>> List(int competitionId, CancellationToken ct)
@@ -36,7 +36,7 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
     {
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
-        if (!Valid(request)) return BadRequest();
+        var validation = Validate(request); if (validation is not null) return BadRequest(new { error = validation });
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var value = Normalize(request);
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == competitionId && x.StackerCode == value.StackerCode, ct)) return Conflict(new { error = "StackerCode already exists for this competition." });
@@ -52,11 +52,12 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
     {
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
-        if (!Valid(request)) return BadRequest();
+        var validation = Validate(request); if (validation is not null) return BadRequest(new { error = validation });
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var value = Normalize(request);
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
+        if (!string.Equals(value.StackerCode, item.StackerCode, StringComparison.Ordinal)) return Conflict(new { error = "StackerCode cannot be changed after participant creation." });
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == competitionId && x.Id != id && x.StackerCode == value.StackerCode, ct)) return Conflict(new { error = "StackerCode already exists for this competition." });
         item.StackerCode = value.StackerCode; item.WssaId = value.WssaId; item.FirstName = value.FirstName; item.LastName = value.LastName; item.Gender = value.Gender; item.BirthDate = value.BirthDate; item.Country = value.Country; item.Club = value.Club; item.Region = value.Region; item.Email = value.Email; item.Phone = value.Phone; item.CustomDivision = value.CustomDivision; item.Paid = value.Paid!; item.CheckedIn = value.CheckedIn!; item.IsSpecialStacker = value.IsSpecialStacker; item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
@@ -71,6 +72,10 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         if (!await CompetitionExists(competitionId, ct)) return NotFound();
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
+        if (await database.CompetitionResults.AnyAsync(x => x.CompetitionId == competitionId && x.ParticipantCode == item.StackerCode, ct)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
+        var key = await database.Competitions.Where(x => x.Id == competitionId).Select(x => x.CompetitionKey).SingleAsync(ct);
+        var state = await database.CompetitionStates.AsNoTracking().SingleOrDefaultAsync(x => x.CompetitionKey == key, ct);
+        if (state is not null && references.ContainsParticipant(state.JsonData, item.StackerCode)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
         database.Stackers.Remove(item);
         await database.SaveChangesAsync(ct);
         return NoContent();
@@ -98,7 +103,17 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
     }
 
     Task<bool> CompetitionExists(int competitionId, CancellationToken ct) => database.Competitions.AnyAsync(x => x.Id == competitionId, ct);
-    static bool Valid(StackerRequest x) => !string.IsNullOrWhiteSpace(x.StackerCode) && !string.IsNullOrWhiteSpace(x.FirstName) && !string.IsNullOrWhiteSpace(x.LastName) && !string.IsNullOrWhiteSpace(x.Gender) && !string.IsNullOrWhiteSpace(x.Country);
+    static string? Validate(StackerRequest x)
+    {
+        if (string.IsNullOrWhiteSpace(x.StackerCode)) return "StackerCode is required.";
+        if (string.IsNullOrWhiteSpace(x.FirstName)) return "First name is required.";
+        if (string.IsNullOrWhiteSpace(x.LastName)) return "Last name is required.";
+        if (string.IsNullOrWhiteSpace(x.Gender)) return "Gender is required.";
+        if (string.IsNullOrWhiteSpace(x.Country)) return "Country is required.";
+        var lengths = new (string Name, string? Value, int Max)[] { ("StackerCode", x.StackerCode, 50), ("WssaId", x.WssaId, 50), ("First name", x.FirstName, 100), ("Last name", x.LastName, 100), ("Gender", x.Gender, 20), ("Country", x.Country, 100), ("Club", x.Club, 200), ("Region", x.Region, 100), ("Email", x.Email, 200), ("Phone", x.Phone, 50), ("Custom division", x.CustomDivision, 100), ("Paid", x.Paid, 10), ("CheckedIn", x.CheckedIn, 10) };
+        var oversized = lengths.FirstOrDefault(item => item.Value?.Length > item.Max);
+        return oversized.Value is null ? null : $"{oversized.Name} must be {oversized.Max} characters or fewer.";
+    }
     static StackerRequest Normalize(StackerRequest x) => x with { StackerCode = x.StackerCode.Trim(), WssaId = TrimOrNull(x.WssaId), FirstName = x.FirstName.Trim(), LastName = x.LastName.Trim(), Gender = x.Gender.Trim(), Country = x.Country.Trim(), Club = TrimOrNull(x.Club), Region = TrimOrNull(x.Region), Email = TrimOrNull(x.Email), Phone = TrimOrNull(x.Phone), CustomDivision = TrimOrNull(x.CustomDivision), Paid = string.IsNullOrWhiteSpace(x.Paid) ? "No" : x.Paid.Trim(), CheckedIn = string.IsNullOrWhiteSpace(x.CheckedIn) ? "No" : x.CheckedIn.Trim() };
     static string? TrimOrNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     static StackerResponse Map(Stacker x) => new(x.Id, x.CompetitionId, x.StackerCode, x.WssaId, x.FirstName, x.LastName, x.Gender, x.BirthDate, x.Country, x.Club, x.Region, x.Email, x.Phone, x.CustomDivision, x.Paid, x.CheckedIn, x.IsSpecialStacker, x.CreatedAt, x.UpdatedAt);
