@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
@@ -32,12 +33,17 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
     {
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
-        if (request is null || request.Upserts is null || request.Deletes is null || request.Upserts.Length + request.Deletes.Length == 0) return BadRequest(new { error = "At least one result change is required." });
-        if (request.Upserts.Any(x => !Valid(x.Stage, x.Type, x.Participant, x.Event, x.Attempts)) || request.Deletes.Any(x => !Valid(x.Stage, x.Type, x.Participant, x.Event, []))) return BadRequest(new { error = "Invalid result identity or attempts." });
+        if (!CompetitionResultValidator.TryNormalize(request, out var normalizedRequest, out var validationError)) return BadRequest(new { error = validationError });
+        request = normalizedRequest;
+
         await using var transaction = await database.Database.BeginTransactionAsync(ct);
         var competition = await database.Competitions.FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {competitionId}").SingleOrDefaultAsync(ct);
         if (competition is null) return NotFound();
         if (competition.Status is "Closed" or "Archived" || competition.ArchivedAt is not null) return Conflict(new { error = "Results cannot be changed for a closed or archived competition." });
+
+        var participantError = await CompetitionResultValidator.ValidateUpsertParticipants(database, competition, request.Upserts, ct);
+        if (participantError is not null) return BadRequest(new { error = participantError });
+
         var keys = request.Upserts.Select(Key).Concat(request.Deletes.Select(Key)).ToArray();
         if (keys.Length != keys.Distinct(StringComparer.Ordinal).Count()) return BadRequest(new { error = "Duplicate logical result in batch." });
 
@@ -72,10 +78,10 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
                 row = new CompetitionResult
                 {
                     CompetitionId = competitionId,
-                    Stage = item.Stage.Trim(),
-                    ParticipantType = item.Type.Trim(),
-                    ParticipantCode = item.Participant.Trim(),
-                    EventCode = item.Event.Trim(),
+                    Stage = item.Stage,
+                    ParticipantType = item.Type,
+                    ParticipantCode = item.Participant,
+                    EventCode = item.Event,
                     CreatedAt = now
                 };
                 database.CompetitionResults.Add(row);
@@ -109,7 +115,16 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
             row.Revision = competition.ResultsRevision;
         }
 
-        await database.SaveChangesAsync(ct);
+        try
+        {
+            await database.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            await transaction.RollbackAsync(ct);
+            return Conflict(new { error = "A result with this identity already exists. Refresh the latest results and retry." });
+        }
+
         await transaction.CommitAsync(ct);
         try { await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionId}.", competitionId); }
@@ -125,7 +140,9 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         return null;
     }
 
-    static bool Valid(string stage, string type, string participant, string ev, decimal[] attempts) => !string.IsNullOrWhiteSpace(stage) && !string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(participant) && !string.IsNullOrWhiteSpace(ev) && attempts.All(x => x >= 0 && x <= 86400);
+    static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+        exception.InnerException is SqlException sql && sql.Number is 2601 or 2627;
+
     static string Key(ResultUpsertRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
     static string Key(ResultDeleteRequest x) => Key(x.Stage, x.Type, x.Participant, x.Event);
     static string Key(string a, string b, string c, string d) => string.Join("\u001f", a.Trim().ToUpperInvariant(), b.Trim().ToUpperInvariant(), c.Trim().ToUpperInvariant(), d.Trim().ToUpperInvariant());

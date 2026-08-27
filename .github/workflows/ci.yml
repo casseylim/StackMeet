@@ -70,3 +70,7 @@ jobs:
               exit $exitCode
             }
           }
+
+      - name: Run Phase C LocalDB core-integrity integration
+        shell: pwsh
+        run: ./tests/core-integrity-v2-phase-c.integration.ps1
