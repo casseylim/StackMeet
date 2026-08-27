@@ -10,7 +10,7 @@ const document = read(`${root}/Services/CertificateTemplateDocumentService.cs`);
 const projection = read(`${root}/Services/ParticipantCertificateProjectionService.cs`);
 const controller = read(`${root}/Controllers/CertificateTemplatesController.cs`);
 const permissions = read(`${root}/Services/CompetitionPermissionService.cs`);
-const migration = fs.readdirSync(`${root}/Migrations`).find(name => /CertificateTemplatesPhase1A\.cs$/.test(name));
+const migration = fs.readdirSync(`${root}/Migrations`).find(name => /CertificateTemplatesPhase1A_Hardened\.cs$/.test(name));
 
 assert.match(model, /class CertificateTemplate/);
 assert.match(context, /HasFilter\("\[IsActive\] = 1"\)/);
@@ -33,5 +33,5 @@ assert.match(controller, /HttpPost\("\{templateId:long\}\/preview"\)/);
 assert.match(projection, /pathByAge/);
 assert.match(projection, /pathByAge\[cutoff\] = "Combined"/);
 assert.match(permissions, /CanManageCertificates/);
-assert.ok(migration, "CertificateTemplatesPhase1A migration must exist.");
+assert.ok(migration, "CertificateTemplatesPhase1A_Hardened migration must exist.");
 console.log("Certificate template foundation static safety tests passed.");
