@@ -91,7 +91,7 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
                 ? !CompetitionPermissionService.CanManageCompetition(role)
                 : !CompetitionPermissionService.CanViewCompetition(role)))
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         return null;
