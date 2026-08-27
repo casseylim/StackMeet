@@ -76,6 +76,7 @@ builder.Services.AddSingleton<CompetitionAssetStorage>();
 builder.Services.AddSingleton<CertificateTemplateStorage>();
 builder.Services.AddSingleton<CertificateTemplateDocumentService>();
 builder.Services.AddScoped<ParticipantCertificateProjectionService>();
+builder.Services.AddScoped<CertificateGenerationService>();
 builder.Services.AddScoped<AuditLogService>();
 // Daily audit-email generation is disabled to reduce background server workload; on-demand audit export remains available.
 builder.Services.AddDbContext<StackMeetDbContext>(options =>

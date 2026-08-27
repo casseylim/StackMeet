@@ -13,13 +13,7 @@ public sealed class CertificateTemplateDocumentService
 {
     public const string Participation = "Participation";
     public const string DocxContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    public static readonly IReadOnlySet<string> SupportedTags = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "NADI.Participant.Name", "NADI.Participant.Code", "NADI.Participant.Division", "NADI.Participant.Organization",
-        "NADI.Participant.Gender", "NADI.Participant.Country", "NADI.Participant.Region", "NADI.Competition.Name",
-        "NADI.Competition.Code", "NADI.Competition.StartDate", "NADI.Competition.EndDate", "NADI.Competition.Date",
-        "NADI.Competition.Venue", "NADI.Certificate.Number", "NADI.Certificate.IssueDate", "NADI.Certificate.VerificationCode"
-    };
+    public static readonly IReadOnlySet<string> SupportedTags = CertificatePlaceholderCatalogue.SupportedTags;
 
     public CertificateTemplateDocument Inspect(Stream input, string certificateType)
     {
