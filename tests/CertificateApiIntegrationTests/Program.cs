@@ -18,6 +18,7 @@ using StackMeet.Api.Services;
 
 const string server = @"(localdb)\MSSQLLocalDB";
 var database = $"StackMeet_CertificateApiTest_{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+Console.WriteLine($"Isolated LocalDB database: {database}");
 var connection = $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True";
 var root = Path.Combine(Path.GetTempPath(), $"stackmeet-api-certificates-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
 var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["CertificateTemplatesPath"] = root, ["Security:SessionSigningKey"] = "local-test-only-key" }).Build();
