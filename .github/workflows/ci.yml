@@ -45,6 +45,12 @@ jobs:
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
 
+      - name: Start LocalDB for core integrity harness
+        shell: pwsh
+        run: |
+          SqlLocalDB.exe start MSSQLLocalDB
+          SqlLocalDB.exe info MSSQLLocalDB
+
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
 
