@@ -524,6 +524,8 @@ const repository = new CompetitionRepository();
 const SqlStackerApi = window.StackMeetStorage.StackerApi;
 const stackerApi = new SqlStackerApi();
 const competitionAssetApi = new (window.StackMeetStorage.CompetitionAssetApi || class { async list() { return []; } })();
+const certificateTemplateApi = new (window.StackMeetStorage.CertificateTemplateApi || class { async list() { return []; } })();
+const certificateCatalogue = window.StackMeetStorage.CertificateTemplateCatalogue || { types: [], placeholders: [] };
 const resultApi = new (window.StackMeetStorage.ResultApi || class { async list() { return { revision: 0, results: [] }; } async saveBatch() { throw new Error("SQL result API is unavailable."); } })();
 const CompetitionStateProvider = window.StackMeetStorage.ApiProvider;
 const BestResultEngine = window.StackMeetBestResult || (() => {
@@ -1692,7 +1694,34 @@ function renderSettings() {
   `).join("");
   renderCompetitionAuditLogs();
   void refreshCompetitionBranding();
+  renderCertificateManagement();
 }
+
+function certificateManagerSession() {
+  const session = window.StackMeetAuth?.readSession?.() || {};
+  const role = String(session.selectedCompetitionRole || "").toLowerCase().replace(/\s+/g, "");
+  return Boolean(session.isSystemAdmin || role === "competitionmanager" || role === "systemadmin" || role === "globaladmin");
+}
+function renderCertificateManagement() {
+  const panel = document.getElementById("certificateManagementPanel"); if (!panel) return;
+  const allowed = certificateManagerSession() && Number(selectedSqlCompetitionId) > 0; panel.hidden = !allowed; if (!allowed) return;
+  document.getElementById("certificateTemplateType").innerHTML = certificateCatalogue.types.map(item => `<option value="${esc(item.value)}" ${item.supported ? "" : "disabled"}>${esc(item.label)}${item.supported ? "" : " (not available in current backend)"}</option>`).join("");
+  document.getElementById("certificateRoleBadge").textContent = "Manager/Admin only";
+  document.getElementById("certificatePlaceholderCatalogue").innerHTML = certificateCatalogue.placeholders.map(item => `<span class="tag-row"><strong>${esc(item)}</strong></span>`).join("");
+  void loadCertificateTemplates(); void loadCertificateRecipients();
+}
+async function loadCertificateTemplates() {
+  const rows = document.getElementById("certificateTemplateRows"); if (!rows) return;
+  try { const templates = await certificateTemplateApi.list(selectedSqlCompetitionId); rows.innerHTML = (templates || []).map(item => `<tr><td>${esc(item.certificateType)}</td><td>${esc(item.templateVersion)}</td><td>${esc(item.originalFileName || item.name)}</td><td>${esc(formatCertificateSize(item.fileSize))}</td><td><code>${esc(item.sha256 || "—")}</code></td><td><span class="pill ${item.isActive ? "success" : ""}">${item.isActive ? "Active" : "Previous Version / Inactive"}</span></td><td>Server validation passed</td><td>${item.isActive ? "" : `<button class="ghost compact-button" data-action="activate-certificate-template" data-template-id="${esc(item.id)}" type="button">Activate</button>`}</td></tr>`).join("") || `<tr><td colspan="8" class="muted">No certificate templates have been uploaded.</td></tr>`; } catch (error) { rows.innerHTML = `<tr><td colspan="8" class="error-text">${esc(error.message)}</td></tr>`; }
+}
+async function loadCertificateRecipients() {
+  const rows = document.getElementById("certificateRecipientRows"); if (!rows) return;
+  try { const participants = await stackerApi.list(selectedSqlCompetitionId); rows.innerHTML = (participants || []).slice(0, 100).map(item => `<tr><td>${esc(item.stackerCode)}</td><td>${esc(`${item.firstName || ""} ${item.lastName || ""}`.trim())}</td><td>${esc(item.club || "Independent")}</td><td>${esc(item.country)}</td><td>${esc(item.customDivision || "—")}</td><td>Participation</td><td><button class="ghost compact-button" data-action="preview-certificate-recipient" data-participant-code="${esc(item.stackerCode)}" type="button">Prepare DOCX preview</button></td></tr>`).join("") || `<tr><td colspan="7" class="muted">No participants are available for this competition.</td></tr>`; } catch (error) { rows.innerHTML = `<tr><td colspan="7" class="error-text">${esc(error.message)}</td></tr>`; }
+}
+function formatCertificateSize(bytes) { const size = Number(bytes); return Number.isFinite(size) && size > 0 ? `${(size / 1024).toFixed(1)} KB` : "—"; }
+async function uploadCertificateTemplate() { const file = document.getElementById("certificateTemplateFile")?.files?.[0]; const message = document.getElementById("certificateTemplateMessage"); const errors = window.StackMeetStorage.CertificateTemplateApi?.validateFile(file) || []; if (errors.length) { message.textContent = errors.join(" "); message.className = "error-text"; return; } try { await certificateTemplateApi.upload(selectedSqlCompetitionId, { certificateType: document.getElementById("certificateTemplateType").value, name: document.getElementById("certificateTemplateName").value.trim(), file }); message.textContent = "Template uploaded and server validation passed. Activate the new version when ready."; message.className = "success-text"; await loadCertificateTemplates(); } catch (error) { message.textContent = error.message; message.className = "error-text"; } }
+async function activateCertificateTemplate(id) { try { await certificateTemplateApi.activate(selectedSqlCompetitionId, id); document.getElementById("certificateTemplateMessage").textContent = "Template activated; the previous version remains retained."; await loadCertificateTemplates(); } catch (error) { document.getElementById("certificateTemplateMessage").textContent = error.message; } }
+async function previewCertificateRecipient(code) { const templates = await certificateTemplateApi.list(selectedSqlCompetitionId); const active = (templates || []).find(item => item.isActive && item.certificateType === "Participation"); if (!active) { document.getElementById("certificateTemplateMessage").textContent = "Activate a Participation template before preparing a recipient preview."; return; } try { await certificateTemplateApi.preview(selectedSqlCompetitionId, active.id, code); document.getElementById("certificateTemplateMessage").textContent = `Server-side DOCX preview prepared for participant ${code}. No PDF was rendered.`; } catch (error) { document.getElementById("certificateTemplateMessage").textContent = error.message; } }
 
 // Presentation-only categorisation for the deduplicated generated division list.
 // It does not alter generation, saved divisions, or team assignment rules.
@@ -4951,6 +4980,9 @@ document.addEventListener("click", async (event) => {
   if (action === "save-settings") await saveSettings();
   if (action === "upload-asset") { await uploadCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
   if (action === "remove-asset") { await removeCompetitionAsset(target.dataset.assetType); shouldRender = false; shouldSave = false; }
+  if (action === "upload-certificate-template") { await uploadCertificateTemplate(); shouldRender = false; shouldSave = false; }
+  if (action === "activate-certificate-template") { await activateCertificateTemplate(target.dataset.templateId); shouldRender = false; shouldSave = false; }
+  if (action === "preview-certificate-recipient") { await previewCertificateRecipient(target.dataset.participantCode); shouldRender = false; shouldSave = false; }
   if (action === "save-language") saveLanguage();
   if (action === "save-events") saveEvents();
   if (action === "save-leaderboard") saveLeaderboard();
@@ -5045,6 +5077,7 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.id === "certificateTemplateFile") { const file = event.target.files?.[0]; const details = document.getElementById("certificateUploadDetails"); const errors = window.StackMeetStorage.CertificateTemplateApi?.validateFile(file) || []; details.textContent = errors.length ? errors.join(" ") : `${file.name} · ${formatCertificateSize(file.size)} · SHA-256 is calculated server-side after upload.`; details.className = errors.length ? "error-text" : "muted"; return; }
   if (route === "doubles" && ["doubleType", "doubleStatus"].includes(event.target.id)) {
     updateDoubleFormMode();
     return;
