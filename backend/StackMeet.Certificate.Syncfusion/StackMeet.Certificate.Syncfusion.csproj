@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\StackMeet.Api\StackMeet.Api.csproj" /><PackageReference Include="Syncfusion.DocIO.Net.Core" Version="34.2.4" /><PackageReference Include="Syncfusion.DocIORenderer.Net.Core" Version="34.2.4" /></ItemGroup>
+</Project>
