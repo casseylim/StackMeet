@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Headers;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
@@ -52,6 +55,7 @@ try
     Assert(references.ContainsParticipant("{\"relays\":[", "1.1"), "malformed state fails closed for deletion safety");
     Assert(!references.ContainsParticipant("{\"doubles\":[{\"parentName\":\"1.7\"}]}", "1.7"), "external parent name is not a participant reference");
     Assert(!references.ContainsParticipant("{\"notes\":{\"membersText\":\"1.8\"}}", "1.8"), "unrelated text is not a participant reference");
+    await RunHttpAcceptanceAsync(builder.ConnectionString, db);
 
     Console.WriteLine("Assertions: passed");
     Console.WriteLine("CoreIntegrity LocalDB integration harness passed.");
@@ -87,3 +91,59 @@ finally
 if (primaryFailure is not null) { if (cleanupFailure is not null) Console.Error.WriteLine($"Cleanup secondary failure: {cleanupFailure.Message}"); throw primaryFailure; }
 if (cleanupFailure is not null) throw new InvalidOperationException("CoreIntegrity tests passed but cleanup failed.", cleanupFailure);
 static void Assert(bool condition, string name) { if (!condition) throw new InvalidOperationException($"Failed scenario: {name}"); Console.WriteLine($"PASS {name}"); }
+
+static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbContext db)
+{
+    var key = $"HTTP_{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+    var now = DateTime.UtcNow;
+    var competition = new StackMeet.Api.Models.Competition { CompetitionCode = key, CompetitionKey = key, CompetitionName = "HTTP Acceptance", Venue = "LocalDB", StartDate = DateOnly.FromDateTime(now), EndDate = DateOnly.FromDateTime(now), Status = "Active", CreatedAt = now, UpdatedAt = now };
+    db.Competitions.Add(competition);
+    await db.SaveChangesAsync();
+    var other = new StackMeet.Api.Models.Competition { CompetitionCode = key + "B", CompetitionKey = key + "B", CompetitionName = "HTTP Acceptance B", Venue = "LocalDB", StartDate = DateOnly.FromDateTime(now), EndDate = DateOnly.FromDateTime(now), Status = "Active", CreatedAt = now, UpdatedAt = now };
+    db.Competitions.Add(other);
+    await db.SaveChangesAsync();
+    db.Stackers.Add(new StackMeet.Api.Models.Stacker { CompetitionId = other.Id, StackerCode = "B1", FirstName = "B", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
+    await db.SaveChangesAsync();
+    db.Stackers.AddRange(new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A1", FirstName = "A", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A2", FirstName = "A", LastName = "Two", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A3", FirstName = "A", LastName = "Three", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
+    db.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState { CompetitionKey = key, JsonData = "{\"seed\":true}", SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now });
+    await db.SaveChangesAsync();
+
+    var port = Random.Shared.Next(49152, 59999);
+    var startInfo = new ProcessStartInfo("dotnet") { WorkingDirectory = Environment.CurrentDirectory, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+    foreach (var argument in new[] { "run", "--project", "backend/StackMeet.Api/StackMeet.Api.csproj", "-c", "Release", "--no-build", "--urls", $"http://127.0.0.1:{port}", "--", $"--ConnectionStrings:StackMeet={connectionString}", "--Security:ApiKey=phase-e-http-test-key" }) startInfo.ArgumentList.Add(argument);
+    using var process = new Process { StartInfo = startInfo };
+    process.StartInfo.Environment["ConnectionStrings__StackMeet"] = connectionString;
+    process.StartInfo.Environment["Security__ApiKey"] = "phase-e-http-test-key";
+    process.StartInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+    process.StartInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
+    process.Start();
+    try
+    {
+        using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(10) };
+        client.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", "phase-e-http-test-key");
+        HttpResponseMessage? ready = null;
+        for (var attempt = 0; attempt < 30; attempt++) { try { ready = await client.GetAsync($"/api/state/{key}"); if (ready.StatusCode != HttpStatusCode.ServiceUnavailable) break; } catch { } await Task.Delay(500); }
+        if (ready is null || ready.StatusCode != HttpStatusCode.OK)
+        {
+            var body = ready is null ? "<no response>" : await ready.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"HTTP API did not become ready: {ready?.StatusCode}; body={body}; processExited={process.HasExited}");
+        }
+        var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
+        var valid = "{\"doubles\":[{\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"members\":[\"A3\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
+        var saved = await PostState(client, key, originalEtag, valid); Assert(saved.StatusCode == HttpStatusCode.NoContent, "HTTP valid state save");
+        var after = await client.GetAsync($"/api/state/{key}"); var afterJson = await after.Content.ReadAsStringAsync(); var newEtag = after.Headers.ETag?.Tag ?? throw new InvalidOperationException("Updated ETag missing."); Assert(afterJson == valid && newEtag == "\"2\"", "HTTP revision and ETag increment");
+        var invalid = await PostState(client, key, newEtag, "{\"doubles\":[{\"participantCode\":\"MISSING\",\"two\":\"A2\"}]}"); var invalidBody = await invalid.Content.ReadAsStringAsync(); Assert(invalid.StatusCode == HttpStatusCode.BadRequest, $"HTTP missing participant rejected ({(int)invalid.StatusCode}: {invalidBody})"); var unchanged = await client.GetAsync($"/api/state/{key}"); Assert(await unchanged.Content.ReadAsStringAsync() == valid && unchanged.Headers.ETag?.Tag == newEtag, "HTTP rejected state unchanged");
+        var wrongCompetition = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"B1\",\"two\":\"A2\"}]}"); Assert(wrongCompetition.StatusCode == HttpStatusCode.BadRequest, "HTTP wrong-competition participant rejected");
+        var externalOnly = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"A1\",\"parentName\":\"External Parent\"}]}"); Assert(externalOnly.StatusCode == HttpStatusCode.NoContent, "HTTP external parent name ignored"); var currentEtag = (await client.GetAsync($"/api/state/{key}")).Headers.ETag!.Tag!;
+        var stale = await PostState(client, key, newEtag, "{\"seed\":\"stale\"}"); Assert(stale.StatusCode == HttpStatusCode.Conflict && stale.Headers.ETag?.Tag == currentEtag, "HTTP OCC conflict preserved");
+        var malformed = await PostState(client, key, currentEtag, "{malformed"); Assert(malformed.StatusCode == HttpStatusCode.BadRequest, "HTTP malformed JSON rejected");
+    }
+    finally { if (!process.HasExited) { process.Kill(true); await process.WaitForExitAsync(); } }
+}
+
+static async Task<HttpResponseMessage> PostState(HttpClient client, string key, string etag, string json)
+{
+    using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/state/{key}") { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
+    request.Headers.TryAddWithoutValidation("If-Match", etag);
+    return await client.SendAsync(request);
+}
