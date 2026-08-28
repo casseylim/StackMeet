@@ -851,6 +851,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       renderNav();
       updateSqlDashboardPresentation();
       renderDashboard();
+      applyTranslations(view);
     }
     if (rerender && route === "reports") {
       // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.

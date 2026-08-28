@@ -81,6 +81,13 @@ assert.doesNotMatch(appSource, /`; removed from \$\{displaced\.join\(\", \"\)\}/
 assert.match(appSource, /tf\("\{id\} \{name\} was saved; removed from \{teams\}\."/, "Stacker doubles save displacement must use a complete translated template");
 assert.match(appSource, /\[t\("English"\), t\("Bahasa Malaysia"\), t\("Simplified Chinese"\)\]/, "Navigation language list must use translated labels");
 assert.match(appSource, /<span>\$\{esc\(t\("Stacker"\)\)\}<\/span><span>\$\{esc\(t\("Time"\)\)\}<\/span><span>\$\{esc\(t\("Gap"\)\)\}<\/span>/, "Leaderboard headers must translate without changing result values");
+const dashboardRefreshStart = appSource.indexOf('if (rerender && route === "dashboard")');
+const dashboardRefreshEnd = appSource.indexOf('if (rerender && route === "reports")', dashboardRefreshStart);
+assert.ok(dashboardRefreshStart >= 0 && dashboardRefreshEnd > dashboardRefreshStart, "Dashboard polling rerender must remain detectable");
+assert.match(appSource.slice(dashboardRefreshStart, dashboardRefreshEnd), /renderDashboard\(\);\s*applyTranslations\(view\);/, "Dashboard polling rerenders must reapply authenticated translations");
+for (const resource of ["js/i18n/I18n.js", "js/i18n/locales/en.js", "js/i18n/locales/ms.js", "js/i18n/locales/zh-Hans.js", "js/i18n/LanguagePreference.js", "app.js"]) {
+  assert.match(htmlSource, new RegExp(`${resource.replace(/[./-]/g, "\\$&")}\\?v=multilanguage-v2-phase3a2`), `${resource} must use the Phase 3A.2 cache key`);
+}
 assert.doesNotMatch(appSource, /applyTranslations\(document\.body\)/, "Login UI must not be included in authenticated translation traversal");
 assert.match(appSource, /operatorIntlLocale/, "Date/time display must follow the selected operator locale");
 assert.doesNotMatch(appSource, /state\.translations\?\.\[code\]\?\./, "applyTranslations must not resolve dictionaries independently");
