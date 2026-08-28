@@ -561,6 +561,9 @@ let ageCalculationMode = "actual";
 let state = createInitialState();
 let pendingSave = Promise.resolve();
 let queuedSaveCount = 0;
+let deletionGeneration = 0;
+const pendingDeletedDoubles = new Map();
+const pendingDeletedRelays = new Map();
 let route = location.hash.replace("#", "") || "dashboard";
 let flashMessage = null;
 let editingStackerId = "";
@@ -634,7 +637,6 @@ function legacyStateForSave(data) {
   const legacy = structuredClone(data);
   legacy.stackers = [];
   legacy.results = [];
-  delete legacy.settings?.ageCalculationMode;
   return legacy;
 }
 
@@ -899,28 +901,61 @@ function resultLogicalKey(result) {
 }
 
 // Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
-function mergeConcurrentState(latestState, localState) {
+function mergeConcurrentState(latestState, localState, deletedRecords) {
+  deletedRecords = deletedRecords || {};
   const merged = { ...latestState, ...localState };
   ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
     if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
     const records = new Map(latestState[key].map(item => [String(item.id), item]));
+    const deleted = deletedRecords[key] instanceof Set ? deletedRecords[key] : new Set();
+    deleted.forEach(id => records.delete(String(id)));
     localState[key].forEach(item => records.set(String(item.id), item));
     merged[key] = [...records.values()];
   });
   return merged;
 }
 
+function recordDeletedStateRecord(collection, id) {
+  if (!id) return;
+  deletionGeneration += 1;
+  const pending = collection === "doubles" ? pendingDeletedDoubles : pendingDeletedRelays;
+  pending.set(String(id), deletionGeneration);
+}
+
+function snapshotDeletedStateRecords() {
+  return {
+    doubles: new Map(pendingDeletedDoubles),
+    relays: new Map(pendingDeletedRelays)
+  };
+}
+
+function acknowledgeDeletedStateRecords(snapshot) {
+  for (const [id, generation] of snapshot.doubles) {
+    if (pendingDeletedDoubles.get(id) === generation) pendingDeletedDoubles.delete(id);
+  }
+  for (const [id, generation] of snapshot.relays) {
+    if (pendingDeletedRelays.get(id) === generation) pendingDeletedRelays.delete(id);
+  }
+}
+
 async function saveState() {
-  const latestState = await repository.load();
-  const mergedState = latestState ? mergeConcurrentState(latestState, state) : state;
-  if (latestState) state = { ...state, ...mergedState };
-  const stateToSave = legacyStateForSave(mergedState);
   queuedSaveCount += 1;
   setSaveStatus("Saving...", "saving");
 
   const queuedSave = pendingSave
     .catch(() => undefined)
-    .then(() => repository.save(stateToSave));
+    .then(async () => {
+      const latestState = await repository.load();
+      const deletedSnapshot = snapshotDeletedStateRecords();
+      const localState = structuredClone(state);
+      const mergedState = latestState ? mergeConcurrentState(latestState, localState, {
+        doubles: new Set(deletedSnapshot.doubles.keys()),
+        relays: new Set(deletedSnapshot.relays.keys())
+      }) : localState;
+      if (latestState) state = { ...state, ...mergedState };
+      await repository.save(legacyStateForSave(mergedState));
+      acknowledgeDeletedStateRecords(deletedSnapshot);
+    });
 
   pendingSave = queuedSave;
   return queuedSave.then(
@@ -5754,7 +5789,9 @@ async function deleteStacker(id) {
     return;
   }
   state.stackers = state.stackers.filter(s => s.id !== id);
+  const removedDoubles = state.doubles.filter(d => registeredDoubleMemberIds(d).includes(id)).map(d => d.id);
   state.doubles = state.doubles.filter(d => !registeredDoubleMemberIds(d).includes(id));
+  removedDoubles.forEach(doubleId => recordDeletedStateRecord("doubles", doubleId));
   state.relays = state.relays.map(team => ({ ...team, members: relayMemberIds(team).filter(member => member !== id) }));
   state.results = state.results.filter(r => r.participant !== id);
   appendCompetitionAuditLog({
@@ -5915,6 +5952,7 @@ function removeConflictingDoubles(stackerIds, exceptTeamId = "") {
     if (conflicts) displaced.push(team.id);
     return !conflicts;
   });
+  displaced.forEach(id => recordDeletedStateRecord("doubles", id));
   return displaced;
 }
 
@@ -5924,6 +5962,7 @@ function deleteDouble(id) {
   const teamName = participantName("Doubles", id);
   if (!confirm(`Delete ${team.id} ${participantName("Doubles", team.id)}?`)) return;
   state.doubles = state.doubles.filter(d => d.id !== id);
+  recordDeletedStateRecord("doubles", id);
   appendCompetitionAuditLog({
     action: "doubles.deleted",
     entityType: "Doubles",
@@ -6034,6 +6073,7 @@ function deleteRelay(id) {
   const teamName = participantName("Timed Relay", id);
   if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
+  recordDeletedStateRecord("relays", id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
   appendCompetitionAuditLog({
     action: "relay.deleted",
