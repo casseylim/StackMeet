@@ -22,6 +22,11 @@ const STACKMEET_APP_VERSION = "0.9.28";
 const stackMeetTimeZone = "Asia/Kuala_Lumpur";
 const stackMeetLocale = "en-MY";
 
+function operatorIntlLocale() {
+  const language = currentLanguage?.() || "en";
+  return language === "ms" ? "ms-MY" : language === "zh-Hans" || language === "zh" ? "zh-Hans-MY" : stackMeetLocale;
+}
+
 function brandText(key) {
   return branding[key] || "";
 }
@@ -855,7 +860,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
     return true;
   } catch (error) {
     console.error("Unable to refresh SQL-native stackers.", error);
-    flashMessage = { type: "error", text: "Save Failed: unable to refresh SQL-native stackers." };
+    flashMessage = { type: "error", text: t("Save Failed: unable to refresh SQL-native stackers.") };
     setSaveStatus("Save Failed", "failed");
     if (rerender && route === "stackers") render();
     return false;
@@ -1001,7 +1006,7 @@ async function applyRemoteCompetitionState(latest) {
   const localEditing = competitionEditorActive();
   if (localEditing) {
     pendingRemoteCompetitionState = latest;
-    flashMessage = { type: "info", text: "Competition updated on another computer. Finish editing, then refresh this screen." };
+    flashMessage = { type: "info", text: t("Competition updated on another computer. Finish editing, then refresh this screen.") };
     setSaveStatus("Update waiting", "saving");
     return false;
   }
@@ -1151,7 +1156,7 @@ async function createSqlCompetition() {
     ,isPubliclyListed: document.getElementById("sqlCompetitionPublicListing")?.checked === true
   };
   if (!request.competitionCode || !request.competitionName || !request.venue || !request.startDate || !request.endDate || !request.status) {
-    flashMessage = { type: "error", text: "Complete the SQL competition setup fields first." };
+    flashMessage = { type: "error", text: t("Complete the SQL competition setup fields first.") };
     return;
   }
   setSaveStatus("Saving...", "saving");
@@ -1261,9 +1266,11 @@ function render() {
   };
   renderers[route]?.();
   syncModuleTabs();
-  // The authenticated shell is outside #view; translate the whole operator DOM
-  // after each route render while domain-bearing nodes opt out explicitly.
-  applyTranslations(document.body);
+  // Translate only authenticated chrome and the rendered route. The login form
+  // is intentionally outside this scope and domain-bearing nodes opt out.
+  [document.querySelector(".sidebar"), document.querySelector(".topbar"), document.querySelector(".hero"), view]
+    .filter(Boolean)
+    .forEach(applyTranslations);
   syncDashboardSqlPolling();
   syncCompetitionStatePolling();
   if ((route === "dashboard" || route === "reports") && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
@@ -1402,6 +1409,7 @@ function applyTranslations(root) {
       else if (!element.children?.length) element.textContent = t(textKey);
     }
     if (element.tagName === "OPTION") {
+      if (element.hasAttribute("data-domain-option") || element.closest("[data-domain-options]")) return;
       const key = element.getAttribute("data-i18n") || element.textContent.trim();
       element.textContent = t(key);
     }
@@ -1775,7 +1783,7 @@ function renderStackers() {
   if (flashMessage) {
     const box = document.getElementById("stackerMessage");
     box.hidden = false;
-    box.textContent = flashMessage.text;
+    box.textContent = t(flashMessage.text);
     box.classList.toggle("error", flashMessage.type === "error");
     flashMessage = null;
   }
@@ -1809,7 +1817,7 @@ function setDatalistOptions(id, options) {
   if (!datalist) return;
   datalist.innerHTML = [...new Set(options.map(option => String(option || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-    .map(option => `<option value="${esc(option)}"></option>`)
+    .map(option => `<option value="${esc(option)}" data-domain-option="true"></option>`)
     .join("");
 }
 
@@ -1898,7 +1906,7 @@ function renderDoubles() {
 function syncDoubleEditState() {
   const saveButton = document.getElementById("saveDoubleBtn");
   const cancelButton = document.getElementById("cancelDoubleEdit");
-  if (saveButton) saveButton.textContent = editingDoubleId ? `Update ${editingDoubleId}` : "Add Team";
+  if (saveButton) saveButton.textContent = editingDoubleId ? tf("Update {id}", { id: editingDoubleId }) : t("Add Team");
   if (cancelButton) cancelButton.hidden = !editingDoubleId;
 }
 
@@ -1918,7 +1926,7 @@ function fillDoubleSelect(id, search, selectedId = "") {
     const team = doublesForStacker(stacker.id).find(existing => existing.id !== editingDoubleId);
     const className = team ? "assigned-option" : "";
     const status = team ? `Team ${team.id}: ${participantName("Doubles", team.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   const select = document.getElementById(id);
   if (!select) return;
@@ -1971,15 +1979,15 @@ function buildRelayMemberControls() {
   grid.innerHTML = Array.from({ length: 6 }, (_, index) => {
     const slot = index + 1;
     const memberLabel = slot <= 4 ? `Member ${slot}` : `Optional Member ${slot}`;
-    return `<label>Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="Name or stacker ID" /></label>
-      <label>${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}"></select></label>`;
+    return `<label data-i18n="Search ${memberLabel}">Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
+      <label data-i18n="${memberLabel}">${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
   }).join("");
 }
 
 function syncRelayEditState() {
   const saveButton = document.getElementById("saveRelayBtn");
   const cancelButton = document.getElementById("cancelRelayEdit");
-  if (saveButton) saveButton.textContent = editingRelayId ? `Update ${editingRelayId}` : "Add Team";
+  if (saveButton) saveButton.textContent = editingRelayId ? tf("Update {id}", { id: editingRelayId }) : t("Add Team");
   if (cancelButton) cancelButton.hidden = !editingRelayId;
   if (saveButton) saveButton.disabled = false;
   document.querySelectorAll("#relayMemberGrid input, #relayMemberGrid select, #relayName, #timedRelayDivision, #headToHeadDivision, #relayCoordinator, #relayEmail, #relayPhone, #relayRegion").forEach(control => { control.disabled = false; });
@@ -1993,7 +2001,7 @@ function showRelayMessage() {
     return;
   }
   box.hidden = false;
-  box.textContent = relayFlashMessage.text;
+  box.textContent = t(relayFlashMessage.text);
   box.classList.toggle("error", relayFlashMessage.type === "error");
   relayFlashMessage = null;
 }
@@ -2018,7 +2026,7 @@ function fillRelaySelect(slot, search, selectedId = "") {
     const duplicate = selectedInOtherSlots.includes(stacker.id);
     const className = assigned && assigned.id !== editingRelayId ? "assigned-option" : "";
     const status = duplicate ? "Already selected here" : assigned && assigned.id !== editingRelayId ? `Team ${assigned.id}: ${participantName("Timed Relay", assigned.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}" ${duplicate ? "disabled" : ""}>${esc(stackerPickerLabel(stacker, status))}</option>`;
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}" ${duplicate ? "disabled" : ""}>${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   if (selectedId && [...select.options].some(option => option.value === selectedId)) select.value = selectedId;
 }
@@ -2353,7 +2361,7 @@ function showSelectedDoubleWarnings() {
     return;
   }
   box.hidden = false;
-  box.textContent = `${conflicts.map(item => `${stackerName(item.id)} is now in ${item.team.id}`).join("; ")}. Saving will remove them from the current doubles team and pair them here.`;
+  box.textContent = tf("{conflicts}. Saving will remove them from the current doubles team and pair them here.", { conflicts: conflicts.map(item => tf("{name} is now in {team}", { name: stackerName(item.id), team: item.team.id })).join("; ") });
 }
 
 function showDoubleMessage() {
@@ -2364,14 +2372,14 @@ function showDoubleMessage() {
     return;
   }
   box.hidden = false;
-  box.textContent = doubleFlashMessage.text;
+  box.textContent = t(doubleFlashMessage.text);
   box.classList.toggle("error", doubleFlashMessage.type === "error");
   doubleFlashMessage = null;
 }
 
 function renderPaperwork() {
   const stackers = [...state.stackers].sort((a, b) => stackerIdNumber(a.id) - stackerIdNumber(b.id));
-  const options = stackers.map(stacker => `<option value="${esc(stacker.id)}">${esc(stacker.id)} - ${esc(stacker.name)}</option>`).join("");
+  const options = stackers.map(stacker => `<option value="${esc(stacker.id)}" data-domain-option="true">${esc(stacker.id)} - ${esc(stacker.name)}</option>`).join("");
   const from = document.getElementById("printRangeFrom");
   const to = document.getElementById("printRangeTo");
   if (from) from.innerHTML = options;
@@ -2507,7 +2515,7 @@ function loadPrelimParticipant() {
     activePrelimParticipantId = "";
     activePrelimParticipantType = "";
     hidePrelimEntryFields();
-    showPrelimMessage("Participant ID not found. Check the printed sheet and try again.", true);
+    showPrelimMessage(t("Participant ID not found. Check the printed sheet and try again."), true);
     document.getElementById("timeSheetId")?.focus();
     return null;
   }
@@ -2525,7 +2533,7 @@ function loadPrelimParticipant() {
   });
   showPrelimEntryFields(participant.events);
   const hasExistingResult = participant.events.some(event => Boolean(findPrelimEntryResult(participant, event)));
-  showPrelimMessage(`${hasExistingResult ? "Editing Existing Result" : "Ready for Entry"}: ${participant.id} ${participant.name}.`, false);
+  showPrelimMessage(tf("{status}: {id} {name}.", { status: t(hasExistingResult ? "Editing Existing Result" : "Ready for Entry"), id: participant.id, name: participant.name }), false);
   const firstInput = visiblePrelimTimeInputs()[0];
   firstInput?.focus();
   firstInput?.select();
@@ -2643,7 +2651,7 @@ function showPrelimMessage(text, isError = false) {
   const message = document.getElementById("prelimEntryMessage");
   if (!message) return;
   message.hidden = false;
-  message.textContent = text;
+  message.textContent = t(text);
   message.classList.toggle("error", isError);
 }
 
@@ -2671,7 +2679,7 @@ function normalizeCompetitionTimeInput(input) {
   const parsed = parseCompetitionTime(input.value);
   if (parsed.kind === "blank") return true;
   if (parsed.kind === "invalid") {
-    showPrelimMessage(`Invalid time: ${input.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showPrelimMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: input.value }), true);
     input.focus();
     input.select();
     return false;
@@ -2693,7 +2701,7 @@ async function persistPrelimResults(options = {}) {
   const focusedFieldId = document.activeElement?.id || "";
   const participant = resolvePrelimParticipant(activePrelimParticipantId || val("timeSheetId"));
   if (!participant || (activePrelimParticipantType && participant.type !== activePrelimParticipantType)) {
-    showPrelimMessage("Find a valid participant before saving times.", true);
+    showPrelimMessage(t("Find a valid participant before saving times."), true);
     document.getElementById("timeSheetId")?.focus();
     return;
   }
@@ -2706,14 +2714,14 @@ async function persistPrelimResults(options = {}) {
   });
   const invalid = entries.find(entry => entry.parsed.kind === "invalid");
   if (invalid) {
-    showPrelimMessage(`Invalid ${invalid.event} time. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showPrelimMessage(tf("Invalid {event} time. Enter a time to 3 decimals or 999 for scratch.", { event: invalid.event }), true);
     document.getElementById(invalid.fieldId)?.focus();
     document.getElementById(invalid.fieldId)?.select();
     return;
   }
   const completed = entries.filter(entry => entry.parsed.kind !== "blank");
   if (!completed.length) {
-    showPrelimMessage("Enter at least one event time before saving.", true);
+    showPrelimMessage(t("Enter at least one event time before saving."), true);
     document.getElementById("prelim333")?.focus();
     return;
   }
@@ -2758,7 +2766,7 @@ async function persistPrelimResults(options = {}) {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showPrelimMessage(`Save failed. Times remain on screen and were not cleared: ${error.message || "unable to verify persistence"}`, true);
+    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || "unable to verify persistence" }), true);
     if (focusedFieldId) document.getElementById(focusedFieldId)?.focus();
     return false;
   }
@@ -2769,7 +2777,7 @@ async function persistPrelimResults(options = {}) {
   await applyPendingCompetitionUpdate();
   // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
   document.getElementById("timeSheetId")?.focus();
-  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}. Changes saved; latest updates will synchronize automatically.`, false);
+  showPrelimMessage(tf("{id} {name}: {action}. Changes saved; latest updates will synchronize automatically.", { id: participant.id, name: participant.name, action: actionText }), false);
   return true;
 }
 
@@ -2802,7 +2810,7 @@ function populateFinalSheetSelect() {
   const current = activeFinalSheetId || select.value;
   const sheets = finalSheets();
   select.innerHTML = [`<option value="">please choose</option>`].concat(sheets.map(sheet => (
-    `<option value="${esc(sheet.id)}">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
+    `<option value="${esc(sheet.id)}" data-domain-option="true">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
   ))).join("");
   if (current && sheets.some(sheet => sheet.id === current)) select.value = current;
   drawFinalMissingSummary(sheets);
@@ -2923,7 +2931,7 @@ function loadFinalSheet(id, focusFirst = true) {
   const sheet = finalSheets().find(item => item.id === id);
   if (!sheet) {
     clearFinalSheet(false);
-    showFinalMessage("Final sheet ID not found. Check the printed finals sheet and try again.", true);
+    showFinalMessage(t("Final sheet ID not found. Check the printed finals sheet and try again."), true);
     document.getElementById("finalSheetId")?.focus();
     return null;
   }
@@ -2936,7 +2944,7 @@ function loadFinalSheet(id, focusFirst = true) {
     summary.innerHTML = `<div><span>Final Sheet ID</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(sheet.entryType)}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>Advance</span><strong>Top ${Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length)} of ${sheet.prelimRows.length}</strong></div><div><span>Order</span><strong>Slowest qualifier competes first</strong></div>`;
   }
   drawFinalSheetRows(sheet);
-  showFinalMessage(`Ready for Finals ${sheet.id}: ${sheet.entryType} // ${sheet.division} // ${sheet.event}.`, false);
+  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: sheet.entryType, division: sheet.division, event: sheet.event }), false);
   if (focusFirst) {
     const firstInput = visibleFinalTimeInputs()[0];
     firstInput?.focus();
@@ -3022,7 +3030,7 @@ function normalizeFinalTimeInput(input) {
   const parsed = parseCompetitionTime(input.value);
   if (parsed.kind === "blank") return true;
   if (parsed.kind === "invalid") {
-    showFinalMessage(`Invalid time: ${input.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showFinalMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: input.value }), true);
     input.focus();
     input.select();
     return false;
@@ -3082,12 +3090,12 @@ async function saveFinalResults() {
   const previousState = structuredClone(state);
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
-    showFinalMessage("Find a valid final sheet before saving.", true);
+    showFinalMessage(t("Find a valid final sheet before saving."), true);
     return;
   }
   const invalid = visibleFinalTimeInputs().find(input => parseCompetitionTime(input.value).kind === "invalid");
   if (invalid) {
-    showFinalMessage(`Invalid time: ${invalid.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showFinalMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: invalid.value }), true);
     invalid.focus();
     invalid.select();
     return;
@@ -3118,10 +3126,10 @@ async function saveFinalResults() {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
+    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || "unable to verify persistence" }), true);
     return false;
   }
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded; latest updates will synchronize automatically.`, false);
+  showFinalMessage(tf("{id} saved. {count} final result(s) recorded; latest updates will synchronize automatically.", { id: sheet.id, count: saved }), false);
   populateFinalSheetSelect();
   clearFinalSheet();
   const sheetInput = document.getElementById("finalSheetId");
@@ -3150,14 +3158,14 @@ function showFinalMessage(text, isError = false) {
   const message = document.getElementById("finalEntryMessage");
   if (!message) return;
   message.hidden = false;
-  message.textContent = text;
+  message.textContent = t(text);
   message.classList.toggle("error", isError);
 }
 
 function printCurrentFinalSheet() {
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
-    showFinalMessage("Find a final sheet before printing.", true);
+    showFinalMessage(t("Find a final sheet before printing."), true);
     return;
   }
   buildFinalSheetPrint(sheet);
@@ -3227,7 +3235,7 @@ function populateFinalsReportFilters() {
   if (division) {
     const current = division.value || "all";
     const values = sortedDivisions([...state.divisions, ...state.stackers.map(stacker => stacker.division)]);
-    division.innerHTML = [`<option value="all">All divisions</option>`, ...values.map(value => `<option value="${esc(value)}">${esc(value)}</option>`)].join("");
+    division.innerHTML = [`<option value="all" data-i18n="All divisions">All divisions</option>`, ...values.map(value => `<option value="${esc(value)}" data-domain-option="true">${esc(value)}</option>`)].join("");
     division.value = [...division.options].some(option => option.value === current) ? current : "all";
   }
   const event = document.getElementById("finalsEvent");
@@ -3235,7 +3243,7 @@ function populateFinalsReportFilters() {
     const current = event.value || "all";
     const events = [...new Set(state.results.map(result => result.event).filter(Boolean))]
       .sort((left, right) => String(left).localeCompare(String(right), undefined, { numeric: true }));
-    event.innerHTML = [`<option value="all">All events</option>`, ...events.map(value => `<option value="${esc(value)}">${esc(value)}</option>`), `<option value="All-Around">All-Around</option>`].join("");
+    event.innerHTML = [`<option value="all" data-i18n="All events">All events</option>`, ...events.map(value => `<option value="${esc(value)}" data-i18n="${esc(value)}">${esc(value)}</option>`), `<option value="All-Around" data-i18n="All-Around">All-Around</option>`].join("");
     event.value = [...event.options].some(option => option.value === current) ? current : "all";
   }
   populateReportSelect("finalsOrg", uniqueReportValues(state.stackers, "org"));
@@ -3517,7 +3525,7 @@ function stageBoardReportHtml(definition) {
 function generateQualificationSnapshots() {
   const sheets = finalSheets();
   const approved = state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Approved");
-  if (approved.length && !confirm("Approved qualification snapshots will be superseded and preserved. Create new Draft snapshots?")) return;
+  if (approved.length && !confirm(t("Approved qualification snapshots will be superseded and preserved. Create new Draft snapshots?"))) return;
   if (approved.length) state.finalQualificationSnapshots = state.finalQualificationSnapshots.map(snapshot => snapshot.status === "Approved" ? { ...snapshot, status: "Superseded" } : snapshot);
   const snapshots = sheets.map(sheet => FinalsReportEngine.qualificationSnapshot(state, sheet, { id: crypto.randomUUID(), competitionKey: currentCompetitionKey(), limit: finalAdvanceLimit(sheet.type, sheet.division) }));
   state.finalQualificationSnapshots.push(...snapshots);
@@ -3915,7 +3923,7 @@ function updateStackerDoubleWarning() {
     return;
   }
   box.hidden = false;
-  box.textContent = `${stackerName(partnerId)} is now in ${assigned.id}. Saving will remove them from that team and pair them here.`;
+  box.textContent = tf("{name} is now in {team}. Saving will remove them from that team and pair them here.", { name: stackerName(partnerId), team: assigned.id });
 }
 
 function populateParticipants() {
@@ -4012,7 +4020,7 @@ function populateCompetitionReportBuilder() {
     divisionSelect.innerHTML = [
       `<option value="all">All (by Overall)</option>`,
       `<option value="all-div">All (by Division)</option>`,
-      ...divisions.map(division => `<option value="${esc(division)}">${esc(division)}</option>`)
+      ...divisions.map(division => `<option value="${esc(division)}" data-domain-option="true">${esc(division)}</option>`)
     ].join("");
     if ([...divisionSelect.options].some(option => option.value === current)) divisionSelect.value = current;
   }
@@ -4572,7 +4580,7 @@ function populateReportSelect(id, values) {
   const select = document.getElementById(id);
   if (!select) return;
   const current = select.value;
-  select.innerHTML = [`<option value="">Any</option>`, ...values.map(value => `<option value="${esc(value)}">${esc(value)}</option>`)].join("");
+  select.innerHTML = [`<option value="" data-i18n="Any">Any</option>`, ...values.map(value => `<option value="${esc(value)}" data-domain-option="true">${esc(value)}</option>`)].join("");
   if (values.includes(current)) select.value = current;
 }
 
@@ -4920,7 +4928,7 @@ document.getElementById("importXmlInput")?.addEventListener("change", async (eve
     await importSqlStackersFromState(state);
     render();
   } catch (error) {
-    alert("This XML file could not be imported. Please check that it came from this app.");
+    alert(t("This XML file could not be imported. Please check that it came from this app."));
     return;
   } finally {
     event.target.value = "";
@@ -5250,11 +5258,11 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
+  if (!display) alert(t("Please allow popups for NADITrack, then click Open Display again."));
 }
 
 function addDivision() {
-  const name = prompt("Division name");
+  const name = prompt(t("Division name"));
   if (!name) return;
   const cleanName = name.trim();
   if (!cleanName) return;
@@ -5277,7 +5285,7 @@ async function importStackersCsvFile(event) {
     const stackers = rows.map(mapStackTrackCsvRow).filter(Boolean);
     if (!stackers.length) throw new Error("No stackers found");
     if (!selectedSqlCompetitionId) throw new Error("Create or select a SQL competition first");
-    const confirmed = confirm(`Import ${stackers.length} stackers from ${file.name}? Existing SQL-native stackers will not be replaced.`);
+    const confirmed = confirm(tf("Import {count} stackers from {file}? Existing SQL-native stackers will not be replaced.", { count: stackers.length, file: file.name }));
     if (!confirmed) return;
     setSaveStatus("Saving...", "saving");
     let imported = 0;
@@ -5293,11 +5301,11 @@ async function importStackersCsvFile(event) {
       }
     }
     await refreshSqlStackers({ allowEditing: true, rerender: false });
-    flashMessage = { type: failed ? "error" : "success", text: `${file.name}: ${imported} imported, ${skipped} skipped, ${failed} failed.` };
+    flashMessage = { type: failed ? "error" : "success", text: tf("{file}: {imported} imported, {skipped} skipped, {failed} failed.", { file: file.name, imported, skipped, failed }) };
     setSaveStatus(failed ? "Save Failed" : "Saved", failed ? "failed" : "saved");
     render();
   } catch (error) {
-    flashMessage = { type: "error", text: "This CSV could not be imported. Please check that it is a supported Individuals report and a competition is selected." };
+    flashMessage = { type: "error", text: t("This CSV could not be imported. Please check that it is a supported Individuals report and a competition is selected.") };
     setSaveStatus("Save Failed", "failed");
     render();
   } finally {
@@ -5400,11 +5408,11 @@ async function addStacker() {
   const lastName = val("stLastName").trim();
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   if (!name) {
-    flashMessage = { type: "error", text: "Please enter the stacker name first." };
+    flashMessage = { type: "error", text: t("Please enter the stacker name first.") };
     return;
   }
   if (!val("stDob")) {
-    flashMessage = { type: "error", text: "Please enter the date of birth so the division can be generated." };
+    flashMessage = { type: "error", text: t("Please enter the date of birth so the division can be generated.") };
     return;
   }
 
@@ -5435,7 +5443,7 @@ async function addStacker() {
     checkedIn: val("stCheckedIn")
   };
   if (!selectedSqlCompetitionId) {
-    flashMessage = { type: "error", text: "Create or select a SQL competition before saving a stacker." };
+    flashMessage = { type: "error", text: t("Create or select a SQL competition before saving a stacker.") };
     return;
   }
   setSaveStatus("Saving...", "saving");
@@ -5546,8 +5554,8 @@ function requestDeleteStacker(id) {
   pendingDeleteStackerId = id;
   const teamCount = doublesForStacker(id).length;
   const resultCount = state.results.filter(r => r.participant === id).length;
-  document.getElementById("deleteStackerTitle").textContent = `Delete ${stacker.id} ${stacker.name}?`;
-  document.getElementById("deleteStackerText").textContent = `This will also remove ${teamCount} related team(s) and ${resultCount} result record(s).`;
+  document.getElementById("deleteStackerTitle").textContent = tf("Delete {id} {name}?", { id: stacker.id, name: stacker.name });
+  document.getElementById("deleteStackerText").textContent = tf("This will also remove {teamCount} related team(s) and {resultCount} result record(s).", { teamCount, resultCount });
   document.getElementById("deleteStackerConfirm").hidden = false;
 }
 
@@ -5565,7 +5573,7 @@ async function deleteStacker(id) {
   try {
     await stackerApi.delete(selectedSqlCompetitionId, stacker.sqlId);
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
     return;
   }
@@ -5601,7 +5609,7 @@ function saveStackerDoubleAssignment() {
   const customDivision = val("stDoubleDivision").trim();
   const validation = validateDoubleEntry({ type, status, one: editingStackerId, two: partnerId, parentName });
   if (validation) {
-    flashMessage = { type: "error", text: validation };
+    flashMessage = { type: "error", text: t(validation) };
     renderStackers();
     return;
   }
@@ -5682,7 +5690,7 @@ function addDouble() {
     after: team
   });
   doublesTab = status === "pending" ? "incomplete" : "completed";
-  doubleFlashMessage = { type: "success", text: `${team.id} ${participantName("Doubles", team.id)} was ${editingDoubleId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
+  doubleFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Doubles", team.id), action: t(editingDoubleId ? "updated" : "added"), suffix: displaced.length ? `; removed from ${displaced.join(", ")}.` : "." }) };
   clearDoubleForm(false);
 }
 
@@ -5741,7 +5749,7 @@ function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
   if (!team) return;
   const teamName = participantName("Doubles", id);
-  if (!confirm(`Delete ${team.id} ${participantName("Doubles", team.id)}?`)) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return;
   state.doubles = state.doubles.filter(d => d.id !== id);
   recordDeletedStateRecord("doubles", id);
   appendCompetitionAuditLog({
@@ -5793,7 +5801,7 @@ function addRelay() {
     after: team
   });
   relayTab = relayTeamStatus(team) === "Ready" ? "ready" : relayTeamStatus(team).toLowerCase();
-  relayFlashMessage = { type: "success", text: `${team.id} ${participantName("Timed Relay", team.id)} was ${editingRelayId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
+  relayFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Timed Relay", team.id), action: t(editingRelayId ? "updated" : "added"), suffix: displaced.length ? `; removed from ${displaced.join(", ")}.` : "." }) };
   clearRelayForm(false);
 }
 
@@ -5803,7 +5811,7 @@ function validateRelayEntry(members, relayName = "") {
   if (duplicateName) return "Relay team name must be unique.";
   if (members.length > 6) return "Relay team can only keep up to 6 registered stackers.";
   const duplicate = members.find((id, index) => members.indexOf(id) !== index);
-  if (duplicate) return "Each stacker can only be selected once in the same relay team.";
+  if (duplicate) return "A stacker can only be selected once in this relay team.";
   return "";
 }
 
@@ -5852,7 +5860,7 @@ function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
   if (!team) return;
   const teamName = participantName("Timed Relay", id);
-  if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
   recordDeletedStateRecord("relays", id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
@@ -6311,7 +6319,7 @@ function fmt(value) {
 function setOptions(id, options) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = options.map(option => `<option>${esc(option)}</option>`).join("");
+  el.innerHTML = options.map(option => `<option data-domain-option="true" value="${esc(option)}">${esc(option)}</option>`).join("");
 }
 
 async function refreshCompetitionBranding() {
@@ -6330,17 +6338,17 @@ async function uploadCompetitionAsset(type) {
   const input = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}File`);
   const file = input?.files?.[0];
   if (!selectedSqlCompetitionId || !file) { setCompetitionBrandingStatus("Select an image first.", true); return; }
-  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(`${type} uploaded.`); }
+  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(tf("{type} uploaded.", { type: t(type) })); }
   catch (error) { setCompetitionBrandingStatus(error.message, true); }
 }
 
 async function removeCompetitionAsset(type) {
-  if (!selectedSqlCompetitionId || !window.confirm(`Remove the competition ${type}?`)) return;
-  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(`${type} removed.`); }
+  if (!selectedSqlCompetitionId || !window.confirm(tf("Remove the competition {type}?", { type: t(type) }))) return;
+  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(tf("{type} removed.", { type: t(type) })); }
   catch (error) { setCompetitionBrandingStatus(error.message, true); }
 }
 
-function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = message; target.dataset.status = isError ? "error" : "ok"; } }
+function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = isError ? message : t(message); target.dataset.status = isError ? "error" : "ok"; } }
 
 function setValue(id, value) {
   const el = document.getElementById(id);
@@ -6354,7 +6362,7 @@ function todayIsoDate() {
 
 // Formats browser-generated timestamps in StackMeet's fixed GMT+8 operating timezone.
 function stackMeetDateTime(value = new Date()) {
-  return new Intl.DateTimeFormat(stackMeetLocale, {
+  return new Intl.DateTimeFormat(operatorIntlLocale(), {
     timeZone: stackMeetTimeZone,
     year: "numeric",
     month: "2-digit",
@@ -6595,7 +6603,7 @@ async function initializeApplication() {
     await refreshSqlResults({ rerender: false });
   } catch (error) {
     console.error("Unable to initialize SQL-native stackers.", error);
-    flashMessage = { type: "error", text: "Save Failed: SQL-native stackers are unavailable." };
+    flashMessage = { type: "error", text: t("Save Failed: SQL-native stackers are unavailable.") };
   }
   render();
   void connectCompetitionStateUpdates();

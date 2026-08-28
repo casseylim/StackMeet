@@ -11,13 +11,17 @@ const htmlSource = fs.readFileSync(path.join(rootPath, "index.html"), "utf8");
 const I18n = require(path.join(rootPath, "js", "i18n", "I18n.js"));
 const localeRoot = {};
 localeRoot.globalThis = localeRoot;
-for (const file of ["ms.js", "zh-Hans.js"]) {
+for (const file of ["en.js", "ms.js", "zh-Hans.js"]) {
   vm.runInNewContext(fs.readFileSync(path.join(rootPath, "js", "i18n", "locales", file), "utf8"), { window: localeRoot, globalThis: localeRoot });
 }
 const locales = localeRoot.StackMeetI18nLocales;
 
-assert.ok(Object.keys(locales.ms).length >= 200, "Malay locale must contain the complete operator dictionary");
-assert.ok(Object.keys(locales["zh-Hans"]).length >= 200, "Chinese locale must contain the complete operator dictionary");
+const localeKeys = Object.keys(locales.en).sort();
+for (const language of ["en", "ms", "zh-Hans"]) {
+  const keys = Object.keys(locales[language]).sort();
+  assert.deepStrictEqual(keys, localeKeys, `${language} locale keys must exactly match English`);
+  keys.forEach(key => assert.notStrictEqual(String(locales[language][key]).trim(), "", `${language} translation is blank for ${key}`));
+}
 for (const key of ["Dashboard", "Settings", "Competition Settings", "First name", "Last name", "Optional", "Search stackers", "Name or stacker ID", "Yes", "No", "Actual Age on Competition Date", "Year Born Only", "Top", "Trophy", "Medal", "Saving...", "Saved", "Save Failed"]) {
   assert.ok(locales.ms[key], `Malay dictionary is missing ${key}`);
   assert.ok(locales["zh-Hans"][key], `Chinese dictionary is missing ${key}`);
@@ -33,15 +37,40 @@ assert.strictEqual(I18n.format("{missing}", {}), "{missing}");
 
 const placeholders = [...htmlSource.matchAll(/data-i18n-placeholder="([^"]+)"/g)].map(match => match[1]);
 assert.ok(placeholders.length >= 27, "Authenticated form placeholders must use explicit translation markers");
-for (const key of placeholders) {
-  assert.ok(locales.ms[key], `Malay placeholder coverage is missing ${key}`);
-  assert.ok(locales["zh-Hans"][key], `Chinese placeholder coverage is missing ${key}`);
+const markerKeys = [...htmlSource.matchAll(/data-i18n(?:-(?:placeholder|aria-label|title|alt))?="([^"]+)"/g)].map(match => match[1]);
+const missingMarkers = [];
+for (const key of markerKeys) for (const language of ["en", "ms", "zh-Hans"]) if (!Object.prototype.hasOwnProperty.call(locales[language], key)) missingMarkers.push(`${language}:${key}`);
+assert.deepStrictEqual(missingMarkers, [], `Authenticated marker coverage is missing: ${missingMarkers.join(", ")}`);
+const documentedStaticUiKeys = [
+  "ID", "Name", "Age", "Gender", "Special", "Organization", "Division", "Country", "Paid", "Check-In", "Type", "Status", "Location", "Team Name", "Timed Relay Division", "Head-to-Head Division", "Members", "# Members", "Individual Time Sheets", "Doubles Time Sheets", "Relay Time Sheets", "Individual Finals", "Doubles Finals", "Relay Finals", "All Packets", "Name Badges", "SOC Packet", "Award Group", "Basis", "Places", "Item", "Quantity", "Rank", "Stacker / Team", "Prelims", "Attempt 1", "Attempt 2", "Attempt 3", "Best Time", "Place", "Stage", "Event", "Best", "Penalty", "Access", "Last Active", "Platform", "Browser"
+];
+for (const key of documentedStaticUiKeys) for (const language of ["en", "ms", "zh-Hans"]) assert.ok(Object.prototype.hasOwnProperty.call(locales[language], key), `${language} documented static inventory is missing ${key}`);
+const authenticatedRouteCoverage = {
+  dashboard: ["Dashboard", "Tournament Snapshot"],
+  settings: ["Competition Settings", "Competition Branding"],
+  language: ["Language Translation Setup", "Search Translation"],
+  stackers: ["Stackers List", "Create Competition"],
+  doubles: ["Doubles", "Completed"],
+  relay: ["Relay Teams", "Ready"],
+  paperwork: ["Print Center", "Head To Head Brackets"],
+  awards: ["Awards Planner", "Awards Summary"],
+  competition: ["Individual Prelim Entry", "Recent Results"],
+  reports: ["Competition Reports", "Admin Reports"],
+  leaderboard: [],
+  users: ["Users", "User Levels"]
+};
+for (const [route, requiredKeys] of Object.entries(authenticatedRouteCoverage)) {
+  assert.ok(htmlSource.includes(`id="${route}View"`), `Authenticated route template is missing ${route}`);
+  for (const key of requiredKeys) assert.ok(htmlSource.includes(`data-i18n="${key}"`) || locales.en[key], `${route} route coverage is missing ${key}`);
 }
 for (const marker of ["data-i18n", "data-i18n-placeholder", "data-i18n-aria-label", "data-i18n-title", "data-i18n-alt"]) {
   assert.match(appSource, new RegExp(marker.replace(/[=-]/g, "[=-]")), `${marker} must be supported by the runtime`);
 }
 assert.match(appSource, /function tf\(template, values\)/, "Parameterized runtime messages must use the safe formatter");
 assert.match(appSource, /data-domain/, "Rendered domain values must have an explicit translation opt-out");
+assert.match(appSource, /data-domain-option/, "Rendered domain options must have an explicit translation opt-out");
+assert.doesNotMatch(appSource, /applyTranslations\(document\.body\)/, "Login UI must not be included in authenticated translation traversal");
+assert.match(appSource, /operatorIntlLocale/, "Date/time display must follow the selected operator locale");
 assert.doesNotMatch(appSource, /state\.translations\?\.\[code\]\?\./, "applyTranslations must not resolve dictionaries independently");
 assert.match(appSource, /state\.translations\[code\] = state\.translations\[code\] \|\| \{\}/, "Custom language edits must remain state-backed");
 assert.match(appSource, /preservedTranslations/, "normalizeState must preserve unknown and legacy translation dictionaries");
@@ -80,7 +109,8 @@ const input = makeElement("INPUT", "", { "data-i18n-placeholder": "Search stacke
 const button = makeElement("BUTTON", "", { "data-i18n-aria-label": "Close navigation", "aria-label": "Close navigation", "data-i18n-title": "Settings", title: "Settings" });
 const image = makeElement("IMG", "", { "data-i18n-alt": "competition-logo preview", alt: "competition-logo preview" });
 const option = makeElement("OPTION", "Yes", { value: "Yes" });
-body.children = [staticText, domainText, input, button, image, option];
+const domainOption = makeElement("OPTION", "Dashboard", { value: "Dashboard", "data-domain-option": "true" });
+body.children = [staticText, domainText, input, button, image, option, domainOption];
 for (const child of body.children) child.parentElement = body;
 const textNodes = body.children.filter(child => child.tagName !== "INPUT" && child.tagName !== "IMG" && child.tagName !== "OPTION").map(element => {
   const node = { parentElement: element };
@@ -107,5 +137,24 @@ assert.strictEqual(button.attributes.title, "设置", "Titles must translate");
 assert.strictEqual(image.attributes.alt, "比赛标志预览", "Alt text must translate");
 assert.strictEqual(option.textContent, "是", "Option display text must translate");
 assert.strictEqual(option.attributes.value, "Yes", "Option semantic values must remain unchanged");
+assert.strictEqual(domainOption.textContent, "Dashboard", "Domain option labels must not be translated");
+assert.strictEqual(domainOption.attributes.value, "Dashboard", "Domain option values must remain unchanged");
+
+const runtimeTemplates = [
+  "Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.",
+  "Invalid {event} time. Enter a time to 3 decimals or 999 for scratch.",
+  "Save failed. Times remain on screen and were not cleared: {error}",
+  "Save failed. Results were not committed: {error}",
+  "Ready for Finals {id}: {entryType} // {division} // {event}.",
+  "{id} saved. {count} final result(s) recorded; latest updates will synchronize automatically.",
+  "Delete {id} {name}?",
+  "This will also remove {teamCount} related team(s) and {resultCount} result record(s)."
+];
+for (const template of runtimeTemplates) {
+  const expected = [...template.matchAll(/\{([^}]+)\}/g)].map(match => match[1]).sort();
+  for (const language of ["en", "ms", "zh-Hans"]) {
+    assert.deepStrictEqual([...String(locales[language][template]).matchAll(/\{([^}]+)\}/g)].map(match => match[1]).sort(), expected, `${language} placeholders must match for ${template}`);
+  }
+}
 
 console.log("Multilanguage v2 Phase 3A coverage and DOM characterization tests passed.");
