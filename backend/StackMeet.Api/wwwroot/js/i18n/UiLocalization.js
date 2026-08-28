@@ -16,8 +16,8 @@
     return root.StackMeetI18n?.format(translated, values) || translated;
   }
 
-  function translateKnownMessage(value, fallback = "") {
-    const raw = String(value || fallback || "");
+  function translateKnownMessage(value, fallback = "Request failed.", values) {
+    const raw = String(value || "");
     const lockout = raw.match(/^Too many failed password attempts\. Try again in about (\d+) minutes\.$/);
     if (lockout) return tf("Too many failed password attempts. Try again in about {minutes} minutes.", { minutes: lockout[1] });
     const known = new Set([
@@ -30,7 +30,8 @@
       "Reset email could not be sent. Contact your system admin.", "Invalid email or password.",
       "This account is not a Global System Admin."
     ]);
-    return known.has(raw) || Object.prototype.hasOwnProperty.call(root.StackMeetI18nLocales?.en || {}, raw) ? t(raw) : raw;
+    if (known.has(raw) || Object.prototype.hasOwnProperty.call(root.StackMeetI18nLocales?.en || {}, raw)) return t(raw);
+    return values ? tf(fallback, values) : t(fallback);
   }
 
   function apply(rootElement) {

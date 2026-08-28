@@ -62,6 +62,7 @@ for (const language of ["ms", "zh-Hans"]) {
   assert.strictEqual(I18n.translate("Send reset link", language, {}, locales), expected[language].forgot, `${language} forgot-password action`);
   assert.strictEqual(I18n.translate("Reset Password", language, {}, locales), expected[language].reset, `${language} reset heading`);
   assert.strictEqual(I18n.translate("Activate Account", language, {}, locales), expected[language].activate, `${language} activation heading`);
+  assert.strictEqual(I18n.translate("NADITrack Competition Admin", language, {}, locales), language === "ms" ? "Pentadbir Pertandingan NADITrack" : "NADITrack 比赛管理员", `${language} admin title`);
   assert.strictEqual(translated("{female} Female // {male} Male", language, { female: 2, male: 3 }), expected[language].gender, `${language} parameter formatting`);
   assert.strictEqual(I18n.translate("Choose an assigned competition.", language, {}, locales), expected[language].competition, `${language} auth validation`);
   assert.strictEqual(ui.roleLabel("CompetitionManager"), expected[language].role, `${language} stored role display label`);
@@ -73,17 +74,31 @@ for (const language of ["ms", "zh-Hans"]) {
   assert.strictEqual(translated("Team {id}: {name}", language, { id: "2.1", name: "Domain Participant" }), language === "ms" ? "Pasukan 2.1: Domain Participant" : "队伍 2.1：Domain Participant", `${language} domain values remain unchanged`);
 }
 
-assert.strictEqual(ui.translateKnownMessage("Unexpected provider detail: secret-value"), "Unexpected provider detail: secret-value", "unknown technical details are not blindly translated");
+selectedLanguage = "ms";
+const safeMalayError = ui.translateKnownMessage("Unexpected provider detail: secret-value", "Login failed.");
+assert.strictEqual(safeMalayError, "Log masuk gagal.", "unknown technical details use the localized safe fallback");
+assert.ok(!safeMalayError.includes("secret-value"), "raw unknown server detail is absent from the safe fallback");
+selectedLanguage = "zh-Hans";
+const safeChineseError = ui.translateKnownMessage("Unexpected provider detail: secret-value", "Unable to save password.");
+assert.strictEqual(safeChineseError, "无法保存密码。", "unknown account details use the localized safe fallback");
+assert.ok(!safeChineseError.includes("secret-value"), "raw unknown account detail is absent from the safe fallback");
+assert.strictEqual(ui.translateKnownMessage("Unexpected provider detail: secret-value", "Request failed ({status})", { status: 503 }), "请求失败（503）", "unknown admin detail uses a localized status fallback");
 assert.strictEqual(translated("This will permanently delete {email} and remove their competition access.\n\nType {confirmation} to confirm.", "ms", { email: "operator@example.com", confirmation: "DELETE operator@example.com" }), "Ini akan memadam operator@example.com secara kekal dan membuang akses pertandingan mereka.\n\nTaip DELETE operator@example.com untuk mengesahkan.");
 assert.strictEqual(translated("This will permanently delete {email} and remove their competition access.\n\nType {confirmation} to confirm.", "zh-Hans", { email: "operator@example.com", confirmation: "DELETE operator@example.com" }), "这将永久删除 operator@example.com 并移除其比赛访问权限。\n\n输入 DELETE operator@example.com 以确认。");
 
 assert.match(authSource, /initializeLoginLanguage/);
 assert.match(authSource, /knownMessage\(message, "Login failed\."\)/);
 assert.match(authSource, /data-domain-option/);
+assert.match(authSource, /ui\(\)\.setLanguage\(event\.target\.value, login\)[\s\S]*document\.title = t\("NADITrack Login"\)/);
 assert.match(accountSource, /ui\.apply\(accountRoot\)/);
+assert.match(accountSource, /ui\.setLanguage\(event\.target\.value, accountRoot\)[\s\S]*document\.title = t\(titleKey\)/);
 assert.match(adminSource, /ui\?\.apply\(document\.querySelector\("\.admin-shell"\)\)/);
 assert.match(adminSource, /roleLabel\(item\.role\)/);
 assert.match(adminSource, /new Intl\.DateTimeFormat\(stackMeetLocale\(\)/);
+assert.match(adminSource, /ui\?\.setLanguage\(event\.target\.value, document\.querySelector\("\.admin-shell"\)\)[\s\S]*document\.title = t\("NADITrack Competition Admin"\)/);
+assert.match(authSource, /knownMessage\(loginError\.message, "Login failed\."\)/);
+assert.match(accountSource, /knownMessage\(error\.message, "Unable to save password\."\)/);
+assert.match(adminSource, /const safeError =/);
 assert.doesNotMatch(authSource, /throw new Error\(message\)/, "auth must map known errors before displaying them");
 assert.doesNotMatch(adminSource, /message\("(Admin data refreshed|Email setup saved|Logged out|User saved|User access updated)\./, "admin UI messages must use translation helpers");
 for (const source of pageSources) {

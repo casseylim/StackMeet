@@ -5,7 +5,8 @@
   const $ = id => document.getElementById(id);
   const ui = window.StackMeetUiLocalization;
   const t = key => ui?.t(key) || key;
-  const knownMessage = (value, fallback) => ui?.translateKnownMessage(value, fallback) || value || fallback || "";
+  const knownMessage = (value, fallback) => ui?.translateKnownMessage(value, fallback) || t(fallback || "Unable to save password.");
+  const titleKey = purpose === "reset" ? "Reset Password" : "Activate Account";
 
   function message(text, ok = false) {
     const target = $("accountMessage");
@@ -52,11 +53,14 @@
   if (ui) {
     languageControl.value = ui.language();
     ui.apply(accountRoot);
-    languageControl.addEventListener("change", event => ui.setLanguage(event.target.value, accountRoot));
+    languageControl.addEventListener("change", event => {
+      ui.setLanguage(event.target.value, accountRoot);
+      document.title = t(titleKey);
+    });
   }
-  $("accountTitle").setAttribute("data-i18n", purpose === "reset" ? "Reset Password" : "Activate Account");
-  $("accountTitle").textContent = t(purpose === "reset" ? "Reset Password" : "Activate Account");
-  document.title = t(purpose === "reset" ? "Reset Password" : "Activate Account");
+  $("accountTitle").setAttribute("data-i18n", titleKey);
+  $("accountTitle").textContent = t(titleKey);
+  document.title = t(titleKey);
   $("displayNameLabel").hidden = purpose === "reset";
-  $("accountForm").addEventListener("submit", event => submit(event).catch(error => message(knownMessage(error.message))));
+  $("accountForm").addEventListener("submit", event => submit(event).catch(error => message(knownMessage(error.message, "Unable to save password."))));
 })();

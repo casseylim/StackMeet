@@ -13,7 +13,8 @@
   const ui = window.StackMeetUiLocalization;
   const t = key => ui?.t(key) || key;
   const tf = (template, values) => ui?.tf(template, values) || template;
-  const knownMessage = (value, fallback) => ui?.translateKnownMessage(value, fallback) || value || fallback || "";
+  const knownMessage = (value, fallback, values) => ui?.translateKnownMessage(value, fallback, values) || (values ? tf(fallback, values) : t(fallback || "Request failed."));
+  const safeError = (error, fallback = "Request failed.") => knownMessage(error?.message || error, fallback);
   const roleLabel = role => ui?.roleLabel(role) || role || t("Competition Manager");
   const stackMeetLocale = () => ({ ms: "ms-MY", "zh-Hans": "zh-CN" }[ui?.language?.()] || "en-MY");
 
@@ -64,7 +65,7 @@
       }
       let error = `Request failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
-      throw new Error(knownMessage(error, tf("Request failed ({status})", { status: response.status })));
+      throw new Error(knownMessage(error, "Request failed ({status})", { status: response.status }));
     }
     return response;
   }
@@ -421,7 +422,7 @@
       });
       message(tf("{key} XML imported.", { key }));
     } catch (error) {
-      message(tf("XML import failed: {error}", { error: knownMessage(error.message) }));
+      message(t("XML import failed."));
     }
   }
 
@@ -464,7 +465,7 @@
     if (!response.ok) {
       let error = `Login failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
-      throw new Error(knownMessage(error, tf("Login failed ({status})", { status: response.status })));
+      throw new Error(knownMessage(error, "Login failed."));
     }
 
     const session = await response.json();
@@ -738,30 +739,33 @@
 
   document.title = t("NADITrack Competition Admin");
   ui?.apply(document.querySelector(".admin-shell"));
-  $("operatorLanguage")?.addEventListener("change", event => ui?.setLanguage(event.target.value, document.querySelector(".admin-shell")));
-  $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(knownMessage(error.message))));
-  $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(error.message)));
-  $("refreshAdmin").addEventListener("click", () => refreshAdminData().catch(error => message(error.message)));
-  $("adminLogout").addEventListener("click", () => logoutAdmin().catch(error => message(error.message)));
+  $("operatorLanguage")?.addEventListener("change", event => {
+    ui?.setLanguage(event.target.value, document.querySelector(".admin-shell"));
+    document.title = t("NADITrack Competition Admin");
+  });
+  $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(safeError(error))));
+  $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(safeError(error, "Login failed."))));
+  $("refreshAdmin").addEventListener("click", () => refreshAdminData().catch(error => message(safeError(error))));
+  $("adminLogout").addEventListener("click", () => logoutAdmin().catch(error => message(safeError(error))));
   $("newCompetition").addEventListener("click", () => fillForm(null));
   document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
-  $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
+  $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(safeError(error))));
   $("emailProvider").addEventListener("change", updateEmailProviderControls);
-  $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
-  $("userSecurityOptionsForm").addEventListener("submit", event => saveUserSecurityOptions(event).catch(error => message(error.message)));
-  $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
-  $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
-  $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(error.message)));
-  $("editDeleteUser").addEventListener("click", () => deleteUser().catch(error => message(error.message)));
-  $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(error.message)));
+  $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(safeError(error))));
+  $("userSecurityOptionsForm").addEventListener("submit", event => saveUserSecurityOptions(event).catch(error => message(safeError(error))));
+  $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(safeError(error))));
+  $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(safeError(error))));
+  $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(safeError(error))));
+  $("editDeleteUser").addEventListener("click", () => deleteUser().catch(error => message(safeError(error))));
+  $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(safeError(error))));
   $("userSearch").addEventListener("input", event => {
     userSearch = event.target.value;
     drawUserRows();
   });
   document.querySelectorAll("[data-user-sort]").forEach(button => button.addEventListener("click", () => setUserSort(button.dataset.userSort)));
-  $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(error.message)));
-  $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
-  $("adminExportXml")?.addEventListener("click", () => exportCompetitionXml().catch(error => message(error.message)));
+  $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(safeError(error))));
+  $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(safeError(error))));
+  $("adminExportXml")?.addEventListener("click", () => exportCompetitionXml().catch(error => message(safeError(error))));
   $("adminImportXml")?.addEventListener("change", event => importCompetitionXml(event));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");
@@ -776,7 +780,7 @@
     }
     const resetButton = event.target.closest("[data-reset-user]");
     if (resetButton) {
-      sendPasswordReset(resetButton.dataset.resetUser).catch(error => message(error.message));
+      sendPasswordReset(resetButton.dataset.resetUser).catch(error => message(safeError(error)));
       return;
     }
     const row = event.target.closest("[data-user-id]");
@@ -784,15 +788,15 @@
   });
   $("editAccessRows").addEventListener("click", event => {
     const removeButton = event.target.closest("[data-remove-access]");
-    if (removeButton) removeAccess(removeButton.dataset.removeAccess).catch(error => message(error.message));
+    if (removeButton) removeAccess(removeButton.dataset.removeAccess).catch(error => message(safeError(error)));
   });
-  document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
+  document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(safeError(error)))));
   setAdminPage(location.hash.replace("#", "") || "email");
   updateAuthPanelVisibility();
   fillForm(null);
   drawUserEditor();
   if (sessionStorage.getItem(keyName) || adminSession()) {
-    loadAdminData().catch(error => message(error.message));
+    loadAdminData().catch(error => message(safeError(error)));
   } else {
     message(t("Log in as a Global System Admin or enter the admin key to load admin data."));
   }

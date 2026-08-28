@@ -3,7 +3,7 @@
   const ui = () => window.StackMeetUiLocalization;
   const t = key => ui()?.t(key) || key;
   const tf = (template, values) => ui()?.tf(template, values) || template;
-  const knownMessage = (value, fallback) => ui()?.translateKnownMessage(value, fallback) || value || fallback || "";
+  const knownMessage = (value, fallback) => ui()?.translateKnownMessage(value, fallback) || t(fallback || "Request failed.");
 
   function initializeLoginLanguage() {
     const login = document.getElementById("loginScreen");
@@ -12,7 +12,10 @@
     control.value = ui().language();
     ui().apply(login);
     document.title = t("NADITrack Login");
-    control.addEventListener("change", event => ui().setLanguage(event.target.value, login));
+    control.addEventListener("change", event => {
+      ui().setLanguage(event.target.value, login);
+      document.title = t("NADITrack Login");
+    });
   }
 
   // Reads the saved account session even before a competition has been selected.
@@ -137,7 +140,7 @@
   function chooseCompetition(session, competitionId) {
     const choices = Array.isArray(session.competitionAccess) ? session.competitionAccess : [];
     const selected = choices.find(item => String(item.competitionId) === String(competitionId));
-    if (!selected) throw new Error(t("Choose an assigned competition."));
+    if (!selected) throw new Error("Choose an assigned competition.");
     const nextSession = saveSession({
       ...session,
       competitionId: selected.competitionKey,
@@ -200,7 +203,7 @@
     sendForgot?.addEventListener("click", async () => {
       if (!forgotEmail?.value.trim()) { if (error) error.textContent = t("Enter your email address first."); return; }
       try { if (error) error.textContent = await requestPasswordReset(forgotEmail.value); }
-      catch (resetError) { if (error) error.textContent = knownMessage(resetError.message); }
+      catch (resetError) { if (error) error.textContent = knownMessage(resetError.message, "Unable to request a password reset."); }
     });
 
     // Toggles form controls so browser validation only applies to the active login step.
@@ -218,7 +221,7 @@
 
     async function showCompetitionStep(accountSession) {
       const choices = await competitionChoices(accountSession);
-      if (!choices.length) throw new Error(t("No competition access is assigned to this account."));
+      if (!choices.length) throw new Error("No competition access is assigned to this account.");
       accountSession.competitionAccess = choices;
       session = saveSession(accountSession);
       renderCompetitionChoices(choices);
@@ -236,7 +239,7 @@
 
     if (session && !hasSelectedCompetition(session)) {
       await showCompetitionStep(session).catch(loginError => {
-        if (error) error.textContent = knownMessage(loginError.message);
+        if (error) error.textContent = knownMessage(loginError.message, "Unable to load competitions.");
       });
     }
 
@@ -259,7 +262,7 @@
           updateChrome();
           resolve(session);
         } catch (loginError) {
-          if (error) error.textContent = knownMessage(loginError.message);
+          if (error) error.textContent = knownMessage(loginError.message, "Login failed.");
         } finally {
           if (submitButton) submitButton.disabled = false;
         }
