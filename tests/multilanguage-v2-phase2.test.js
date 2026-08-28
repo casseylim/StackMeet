@@ -6,6 +6,7 @@ const path = require("path");
 const vm = require("vm");
 const i18n = require("../backend/StackMeet.Api/wwwroot/js/i18n/I18n.js");
 const source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "i18n", "LanguagePreference.js"), "utf8");
+const appSource = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
 
 function harness() {
   const values = new Map();
@@ -14,6 +15,18 @@ function harness() {
   root.globalThis = root;
   vm.runInNewContext(source, { window: root, globalThis: root });
   return { preference: root.StackMeetLanguagePreference, values };
+}
+
+function appTranslationHarness(language, translations) {
+  const start = appSource.indexOf("function currentLanguage()");
+  const end = appSource.indexOf("function translateChrome", start);
+  const context = {
+    state: { settings: { language: "en" }, translations },
+    window: { StackMeetLanguagePreference: { getPreferredLanguage: () => language }, StackMeetI18n: i18n, StackMeetI18nLocales: { ms: { Dashboard: "built in" }, "zh-Hans": { Dashboard: "built in" } } }
+  };
+  context.globalThis = context;
+  vm.runInNewContext(`${appSource.slice(start, end)}; globalThis.hooks = { currentLanguage, t };`, context);
+  return context.hooks;
 }
 
 for (const [input, expected] of [["en", "en"], ["EN", "en"], [" en ", "en"], ["MS", "ms"], [" ms ", "ms"], ["ZH", "zh-Hans"], ["zh-hans", "zh-Hans"], [" ZH-HANS ", "zh-Hans"], ["", "en"], ["unknown", "en"]]) assert.strictEqual(i18n.normalizeLanguageCode(input), expected);
@@ -36,4 +49,9 @@ assert.strictEqual(a.preference.getPreferredLanguage(), null);
 assert.strictEqual(b.preference.getPreferredLanguage(), "zh-Hans");
 assert.strictEqual(i18n.translate("Dashboard", "zh-Hans", { "zh-Hans": { Dashboard: "canonical" }, zh: { Dashboard: "legacy" } }), "canonical");
 assert.strictEqual({ settings: { language: "en" }, stackers: [], results: [] }.settings.language, "en");
+const translated = appTranslationHarness("zh-Hans", { zh: { Dashboard: "legacy" }, "zh-Hans": { Dashboard: "canonical" } });
+assert.strictEqual(translated.currentLanguage(), "zh-Hans");
+assert.strictEqual(translated.t("Dashboard"), "canonical");
+assert.strictEqual(appTranslationHarness("zh-Hans", { zh: { Dashboard: "legacy" } }).t("Dashboard"), "legacy");
+assert.strictEqual(appTranslationHarness("zh-Hans", {}).t("Dashboard"), "built in");
 console.log("Multilanguage v2 Phase 2 integration tests passed.");

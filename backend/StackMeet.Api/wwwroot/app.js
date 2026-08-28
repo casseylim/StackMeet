@@ -1590,6 +1590,11 @@ function currentLanguage() {
   return window.StackMeetLanguagePreference?.getPreferredLanguage() || window.StackMeetI18n?.normalizeLanguageCode(state.settings?.language) || "en";
 }
 
+function syncOperatorLanguageControl() {
+  const control = document.getElementById("operatorLanguage");
+  if (control) control.value = currentLanguage();
+}
+
 function languageLabel(code) {
   if (code === "ms") return "Bahasa Malaysia";
   if (code === "zh" || code === "zh-Hans") return "Simplified Chinese";
@@ -1601,7 +1606,7 @@ function t(text) {
   return window.StackMeetI18n?.translate(text, code, {
     ...(state.translations || {}),
     ms: { ...(window.StackMeetI18nLocales?.ms || {}), ...(state.translations?.ms || {}) },
-    "zh-Hans": { ...(window.StackMeetI18nLocales?.["zh-Hans"] || {}), ...(state.translations?.["zh-Hans"] || {}), ...(state.translations?.zh || {}) }
+    "zh-Hans": { ...(window.StackMeetI18nLocales?.["zh-Hans"] || {}), ...(state.translations?.zh || {}), ...(state.translations?.["zh-Hans"] || {}) }
   }) || text;
 }
 
@@ -6802,6 +6807,7 @@ async function initializeApplication() {
   document.getElementById("operatorLanguage")?.addEventListener("change", event => {
     const language = window.StackMeetLanguagePreference.setPreferredLanguage(event.target.value);
     window.StackMeetI18n.setDocumentLanguage(language);
+    syncOperatorLanguageControl();
     render();
   });
   applyBrandingChrome();
@@ -6810,6 +6816,7 @@ async function initializeApplication() {
   state = await loadState();
   const initialLanguage = window.StackMeetLanguagePreference?.getPreferredLanguage() || state.settings?.language || "en";
   window.StackMeetI18n?.setDocumentLanguage(initialLanguage);
+  syncOperatorLanguageControl();
   try {
     await initializeSqlNativeStackers();
     await refreshSqlResults({ rerender: false });
