@@ -1218,8 +1218,8 @@ function navRouteIsActive(key) {
 
 function navBadgeText(badge) {
   if (!badge) return "";
-  if (badge === "__languageBadge") return languageLabel(currentLanguage());
-  if (badge === "__languageList") return "English / Bahasa Malaysia / Simplified Chinese";
+  if (badge === "__languageBadge") return t(languageLabel(currentLanguage()));
+  if (badge === "__languageList") return [t("English"), t("Bahasa Malaysia"), t("Simplified Chinese")].join(" / ");
   if (badge === "__stackerCount") return selectedSqlCompetitionId ? String(state.stackers.length) : "--";
   return t(badge);
 }
@@ -1421,7 +1421,7 @@ function renderDashboard() {
   const resultsUrl = publicResultsUrl();
   const metrics = {
     stackers: state.stackers.length,
-    gender: `${countBy("gender", "F")} Female // ${countBy("gender", "M")} Male`,
+    gender: tf("{female} Female // {male} Male", { female: countBy("gender", "F"), male: countBy("gender", "M") }),
     doubles: state.doubles.length,
     relay: completedRelays().length,
     divisions: state.divisions.length,
@@ -1436,15 +1436,15 @@ function renderDashboard() {
       <div class="list-row"><span>Name</span><strong>${esc(competition.competitionName)}</strong></div>
       <div class="list-row"><span>Date</span><strong>${esc(competition.startDate)} to ${esc(competition.endDate)}</strong></div>
       <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
-      <div class="list-row"><span>Rounds</span><strong>${state.settings.prelims} prelim / ${state.settings.finals} final</strong></div>
+      <div class="list-row"><span>Rounds</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
       <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
-    <div class="results-share no-auto-translate">
+    <div class="results-share">
       <div>
-        <span>Public Results</span>
-        <a href="${esc(resultsUrl)}" target="_blank" rel="noopener">${esc(resultsUrl)}</a>
+        <span data-i18n="Public Results">Public Results</span>
+        <a href="${esc(resultsUrl)}" target="_blank" rel="noopener" data-domain>${esc(resultsUrl)}</a>
       </div>
-      <img src="${esc(qrCodeUrl(resultsUrl))}" alt="QR code for public results" loading="lazy" />
+      <img src="${esc(qrCodeUrl(resultsUrl))}" data-i18n-alt="QR code for public results" alt="QR code for public results" loading="lazy" />
     </div>
   `;
 }
@@ -1925,7 +1925,7 @@ function fillDoubleSelect(id, search, selectedId = "") {
   const html = [`<option value="">--</option>`].concat(options.map(stacker => {
     const team = doublesForStacker(stacker.id).find(existing => existing.id !== editingDoubleId);
     const className = team ? "assigned-option" : "";
-    const status = team ? `Team ${team.id}: ${participantName("Doubles", team.id)}` : "Available";
+    const status = team ? tf("Team {id}: {name}", { id: team.id, name: participantName("Doubles", team.id) }) : t("Available");
     return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   const select = document.getElementById(id);
@@ -2025,7 +2025,7 @@ function fillRelaySelect(slot, search, selectedId = "") {
     const assigned = relayForStacker(stacker.id);
     const duplicate = selectedInOtherSlots.includes(stacker.id);
     const className = assigned && assigned.id !== editingRelayId ? "assigned-option" : "";
-    const status = duplicate ? "Already selected here" : assigned && assigned.id !== editingRelayId ? `Team ${assigned.id}: ${participantName("Timed Relay", assigned.id)}` : "Available";
+    const status = duplicate ? t("Already selected here") : assigned && assigned.id !== editingRelayId ? tf("Team {id}: {name}", { id: assigned.id, name: participantName("Timed Relay", assigned.id) }) : t("Available");
     return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}" ${duplicate ? "disabled" : ""}>${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   if (selectedId && [...select.options].some(option => option.value === selectedId)) select.value = selectedId;
@@ -2044,9 +2044,9 @@ function showSelectedRelayWarnings() {
     .map(id => ({ id, team: relayForStacker(id) }))
     .filter(item => item.team && item.team.id !== editingRelayId);
   const messages = [];
-  if (selected.length > 0 && selected.length < 4) messages.push("Incomplete Team: Minimum 4 registered stackers are required before this team may compete.");
-  if (duplicates.length) messages.push("Each stacker can only be selected once in this relay team.");
-  if (conflicts.length) messages.push(`${conflicts.map(item => `${stackerName(item.id)} is now in ${item.team.id}`).join("; ")}. Saving will remove them from the current relay team.`);
+  if (selected.length > 0 && selected.length < 4) messages.push(t("Incomplete Team: Minimum 4 registered stackers are required before this team may compete."));
+  if (duplicates.length) messages.push(t("A stacker can only be selected once in this relay team."));
+  if (conflicts.length) messages.push(tf("{conflicts}. Saving will remove them from the current relay team.", { conflicts: conflicts.map(item => tf("{name} is now in {team}", { name: stackerName(item.id), team: item.team.id })).join("; ") }));
   if (!messages.length) {
     box.hidden = true;
     box.textContent = "";
@@ -3595,7 +3595,7 @@ function renderLeaderboardSlide(slides, index) {
   document.getElementById("leaderRows").innerHTML = slide.rows.length ? `
     <div class="leader-progress" style="animation-duration: ${esc(durationMs)}ms"></div>
     <div class="leader-subtitle"><span>${esc(slide.subtitle)}</span><span>${esc(index + 1)} / ${esc(slides.length)}</span></div>
-    <div class="leader-header"><span></span><span>Stacker</span><span>Time</span><span>Gap</span></div>
+    <div class="leader-header"><span></span><span>${esc(t("Stacker"))}</span><span>${esc(t("Time"))}</span><span>${esc(t("Gap"))}</span></div>
     ${slide.rows.map(row => `
       <div class="leader-row">
         <div class="rank">${esc(row.rank)}</div>
@@ -3904,8 +3904,8 @@ function fillStackerPartnerSelect(team = null) {
   select.innerHTML = [`<option value="">--</option>`].concat(options.map(stacker => {
     const assigned = doublesForStacker(stacker.id).find(existing => existing.id !== team?.id);
     const className = assigned ? "assigned-option" : "";
-    const status = assigned ? `Team ${assigned.id}: ${participantName("Doubles", assigned.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
+    const status = assigned ? tf("Team {id}: {name}", { id: assigned.id, name: participantName("Doubles", assigned.id) }) : t("Available");
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   if (currentPartner && [...select.options].some(option => option.value === currentPartner)) select.value = currentPartner;
   updateStackerDoubleWarning();
@@ -5642,7 +5642,9 @@ function saveStackerDoubleAssignment() {
   });
   flashMessage = {
     type: "success",
-    text: `${team.id} ${participantName("Doubles", team.id)} was saved${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}`
+    text: displaced.length
+      ? tf("{id} {name} was saved; removed from {teams}.", { id: team.id, name: participantName("Doubles", team.id), teams: displaced.join(", ") })
+      : tf("{id} {name} was saved.", { id: team.id, name: participantName("Doubles", team.id) })
   };
   stackerDoubleEditorOpen = false;
   renderStackers();
@@ -5690,7 +5692,7 @@ function addDouble() {
     after: team
   });
   doublesTab = status === "pending" ? "incomplete" : "completed";
-  doubleFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Doubles", team.id), action: t(editingDoubleId ? "updated" : "added"), suffix: displaced.length ? `; removed from ${displaced.join(", ")}.` : "." }) };
+  doubleFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Doubles", team.id), action: t(editingDoubleId ? "updated" : "added"), suffix: displaced.length ? tf("; removed from {teams}.", { teams: displaced.join(", ") }) : "." }) };
   clearDoubleForm(false);
 }
 
@@ -5801,7 +5803,7 @@ function addRelay() {
     after: team
   });
   relayTab = relayTeamStatus(team) === "Ready" ? "ready" : relayTeamStatus(team).toLowerCase();
-  relayFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Timed Relay", team.id), action: t(editingRelayId ? "updated" : "added"), suffix: displaced.length ? `; removed from ${displaced.join(", ")}.` : "." }) };
+  relayFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Timed Relay", team.id), action: t(editingRelayId ? "updated" : "added"), suffix: displaced.length ? tf("; removed from {teams}.", { teams: displaced.join(", ") }) : "." }) };
   clearRelayForm(false);
 }
 

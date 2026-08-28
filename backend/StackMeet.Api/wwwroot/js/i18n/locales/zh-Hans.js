@@ -71,5 +71,18 @@
     Object.assign(root.StackMeetI18nLocales["zh-Hans"], {
       "Complete the SQL competition setup fields first.": "请先完成 SQL 比赛设置字段。", "Participant ID not found. Check the printed sheet and try again.": "找不到参赛者 ID。请检查打印的计时表后重试。", "Editing Existing Result": "编辑现有成绩", "Ready for Entry": "准备录入", "{status}: {id} {name}.": "{status}：{id} {name}。", "{id} {name}: {action}. Changes saved; latest updates will synchronize automatically.": "{id} {name}：{action}。更改已保存，最新更新将自动同步。", "Find a final sheet before printing.": "打印前请查找决赛计时表。", "{conflicts}. Saving will remove them from the current doubles team and pair them here.": "{conflicts}。保存后将从当前双人队中移除，并在此配对。", "{name} is now in {team}": "{name} 现在在 {team} 中", "{name} is now in {team}. Saving will remove them from that team and pair them here.": "{name} 现在在 {team} 中。保存后将从该队伍中移除，并在此配对。", "This XML file could not be imported. Please check that it came from this app.": "无法导入此 XML 文件。请确认文件来自本应用。", "Please allow popups for NADITrack, then click Open Display again.": "请允许 NADITrack 的弹出窗口，然后再次点击打开显示屏。", "Division name": "组别名称", "Import {count} stackers from {file}? Existing SQL-native stackers will not be replaced.": "要从 {file} 导入 {count} 名选手吗？现有 SQL 选手不会被替换。", "Please enter the stacker name first.": "请先输入选手姓名。", "Please enter the date of birth so the division can be generated.": "请输入出生日期以生成组别。", "Create or select a SQL competition before saving a stacker.": "请先创建或选择 SQL 比赛，然后保存选手。", "{id} {name} was {action}{suffix}": "{id} {name} 已{action}{suffix}", "updated": "更新", "added": "添加", "A stacker can only be selected once in this relay team.": "同一名选手在此接力队中只能选择一次。", "Relay team can only keep up to 6 registered stackers.": "接力队最多只能保留 6 名已注册选手。", "Delete {id} {name}?": "要删除 {id} {name} 吗？", "Save Failed: SQL-native stackers are unavailable.": "保存失败：SQL 选手不可用。"
     });
+    Object.assign(root.StackMeetI18nLocales["zh-Hans"], {
+      "{female} Female // {male} Male": "{female} 名女子 // {male} 名男子",
+      "{prelims} prelim / {finals} final": "{prelims} 轮预赛 / {finals} 轮决赛",
+      "Gap": "差值",
+      "Available": "可用",
+      "Already selected here": "已在此选择",
+      "Team {id}: {name}": "队伍 {id}：{name}",
+      "; removed from {teams}.": "；已从 {teams} 中移除。",
+      "{id} {name} was saved.": "{id} {name} 已保存。",
+      "{id} {name} was saved; removed from {teams}.": "{id} {name} 已保存；已从 {teams} 中移除。",
+      "Incomplete Team: Minimum 4 registered stackers are required before this team may compete.": "队伍未完成：至少需要 4 名已注册选手后才能参赛。",
+      "{conflicts}. Saving will remove them from the current relay team.": "{conflicts}。保存后将从当前接力队中移除。"
+    });
     Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "3-3-3": "3-3-3", "3-6-3": "3-6-3", "Cycle": "循环", "Stage": "阶段", "Members": "成员", "# Members": "# 成员", "Award Group": "奖项组", "Basis": "依据", "Item": "项目", "Quantity": "数量", "Rank": "排名", "Stacker / Team": "选手/队伍", "Penalty": "罚时" });
 })(typeof window !== "undefined" ? window : globalThis);
