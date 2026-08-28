@@ -39,7 +39,7 @@ function extractFunction(name) {
 }
 
 function loadFunctions(names) {
-  const context = { structuredClone, Map, Array, String };
+  const context = { structuredClone, Map, Set, Array, String };
   context.globalThis = context;
   const code = names.map(extractFunction).join("\n") + `\nglobalThis.__hooks = { ${names.join(", ")} };`;
   vm.runInNewContext(code, context, { filename: "post-v2-regression-audit.vm.js" });
@@ -62,23 +62,44 @@ function audit(name, test) {
   }
 }
 
-// P0 regression: an intentional local team deletion must not be resurrected by the
-// pre-save concurrent-state merge. Additive merging is useful for remote creations,
-// but omission from the local collection must remain a valid delete signal.
+const latestTeams = {
+  doubles: [{ id: "2.1" }, { id: "2.2" }],
+  relays: [{ id: "3.1" }, { id: "3.2" }],
+  notifications: [],
+  auditLogs: []
+};
+const localTeams = {
+  doubles: [{ id: "2.1" }],
+  relays: [{ id: "3.1" }],
+  notifications: [],
+  auditLogs: []
+};
+
+// Existing additive merge behavior is intentional: if this computer simply has not
+// seen a team created elsewhere yet, the latest server copy must survive the merge.
+audit("REMOTE-TEAM-ADDITION-PRESERVED", () => {
+  const merged = mergeConcurrentState(latestTeams, localTeams);
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(merged.doubles.map(item => item.id))),
+    ["2.1", "2.2"],
+    "A server-side Doubles addition was lost without explicit local deletion intent."
+  );
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(merged.relays.map(item => item.id))),
+    ["3.1", "3.2"],
+    "A server-side Relay addition was lost without explicit local deletion intent."
+  );
+});
+
+// P0 regression: an explicit local deletion must override the latest server record.
+// The third argument is the required deletion-intent contract; current code ignores it,
+// which proves why explicit deletes are presently resurrected.
 audit("TEAM-DELETION-MERGE", () => {
-  const latest = {
-    doubles: [{ id: "2.1" }, { id: "2.2" }],
-    relays: [{ id: "3.1" }, { id: "3.2" }],
-    notifications: [],
-    auditLogs: []
+  const deleted = {
+    doubles: new Set(["2.2"]),
+    relays: new Set(["3.2"])
   };
-  const local = {
-    doubles: [{ id: "2.1" }],
-    relays: [{ id: "3.1" }],
-    notifications: [],
-    auditLogs: []
-  };
-  const merged = mergeConcurrentState(latest, local);
+  const merged = mergeConcurrentState(latestTeams, localTeams, deleted);
   assert.deepStrictEqual(
     JSON.parse(JSON.stringify(merged.doubles.map(item => item.id))),
     ["2.1"],
@@ -113,4 +134,4 @@ if (findings.length) {
   throw new Error(`Post-v2 regression audit confirmed ${findings.length} defect(s):\n- ${findings.join("\n- ")}`);
 }
 
-console.log("PASS post-v2 regression audit — team deletions and Year Born persistence are protected");
+console.log("PASS post-v2 regression audit — concurrency additions, explicit team deletions and Year Born persistence are protected");
