@@ -56,6 +56,7 @@
             <h1 id="pageTitle">Dashboard</h1>
           </div>
           <div class="top-actions">
+            <label class="operator-language-label" for="operatorLanguage">Language<select id="operatorLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh-Hans">简体中文</option></select></label>
             <button id="logoutBtn" class="ghost" type="button">Log Out</button>
           </div>
         </header>
@@ -108,7 +109,7 @@
           <label>SOC<select id="settingSoc"><option value="Yes">Yes</option><option value="No">No</option></select></label>
           <label>Prelim Times Data Entry<select id="settingPrelimTimes"><option value="best">Best</option><option value="all">All</option></select></label>
           <label>Paperless Entry<select id="settingPaperless"><option value="Yes">Yes</option><option value="No">No</option></select></label>
-          <label>Language<select id="settingLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
+          <label>Public Results Default Language<select id="settingLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh-Hans">简体中文</option></select></label>
           <label class="checkbox-field"><input id="settingSeparateSpecialGender" type="checkbox" /> <span><strong>Separate Special Stacker Divisions by Gender</strong><small>When enabled, Special Stacker results will be divided into separate male and female divisions.</small></span></label>
           <label>Age Calculation<select id="settingAgeCalculation"><option value="actual">Actual Age on Competition Date</option><option value="yearBorn">Year Born Only</option></select></label>
           <label>Advance Individuals<input id="settingAdvanceIndividuals" type="number" min="0" /></label>
@@ -218,7 +219,7 @@
           <button class="primary" data-action="save-language" type="button">Save Language</button>
         </div>
         <div class="form-grid">
-          <label>Active Language<select id="languageActive"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
+          <label>Translation Language To Edit<select id="languageActive"><option value="ms">Bahasa Malaysia</option><option value="zh-Hans">简体中文</option></select></label>
           <label>Search Translation<input id="languageSearch" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
         </div>
         <div class="table-wrap language-table no-auto-translate"><table><thead><tr><th>English</th><th>Bahasa Malaysia</th></tr></thead><tbody id="languageRows"></tbody></table></div>
@@ -600,6 +601,10 @@
     </template>
 
     <script src="config.js"></script>
+    <script src="js/i18n/I18n.js?v=multilanguage-v2-phase2"></script>
+    <script src="js/i18n/locales/ms.js?v=multilanguage-v2-phase2"></script>
+    <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase2"></script>
+    <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase2"></script>
     <script src="js/auth/AuthSession.js?v=forgot-lockout-ui"></script>
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>

@@ -1587,19 +1587,22 @@ function pruneSelectOptions(id, availability) {
 }
 
 function currentLanguage() {
-  return state.settings?.language || "en";
+  return window.StackMeetLanguagePreference?.getPreferredLanguage() || window.StackMeetI18n?.normalizeLanguageCode(state.settings?.language) || "en";
 }
 
 function languageLabel(code) {
   if (code === "ms") return "Bahasa Malaysia";
-  if (code === "zh") return "Simplified Chinese";
+  if (code === "zh" || code === "zh-Hans") return "Simplified Chinese";
   return "English";
 }
 
 function t(text) {
   const code = currentLanguage();
-  if (code === "en") return text;
-  return state.translations?.[code]?.[text] || text;
+  return window.StackMeetI18n?.translate(text, code, {
+    ...(state.translations || {}),
+    ms: { ...(window.StackMeetI18nLocales?.ms || {}), ...(state.translations?.ms || {}) },
+    "zh-Hans": { ...(window.StackMeetI18nLocales?.["zh-Hans"] || {}), ...(state.translations?.["zh-Hans"] || {}), ...(state.translations?.zh || {}) }
+  }) || text;
 }
 
 function translateChrome() {
@@ -1826,14 +1829,14 @@ function auditChangeSummary(log) {
 }
 
 function renderLanguage() {
-  setValue("languageActive", state.settings.language || "en");
+  setValue("languageActive", state.settings.language === "zh" ? "zh-Hans" : state.settings.language === "zh-Hans" ? "zh-Hans" : "ms");
   document.getElementById("languageActive")?.addEventListener("change", drawLanguageRows);
   drawLanguageRows();
   document.getElementById("languageSearch")?.addEventListener("input", drawLanguageRows);
 }
 
 function drawLanguageRows() {
-  const code = val("languageActive") === "zh" ? "zh" : "ms";
+  const code = window.StackMeetI18n?.normalizeLanguageCode(val("languageActive")) === "zh-Hans" ? "zh" : "ms";
   const label = languageLabel(code);
   const term = (document.getElementById("languageSearch")?.value || "").toLowerCase();
   const entries = Object.entries(state.translations[code] || {})
@@ -5211,7 +5214,7 @@ async function saveSettings() {
 }
 
 function saveLanguage() {
-  state.settings.language = val("languageActive") || "en";
+  state.settings.language = window.StackMeetI18n?.normalizeLanguageCode(val("settingLanguage")) || "en";
   document.querySelectorAll("[data-language-key]").forEach(input => {
     const code = input.dataset.languageCode || "ms";
     state.translations[code] = state.translations[code] || {};
@@ -6795,10 +6798,19 @@ function showBootError(error) {
 }
 
 async function initializeApplication() {
+  const preference = window.StackMeetLanguagePreference?.getPreferredLanguage();
+  window.StackMeetI18n?.setDocumentLanguage(preference || state.settings?.language || "en");
+  document.getElementById("operatorLanguage")?.addEventListener("change", event => {
+    const language = window.StackMeetLanguagePreference.setPreferredLanguage(event.target.value);
+    window.StackMeetI18n.setDocumentLanguage(language);
+    render();
+  });
   applyBrandingChrome();
   const session = await window.StackMeetAuth.requireLogin();
   repository.setCompetitionKey(session.competitionId);
   state = await loadState();
+  const initialLanguage = window.StackMeetLanguagePreference?.getPreferredLanguage() || state.settings?.language || "en";
+  window.StackMeetI18n?.setDocumentLanguage(initialLanguage);
   try {
     await initializeSqlNativeStackers();
     await refreshSqlResults({ rerender: false });

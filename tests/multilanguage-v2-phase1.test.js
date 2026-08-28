@@ -2,6 +2,8 @@
 
 const assert = require("assert");
 const I18n = require("../backend/StackMeet.Api/wwwroot/js/i18n/I18n.js");
+const preferenceStorage = new Map();
+const Preference = require("../backend/StackMeet.Api/wwwroot/js/i18n/LanguagePreference.js");
 
 assert.strictEqual(I18n.normalizeLanguageCode("en"), "en");
 assert.strictEqual(I18n.normalizeLanguageCode("ms"), "ms");
@@ -22,4 +24,6 @@ assert.deepStrictEqual({ stackers: after.stackers, results: after.results }, { s
 const documentObject = { documentElement: {} };
 assert.strictEqual(I18n.setDocumentLanguage("zh", documentObject), "zh-Hans");
 assert.strictEqual(documentObject.documentElement.lang, "zh-Hans");
+
+assert.strictEqual(typeof Preference.getPreferredLanguage, "function");
 console.log("Multilanguage v2 Phase 1 characterization tests passed.");
