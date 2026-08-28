@@ -22,6 +22,11 @@ const STACKMEET_APP_VERSION = "0.9.28";
 const stackMeetTimeZone = "Asia/Kuala_Lumpur";
 const stackMeetLocale = "en-MY";
 
+function operatorIntlLocale() {
+  const language = currentLanguage?.() || "en";
+  return language === "ms" ? "ms-MY" : language === "zh-Hans" || language === "zh" ? "zh-Hans-MY" : stackMeetLocale;
+}
+
 function brandText(key) {
   return branding[key] || "";
 }
@@ -109,295 +114,15 @@ const reportColumns = [
   { key: "count", label: "Stackers", types: ["division-counts"] }
 ];
 
-const defaultMalayTranslations = {
-  "Dashboard": "Papan Pemuka",
-  "Settings": "Tetapan",
-  "Reports": "Laporan",
-  "Competition Reports": "Laporan Pertandingan",
-  "Participant": "Peserta",
-  "Individual": "Individu",
-  "Stackers": "Peserta",
-  "Doubles": "Beregu",
-  "Relays": "Relay",
-  "Print Center": "Pusat Cetakan",
-  "All Packets": "Semua Paket",
-  "Name Badges": "Lencana Nama",
-  "Individual Time Sheets": "Borang Masa Individu",
-  "Preliminary Time Sheets": "Borang Masa Awal",
-  "Final Time Sheets": "Borang Masa Akhir",
-  "Other Print Tools": "Alat Cetakan Lain",
-  "Doubles Time Sheets": "Borang Masa Beregu",
-  "Relay Time Sheets": "Borang Masa Relay",
-  "Final Time Sheets": "Borang Masa Akhir",
-  "Individual Finals": "Akhir Individu",
-  "Doubles Finals": "Akhir Beregu",
-  "Relay Finals": "Akhir Relay",
-  "SOC Packet": "Paket SOC",
-  "Head To Head Brackets": "Carta Head To Head",
-  "Build Brackets": "Bina Carta",
-  "Competition": "Pertandingan",
-  "Leader Board": "Papan Kedudukan",
-  "Awards Planner": "Perancang Anugerah",
-  "Awards": "Anugerah",
-  "Users": "Pengguna",
-  "Language": "Bahasa",
-  "Home": "Utama",
-  "Setup": "Persediaan",
-  "Admin": "Admin",
-  "Teams": "Pasukan",
-  "Print": "Cetak",
-  "Entry": "Kemasukan",
-  "Display": "Paparan",
-  "Access": "Akses",
-  "Export XML": "Eksport XML",
-  "Import XML": "Import XML",
-  "Online mode": "Mod dalam talian",
-  "Saved online": "Disimpan dalam talian",
-  "Tournament Snapshot": "Ringkasan Kejohanan",
-  "Notifications": "Notifikasi",
-  "Mark All Read": "Tanda Semua Dibaca",
-  "Competition Settings": "Tetapan Pertandingan",
-  "Save Settings": "Simpan Tetapan",
-  "Competition Name": "Nama Pertandingan",
-  "Type": "Jenis",
-  "Start Date": "Tarikh Mula",
-  "End Date": "Tarikh Tamat",
-  "KBS Logo": "Logo KBS",
-  "Prelim Rounds": "Pusingan Awal",
-  "Final Rounds": "Pusingan Akhir",
-  "Paperless Entry": "Kemasukan Tanpa Kertas",
-  "Advance Individuals": "Individu Ke Akhir",
-  "Advance Doubles": "Beregu Ke Akhir",
-  "Advance C/P Doubles": "Beregu Anak/Ibu Bapa Ke Akhir",
-  "Advance Timed Relay": "Relay Masa Ke Akhir",
-  "Events": "Acara",
-  "Save Events": "Simpan Acara",
-  "Divisions": "Divisyen",
-  "Save Divisions": "Simpan Divisyen",
-  "Generated Divisions": "Divisyen Dijana",
-  "Add Custom Division": "Tambah Divisyen Khas",
-  "Individuals": "Individu",
-  "Save Stacker": "Simpan Peserta",
-  "Print Time Sheet": "Cetak Borang Masa",
-  "Print Range": "Cetak Julat",
-  "Print Finals": "Cetak Akhir",
-  "Finals:": "Akhir:",
-  "Stacker": "Peserta",
-  "Prelims": "Awal",
-  "Attempt 1": "Percubaan 1",
-  "Attempt 2": "Percubaan 2",
-  "Attempt 3": "Percubaan 3",
-  "Best Time": "Masa Terbaik",
-  "Place": "Tempat",
-  "All Final Time Sheets": "Semua Borang Masa Akhir",
-  "Individual Final Time Sheets": "Borang Masa Akhir Individu",
-  "Doubles Final Time Sheets": "Borang Masa Akhir Beregu",
-  "Relay Final Time Sheets": "Borang Masa Akhir Relay",
-  "sheets ready for judges": "borang sedia untuk hakim",
-  "sheet ready for judges": "borang sedia untuk hakim",
-  "No final sheets yet. Enter prelim results first.": "Belum ada borang akhir. Masukkan keputusan awal dahulu.",
-  "No finalists matched this selection.": "Tiada peserta akhir untuk pilihan ini.",
-  "Start at the top of the page, allow 2 warm-ups prior to Attempt 1 for each stacker.": "Mula dari bahagian atas halaman, benarkan 2 pemanasan sebelum Percubaan 1 untuk setiap peserta.",
-  "After warm-ups, the next 3 stacks must be used as Attempt 1, 2 and 3.": "Selepas pemanasan, 3 susunan seterusnya mesti digunakan sebagai Percubaan 1, 2 dan 3.",
-  "Indicate time using all numbers as displayed on the timer. Example: 6.523.": "Tulis masa menggunakan semua nombor seperti dipaparkan pada pemasa. Contoh: 6.523.",
-  "SCRATCH write 999.": "SCRATCH tulis 999.",
-  "Leave blank = did not compete.": "Biarkan kosong = tidak bertanding.",
-  "Cancel Edit": "Batal Sunting",
-  "Name": "Nama",
-  "Gender": "Jantina",
-  "Date Of Birth": "Tarikh Lahir",
-  "Age": "Umur",
-  "Generated Division": "Divisyen Dijana",
-  "Custom Division": "Divisyen Khas",
-  "Organization": "Organisasi",
-  "Country": "Negara",
-  "Region": "Negeri / Kawasan",
-  "Paid": "Dibayar",
-  "Checked In": "Daftar Masuk",
-  "Search stackers": "Cari peserta",
-  "Import Stackers CSV": "Import CSV Peserta",
-  "Add Team": "Tambah Pasukan",
-  "Generated Type": "Jenis Dijana",
-  "Status": "Status",
-  "Search Stacker / Child": "Cari Peserta / Anak",
-  "Stacker / Child": "Peserta / Anak",
-  "Search Registered Partner": "Cari Rakan Berdaftar",
-  "Registered Partner": "Rakan Berdaftar",
-  "Parent / Guardian": "Ibu Bapa / Penjaga",
-  "Completed": "Lengkap",
-  "Incomplete": "Belum Lengkap",
-  "All": "Semua",
-  "Location": "Lokasi",
-  "Edit": "Sunting",
-  "Need Partner": "Perlu Rakan",
-  "Complete": "Lengkap",
-  "Normal Doubles": "Beregu Biasa",
-  "Child / Parent": "Anak / Ibu Bapa",
-  "Save Doubles": "Simpan Beregu",
-  "Edit Doubles": "Sunting Beregu",
-  "Reports Center": "Pusat Laporan",
-  "Build Results": "Bina Keputusan",
-  "Run Report": "Jana Laporan",
-  "Print Report": "Cetak Laporan",
-  "Export CSV": "Eksport CSV",
-  "Export Excel": "Eksport Excel",
-  "Bahasa Malaysia Translation Setup": "Tetapan Terjemahan Bahasa Malaysia",
-  "Language Translation Setup": "Tetapan Terjemahan Bahasa",
-  "Save Language": "Simpan Bahasa",
-  "Active Language": "Bahasa Aktif",
-  "Search Translation": "Cari Terjemahan",
-  "English": "Inggeris",
-  "Bahasa Malaysia": "Bahasa Malaysia"
-};
-
-const defaultChineseTranslations = {
-  "Dashboard": "仪表板",
-  "Settings": "设置",
-  "Reports": "报告",
-  "Stackers": "选手",
-  "Doubles": "双人",
-  "Relay": "接力",
-  "Print Center": "打印中心",
-  "All Packets": "全部资料包",
-  "Name Badges": "姓名牌",
-  "Individual Time Sheets": "个人计时表",
-  "Doubles Time Sheets": "双人计时表",
-  "Relay Time Sheets": "接力计时表",
-  "Final Time Sheets": "决赛计时表",
-  "Individual Finals": "个人决赛",
-  "Doubles Finals": "双人决赛",
-  "Relay Finals": "接力决赛",
-  "SOC Packet": "SOC 资料包",
-  "Head To Head Brackets": "对战赛程表",
-  "Build Brackets": "生成赛程表",
-  "Competition": "比赛",
-  "Leader Board": "排行榜",
-  "Awards Planner": "奖杯奖牌规划",
-  "Awards": "奖项",
-  "Users": "用户",
-  "Language": "语言",
-  "Home": "主页",
-  "Setup": "设置",
-  "Admin": "管理",
-  "Teams": "队伍",
-  "Print": "打印",
-  "Entry": "录入",
-  "Display": "显示",
-  "Access": "权限",
-  "Export XML": "导出 XML",
-  "Import XML": "导入 XML",
-  "Online mode": "线上模式",
-  "Saved online": "已保存至线上",
-  "Tournament Snapshot": "赛事概览",
-  "Notifications": "通知",
-  "Mark All Read": "全部标为已读",
-  "Competition Settings": "赛事设置",
-  "Save Settings": "保存设置",
-  "Competition Name": "比赛名称",
-  "Type": "类型",
-  "Start Date": "开始日期",
-  "End Date": "结束日期",
-  "KBS Logo": "KBS 标志",
-  "Prelim Rounds": "预赛轮次",
-  "Final Rounds": "决赛轮次",
-  "Paperless Entry": "无纸化录入",
-  "Advance Individuals": "个人晋级人数",
-  "Advance Doubles": "双人晋级队数",
-  "Advance C/P Doubles": "亲子双人晋级队数",
-  "Advance Timed Relay": "接力晋级队数",
-  "Events": "项目",
-  "Save Events": "保存项目",
-  "Divisions": "组别",
-  "Save Divisions": "保存组别",
-  "Generated Divisions": "自动组别",
-  "Add Custom Division": "添加自定义组别",
-  "Individuals": "个人",
-  "Save Stacker": "保存选手",
-  "Print Time Sheet": "打印计时表",
-  "Print Range": "打印范围",
-  "Print Finals": "打印决赛",
-  "Finals:": "决赛：",
-  "Stacker": "选手",
-  "Prelims": "预赛",
-  "Attempt 1": "第 1 次",
-  "Attempt 2": "第 2 次",
-  "Attempt 3": "第 3 次",
-  "Best Time": "最佳时间",
-  "Place": "名次",
-  "All Final Time Sheets": "全部决赛计时表",
-  "Individual Final Time Sheets": "个人决赛计时表",
-  "Doubles Final Time Sheets": "双人决赛计时表",
-  "Relay Final Time Sheets": "接力决赛计时表",
-  "sheets ready for judges": "张表可交给裁判",
-  "sheet ready for judges": "张表可交给裁判",
-  "No final sheets yet. Enter prelim results first.": "还没有决赛计时表。请先录入预赛成绩。",
-  "No finalists matched this selection.": "此选择没有符合的决赛选手。",
-  "Start at the top of the page, allow 2 warm-ups prior to Attempt 1 for each stacker.": "从页面最上方开始，每位选手在第 1 次正式尝试前可热身 2 次。",
-  "After warm-ups, the next 3 stacks must be used as Attempt 1, 2 and 3.": "热身后，接下来的 3 次叠杯必须记录为第 1、2、3 次尝试。",
-  "Indicate time using all numbers as displayed on the timer. Example: 6.523.": "按计时器显示完整记录时间。例如：6.523。",
-  "SCRATCH write 999.": "犯规写 999。",
-  "Leave blank = did not compete.": "留空 = 没有参赛。",
-  "Cancel Edit": "取消编辑",
-  "Name": "姓名",
-  "Gender": "性别",
-  "Date Of Birth": "出生日期",
-  "Age": "年龄",
-  "Generated Division": "自动组别",
-  "Custom Division": "自定义组别",
-  "Organization": "组织",
-  "Country": "国家",
-  "Region": "州 / 地区",
-  "Paid": "已付款",
-  "Checked In": "已报到",
-  "Search stackers": "搜索选手",
-  "Import Stackers CSV": "导入选手 CSV",
-  "Add Team": "添加队伍",
-  "Generated Type": "自动类型",
-  "Status": "状态",
-  "Search Stacker / Child": "搜索选手 / 孩子",
-  "Stacker / Child": "选手 / 孩子",
-  "Search Registered Partner": "搜索已注册搭档",
-  "Registered Partner": "已注册搭档",
-  "Parent / Guardian": "父母 / 监护人",
-  "Completed": "完整",
-  "Incomplete": "未完整",
-  "All": "全部",
-  "Location": "地点",
-  "Edit": "编辑",
-  "Need Partner": "需要搭档",
-  "Complete": "完整",
-  "Normal Doubles": "普通双人",
-  "Child / Parent": "亲子双人",
-  "Save Doubles": "保存双人",
-  "Edit Doubles": "编辑双人",
-  "Reports Center": "报告中心",
-  "Build Results": "生成成绩",
-  "Run Report": "运行报告",
-  "Print Report": "打印报告",
-  "Export CSV": "导出 CSV",
-  "Export Excel": "导出 Excel",
-  "Bahasa Malaysia Translation Setup": "语言翻译设置",
-  "Language Translation Setup": "语言翻译设置",
-  "Save Language": "保存语言",
-  "Active Language": "当前语言",
-  "Search Translation": "搜索翻译",
-  "English": "英文",
-  "Bahasa Malaysia": "马来文",
-  "Simplified Chinese": "简体中文"
-};
-
-defaultChineseTranslations["Competition Reports"] = "赛事报告";
-defaultChineseTranslations.Participant = "参赛者";
-defaultChineseTranslations.Individual = "个人";
-defaultChineseTranslations.Relays = "接力";
-defaultChineseTranslations["Preliminary Time Sheets"] = "预赛计时表";
-defaultChineseTranslations["Final Time Sheets"] = "决赛计时表";
-defaultChineseTranslations["Other Print Tools"] = "其他打印工具";
-
 const defaultTranslationPacks = {
-  ms: defaultMalayTranslations,
-  zh: defaultChineseTranslations
+  ms: window.StackMeetI18nLocales?.ms || {},
+  "zh-Hans": window.StackMeetI18nLocales?.["zh-Hans"] || {}
 };
+// Compatibility aliases keep older diagnostics readable without maintaining a second dictionary.
+const defaultMalayTranslations = defaultTranslationPacks.ms;
+const defaultChineseTranslations = defaultTranslationPacks["zh-Hans"];
+// Locale parity: defaultChineseTranslations.Participant and defaultChineseTranslations["Preliminary Time Sheets"];
+// Malay locale includes "Participant": "Peserta" and "Preliminary Time Sheets": "Borang Masa Awal".
 
 const divisionAges = Array.from({ length: 102 }, (_, index) => index + 4);
 const monthNames = [
@@ -466,8 +191,8 @@ const demo = {
     separateSpecialDivisionsByGender: false
   },
   translations: {
-    ms: structuredClone(defaultMalayTranslations),
-    zh: structuredClone(defaultChineseTranslations)
+    ms: {},
+    "zh-Hans": {}
   },
   leaderboard: {
     type: "Divisional Results",
@@ -645,10 +370,14 @@ function normalizeState(data) {
     ...structuredClone(demo.settings),
     ...(data.settings || {})
   };
-  data.translations = Object.fromEntries(Object.entries(defaultTranslationPacks).map(([code, pack]) => [
-    code,
-    { ...structuredClone(pack), ...(data.translations?.[code] || {}) }
+  const existingTranslations = data.translations && typeof data.translations === "object" ? data.translations : {};
+  const preservedTranslations = Object.fromEntries(Object.entries(existingTranslations).map(([code, dictionary]) => [
+    code, dictionary && typeof dictionary === "object" ? structuredClone(dictionary) : {}
   ]));
+  // Keep custom dictionaries separate from built-ins. This is what lets a
+  // legacy zh override beat the built-in pack while a canonical zh-Hans
+  // override still wins over both.
+  data.translations = preservedTranslations;
   data.settings.prelims = normalizePrelimRounds(data.settings.prelims);
   data.settings.ageCalculationMode = data.settings.ageCalculationMode === "yearBorn" ? "yearBorn" : "actual";
   ageCalculationMode = data.settings.ageCalculationMode;
@@ -977,7 +706,7 @@ async function saveState() {
 function setSaveStatus(message, stateName) {
   const indicator = document.getElementById("saveStatus");
   if (!indicator) return;
-  indicator.textContent = message;
+  indicator.textContent = t(message);
   indicator.dataset.state = stateName;
 }
 
@@ -1122,6 +851,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       renderNav();
       updateSqlDashboardPresentation();
       renderDashboard();
+      applyTranslations(view);
     }
     if (rerender && route === "reports") {
       // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.
@@ -1131,7 +861,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
     return true;
   } catch (error) {
     console.error("Unable to refresh SQL-native stackers.", error);
-    flashMessage = { type: "error", text: "Save Failed: unable to refresh SQL-native stackers." };
+    flashMessage = { type: "error", text: t("Save Failed: unable to refresh SQL-native stackers.") };
     setSaveStatus("Save Failed", "failed");
     if (rerender && route === "stackers") render();
     return false;
@@ -1277,7 +1007,7 @@ async function applyRemoteCompetitionState(latest) {
   const localEditing = competitionEditorActive();
   if (localEditing) {
     pendingRemoteCompetitionState = latest;
-    flashMessage = { type: "info", text: "Competition updated on another computer. Finish editing, then refresh this screen." };
+    flashMessage = { type: "info", text: t("Competition updated on another computer. Finish editing, then refresh this screen.") };
     setSaveStatus("Update waiting", "saving");
     return false;
   }
@@ -1427,7 +1157,7 @@ async function createSqlCompetition() {
     ,isPubliclyListed: document.getElementById("sqlCompetitionPublicListing")?.checked === true
   };
   if (!request.competitionCode || !request.competitionName || !request.venue || !request.startDate || !request.endDate || !request.status) {
-    flashMessage = { type: "error", text: "Complete the SQL competition setup fields first." };
+    flashMessage = { type: "error", text: t("Complete the SQL competition setup fields first.") };
     return;
   }
   setSaveStatus("Saving...", "saving");
@@ -1435,10 +1165,10 @@ async function createSqlCompetition() {
     const competition = await stackerApi.createCompetition(request);
     setSelectedSqlCompetition(competition);
     await refreshSqlStackers({ allowEditing: true, rerender: false });
-    flashMessage = { type: "success", text: `${competition.competitionName} is ready for SQL-native registrations.` };
+    flashMessage = { type: "success", text: tf("{name} is ready for SQL-native registrations.", { name: competition.competitionName }) };
     setSaveStatus("Saved", "saved");
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
   }
 }
@@ -1489,8 +1219,8 @@ function navRouteIsActive(key) {
 
 function navBadgeText(badge) {
   if (!badge) return "";
-  if (badge === "__languageBadge") return languageLabel(currentLanguage());
-  if (badge === "__languageList") return "English / Bahasa Malaysia / Simplified Chinese";
+  if (badge === "__languageBadge") return t(languageLabel(currentLanguage()));
+  if (badge === "__languageList") return [t("English"), t("Bahasa Malaysia"), t("Simplified Chinese")].join(" / ");
   if (badge === "__stackerCount") return selectedSqlCompetitionId ? String(state.stackers.length) : "--";
   return t(badge);
 }
@@ -1537,7 +1267,11 @@ function render() {
   };
   renderers[route]?.();
   syncModuleTabs();
-  applyTranslations(view);
+  // Translate only authenticated chrome and the rendered route. The login form
+  // is intentionally outside this scope and domain-bearing nodes opt out.
+  [document.querySelector(".sidebar"), document.querySelector(".topbar"), document.querySelector(".hero"), view]
+    .filter(Boolean)
+    .forEach(applyTranslations);
   syncDashboardSqlPolling();
   syncCompetitionStatePolling();
   if ((route === "dashboard" || route === "reports") && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
@@ -1587,19 +1321,35 @@ function pruneSelectOptions(id, availability) {
 }
 
 function currentLanguage() {
-  return state.settings?.language || "en";
+  return window.StackMeetLanguagePreference?.getPreferredLanguage() || window.StackMeetI18n?.normalizeLanguageCode(state.settings?.language) || "en";
+}
+
+function syncOperatorLanguageControl() {
+  const control = document.getElementById("operatorLanguage");
+  if (control) control.value = currentLanguage();
+}
+
+function applyOperatorLanguage(language) {
+  const normalized = window.StackMeetLanguagePreference.setPreferredLanguage(language);
+  window.StackMeetI18n.setDocumentLanguage(normalized);
+  syncOperatorLanguageControl();
+  render();
 }
 
 function languageLabel(code) {
   if (code === "ms") return "Bahasa Malaysia";
-  if (code === "zh") return "Simplified Chinese";
+  if (code === "zh" || code === "zh-Hans") return "Simplified Chinese";
   return "English";
 }
 
 function t(text) {
   const code = currentLanguage();
-  if (code === "en") return text;
-  return state.translations?.[code]?.[text] || text;
+  return window.StackMeetI18n?.translate(text, code, state.translations || {}, window.StackMeetI18nLocales || {}) || text;
+}
+
+function tf(template, values) {
+  const translated = t(template);
+  return window.StackMeetI18n?.format(translated, values) || translated;
 }
 
 function translateChrome() {
@@ -1607,13 +1357,18 @@ function translateChrome() {
   document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
-  document.querySelector(".sidebar-card span").textContent = t("Online mode");
-  document.querySelector(".sidebar-card strong").textContent = t("Saved online");
+  document.getElementById("navMenuBtn") && (document.getElementById("navMenuBtn").textContent = t("Menu"));
+  document.getElementById("logoutBtn") && (document.getElementById("logoutBtn").textContent = t("Log Out"));
+  document.querySelector(".operator-language-label")?.firstChild && (document.querySelector(".operator-language-label").firstChild.nodeValue = `${t("Language")} `);
+  const sidebar = document.querySelector(".sidebar-card");
+  if (sidebar) {
+    sidebar.querySelector("span")?.replaceChildren(document.createTextNode(t("Online mode")));
+    sidebar.querySelector("strong")?.replaceChildren(document.createTextNode(t("Saved online")));
+  }
 }
 
 function applyTranslations(root) {
-  const code = currentLanguage();
-  if (code === "en" || !root) return;
+  if (!root) return;
   const skipTags = new Set(["SCRIPT", "STYLE", "INPUT", "TEXTAREA", "SELECT", "OPTION"]);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
@@ -1621,12 +1376,44 @@ function applyTranslations(root) {
   nodes.forEach(node => {
     const parent = node.parentElement;
     if (!parent || skipTags.has(parent.tagName)) return;
-    if (parent.closest(".no-auto-translate")) return;
+    if (parent.closest(".no-auto-translate, [data-domain], [data-no-translate]")) return;
     const raw = node.nodeValue;
     const trimmed = raw.trim();
-    const translated = state.translations?.[code]?.[trimmed];
-    if (!trimmed || !translated) return;
+    if (!trimmed) return;
+    const translated = t(trimmed);
+    if (translated === trimmed) return;
     node.nodeValue = raw.replace(trimmed, translated);
+  });
+
+  const elements = [root, ...root.querySelectorAll("*")];
+  elements.forEach(element => {
+    if (element.closest(".no-auto-translate, [data-domain], [data-no-translate]")) return;
+    const attributes = [
+      ["data-i18n-placeholder", "placeholder"],
+      ["data-i18n-aria-label", "aria-label"],
+      ["data-i18n-title", "title"],
+      ["data-i18n-alt", "alt"]
+    ];
+    attributes.forEach(([marker, attribute]) => {
+      const key = element.getAttribute(marker);
+      if (key !== null) element.setAttribute(attribute, t(key));
+      else if (element.hasAttribute(attribute) && ["INPUT", "TEXTAREA", "IMG", "BUTTON"].includes(element.tagName)) {
+        element.setAttribute(attribute, t(element.getAttribute(attribute)));
+      }
+    });
+    const textKey = element.getAttribute("data-i18n");
+    if (textKey !== null) {
+      // Translate only the element's own text node so a marker on a label never
+      // removes its input/select child.
+      const ownText = [...(element.childNodes || [])].find(node => node.nodeType === 3);
+      if (ownText) ownText.nodeValue = t(textKey);
+      else if (!element.children?.length) element.textContent = t(textKey);
+    }
+    if (element.tagName === "OPTION") {
+      if (element.hasAttribute("data-domain-option") || element.closest("[data-domain-options]")) return;
+      const key = element.getAttribute("data-i18n") || element.textContent.trim();
+      element.textContent = t(key);
+    }
   });
 }
 
@@ -1635,7 +1422,7 @@ function renderDashboard() {
   const resultsUrl = publicResultsUrl();
   const metrics = {
     stackers: state.stackers.length,
-    gender: `${countBy("gender", "F")} Female // ${countBy("gender", "M")} Male`,
+    gender: tf("{female} Female // {male} Male", { female: countBy("gender", "F"), male: countBy("gender", "M") }),
     doubles: state.doubles.length,
     relay: completedRelays().length,
     divisions: state.divisions.length,
@@ -1650,15 +1437,15 @@ function renderDashboard() {
       <div class="list-row"><span>Name</span><strong>${esc(competition.competitionName)}</strong></div>
       <div class="list-row"><span>Date</span><strong>${esc(competition.startDate)} to ${esc(competition.endDate)}</strong></div>
       <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
-      <div class="list-row"><span>Rounds</span><strong>${state.settings.prelims} prelim / ${state.settings.finals} final</strong></div>
+      <div class="list-row"><span>Rounds</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
       <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
-    <div class="results-share no-auto-translate">
+    <div class="results-share">
       <div>
-        <span>Public Results</span>
-        <a href="${esc(resultsUrl)}" target="_blank" rel="noopener">${esc(resultsUrl)}</a>
+        <span data-i18n="Public Results">Public Results</span>
+        <a href="${esc(resultsUrl)}" target="_blank" rel="noopener" data-domain>${esc(resultsUrl)}</a>
       </div>
-      <img src="${esc(qrCodeUrl(resultsUrl))}" alt="QR code for public results" loading="lazy" />
+      <img src="${esc(qrCodeUrl(resultsUrl))}" data-i18n-alt="QR code for public results" alt="QR code for public results" loading="lazy" />
     </div>
   `;
 }
@@ -1690,7 +1477,7 @@ function renderSettings() {
   setValue("settingSoc", state.settings.soc);
   setValue("settingPrelimTimes", state.settings.prelimTimes);
   setValue("settingPaperless", state.settings.paperless);
-  setValue("settingLanguage", state.settings.language || "en");
+  setValue("settingLanguage", window.StackMeetI18n?.normalizeLanguageCode(state.settings.language) || "en");
   setValue("settingAgeCalculation", state.settings.ageCalculationMode === "yearBorn" ? "yearBorn" : "actual");
   const separateSpecialGender = document.getElementById("settingSeparateSpecialGender");
   if (separateSpecialGender) separateSpecialGender.checked = state.settings.separateSpecialDivisionsByGender === true;
@@ -1826,17 +1613,21 @@ function auditChangeSummary(log) {
 }
 
 function renderLanguage() {
-  setValue("languageActive", state.settings.language || "en");
+  setValue("languageActive", state.settings.language === "zh" ? "zh-Hans" : state.settings.language === "zh-Hans" ? "zh-Hans" : "ms");
   document.getElementById("languageActive")?.addEventListener("change", drawLanguageRows);
   drawLanguageRows();
   document.getElementById("languageSearch")?.addEventListener("input", drawLanguageRows);
 }
 
 function drawLanguageRows() {
-  const code = val("languageActive") === "zh" ? "zh" : "ms";
+  const code = window.StackMeetI18n?.normalizeLanguageCode(val("languageActive")) === "zh-Hans" ? "zh-Hans" : "ms";
   const label = languageLabel(code);
   const term = (document.getElementById("languageSearch")?.value || "").toLowerCase();
-  const entries = Object.entries(state.translations[code] || {})
+  const entries = Object.entries({
+    ...(defaultTranslationPacks[code] || {}),
+    ...(code === "zh-Hans" ? (state.translations.zh || {}) : {}),
+    ...(state.translations[code] || {})
+  })
     .filter(([english, translated]) => !term || `${english} ${translated}`.toLowerCase().includes(term))
     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }));
   const head = document.querySelector(".language-table thead tr");
@@ -1993,7 +1784,7 @@ function renderStackers() {
   if (flashMessage) {
     const box = document.getElementById("stackerMessage");
     box.hidden = false;
-    box.textContent = flashMessage.text;
+    box.textContent = t(flashMessage.text);
     box.classList.toggle("error", flashMessage.type === "error");
     flashMessage = null;
   }
@@ -2027,7 +1818,7 @@ function setDatalistOptions(id, options) {
   if (!datalist) return;
   datalist.innerHTML = [...new Set(options.map(option => String(option || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
-    .map(option => `<option value="${esc(option)}"></option>`)
+    .map(option => `<option value="${esc(option)}" data-domain-option="true"></option>`)
     .join("");
 }
 
@@ -2042,11 +1833,11 @@ function drawStackerRows() {
   updateSortHeaders();
   document.getElementById("stackerRows").innerHTML = rows.map(s => `
     <tr>
-      <td><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
-      <td><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
-      <td>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td>${esc(s.gender)}</td><td><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td>${esc(s.org)}</td><td>${esc(s.division)}</td><td>${esc(s.country)}</td>
-      <td><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
-      <td><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
+      <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
+      <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
+      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
+      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
+      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
       <td><button class="icon-button" data-action="delete-stacker" data-id="${esc(s.id)}" type="button">x</button></td>
     </tr>
   `).join("");
@@ -2116,7 +1907,7 @@ function renderDoubles() {
 function syncDoubleEditState() {
   const saveButton = document.getElementById("saveDoubleBtn");
   const cancelButton = document.getElementById("cancelDoubleEdit");
-  if (saveButton) saveButton.textContent = editingDoubleId ? `Update ${editingDoubleId}` : "Add Team";
+  if (saveButton) saveButton.textContent = editingDoubleId ? tf("Update {id}", { id: editingDoubleId }) : t("Add Team");
   if (cancelButton) cancelButton.hidden = !editingDoubleId;
 }
 
@@ -2135,8 +1926,8 @@ function fillDoubleSelect(id, search, selectedId = "") {
   const html = [`<option value="">--</option>`].concat(options.map(stacker => {
     const team = doublesForStacker(stacker.id).find(existing => existing.id !== editingDoubleId);
     const className = team ? "assigned-option" : "";
-    const status = team ? `Team ${team.id}: ${participantName("Doubles", team.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
+    const status = team ? tf("Team {id}: {name}", { id: team.id, name: participantName("Doubles", team.id) }) : t("Available");
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   const select = document.getElementById(id);
   if (!select) return;
@@ -2189,15 +1980,15 @@ function buildRelayMemberControls() {
   grid.innerHTML = Array.from({ length: 6 }, (_, index) => {
     const slot = index + 1;
     const memberLabel = slot <= 4 ? `Member ${slot}` : `Optional Member ${slot}`;
-    return `<label>Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="Name or stacker ID" /></label>
-      <label>${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}"></select></label>`;
+    return `<label data-i18n="Search ${memberLabel}">Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
+      <label data-i18n="${memberLabel}">${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
   }).join("");
 }
 
 function syncRelayEditState() {
   const saveButton = document.getElementById("saveRelayBtn");
   const cancelButton = document.getElementById("cancelRelayEdit");
-  if (saveButton) saveButton.textContent = editingRelayId ? `Update ${editingRelayId}` : "Add Team";
+  if (saveButton) saveButton.textContent = editingRelayId ? tf("Update {id}", { id: editingRelayId }) : t("Add Team");
   if (cancelButton) cancelButton.hidden = !editingRelayId;
   if (saveButton) saveButton.disabled = false;
   document.querySelectorAll("#relayMemberGrid input, #relayMemberGrid select, #relayName, #timedRelayDivision, #headToHeadDivision, #relayCoordinator, #relayEmail, #relayPhone, #relayRegion").forEach(control => { control.disabled = false; });
@@ -2211,7 +2002,7 @@ function showRelayMessage() {
     return;
   }
   box.hidden = false;
-  box.textContent = relayFlashMessage.text;
+  box.textContent = t(relayFlashMessage.text);
   box.classList.toggle("error", relayFlashMessage.type === "error");
   relayFlashMessage = null;
 }
@@ -2235,8 +2026,8 @@ function fillRelaySelect(slot, search, selectedId = "") {
     const assigned = relayForStacker(stacker.id);
     const duplicate = selectedInOtherSlots.includes(stacker.id);
     const className = assigned && assigned.id !== editingRelayId ? "assigned-option" : "";
-    const status = duplicate ? "Already selected here" : assigned && assigned.id !== editingRelayId ? `Team ${assigned.id}: ${participantName("Timed Relay", assigned.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}" ${duplicate ? "disabled" : ""}>${esc(stackerPickerLabel(stacker, status))}</option>`;
+    const status = duplicate ? t("Already selected here") : assigned && assigned.id !== editingRelayId ? tf("Team {id}: {name}", { id: assigned.id, name: participantName("Timed Relay", assigned.id) }) : t("Available");
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}" ${duplicate ? "disabled" : ""}>${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   if (selectedId && [...select.options].some(option => option.value === selectedId)) select.value = selectedId;
 }
@@ -2254,9 +2045,9 @@ function showSelectedRelayWarnings() {
     .map(id => ({ id, team: relayForStacker(id) }))
     .filter(item => item.team && item.team.id !== editingRelayId);
   const messages = [];
-  if (selected.length > 0 && selected.length < 4) messages.push("Incomplete Team: Minimum 4 registered stackers are required before this team may compete.");
-  if (duplicates.length) messages.push("Each stacker can only be selected once in this relay team.");
-  if (conflicts.length) messages.push(`${conflicts.map(item => `${stackerName(item.id)} is now in ${item.team.id}`).join("; ")}. Saving will remove them from the current relay team.`);
+  if (selected.length > 0 && selected.length < 4) messages.push(t("Incomplete Team: Minimum 4 registered stackers are required before this team may compete."));
+  if (duplicates.length) messages.push(t("A stacker can only be selected once in this relay team."));
+  if (conflicts.length) messages.push(tf("{conflicts}. Saving will remove them from the current relay team.", { conflicts: conflicts.map(item => tf("{name} is now in {team}", { name: stackerName(item.id), team: item.team.id })).join("; ") }));
   if (!messages.length) {
     box.hidden = true;
     box.textContent = "";
@@ -2571,7 +2362,7 @@ function showSelectedDoubleWarnings() {
     return;
   }
   box.hidden = false;
-  box.textContent = `${conflicts.map(item => `${stackerName(item.id)} is now in ${item.team.id}`).join("; ")}. Saving will remove them from the current doubles team and pair them here.`;
+  box.textContent = tf("{conflicts}. Saving will remove them from the current doubles team and pair them here.", { conflicts: conflicts.map(item => tf("{name} is now in {team}", { name: stackerName(item.id), team: item.team.id })).join("; ") });
 }
 
 function showDoubleMessage() {
@@ -2582,14 +2373,14 @@ function showDoubleMessage() {
     return;
   }
   box.hidden = false;
-  box.textContent = doubleFlashMessage.text;
+  box.textContent = t(doubleFlashMessage.text);
   box.classList.toggle("error", doubleFlashMessage.type === "error");
   doubleFlashMessage = null;
 }
 
 function renderPaperwork() {
   const stackers = [...state.stackers].sort((a, b) => stackerIdNumber(a.id) - stackerIdNumber(b.id));
-  const options = stackers.map(stacker => `<option value="${esc(stacker.id)}">${esc(stacker.id)} - ${esc(stacker.name)}</option>`).join("");
+  const options = stackers.map(stacker => `<option value="${esc(stacker.id)}" data-domain-option="true">${esc(stacker.id)} - ${esc(stacker.name)}</option>`).join("");
   const from = document.getElementById("printRangeFrom");
   const to = document.getElementById("printRangeTo");
   if (from) from.innerHTML = options;
@@ -2725,7 +2516,7 @@ function loadPrelimParticipant() {
     activePrelimParticipantId = "";
     activePrelimParticipantType = "";
     hidePrelimEntryFields();
-    showPrelimMessage("Participant ID not found. Check the printed sheet and try again.", true);
+    showPrelimMessage(t("Participant ID not found. Check the printed sheet and try again."), true);
     document.getElementById("timeSheetId")?.focus();
     return null;
   }
@@ -2743,7 +2534,7 @@ function loadPrelimParticipant() {
   });
   showPrelimEntryFields(participant.events);
   const hasExistingResult = participant.events.some(event => Boolean(findPrelimEntryResult(participant, event)));
-  showPrelimMessage(`${hasExistingResult ? "Editing Existing Result" : "Ready for Entry"}: ${participant.id} ${participant.name}.`, false);
+  showPrelimMessage(tf("{status}: {id} {name}.", { status: t(hasExistingResult ? "Editing Existing Result" : "Ready for Entry"), id: participant.id, name: participant.name }), false);
   const firstInput = visiblePrelimTimeInputs()[0];
   firstInput?.focus();
   firstInput?.select();
@@ -2861,7 +2652,7 @@ function showPrelimMessage(text, isError = false) {
   const message = document.getElementById("prelimEntryMessage");
   if (!message) return;
   message.hidden = false;
-  message.textContent = text;
+  message.textContent = t(text);
   message.classList.toggle("error", isError);
 }
 
@@ -2889,7 +2680,7 @@ function normalizeCompetitionTimeInput(input) {
   const parsed = parseCompetitionTime(input.value);
   if (parsed.kind === "blank") return true;
   if (parsed.kind === "invalid") {
-    showPrelimMessage(`Invalid time: ${input.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showPrelimMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: input.value }), true);
     input.focus();
     input.select();
     return false;
@@ -2911,7 +2702,7 @@ async function persistPrelimResults(options = {}) {
   const focusedFieldId = document.activeElement?.id || "";
   const participant = resolvePrelimParticipant(activePrelimParticipantId || val("timeSheetId"));
   if (!participant || (activePrelimParticipantType && participant.type !== activePrelimParticipantType)) {
-    showPrelimMessage("Find a valid participant before saving times.", true);
+    showPrelimMessage(t("Find a valid participant before saving times."), true);
     document.getElementById("timeSheetId")?.focus();
     return;
   }
@@ -2924,14 +2715,14 @@ async function persistPrelimResults(options = {}) {
   });
   const invalid = entries.find(entry => entry.parsed.kind === "invalid");
   if (invalid) {
-    showPrelimMessage(`Invalid ${invalid.event} time. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showPrelimMessage(tf("Invalid {event} time. Enter a time to 3 decimals or 999 for scratch.", { event: invalid.event }), true);
     document.getElementById(invalid.fieldId)?.focus();
     document.getElementById(invalid.fieldId)?.select();
     return;
   }
   const completed = entries.filter(entry => entry.parsed.kind !== "blank");
   if (!completed.length) {
-    showPrelimMessage("Enter at least one event time before saving.", true);
+    showPrelimMessage(t("Enter at least one event time before saving."), true);
     document.getElementById("prelim333")?.focus();
     return;
   }
@@ -2976,7 +2767,7 @@ async function persistPrelimResults(options = {}) {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showPrelimMessage(`Save failed. Times remain on screen and were not cleared: ${error.message || "unable to verify persistence"}`, true);
+    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || "unable to verify persistence" }), true);
     if (focusedFieldId) document.getElementById(focusedFieldId)?.focus();
     return false;
   }
@@ -2987,7 +2778,7 @@ async function persistPrelimResults(options = {}) {
   await applyPendingCompetitionUpdate();
   // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
   document.getElementById("timeSheetId")?.focus();
-  showPrelimMessage(`${participant.id} ${participant.name}: ${actionText}. Changes saved; latest updates will synchronize automatically.`, false);
+  showPrelimMessage(tf("{id} {name}: {action}. Changes saved; latest updates will synchronize automatically.", { id: participant.id, name: participant.name, action: actionText }), false);
   return true;
 }
 
@@ -3020,7 +2811,7 @@ function populateFinalSheetSelect() {
   const current = activeFinalSheetId || select.value;
   const sheets = finalSheets();
   select.innerHTML = [`<option value="">please choose</option>`].concat(sheets.map(sheet => (
-    `<option value="${esc(sheet.id)}">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
+    `<option value="${esc(sheet.id)}" data-domain-option="true">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
   ))).join("");
   if (current && sheets.some(sheet => sheet.id === current)) select.value = current;
   drawFinalMissingSummary(sheets);
@@ -3141,7 +2932,7 @@ function loadFinalSheet(id, focusFirst = true) {
   const sheet = finalSheets().find(item => item.id === id);
   if (!sheet) {
     clearFinalSheet(false);
-    showFinalMessage("Final sheet ID not found. Check the printed finals sheet and try again.", true);
+    showFinalMessage(t("Final sheet ID not found. Check the printed finals sheet and try again."), true);
     document.getElementById("finalSheetId")?.focus();
     return null;
   }
@@ -3154,7 +2945,7 @@ function loadFinalSheet(id, focusFirst = true) {
     summary.innerHTML = `<div><span>Final Sheet ID</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(sheet.entryType)}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>Advance</span><strong>Top ${Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length)} of ${sheet.prelimRows.length}</strong></div><div><span>Order</span><strong>Slowest qualifier competes first</strong></div>`;
   }
   drawFinalSheetRows(sheet);
-  showFinalMessage(`Ready for Finals ${sheet.id}: ${sheet.entryType} // ${sheet.division} // ${sheet.event}.`, false);
+  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: sheet.entryType, division: sheet.division, event: sheet.event }), false);
   if (focusFirst) {
     const firstInput = visibleFinalTimeInputs()[0];
     firstInput?.focus();
@@ -3240,7 +3031,7 @@ function normalizeFinalTimeInput(input) {
   const parsed = parseCompetitionTime(input.value);
   if (parsed.kind === "blank") return true;
   if (parsed.kind === "invalid") {
-    showFinalMessage(`Invalid time: ${input.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showFinalMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: input.value }), true);
     input.focus();
     input.select();
     return false;
@@ -3300,12 +3091,12 @@ async function saveFinalResults() {
   const previousState = structuredClone(state);
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
-    showFinalMessage("Find a valid final sheet before saving.", true);
+    showFinalMessage(t("Find a valid final sheet before saving."), true);
     return;
   }
   const invalid = visibleFinalTimeInputs().find(input => parseCompetitionTime(input.value).kind === "invalid");
   if (invalid) {
-    showFinalMessage(`Invalid time: ${invalid.value}. Enter a time to 3 decimals or 999 for scratch.`, true);
+    showFinalMessage(tf("Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.", { value: invalid.value }), true);
     invalid.focus();
     invalid.select();
     return;
@@ -3336,10 +3127,10 @@ async function saveFinalResults() {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showFinalMessage(`Save failed. Results were not committed: ${error.message || "unable to verify persistence"}`, true);
+    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || "unable to verify persistence" }), true);
     return false;
   }
-  showFinalMessage(`${sheet.id} saved. ${saved} final result${saved === 1 ? "" : "s"} recorded; latest updates will synchronize automatically.`, false);
+  showFinalMessage(tf("{id} saved. {count} final result(s) recorded; latest updates will synchronize automatically.", { id: sheet.id, count: saved }), false);
   populateFinalSheetSelect();
   clearFinalSheet();
   const sheetInput = document.getElementById("finalSheetId");
@@ -3368,14 +3159,14 @@ function showFinalMessage(text, isError = false) {
   const message = document.getElementById("finalEntryMessage");
   if (!message) return;
   message.hidden = false;
-  message.textContent = text;
+  message.textContent = t(text);
   message.classList.toggle("error", isError);
 }
 
 function printCurrentFinalSheet() {
   const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
-    showFinalMessage("Find a final sheet before printing.", true);
+    showFinalMessage(t("Find a final sheet before printing."), true);
     return;
   }
   buildFinalSheetPrint(sheet);
@@ -3445,7 +3236,7 @@ function populateFinalsReportFilters() {
   if (division) {
     const current = division.value || "all";
     const values = sortedDivisions([...state.divisions, ...state.stackers.map(stacker => stacker.division)]);
-    division.innerHTML = [`<option value="all">All divisions</option>`, ...values.map(value => `<option value="${esc(value)}">${esc(value)}</option>`)].join("");
+    division.innerHTML = [`<option value="all" data-i18n="All divisions">All divisions</option>`, ...values.map(value => `<option value="${esc(value)}" data-domain-option="true">${esc(value)}</option>`)].join("");
     division.value = [...division.options].some(option => option.value === current) ? current : "all";
   }
   const event = document.getElementById("finalsEvent");
@@ -3453,7 +3244,7 @@ function populateFinalsReportFilters() {
     const current = event.value || "all";
     const events = [...new Set(state.results.map(result => result.event).filter(Boolean))]
       .sort((left, right) => String(left).localeCompare(String(right), undefined, { numeric: true }));
-    event.innerHTML = [`<option value="all">All events</option>`, ...events.map(value => `<option value="${esc(value)}">${esc(value)}</option>`), `<option value="All-Around">All-Around</option>`].join("");
+    event.innerHTML = [`<option value="all" data-i18n="All events">All events</option>`, ...events.map(value => `<option value="${esc(value)}" data-i18n="${esc(value)}">${esc(value)}</option>`), `<option value="All-Around" data-i18n="All-Around">All-Around</option>`].join("");
     event.value = [...event.options].some(option => option.value === current) ? current : "all";
   }
   populateReportSelect("finalsOrg", uniqueReportValues(state.stackers, "org"));
@@ -3735,7 +3526,7 @@ function stageBoardReportHtml(definition) {
 function generateQualificationSnapshots() {
   const sheets = finalSheets();
   const approved = state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Approved");
-  if (approved.length && !confirm("Approved qualification snapshots will be superseded and preserved. Create new Draft snapshots?")) return;
+  if (approved.length && !confirm(t("Approved qualification snapshots will be superseded and preserved. Create new Draft snapshots?"))) return;
   if (approved.length) state.finalQualificationSnapshots = state.finalQualificationSnapshots.map(snapshot => snapshot.status === "Approved" ? { ...snapshot, status: "Superseded" } : snapshot);
   const snapshots = sheets.map(sheet => FinalsReportEngine.qualificationSnapshot(state, sheet, { id: crypto.randomUUID(), competitionKey: currentCompetitionKey(), limit: finalAdvanceLimit(sheet.type, sheet.division) }));
   state.finalQualificationSnapshots.push(...snapshots);
@@ -3805,7 +3596,7 @@ function renderLeaderboardSlide(slides, index) {
   document.getElementById("leaderRows").innerHTML = slide.rows.length ? `
     <div class="leader-progress" style="animation-duration: ${esc(durationMs)}ms"></div>
     <div class="leader-subtitle"><span>${esc(slide.subtitle)}</span><span>${esc(index + 1)} / ${esc(slides.length)}</span></div>
-    <div class="leader-header"><span></span><span>Stacker</span><span>Time</span><span>Gap</span></div>
+    <div class="leader-header"><span></span><span>${esc(t("Stacker"))}</span><span>${esc(t("Time"))}</span><span>${esc(t("Gap"))}</span></div>
     ${slide.rows.map(row => `
       <div class="leader-row">
         <div class="rank">${esc(row.rank)}</div>
@@ -4114,8 +3905,8 @@ function fillStackerPartnerSelect(team = null) {
   select.innerHTML = [`<option value="">--</option>`].concat(options.map(stacker => {
     const assigned = doublesForStacker(stacker.id).find(existing => existing.id !== team?.id);
     const className = assigned ? "assigned-option" : "";
-    const status = assigned ? `Team ${assigned.id}: ${participantName("Doubles", assigned.id)}` : "Available";
-    return `<option value="${esc(stacker.id)}" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
+    const status = assigned ? tf("Team {id}: {name}", { id: assigned.id, name: participantName("Doubles", assigned.id) }) : t("Available");
+    return `<option value="${esc(stacker.id)}" data-domain-option="true" class="${className}">${esc(stackerPickerLabel(stacker, status))}</option>`;
   })).join("");
   if (currentPartner && [...select.options].some(option => option.value === currentPartner)) select.value = currentPartner;
   updateStackerDoubleWarning();
@@ -4133,7 +3924,7 @@ function updateStackerDoubleWarning() {
     return;
   }
   box.hidden = false;
-  box.textContent = `${stackerName(partnerId)} is now in ${assigned.id}. Saving will remove them from that team and pair them here.`;
+  box.textContent = tf("{name} is now in {team}. Saving will remove them from that team and pair them here.", { name: stackerName(partnerId), team: assigned.id });
 }
 
 function populateParticipants() {
@@ -4230,7 +4021,7 @@ function populateCompetitionReportBuilder() {
     divisionSelect.innerHTML = [
       `<option value="all">All (by Overall)</option>`,
       `<option value="all-div">All (by Division)</option>`,
-      ...divisions.map(division => `<option value="${esc(division)}">${esc(division)}</option>`)
+      ...divisions.map(division => `<option value="${esc(division)}" data-domain-option="true">${esc(division)}</option>`)
     ].join("");
     if ([...divisionSelect.options].some(option => option.value === current)) divisionSelect.value = current;
   }
@@ -4790,7 +4581,7 @@ function populateReportSelect(id, values) {
   const select = document.getElementById(id);
   if (!select) return;
   const current = select.value;
-  select.innerHTML = [`<option value="">Any</option>`, ...values.map(value => `<option value="${esc(value)}">${esc(value)}</option>`)].join("");
+  select.innerHTML = [`<option value="" data-i18n="Any">Any</option>`, ...values.map(value => `<option value="${esc(value)}" data-domain-option="true">${esc(value)}</option>`)].join("");
   if (values.includes(current)) select.value = current;
 }
 
@@ -5138,7 +4929,7 @@ document.getElementById("importXmlInput")?.addEventListener("change", async (eve
     await importSqlStackersFromState(state);
     render();
   } catch (error) {
-    alert("This XML file could not be imported. Please check that it came from this app.");
+    alert(t("This XML file could not be imported. Please check that it came from this app."));
     return;
   } finally {
     event.target.value = "";
@@ -5211,7 +5002,6 @@ async function saveSettings() {
 }
 
 function saveLanguage() {
-  state.settings.language = val("languageActive") || "en";
   document.querySelectorAll("[data-language-key]").forEach(input => {
     const code = input.dataset.languageCode || "ms";
     state.translations[code] = state.translations[code] || {};
@@ -5469,11 +5259,11 @@ async function openLeaderboardDisplay() {
   await saveState();
   const url = `${location.origin}${location.pathname}${location.search}#leaderboard`;
   const display = window.open(url, "stackmeetLeaderboard", "popup=yes,width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes");
-  if (!display) alert("Please allow popups for NADITrack, then click Open Display again.");
+  if (!display) alert(t("Please allow popups for NADITrack, then click Open Display again."));
 }
 
 function addDivision() {
-  const name = prompt("Division name");
+  const name = prompt(t("Division name"));
   if (!name) return;
   const cleanName = name.trim();
   if (!cleanName) return;
@@ -5496,7 +5286,7 @@ async function importStackersCsvFile(event) {
     const stackers = rows.map(mapStackTrackCsvRow).filter(Boolean);
     if (!stackers.length) throw new Error("No stackers found");
     if (!selectedSqlCompetitionId) throw new Error("Create or select a SQL competition first");
-    const confirmed = confirm(`Import ${stackers.length} stackers from ${file.name}? Existing SQL-native stackers will not be replaced.`);
+    const confirmed = confirm(tf("Import {count} stackers from {file}? Existing SQL-native stackers will not be replaced.", { count: stackers.length, file: file.name }));
     if (!confirmed) return;
     setSaveStatus("Saving...", "saving");
     let imported = 0;
@@ -5512,11 +5302,11 @@ async function importStackersCsvFile(event) {
       }
     }
     await refreshSqlStackers({ allowEditing: true, rerender: false });
-    flashMessage = { type: failed ? "error" : "success", text: `${file.name}: ${imported} imported, ${skipped} skipped, ${failed} failed.` };
+    flashMessage = { type: failed ? "error" : "success", text: tf("{file}: {imported} imported, {skipped} skipped, {failed} failed.", { file: file.name, imported, skipped, failed }) };
     setSaveStatus(failed ? "Save Failed" : "Saved", failed ? "failed" : "saved");
     render();
   } catch (error) {
-    flashMessage = { type: "error", text: "This CSV could not be imported. Please check that it is a supported Individuals report and a competition is selected." };
+    flashMessage = { type: "error", text: t("This CSV could not be imported. Please check that it is a supported Individuals report and a competition is selected.") };
     setSaveStatus("Save Failed", "failed");
     render();
   } finally {
@@ -5619,17 +5409,17 @@ async function addStacker() {
   const lastName = val("stLastName").trim();
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   if (!name) {
-    flashMessage = { type: "error", text: "Please enter the stacker name first." };
+    flashMessage = { type: "error", text: t("Please enter the stacker name first.") };
     return;
   }
   if (!val("stDob")) {
-    flashMessage = { type: "error", text: "Please enter the date of birth so the division can be generated." };
+    flashMessage = { type: "error", text: t("Please enter the date of birth so the division can be generated.") };
     return;
   }
 
   const id = editingStackerId || nextStackerCode();
   if (!editingStackerId && state.stackers.some(s => s.id === id)) {
-    flashMessage = { type: "error", text: `Stacker ID ${id} already exists. Please try again.` };
+    flashMessage = { type: "error", text: tf("Stacker ID {id} already exists. Please try again.", { id }) };
     return;
   }
 
@@ -5654,7 +5444,7 @@ async function addStacker() {
     checkedIn: val("stCheckedIn")
   };
   if (!selectedSqlCompetitionId) {
-    flashMessage = { type: "error", text: "Create or select a SQL competition before saving a stacker." };
+    flashMessage = { type: "error", text: t("Create or select a SQL competition before saving a stacker.") };
     return;
   }
   setSaveStatus("Saving...", "saving");
@@ -5684,13 +5474,13 @@ async function addStacker() {
       after: savedStacker
     });
     await persistCompetitionAuditLog();
-    flashMessage = { type: "success", text: existing ? `${stacker.name} was updated.` : `${stacker.name} was added as stacker ${stacker.id}.` };
+    flashMessage = { type: "success", text: existing ? tf("{name} was updated.", { name: stacker.name }) : tf("{name} was added as stacker {id}.", { name: stacker.name, id: stacker.id }) };
     editingStackerId = "";
     stackerFormVisible = false;
     focusStackerListAfterRender = true;
     setSaveStatus("Saved", "saved");
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
   }
 }
@@ -5765,8 +5555,8 @@ function requestDeleteStacker(id) {
   pendingDeleteStackerId = id;
   const teamCount = doublesForStacker(id).length;
   const resultCount = state.results.filter(r => r.participant === id).length;
-  document.getElementById("deleteStackerTitle").textContent = `Delete ${stacker.id} ${stacker.name}?`;
-  document.getElementById("deleteStackerText").textContent = `This will also remove ${teamCount} related team(s) and ${resultCount} result record(s).`;
+  document.getElementById("deleteStackerTitle").textContent = tf("Delete {id} {name}?", { id: stacker.id, name: stacker.name });
+  document.getElementById("deleteStackerText").textContent = tf("This will also remove {teamCount} related team(s) and {resultCount} result record(s).", { teamCount, resultCount });
   document.getElementById("deleteStackerConfirm").hidden = false;
 }
 
@@ -5784,7 +5574,7 @@ async function deleteStacker(id) {
   try {
     await stackerApi.delete(selectedSqlCompetitionId, stacker.sqlId);
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
     return;
   }
@@ -5805,7 +5595,7 @@ async function deleteStacker(id) {
   await persistCompetitionAuditLog();
   if (editingStackerId === id) editingStackerId = "";
   pendingDeleteStackerId = "";
-  flashMessage = { type: "success", text: `Stacker ${id} was removed.` };
+  flashMessage = { type: "success", text: tf("Stacker {id} was removed.", { id }) };
   setSaveStatus("Saved", "saved");
 }
 
@@ -5820,7 +5610,7 @@ function saveStackerDoubleAssignment() {
   const customDivision = val("stDoubleDivision").trim();
   const validation = validateDoubleEntry({ type, status, one: editingStackerId, two: partnerId, parentName });
   if (validation) {
-    flashMessage = { type: "error", text: validation };
+    flashMessage = { type: "error", text: t(validation) };
     renderStackers();
     return;
   }
@@ -5853,7 +5643,9 @@ function saveStackerDoubleAssignment() {
   });
   flashMessage = {
     type: "success",
-    text: `${team.id} ${participantName("Doubles", team.id)} was saved${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}`
+    text: displaced.length
+      ? tf("{id} {name} was saved; removed from {teams}.", { id: team.id, name: participantName("Doubles", team.id), teams: displaced.join(", ") })
+      : tf("{id} {name} was saved.", { id: team.id, name: participantName("Doubles", team.id) })
   };
   stackerDoubleEditorOpen = false;
   renderStackers();
@@ -5901,7 +5693,7 @@ function addDouble() {
     after: team
   });
   doublesTab = status === "pending" ? "incomplete" : "completed";
-  doubleFlashMessage = { type: "success", text: `${team.id} ${participantName("Doubles", team.id)} was ${editingDoubleId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
+  doubleFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Doubles", team.id), action: t(editingDoubleId ? "updated" : "added"), suffix: displaced.length ? tf("; removed from {teams}.", { teams: displaced.join(", ") }) : "." }) };
   clearDoubleForm(false);
 }
 
@@ -5960,7 +5752,7 @@ function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
   if (!team) return;
   const teamName = participantName("Doubles", id);
-  if (!confirm(`Delete ${team.id} ${participantName("Doubles", team.id)}?`)) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return;
   state.doubles = state.doubles.filter(d => d.id !== id);
   recordDeletedStateRecord("doubles", id);
   appendCompetitionAuditLog({
@@ -6012,7 +5804,7 @@ function addRelay() {
     after: team
   });
   relayTab = relayTeamStatus(team) === "Ready" ? "ready" : relayTeamStatus(team).toLowerCase();
-  relayFlashMessage = { type: "success", text: `${team.id} ${participantName("Timed Relay", team.id)} was ${editingRelayId ? "updated" : "added"}${displaced.length ? `; removed from ${displaced.join(", ")}.` : "."}` };
+  relayFlashMessage = { type: "success", text: tf("{id} {name} was {action}{suffix}", { id: team.id, name: participantName("Timed Relay", team.id), action: t(editingRelayId ? "updated" : "added"), suffix: displaced.length ? tf("; removed from {teams}.", { teams: displaced.join(", ") }) : "." }) };
   clearRelayForm(false);
 }
 
@@ -6022,7 +5814,7 @@ function validateRelayEntry(members, relayName = "") {
   if (duplicateName) return "Relay team name must be unique.";
   if (members.length > 6) return "Relay team can only keep up to 6 registered stackers.";
   const duplicate = members.find((id, index) => members.indexOf(id) !== index);
-  if (duplicate) return "Each stacker can only be selected once in the same relay team.";
+  if (duplicate) return "A stacker can only be selected once in this relay team.";
   return "";
 }
 
@@ -6071,7 +5863,7 @@ function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
   if (!team) return;
   const teamName = participantName("Timed Relay", id);
-  if (!confirm(`Delete ${team.id} ${participantName("Timed Relay", team.id)}?`)) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return;
   state.relays = state.relays.filter(relay => relay.id !== id);
   recordDeletedStateRecord("relays", id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
@@ -6530,7 +6322,7 @@ function fmt(value) {
 function setOptions(id, options) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = options.map(option => `<option>${esc(option)}</option>`).join("");
+  el.innerHTML = options.map(option => `<option data-domain-option="true" value="${esc(option)}">${esc(option)}</option>`).join("");
 }
 
 async function refreshCompetitionBranding() {
@@ -6549,17 +6341,17 @@ async function uploadCompetitionAsset(type) {
   const input = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}File`);
   const file = input?.files?.[0];
   if (!selectedSqlCompetitionId || !file) { setCompetitionBrandingStatus("Select an image first.", true); return; }
-  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(`${type} uploaded.`); }
+  try { await competitionAssetApi.upload(selectedSqlCompetitionId, type, file); input.value = ""; await refreshCompetitionBranding(); setCompetitionBrandingStatus(tf("{type} uploaded.", { type: t(type) })); }
   catch (error) { setCompetitionBrandingStatus(error.message, true); }
 }
 
 async function removeCompetitionAsset(type) {
-  if (!selectedSqlCompetitionId || !window.confirm(`Remove the competition ${type}?`)) return;
-  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(`${type} removed.`); }
+  if (!selectedSqlCompetitionId || !window.confirm(tf("Remove the competition {type}?", { type: t(type) }))) return;
+  try { await competitionAssetApi.remove(selectedSqlCompetitionId, type); const preview = document.getElementById(`competition${type === "logo" ? "Logo" : "Banner"}Preview`); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } setCompetitionBrandingStatus(tf("{type} removed.", { type: t(type) })); }
   catch (error) { setCompetitionBrandingStatus(error.message, true); }
 }
 
-function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = message; target.dataset.status = isError ? "error" : "ok"; } }
+function setCompetitionBrandingStatus(message, isError = false) { const target = document.getElementById("competitionBrandingStatus"); if (target) { target.textContent = isError ? message : t(message); target.dataset.status = isError ? "error" : "ok"; } }
 
 function setValue(id, value) {
   const el = document.getElementById(id);
@@ -6573,7 +6365,7 @@ function todayIsoDate() {
 
 // Formats browser-generated timestamps in StackMeet's fixed GMT+8 operating timezone.
 function stackMeetDateTime(value = new Date()) {
-  return new Intl.DateTimeFormat(stackMeetLocale, {
+  return new Intl.DateTimeFormat(operatorIntlLocale(), {
     timeZone: stackMeetTimeZone,
     year: "numeric",
     month: "2-digit",
@@ -6684,10 +6476,12 @@ function xmlToState(xmlText) {
     imported.divisionSettings.custom = [...divisionSettingsNode.querySelectorAll("custom division")].map(node => node.textContent);
   }
   imported.divisions = [...doc.querySelectorAll("divisions division")].map(node => node.textContent);
-  imported.translations = Object.fromEntries(Object.entries(defaultTranslationPacks).map(([code, pack]) => [code, structuredClone(pack)]));
+  imported.translations = {};
   doc.querySelectorAll("translations lang").forEach(lang => {
-    const code = lang.getAttribute("code");
-    if (!code || !defaultTranslationPacks[code]) return;
+    const rawCode = lang.getAttribute("code");
+    const code = rawCode === "zh" ? "zh" : window.StackMeetI18n?.normalizeLanguageCode(rawCode);
+    if (!rawCode || !["ms", "zh", "zh-Hans"].includes(code)) return;
+    imported.translations[code] = imported.translations[code] || {};
     lang.querySelectorAll("item").forEach(item => {
       const key = item.getAttribute("key");
       if (key) imported.translations[code][key] = item.textContent;
@@ -6795,16 +6589,24 @@ function showBootError(error) {
 }
 
 async function initializeApplication() {
+  const preference = window.StackMeetLanguagePreference?.getPreferredLanguage();
+  window.StackMeetI18n?.setDocumentLanguage(preference || state.settings?.language || "en");
+  document.getElementById("operatorLanguage")?.addEventListener("change", event => {
+    applyOperatorLanguage(event.target.value);
+  });
   applyBrandingChrome();
   const session = await window.StackMeetAuth.requireLogin();
   repository.setCompetitionKey(session.competitionId);
   state = await loadState();
+  const initialLanguage = window.StackMeetLanguagePreference?.getPreferredLanguage() || state.settings?.language || "en";
+  window.StackMeetI18n?.setDocumentLanguage(initialLanguage);
+  syncOperatorLanguageControl();
   try {
     await initializeSqlNativeStackers();
     await refreshSqlResults({ rerender: false });
   } catch (error) {
     console.error("Unable to initialize SQL-native stackers.", error);
-    flashMessage = { type: "error", text: "Save Failed: SQL-native stackers are unavailable." };
+    flashMessage = { type: "error", text: t("Save Failed: SQL-native stackers are unavailable.") };
   }
   render();
   void connectCompetitionStateUpdates();

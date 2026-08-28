@@ -32,10 +32,10 @@
       </form>
     </section>
     <div class="app">
-      <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation">
-        <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation">Close</button>
+    <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation" data-i18n-aria-label="Primary navigation">
+      <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation" data-i18n-aria-label="Close navigation" data-i18n="Close">Close</button>
         <a class="brand" href="#dashboard" data-route="dashboard">
-          <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
+          <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" data-i18n-alt="StackMeet logo" /></span>
           <span>
             <strong data-brand="sidebarTitle">WSSA</strong>
             <small data-brand="sidebarSubtitle">Sport Stacking Centre</small>
@@ -43,28 +43,29 @@
         </a>
         <nav id="nav"></nav>
         <div class="sidebar-card">
-          <span>Online mode</span>
-          <strong id="saveStatus" data-state="saved" aria-live="polite">Saved</strong>
+          <span data-i18n="Online mode">Online mode</span>
+          <strong id="saveStatus" data-state="saved" aria-live="polite" data-i18n="Saved">Saved</strong>
         </div>
       </aside>
 
       <div class="main">
         <header class="topbar">
-          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav">Menu</button>
+          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav" data-i18n="Menu">Menu</button>
           <div>
             <p class="eyebrow" id="competitionType" hidden></p>
-            <h1 id="pageTitle">Dashboard</h1>
+            <h1 id="pageTitle" data-i18n="Dashboard">Dashboard</h1>
           </div>
           <div class="top-actions">
-            <button id="logoutBtn" class="ghost" type="button">Log Out</button>
+            <label class="operator-language-label" for="operatorLanguage" data-i18n="Language">Language<select id="operatorLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+            <button id="logoutBtn" class="ghost" type="button" data-i18n="Log Out">Log Out</button>
           </div>
         </header>
 
         <section class="hero" id="dashboardHero">
-          <img src="assets/competition-banner.png" alt="Sport stacking competition table" />
+          <img src="assets/competition-banner.png" alt="Sport stacking competition table" data-i18n-alt="Sport stacking competition table" />
           <div class="hero-content">
-            <p id="heroEventTitle">WSSA NS Sport Stacking Centre</p>
-            <h2>Run registration, print preparation, data entry, results, and leaderboards from one place.</h2>
+            <p id="heroEventTitle" data-domain>WSSA NS Sport Stacking Centre</p>
+            <h2 data-i18n="Run registration, print preparation, data entry, results, and leaderboards from one place.">Run registration, print preparation, data entry, results, and leaderboards from one place.</h2>
           </div>
         </section>
 
@@ -75,16 +76,16 @@
 
     <template id="dashboardView">
       <section class="metric-grid">
-        <article><span>Stackers</span><strong data-metric="stackers"></strong><small data-metric="gender"></small></article>
-        <article><span>Doubles Teams</span><strong data-metric="doubles"></strong><small>completed teams</small></article>
-        <article><span>Relay Teams</span><strong data-metric="relay"></strong><small>ready teams</small></article>
-        <article><span>Divisions</span><strong data-metric="divisions"></strong><small>active award groups</small></article>
-        <article><span>Fastest Official</span><strong data-metric="fastest"></strong><small>all events</small></article>
+        <article><span data-i18n="Stackers">Stackers</span><strong data-metric="stackers"></strong><small data-metric="gender"></small></article>
+        <article><span data-i18n="Doubles Teams">Doubles Teams</span><strong data-metric="doubles"></strong><small data-i18n="completed teams">completed teams</small></article>
+        <article><span data-i18n="Relay Teams">Relay Teams</span><strong data-metric="relay"></strong><small data-i18n="ready teams">ready teams</small></article>
+        <article><span data-i18n="Divisions">Divisions</span><strong data-metric="divisions"></strong><small data-i18n="active award groups">active award groups</small></article>
+        <article><span data-i18n="Fastest Official">Fastest Official</span><strong data-metric="fastest"></strong><small data-i18n="all events">all events</small></article>
       </section>
       <section>
         <article class="panel">
           <div class="panel-head">
-            <h2>Tournament Snapshot</h2>
+            <h2 data-i18n="Tournament Snapshot">Tournament Snapshot</h2>
           </div>
           <div id="snapshot"></div>
         </article>
@@ -94,96 +95,96 @@
     <template id="settingsView">
       <section class="panel">
         <div class="panel-head">
-          <h2>Competition Settings</h2>
-          <button class="primary" data-action="save-settings" type="button">Save Settings</button>
+          <h2 data-i18n="Competition Settings">Competition Settings</h2>
+          <button class="primary" data-action="save-settings" type="button" data-i18n="Save Settings">Save Settings</button>
         </div>
         <div class="form-grid">
-          <label>Competition Name<input id="settingName" /></label>
-          <label>Type<select id="settingType"><option>Sanctioned</option><option>Recreational</option><option>Online</option></select></label>
-          <label>Competition Date (Start)<input id="settingStart" type="date" /></label>
-          <label>Competition Date (End)<input id="settingEnd" type="date" /></label>
-          <label>KBS Logo<select id="settingKbsLogo"><option value="No">No</option><option value="Yes">Yes</option></select></label>
-          <label>Prelim Rounds<select id="settingPrelims"><option value="0">0 Round</option><option value="1">1 Round</option></select></label>
-          <label>Final Rounds<select id="settingFinals"><option value="1">1 Round</option></select></label>
-          <label>SOC<select id="settingSoc"><option value="Yes">Yes</option><option value="No">No</option></select></label>
-          <label>Prelim Times Data Entry<select id="settingPrelimTimes"><option value="best">Best</option><option value="all">All</option></select></label>
-          <label>Paperless Entry<select id="settingPaperless"><option value="Yes">Yes</option><option value="No">No</option></select></label>
-          <label>Language<select id="settingLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
-          <label class="checkbox-field"><input id="settingSeparateSpecialGender" type="checkbox" /> <span><strong>Separate Special Stacker Divisions by Gender</strong><small>When enabled, Special Stacker results will be divided into separate male and female divisions.</small></span></label>
-          <label>Age Calculation<select id="settingAgeCalculation"><option value="actual">Actual Age on Competition Date</option><option value="yearBorn">Year Born Only</option></select></label>
-          <label>Advance Individuals<input id="settingAdvanceIndividuals" type="number" min="0" /></label>
-          <label>Advance Doubles<input id="settingAdvanceDoubles" type="number" min="0" /></label>
-          <label>Advance C/P Doubles<input id="settingAdvanceCpDoubles" type="number" min="0" /></label>
-          <label>Advance Timed Relay<input id="settingAdvanceRelay" type="number" min="0" /></label>
-          <label>Time Sheets Input<select id="settingTimeSheetInput"><option value="blank">blank</option></select></label>
+          <label data-i18n="Competition Name">Competition Name<input id="settingName" /></label>
+          <label data-i18n="Type">Type<select id="settingType"><option data-i18n="Sanctioned">Sanctioned</option><option data-i18n="Recreational">Recreational</option><option data-i18n="Online">Online</option></select></label>
+          <label data-i18n="Competition Date (Start)">Competition Date (Start)<input id="settingStart" type="date" /></label>
+          <label data-i18n="Competition Date (End)">Competition Date (End)<input id="settingEnd" type="date" /></label>
+          <label data-i18n="KBS Logo">KBS Logo<select id="settingKbsLogo"><option value="No" data-i18n="No">No</option><option value="Yes" data-i18n="Yes">Yes</option></select></label>
+          <label data-i18n="Prelim Rounds">Prelim Rounds<select id="settingPrelims"><option value="0" data-i18n="0 Round">0 Round</option><option value="1" data-i18n="1 Round">1 Round</option></select></label>
+          <label data-i18n="Final Rounds">Final Rounds<select id="settingFinals"><option value="1" data-i18n="1 Round">1 Round</option></select></label>
+          <label data-i18n="SOC">SOC<select id="settingSoc"><option value="Yes" data-i18n="Yes">Yes</option><option value="No" data-i18n="No">No</option></select></label>
+          <label data-i18n="Prelim Times Data Entry">Prelim Times Data Entry<select id="settingPrelimTimes"><option value="best" data-i18n="Best">Best</option><option value="all" data-i18n="All">All</option></select></label>
+          <label data-i18n="Paperless Entry">Paperless Entry<select id="settingPaperless"><option value="Yes" data-i18n="Yes">Yes</option><option value="No" data-i18n="No">No</option></select></label>
+          <label data-i18n="Public Results Default Language">Public Results Default Language<select id="settingLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+          <label class="checkbox-field"><input id="settingSeparateSpecialGender" type="checkbox" /> <span><strong data-i18n="Separate Special Stacker Divisions by Gender">Separate Special Stacker Divisions by Gender</strong><small data-i18n="When enabled, Special Stacker results will be divided into separate male and female divisions.">When enabled, Special Stacker results will be divided into separate male and female divisions.</small></span></label>
+          <label data-i18n="Age Calculation">Age Calculation<select id="settingAgeCalculation"><option value="actual" data-i18n="Actual Age on Competition Date">Actual Age on Competition Date</option><option value="yearBorn" data-i18n="Year Born Only">Year Born Only</option></select></label>
+          <label data-i18n="Advance Individuals">Advance Individuals<input id="settingAdvanceIndividuals" type="number" min="0" /></label>
+          <label data-i18n="Advance Doubles">Advance Doubles<input id="settingAdvanceDoubles" type="number" min="0" /></label>
+          <label data-i18n="Advance C/P Doubles">Advance C/P Doubles<input id="settingAdvanceCpDoubles" type="number" min="0" /></label>
+          <label data-i18n="Advance Timed Relay">Advance Timed Relay<input id="settingAdvanceRelay" type="number" min="0" /></label>
+          <label data-i18n="Time Sheets Input">Time Sheets Input<select id="settingTimeSheetInput"><option value="blank" data-i18n="blank">blank</option></select></label>
         </div>
-        <p class="muted">Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.</p>
+        <p class="muted" data-i18n="Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.">Paperless mode allows prelim data entry by stacker ID instead of time sheet ID.</p>
       </section>
       <section class="panel" aria-labelledby="brandingHeading">
-        <div class="panel-head"><h2 id="brandingHeading">Competition Branding</h2></div>
-        <p class="muted">Upload an optional competition logo and banner. Files are validated and stored separately from the application publish files.</p>
+        <div class="panel-head"><h2 id="brandingHeading" data-i18n="Competition Branding">Competition Branding</h2></div>
+        <p class="muted" data-i18n="Upload an optional competition logo and banner. Files are validated and stored separately from the application publish files.">Upload an optional competition logo and banner. Files are validated and stored separately from the application publish files.</p>
         <div class="form-grid branding-assets-grid">
-          <div class="branding-asset-card"><h3>Logo</h3><img id="competitionLogoPreview" alt="Competition logo preview" hidden /><input id="competitionLogoFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="logo" type="button">Upload Logo</button><button class="ghost" data-action="remove-asset" data-asset-type="logo" type="button">Remove Logo</button></div>
-          <div class="branding-asset-card"><h3>Banner</h3><img id="competitionBannerPreview" alt="Competition banner preview" hidden /><input id="competitionBannerFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="banner" type="button">Upload Banner</button><button class="ghost" data-action="remove-asset" data-asset-type="banner" type="button">Remove Banner</button></div>
+          <div class="branding-asset-card"><h3 data-i18n="Logo">Logo</h3><img id="competitionLogoPreview" alt="Competition logo preview" data-i18n-alt="competition-logo preview" hidden /><input id="competitionLogoFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="logo" type="button" data-i18n="Upload Logo">Upload Logo</button><button class="ghost" data-action="remove-asset" data-asset-type="logo" type="button" data-i18n="Remove Logo">Remove Logo</button></div>
+          <div class="branding-asset-card"><h3 data-i18n="Banner">Banner</h3><img id="competitionBannerPreview" alt="Competition banner preview" data-i18n-alt="competition-banner preview" hidden /><input id="competitionBannerFile" type="file" accept="image/png,image/jpeg,image/webp" /><button class="primary" data-action="upload-asset" data-asset-type="banner" type="button" data-i18n="Upload Banner">Upload Banner</button><button class="ghost" data-action="remove-asset" data-asset-type="banner" type="button" data-i18n="Remove Banner">Remove Banner</button></div>
         </div>
         <p id="competitionBrandingStatus" class="muted" role="status"></p>
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Events</h2>
-          <button class="primary" data-action="save-events" type="button">Save Events</button>
+          <h2 data-i18n="Events">Events</h2>
+          <button class="primary" data-action="save-events" type="button" data-i18n="Save Events">Save Events</button>
         </div>
         <div id="eventMatrix" class="check-grid"></div>
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Team Builders</h2>
+          <h2 data-i18n="Team Builders">Team Builders</h2>
         </div>
         <div class="team-builder-grid">
           <button class="team-builder-action" data-route="doubles" type="button">
-            <strong>Doubles Team Builder</strong>
-            <span>Choose 2 stackers to create a Doubles Team.</span>
+            <strong data-i18n="Doubles Team Builder">Doubles Team Builder</strong>
+            <span data-i18n="Choose 2 stackers to create a Doubles Team.">Choose 2 stackers to create a Doubles Team.</span>
           </button>
           <button class="team-builder-action" data-route="relay" type="button">
-            <strong>Relay Team Builder</strong>
-            <span>Choose at least 4 stackers, with up to 2 optional backups.</span>
+            <strong data-i18n="Relay Team Builder">Relay Team Builder</strong>
+            <span data-i18n="Choose at least 4 stackers, with up to 2 optional backups.">Choose at least 4 stackers, with up to 2 optional backups.</span>
           </button>
         </div>
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Divisions</h2>
-          <button class="primary" data-action="save-divisions" type="button">Save Divisions</button>
+          <h2 data-i18n="Divisions">Divisions</h2>
+          <button class="primary" data-action="save-divisions" type="button" data-i18n="Save Divisions">Save Divisions</button>
         </div>
-        <p class="muted">Tick the age where a division should end. Skipped ages are grouped into the next selected age.</p>
+        <p class="muted" data-i18n="Tick the age where a division should end. Skipped ages are grouped into the next selected age.">Tick the age where a division should end. Skipped ages are grouped into the next selected age.</p>
         <section class="division-section" aria-labelledby="individualDivisionsHeading">
-          <div class="panel-subhead"><h3 id="individualDivisionsHeading">Individual Divisions</h3></div>
+          <div class="panel-subhead"><h3 id="individualDivisionsHeading" data-i18n="Individual Divisions">Individual Divisions</h3></div>
           <div id="divisionCutoffs" class="division-grid"></div>
         </section>
         <div class="panel-subhead team-division-subhead">
-          <h3>Team Division Setup</h3>
-          <span class="muted">Doubles and Relay cutoff ages</span>
+          <h3 data-i18n="Team Division Setup">Team Division Setup</h3>
+          <span class="muted" data-i18n="Doubles and Relay cutoff ages">Doubles and Relay cutoff ages</span>
         </div>
         <section class="division-section" aria-labelledby="doublesDivisionsHeading">
-          <div class="panel-subhead"><h3 id="doublesDivisionsHeading">Doubles Divisions</h3></div>
+          <div class="panel-subhead"><h3 id="doublesDivisionsHeading" data-i18n="Doubles Divisions">Doubles Divisions</h3></div>
           <div id="doublesDivisionCutoffs" class="doubles-division-grid"></div>
         </section>
         <section class="division-section" aria-labelledby="relayDivisionsHeading">
-          <div class="panel-subhead"><h3 id="relayDivisionsHeading">Relay Divisions</h3></div>
+          <div class="panel-subhead"><h3 id="relayDivisionsHeading" data-i18n="Relay Divisions">Relay Divisions</h3></div>
           <div id="relayDivisionCutoffs" class="relay-division-grid"></div>
         </section>
         <div class="panel-subhead">
-          <h3>Generated Divisions</h3>
-          <button class="ghost" data-action="add-division" type="button">Add Custom Division</button>
+          <h3 data-i18n="Generated Divisions">Generated Divisions</h3>
+          <button class="ghost" data-action="add-division" type="button" data-i18n="Add Custom Division">Add Custom Division</button>
         </div>
         <div id="divisionList" class="tag-editor"></div>
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Leader Board</h2>
+          <h2 data-i18n="Leader Board">Leader Board</h2>
           <div class="action-row">
-            <button class="ghost" data-action="open-leaderboard" type="button">Open Display</button>
-            <button class="primary" data-action="save-leaderboard" type="button">Save Display</button>
+            <button class="ghost" data-action="open-leaderboard" type="button" data-i18n="Open Display">Open Display</button>
+            <button class="primary" data-action="save-leaderboard" type="button" data-i18n="Save Display">Save Display</button>
           </div>
         </div>
         <div class="form-grid">
@@ -199,12 +200,12 @@
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Competition Audit Logs</h2>
-          <button class="ghost" data-action="export-competition-audit-csv" type="button">Export CSV</button>
+          <h2 data-i18n="Competition Audit Logs">Competition Audit Logs</h2>
+          <button class="ghost" data-action="export-competition-audit-csv" type="button" data-i18n="Export CSV">Export CSV</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Summary</th></tr></thead>
+            <thead><tr><th data-i18n="Time">Time</th><th data-i18n="Action">Action</th><th data-i18n="Actor">Actor</th><th data-i18n="Target">Target</th><th data-i18n="Summary">Summary</th></tr></thead>
             <tbody id="competitionAuditRows"></tbody>
           </table>
         </div>
@@ -214,12 +215,12 @@
     <template id="languageView">
       <section class="panel">
         <div class="panel-head">
-          <h2>Language Translation Setup</h2>
-          <button class="primary" data-action="save-language" type="button">Save Language</button>
+          <h2 data-i18n="Language Translation Setup">Language Translation Setup</h2>
+          <button class="primary" data-action="save-language" type="button" data-i18n="Save Language">Save Language</button>
         </div>
         <div class="form-grid">
-          <label>Active Language<select id="languageActive"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh">Simplified Chinese</option></select></label>
-          <label>Search Translation<input id="languageSearch" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
+          <label data-i18n="Translation Language To Edit">Translation Language To Edit<select id="languageActive"><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+          <label data-i18n="Search Translation">Search Translation<input id="languageSearch" data-i18n-placeholder="Search English, Bahasa Malaysia, or Chinese text" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
         </div>
         <div class="table-wrap language-table no-auto-translate"><table><thead><tr><th>English</th><th>Bahasa Malaysia</th></tr></thead><tbody id="languageRows"></tbody></table></div>
       </section>
@@ -227,76 +228,76 @@
 
     <template id="stackersView">
       <div class="module-tabs no-print" data-module-tabs="participant">
-        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button">Individual</button>
-        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button">Doubles</button>
-        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button">Relays</button>
+        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button" data-i18n="Individual">Individual</button>
+        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button" data-i18n="Doubles">Doubles</button>
+        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button" data-i18n="Relays">Relays</button>
       </div>
       <section class="panel">
         <div class="panel-head">
-          <h2 id="stackerListHeading" tabindex="-1">Stackers List</h2>
+          <h2 id="stackerListHeading" tabindex="-1" data-i18n="Stackers List">Stackers List</h2>
           <div class="button-row">
-            <button class="primary" data-action="show-stacker-form" id="showStackerFormBtn" type="button">+ Add New Stacker</button>
+            <button class="primary" data-action="show-stacker-form" id="showStackerFormBtn" type="button" data-i18n="+ Add New Stacker">+ Add New Stacker</button>
           </div>
         </div>
         <div id="stackerMessage" class="message" hidden></div>
         <section id="sqlCompetitionSetup" class="panel" hidden>
-          <div class="panel-head"><h2>Competition Setup</h2></div>
-          <p class="muted">Create the competition for Individual Stacker registrations.</p>
+          <div class="panel-head"><h2 data-i18n="Competition Setup">Competition Setup</h2></div>
+          <p class="muted" data-i18n="Create the competition for Individual Stacker registrations.">Create the competition for Individual Stacker registrations.</p>
           <div class="form-grid">
-            <label>Competition Code<input id="sqlCompetitionCode" placeholder="e.g. 2026-MY-OPEN" /></label>
-            <label>Competition Name<input id="sqlCompetitionName" placeholder="Competition name" /></label>
-            <label>Venue<input id="sqlCompetitionVenue" placeholder="Venue" /></label>
+            <label>Competition Code<input id="sqlCompetitionCode" data-i18n-placeholder="e.g. 2026-MY-OPEN" placeholder="e.g. 2026-MY-OPEN" /></label>
+            <label>Competition Name<input id="sqlCompetitionName" data-i18n-placeholder="Competition name" placeholder="Competition name" /></label>
+            <label>Venue<input id="sqlCompetitionVenue" data-i18n-placeholder="Venue" placeholder="Venue" /></label>
             <label>Start Date<input id="sqlCompetitionStart" type="date" /></label>
             <label>End Date<input id="sqlCompetitionEnd" type="date" /></label>
             <label>Status<input id="sqlCompetitionStatus" value="Active" /></label>
             <label class="checkbox-label"><input id="sqlCompetitionPublicListing" type="checkbox" /> List this competition on the public ALL results page</label>
           </div>
-          <div class="button-row"><button class="primary" data-action="create-sql-competition" type="button">Create Competition</button></div>
+          <div class="button-row"><button class="primary" data-action="create-sql-competition" type="button" data-i18n="Create Competition">Create Competition</button></div>
         </section>
         <div id="deleteStackerConfirm" class="confirm-box" hidden>
           <div>
-            <strong id="deleteStackerTitle">Delete stacker?</strong>
+            <strong id="deleteStackerTitle" data-i18n="Delete stacker?">Delete stacker?</strong>
             <p id="deleteStackerText" class="muted"></p>
           </div>
           <div class="button-row">
-            <button class="ghost" data-action="cancel-delete-stacker" type="button">Cancel</button>
-            <button class="danger-button" data-action="confirm-delete-stacker" type="button">Delete</button>
+            <button class="ghost" data-action="cancel-delete-stacker" type="button" data-i18n="Cancel">Cancel</button>
+            <button class="danger-button" data-action="confirm-delete-stacker" type="button" data-i18n="Delete">Delete</button>
           </div>
         </div>
         <section id="stackerForm" hidden>
           <div class="panel-subhead">
-            <h3 id="stackerFormTitle">New Stacker</h3>
+            <h3 id="stackerFormTitle" data-i18n="New Stacker">New Stacker</h3>
             <div class="button-row">
-              <button class="ghost" data-action="print-stacker-sheet" id="printStackerSheetBtn" type="button" hidden>Print Time Sheet</button>
-              <button class="ghost" data-action="cancel-stacker-edit" id="cancelStackerEdit" type="button">Cancel</button>
-              <button class="primary" data-action="add-stacker" id="saveStackerBtn" type="button">Save Stacker</button>
+              <button class="ghost" data-action="print-stacker-sheet" id="printStackerSheetBtn" type="button" hidden data-i18n="Print Time Sheet">Print Time Sheet</button>
+              <button class="ghost" data-action="cancel-stacker-edit" id="cancelStackerEdit" type="button" data-i18n="Cancel">Cancel</button>
+              <button class="primary" data-action="add-stacker" id="saveStackerBtn" type="button" data-i18n="Save Stacker">Save Stacker</button>
             </div>
           </div>
         <div class="form-grid">
-          <label>First Name<input id="stFirstName" placeholder="First name" /></label>
-          <label>Last Name<input id="stLastName" placeholder="Last name" /></label>
-          <label>WSSA ID<input id="stWssaId" placeholder="Optional" /></label>
+            <label>First Name<input id="stFirstName" data-i18n-placeholder="First name" placeholder="First name" /></label>
+            <label>Last Name<input id="stLastName" data-i18n-placeholder="Last name" placeholder="Last name" /></label>
+            <label>WSSA ID<input id="stWssaId" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
           <label>Gender<select id="stGender"><option>M</option><option>F</option></select></label>
           <label>Date Of Birth<input id="stDob" type="date" /></label>
-          <label>Age<input id="stAge" readonly placeholder="Auto" /></label>
-          <label>Generated Division<input id="stDivision" readonly placeholder="Enter DOB to preview" /></label>
-          <label class="checkbox-field"><input id="stSpecial" type="checkbox" /> <span>Special / Disability</span></label>
-          <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
-          <label>Organization<input id="stOrg" list="organizationOptions" placeholder="School or club" /><datalist id="organizationOptions"></datalist></label>
+            <label>Age<input id="stAge" readonly data-i18n-placeholder="Auto" placeholder="Auto" /></label>
+            <label>Generated Division<input id="stDivision" readonly data-i18n-placeholder="Enter DOB to preview" placeholder="Enter DOB to preview" /></label>
+          <label class="checkbox-field"><input id="stSpecial" type="checkbox" /> <span data-i18n="Special / Disability">Special / Disability</span></label>
+            <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" data-i18n-placeholder="Optional override" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
+            <label>Organization<input id="stOrg" list="organizationOptions" data-i18n-placeholder="School or club" placeholder="School or club" /><datalist id="organizationOptions"></datalist></label>
           <label>Country<select id="stCountry"></select></label>
-          <label>Region<input id="stRegion" list="regionOptions" placeholder="State / region" /><datalist id="regionOptions"></datalist></label>
-          <label>Email<input id="stEmail" type="email" placeholder="Optional" /></label>
-          <label>Phone<input id="stPhone" placeholder="Optional" /></label>
+            <label>Region<input id="stRegion" list="regionOptions" data-i18n-placeholder="State / region" placeholder="State / region" /><datalist id="regionOptions"></datalist></label>
+            <label>Email<input id="stEmail" type="email" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+            <label>Phone<input id="stPhone" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
           <label>Paid<select id="stPaid"><option>Yes</option><option>No</option></select></label>
           <label>Checked In<select id="stCheckedIn"><option>Yes</option><option>No</option></select></label>
         </div>
         <div id="stDoublesInfo" class="info-strip" hidden></div>
         </section>
         <div class="toolbar">
-          <button class="ghost" data-action="refresh-stackers" id="refreshStackersBtn" type="button">Refresh</button>
-          <input id="stackerSearch" type="search" placeholder="Search stackers" />
+          <button class="ghost" data-action="refresh-stackers" id="refreshStackersBtn" type="button" data-i18n="Refresh">Refresh</button>
+          <input id="stackerSearch" type="search" data-i18n-placeholder="Search stackers" placeholder="Search stackers" />
           <select id="stackerDivisionFilter"></select>
-          <label class="ghost file-action" for="stackerCsvInput">Import Stackers CSV</label>
+          <label class="ghost file-action" for="stackerCsvInput" data-i18n="Import Stackers CSV">Import Stackers CSV</label>
           <input id="stackerCsvInput" class="visually-hidden" type="file" accept=".csv,text/csv" />
         </div>
         <div class="table-wrap stacker-table-wrap"><table class="stacker-table"><thead><tr><th><button class="sort-button" data-action="sort-stackers" data-sort-key="id" type="button">ID</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="name" type="button">Name</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="age" type="button">Age</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="gender" type="button">Gender</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="special" type="button">Special</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="org" type="button">Organization</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="division" type="button">Division</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="country" type="button">Country</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="paid" type="button">Paid</button></th><th><button class="sort-button" data-action="sort-stackers" data-sort-key="checkedIn" type="button">Check-In</button></th><th></th></tr></thead><tbody id="stackerRows"></tbody></table></div>
@@ -305,34 +306,34 @@
 
     <template id="doublesView">
       <div class="module-tabs no-print" data-module-tabs="participant">
-        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button">Individual</button>
-        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button">Doubles</button>
-        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button">Relays</button>
+        <button class="module-tab" data-route="stackers" data-participant-route="stackers" type="button" data-i18n="Individual">Individual</button>
+        <button class="module-tab" data-route="doubles" data-participant-route="doubles" type="button" data-i18n="Doubles">Doubles</button>
+        <button class="module-tab" data-route="relay" data-participant-route="relay" type="button" data-i18n="Relays">Relays</button>
       </div>
       <section class="panel">
         <div class="panel-head">
-          <h2>Doubles</h2>
+          <h2 data-i18n="Doubles">Doubles</h2>
           <div class="button-row">
-            <button class="ghost" data-action="cancel-double-edit" id="cancelDoubleEdit" type="button" hidden>Cancel Edit</button>
-            <button class="primary" data-action="add-double" id="saveDoubleBtn" type="button">Add Team</button>
+            <button class="ghost" data-action="cancel-double-edit" id="cancelDoubleEdit" type="button" hidden data-i18n="Cancel Edit">Cancel Edit</button>
+            <button class="primary" data-action="add-double" id="saveDoubleBtn" type="button" data-i18n="Add Team">Add Team</button>
           </div>
         </div>
         <div id="doubleMessage" class="message" hidden></div>
         <div class="form-grid">
           <label>Generated Type<input id="doubleType" readonly value="Normal Doubles" /></label>
           <label>Status<select id="doubleStatus"><option value="complete">Complete</option><option value="pending">Need Partner</option></select></label>
-          <label>Search Stacker / Child<input id="doubleOneSearch" placeholder="Name or stacker ID" /></label>
+          <label>Search Stacker / Child<input id="doubleOneSearch" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
           <label>Stacker / Child<select id="doubleOne"></select></label>
-          <label>Search Registered Partner<input id="doubleTwoSearch" placeholder="Name or stacker ID" /></label>
+          <label>Search Registered Partner<input id="doubleTwoSearch" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
           <label>Registered Partner<select id="doubleTwo"></select></label>
-          <label>Parent / Guardian<input id="doubleParentName" placeholder="External parent / guardian name" /></label>
-          <label>Custom Division<input id="doubleDivision" placeholder="Auto if blank" /></label>
+          <label>Parent / Guardian<input id="doubleParentName" data-i18n-placeholder="External parent / guardian name" placeholder="External parent / guardian name" /></label>
+          <label>Custom Division<input id="doubleDivision" data-i18n-placeholder="Auto if blank" placeholder="Auto if blank" /></label>
           <div id="doubleWarning" class="inline-warning" hidden></div>
         </div>
         <div class="sub-tabs">
-          <button class="sub-tab active" data-action="switch-doubles-tab" data-doubles-tab="completed" type="button">Completed</button>
-          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="incomplete" type="button">Incomplete</button>
-          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="all" type="button">All</button>
+          <button class="sub-tab active" data-action="switch-doubles-tab" data-doubles-tab="completed" type="button" data-i18n="Completed">Completed</button>
+          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="incomplete" type="button" data-i18n="Incomplete">Incomplete</button>
+          <button class="sub-tab" data-action="switch-doubles-tab" data-doubles-tab="all" type="button" data-i18n="All">All</button>
         </div>
         <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th><th>Division</th><th>Location</th><th></th></tr></thead><tbody id="doubleRows"></tbody></table></div>
       </section>
@@ -346,29 +347,29 @@
       </div>
       <section class="panel">
         <div class="panel-head">
-          <h2>Relay Teams</h2>
+          <h2 data-i18n="Relay Teams">Relay Teams</h2>
           <div class="button-row">
-            <button class="ghost" data-action="cancel-relay-edit" id="cancelRelayEdit" type="button" hidden>Cancel Edit</button>
-            <button class="primary" data-action="add-relay" id="saveRelayBtn" type="button">Add Team</button>
+            <button class="ghost" data-action="cancel-relay-edit" id="cancelRelayEdit" type="button" hidden data-i18n="Cancel Edit">Cancel Edit</button>
+            <button class="primary" data-action="add-relay" id="saveRelayBtn" type="button" data-i18n="Add Team">Add Team</button>
           </div>
         </div>
         <div id="relayMessage" class="message" hidden></div>
         <div class="form-grid">
-          <label>Team Name<input id="relayName" placeholder="Relay team name" required /></label>
-          <label>Timed Relay Division<input id="timedRelayDivision" placeholder="Auto from competition rules" /></label>
-          <label>Head-to-Head Division<input id="headToHeadDivision" placeholder="Auto from competition rules" /></label>
-          <label>Team Coordinator<input id="relayCoordinator" placeholder="Coordinator name" /></label>
-          <label>Coordinator Email<input id="relayEmail" type="email" placeholder="Optional" /></label>
-          <label>Coordinator Phone<input id="relayPhone" placeholder="Optional" /></label>
-          <label>Location<input id="relayRegion" placeholder="State / region" /></label>
+          <label>Team Name<input id="relayName" data-i18n-placeholder="Relay team name" placeholder="Relay team name" required /></label>
+          <label>Timed Relay Division<input id="timedRelayDivision" data-i18n-placeholder="Auto from competition rules" placeholder="Auto from competition rules" /></label>
+          <label>Head-to-Head Division<input id="headToHeadDivision" data-i18n-placeholder="Auto from competition rules" placeholder="Auto from competition rules" /></label>
+          <label>Team Coordinator<input id="relayCoordinator" data-i18n-placeholder="Coordinator name" placeholder="Coordinator name" /></label>
+          <label>Coordinator Email<input id="relayEmail" type="email" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+          <label>Coordinator Phone<input id="relayPhone" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+          <label>Location<input id="relayRegion" data-i18n-placeholder="State / region" placeholder="State / region" /></label>
           <div id="relayWarning" class="inline-warning" hidden></div>
         </div>
         <div class="relay-member-grid" id="relayMemberGrid"></div>
         <div class="sub-tabs">
-          <button class="sub-tab active" data-action="switch-relay-tab" data-relay-tab="ready" type="button">Ready</button>
-          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="incomplete" type="button">Incomplete</button>
-          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="draft" type="button">Draft</button>
-          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="all" type="button">All</button>
+          <button class="sub-tab active" data-action="switch-relay-tab" data-relay-tab="ready" type="button" data-i18n="Ready">Ready</button>
+          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="incomplete" type="button" data-i18n="Incomplete">Incomplete</button>
+          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="draft" type="button" data-i18n="Draft">Draft</button>
+          <button class="sub-tab" data-action="switch-relay-tab" data-relay-tab="all" type="button" data-i18n="All">All</button>
         </div>
         <div class="table-wrap"><table><thead><tr><th>ID</th><th>Team Name</th><th>Timed Relay Division</th><th>Head-to-Head Division</th><th>Members</th><th># Members</th><th>Status</th><th>Location</th><th></th></tr></thead><tbody id="relayRows"></tbody></table></div>
       </section>
@@ -376,20 +377,20 @@
 
     <template id="paperworkView">
       <div class="module-tabs no-print" data-module-tabs="reports">
-        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="finals" type="button">Competition Reports</button>
-        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="admin" type="button">Admin</button>
-        <button class="module-tab active" data-route="paperwork" data-report-route="paperwork" type="button">Print Center</button>
+        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="finals" type="button" data-i18n="Competition Reports">Competition Reports</button>
+        <button class="module-tab" data-route="reports" data-report-route="reports" data-report-tab="admin" type="button" data-i18n="Admin">Admin</button>
+        <button class="module-tab active" data-route="paperwork" data-report-route="paperwork" type="button" data-i18n="Print Center">Print Center</button>
       </div>
       <section class="panel">
         <div class="panel-head">
-          <h2>Print Center</h2>
+          <h2 data-i18n="Print Center">Print Center</h2>
         </div>
         <div class="form-grid print-range-controls">
           <label>From Stacker<select id="printRangeFrom"></select></label>
           <label>To Stacker<select id="printRangeTo"></select></label>
         </div>
         <section class="paperwork-section">
-          <div class="panel-subhead"><h3>Preliminary Time Sheets</h3></div>
+          <div class="panel-subhead"><h3 data-i18n="Preliminary Time Sheets">Preliminary Time Sheets</h3></div>
           <div class="paper-grid">
             <button data-action="paperwork" data-type="individual-prelim" data-participant-group="individuals" type="button">Individual Time Sheets</button>
             <button data-action="paperwork" data-type="doubles-prelim" data-participant-group="doubles" type="button">Doubles Time Sheets</button>
@@ -397,7 +398,7 @@
           </div>
         </section>
         <section class="paperwork-section">
-          <div class="panel-subhead"><h3>Final Time Sheets</h3></div>
+          <div class="panel-subhead"><h3 data-i18n="Final Time Sheets">Final Time Sheets</h3></div>
           <div class="paper-grid">
             <button data-action="paperwork" data-type="finals-individual" data-participant-group="individuals" type="button">Individual Finals</button>
             <button data-action="paperwork" data-type="finals-doubles" data-participant-group="doubles" type="button">Doubles Finals</button>
@@ -405,7 +406,7 @@
           </div>
         </section>
         <section class="paperwork-section">
-          <div class="panel-subhead"><h3>Other Print Tools</h3></div>
+          <div class="panel-subhead"><h3 data-i18n="Other Print Tools">Other Print Tools</h3></div>
           <div class="paper-grid">
             <button data-action="paperwork" data-type="packets" type="button">All Packets</button>
             <button data-action="paperwork" data-type="badges" type="button">Name Badges</button>
@@ -415,8 +416,8 @@
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Head To Head Brackets</h2>
-          <button class="primary" data-action="build-bracket" type="button">Build Brackets</button>
+          <h2 data-i18n="Head To Head Brackets">Head To Head Brackets</h2>
+          <button class="primary" data-action="build-bracket" type="button" data-i18n="Build Brackets">Build Brackets</button>
         </div>
         <div class="form-grid">
           <label>Type<select id="bracketType"><option>Relay</option><option>Individual</option><option>Blank 4</option><option>Blank 8</option><option>Blank 16</option><option>Blank 32</option></select></label>
@@ -431,23 +432,23 @@
     <template id="awardsView">
       <section class="panel">
         <div class="panel-head">
-          <h2>Awards Planner</h2>
-          <button class="primary" data-action="save-awards" type="button">Save Awards Plan</button>
+          <h2 data-i18n="Awards Planner">Awards Planner</h2>
+          <button class="primary" data-action="save-awards" type="button" data-i18n="Save Awards Plan">Save Awards Plan</button>
         </div>
-        <p class="muted">Plan trophies and medals from active divisions, event categories, and selected overall awards before registration is complete.</p>
+        <p class="muted" data-i18n="Plan trophies and medals from active divisions, event categories, and selected overall awards before registration is complete.">Plan trophies and medals from active divisions, event categories, and selected overall awards before registration is complete.</p>
         <div class="award-config-grid">
           <article class="award-config-card">
-            <h3>Individual Division</h3>
+            <h3 data-i18n="Individual Division">Individual Division</h3>
             <label>Places To Award<select id="awardIndividualPlaces"></select></label>
             <div class="award-place-grid" id="awardIndividualItems"></div>
           </article>
           <article class="award-config-card">
-            <h3>Doubles</h3>
+            <h3 data-i18n="Doubles">Doubles</h3>
             <label>Places To Award<select id="awardDoublesPlaces"></select></label>
             <div class="award-place-grid" id="awardDoublesItems"></div>
           </article>
           <article class="award-config-card">
-            <h3>Relay Teams</h3>
+            <h3 data-i18n="Relay Teams">Relay Teams</h3>
             <label>Places To Award<select id="awardRelayPlaces"></select></label>
             <label>Awards Per Team<select id="awardRelayUnits"><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></label>
             <div class="award-place-grid" id="awardRelayItems"></div>
@@ -457,8 +458,8 @@
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>Awards Summary</h2>
-          <button class="ghost" data-action="export-awards-csv" type="button">Export CSV</button>
+          <h2 data-i18n="Awards Summary">Awards Summary</h2>
+          <button class="ghost" data-action="export-awards-csv" type="button" data-i18n="Export CSV">Export CSV</button>
         </div>
         <div id="awardTotals" class="metric-grid"></div>
         <div class="table-wrap"><table><thead><tr><th>Award Group</th><th>Basis</th><th>Places</th><th>Item</th><th>Quantity</th></tr></thead><tbody id="awardRows"></tbody></table></div>
@@ -468,7 +469,7 @@
     <template id="competitionView">
       <section class="panel">
         <div class="panel-head">
-          <h2 id="entryHeading">Individual Prelim Entry</h2>
+          <h2 id="entryHeading" data-i18n="Individual Prelim Entry">Individual Prelim Entry</h2>
         </div>
         <div class="form-grid competition-mode-grid">
           <label>Stage<select id="resultStage"><option>Prelims</option><option>Finals</option><option>SOC</option></select></label>
@@ -478,27 +479,27 @@
         <div id="prelimEntryPanel">
           <div id="prelimEntryMessage" class="message" hidden></div>
           <div class="prelim-lookup-row">
-            <label>Time Sheet / Participant ID<input id="timeSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" /></label>
-            <button class="ghost" data-action="lookup-prelim-participant" type="button">Find Participant</button>
-            <button class="text-button" data-action="clear-prelim-entry" type="button">Clear</button>
+            <label>Time Sheet / Participant ID<input id="timeSheetId" type="text" inputmode="numeric" autocomplete="off" data-i18n-placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" /></label>
+            <button class="ghost" data-action="lookup-prelim-participant" type="button" data-i18n="Find Participant">Find Participant</button>
+            <button class="text-button" data-action="clear-prelim-entry" type="button" data-i18n="Clear">Clear</button>
           </div>
           <article id="prelimStackerSummary" class="prelim-stacker-summary" hidden></article>
           <div id="prelimEventGrid" class="prelim-event-grid" hidden>
-            <label data-prelim-event="3-3-3">3-3-3 Best Time<input id="prelim333" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="3.145 / 999" /></label>
-            <label data-prelim-event="3-6-3">3-6-3 Best Time<input id="prelim363" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="4.276 / 999" /></label>
-            <label data-prelim-event="Cycle">Cycle Best Time<input id="prelimCycle" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="8.512 / 999" /></label>
+            <label data-prelim-event="3-3-3">3-3-3 Best Time<input id="prelim333" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="3.145 / 999" placeholder="3.145 / 999" /></label>
+            <label data-prelim-event="3-6-3">3-6-3 Best Time<input id="prelim363" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="4.276 / 999" placeholder="4.276 / 999" /></label>
+            <label data-prelim-event="Cycle">Cycle Best Time<input id="prelimCycle" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="8.512 / 999" placeholder="8.512 / 999" /></label>
           </div>
           <div id="prelimSaveActions" class="competition-entry-actions" hidden>
-            <button class="primary" data-action="save-prelim-results" type="button">Save Prelim Times</button>
+            <button class="primary" data-action="save-prelim-results" type="button" data-i18n="Save Prelim Times">Save Prelim Times</button>
           </div>
         </div>
 
         <div id="advancedEntryPanel" hidden>
           <div id="finalEntryMessage" class="message" hidden></div>
           <div class="prelim-lookup-row">
-            <label>Final Sheet ID<input id="finalSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="1.15 / 215 / 34" /></label>
-            <button class="ghost" data-action="lookup-final-sheet" type="button">Find Sheet</button>
-            <button class="text-button" data-action="clear-final-sheet" type="button">Clear</button>
+            <label>Final Sheet ID<input id="finalSheetId" type="text" inputmode="numeric" autocomplete="off" data-i18n-placeholder="1.15 / 215 / 34" placeholder="1.15 / 215 / 34" /></label>
+            <button class="ghost" data-action="lookup-final-sheet" type="button" data-i18n="Find Sheet">Find Sheet</button>
+            <button class="text-button" data-action="clear-final-sheet" type="button" data-i18n="Clear">Clear</button>
           </div>
           <div class="form-grid result-grid">
             <label>Final Sheet<select id="finalSheetSelect"></select></label>
@@ -511,19 +512,19 @@
             </table>
           </div>
           <div id="finalSaveActions" class="competition-entry-actions" hidden>
-            <button class="primary" data-action="save-final-results" type="button">Save Final Sheet</button>
-            <button class="ghost" data-action="print-final-sheet" type="button">Print Final Sheet</button>
+            <button class="primary" data-action="save-final-results" type="button" data-i18n="Save Final Sheet">Save Final Sheet</button>
+            <button class="ghost" data-action="print-final-sheet" type="button" data-i18n="Print Final Sheet">Print Final Sheet</button>
           </div>
           <div id="finalMissingSummary" class="missing-groups"></div>
         </div>
       </section>
       <section class="split">
         <article class="panel" id="prelimMissingPanel">
-          <div class="panel-head"><h2>Missing Times</h2></div>
+          <div class="panel-head"><h2 data-i18n="Missing Times">Missing Times</h2></div>
           <div id="missingTimes"></div>
         </article>
         <article class="panel">
-          <div class="panel-head"><h2>Recent Results</h2></div>
+          <div class="panel-head"><h2 data-i18n="Recent Results">Recent Results</h2></div>
           <div class="table-wrap"><table><thead><tr><th>Stage</th><th>Name</th><th>Event</th><th>Best</th><th>Penalty</th><th></th></tr></thead><tbody id="resultRows"></tbody></table></div>
         </article>
       </section>
@@ -531,12 +532,12 @@
 
     <template id="reportsView">
       <div class="module-tabs no-print" data-module-tabs="reports">
-        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="finals" type="button">Competition Reports</button>
-        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="admin" type="button">Admin</button>
-        <button class="module-tab" data-route="paperwork" data-report-route="paperwork" type="button">Print Center</button>
+        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="finals" type="button" data-i18n="Competition Reports">Competition Reports</button>
+        <button class="module-tab report-tab" data-action="switch-report-tab" data-report-route="reports" data-report-tab="admin" type="button" data-i18n="Admin">Admin</button>
+        <button class="module-tab" data-route="paperwork" data-report-route="paperwork" type="button" data-i18n="Print Center">Print Center</button>
       </div>
       <section class="panel report-section" data-report-section="finals">
-        <div class="panel-head"><h2>Competition Reports</h2></div>
+        <div class="panel-head"><h2 data-i18n="Competition Reports">Competition Reports</h2></div>
         <div class="report-filters">
           <label>Stage<select id="finalsReportStage"><option value="Finals">Final Results</option><option value="Prelims">Preliminary Results</option></select></label>
           <label>Report<select id="finalsReportKind"><option value="final-results">Results by Division and Event</option><option value="overall">Overall Results</option><option value="division">Results by Division</option><option value="event">Results by Event</option><option value="missing">Missing Results</option><option value="scratch">Scratch Report</option><option value="qualification">Qualification</option><option value="placements">Placements</option><option value="all-around">All-Around</option><option value="top-performance">Top Performance</option><option value="organization">Organization Championship Ranking</option></select></label>
@@ -549,13 +550,13 @@
           <label>Country<select id="finalsCountry"></select></label>
           <label>Region<select id="finalsRegion"></select></label>
           <label>Limit<select id="finalsLimit"><option value="0">All</option><option value="3">Top 3</option><option value="5">Top 5</option><option value="10">Top 10</option></select></label>
-          <button class="primary" data-action="run-finals-report" type="button">Build Report</button>
+          <button class="primary" data-action="run-finals-report" type="button" data-i18n="Build Report">Build Report</button>
         </div>
       </section>
       <section class="panel report-section" data-report-section="finals" id="finalsReportOutput"></section>
       <section class="panel report-section" data-report-section="admin">
         <div class="panel-head">
-          <h2>Admin Reports</h2>
+          <h2 data-i18n="Admin Reports">Admin Reports</h2>
         </div>
         <div class="report-filters">
           <label>Common Reports<select id="commonReport"><option value="">Select</option><option value="div_counts">All Division Counts</option><option value="all_individuals">All Individuals</option><option value="paid_status">Paid / Not Paid</option><option value="all_doubles">All Doubles</option><option value="not_doubles">Not On Doubles</option><option value="all_relay">All Relay Teams</option><option value="not_relay">Not On Relay</option></select></label>
@@ -566,7 +567,7 @@
           <label>Team<select id="reportTeam"><option value="">--</option><option value="not-doubles">Not On Doubles</option><option value="not-relay">Not On Relay</option></select></label>
           <label>Group By<select id="reportGroup"><option value="">None</option><option value="email">Email</option><option value="division">Division</option><option value="country">Country</option><option value="region">Region</option><option value="org">Org</option><option value="gender">Gender</option></select></label>
           <label>Columns<select id="reportColumns" multiple size="8"></select></label>
-          <button class="primary" data-action="run-report" type="button">Run Report</button>
+          <button class="primary" data-action="run-report" type="button" data-i18n="Run Report">Run Report</button>
         </div>
       </section>
       <section class="panel report-section" data-report-section="admin" id="reportOutput"></section>
@@ -585,21 +586,26 @@
     <template id="usersView">
       <section class="panel">
         <div class="panel-head">
-          <h2>Users</h2>
+          <h2 data-i18n="Users">Users</h2>
         </div>
         <div class="table-wrap"><table><thead><tr><th>Name</th><th>Access</th><th>Last Active</th><th>Platform</th><th>Browser</th></tr></thead><tbody id="userRows"></tbody></table></div>
       </section>
       <section class="panel">
-        <div class="panel-head"><h2>User Levels</h2></div>
+        <div class="panel-head"><h2 data-i18n="User Levels">User Levels</h2></div>
         <div class="level-grid">
-          <article><strong>Data Entry</strong><span>Enter times and use the Print Center</span></article>
-          <article><strong>Staff</strong><span>Manage stackers, doubles, and reports</span></article>
-          <article><strong>Tournament Director</strong><span>Full settings and user access</span></article>
+          <article><strong data-i18n="Data Entry">Data Entry</strong><span data-i18n="Enter times and use the Print Center">Enter times and use the Print Center</span></article>
+          <article><strong data-i18n="Staff">Staff</strong><span data-i18n="Manage stackers, doubles, and reports">Manage stackers, doubles, and reports</span></article>
+          <article><strong data-i18n="Tournament Director">Tournament Director</strong><span data-i18n="Full settings and user access">Full settings and user access</span></article>
         </div>
       </section>
     </template>
 
     <script src="config.js"></script>
+    <script src="js/i18n/I18n.js?v=multilanguage-v2-phase3a2"></script>
+    <script src="js/i18n/locales/en.js?v=multilanguage-v2-phase3a2"></script>
+    <script src="js/i18n/locales/ms.js?v=multilanguage-v2-phase3a2"></script>
+    <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3a2"></script>
+    <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase3a2"></script>
     <script src="js/auth/AuthSession.js?v=forgot-lockout-ui"></script>
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>
@@ -611,6 +617,6 @@
     <script src="js/CompetitionPackage.js?v=20260803-package-v1"></script>
     <script src="js/CompetitionPackageAssembler.js?v=20260803-package-assembler-v1"></script>
     <script src="results/vendor/signalr.min.js?v=20260803-live-sync"></script>
-    <script src="app.js?v=responsive-navigation-20260818d"></script>
+    <script src="app.js?v=multilanguage-v2-phase3a2"></script>
   </body>
 </html>
