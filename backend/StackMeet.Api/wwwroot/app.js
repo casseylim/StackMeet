@@ -1595,6 +1595,13 @@ function syncOperatorLanguageControl() {
   if (control) control.value = currentLanguage();
 }
 
+function applyOperatorLanguage(language) {
+  const normalized = window.StackMeetLanguagePreference.setPreferredLanguage(language);
+  window.StackMeetI18n.setDocumentLanguage(normalized);
+  syncOperatorLanguageControl();
+  render();
+}
+
 function languageLabel(code) {
   if (code === "ms") return "Bahasa Malaysia";
   if (code === "zh" || code === "zh-Hans") return "Simplified Chinese";
@@ -6805,10 +6812,7 @@ async function initializeApplication() {
   const preference = window.StackMeetLanguagePreference?.getPreferredLanguage();
   window.StackMeetI18n?.setDocumentLanguage(preference || state.settings?.language || "en");
   document.getElementById("operatorLanguage")?.addEventListener("change", event => {
-    const language = window.StackMeetLanguagePreference.setPreferredLanguage(event.target.value);
-    window.StackMeetI18n.setDocumentLanguage(language);
-    syncOperatorLanguageControl();
-    render();
+    applyOperatorLanguage(event.target.value);
   });
   applyBrandingChrome();
   const session = await window.StackMeetAuth.requireLogin();

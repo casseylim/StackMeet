@@ -54,4 +54,31 @@ assert.strictEqual(translated.currentLanguage(), "zh-Hans");
 assert.strictEqual(translated.t("Dashboard"), "canonical");
 assert.strictEqual(appTranslationHarness("zh-Hans", { zh: { Dashboard: "legacy" } }).t("Dashboard"), "legacy");
 assert.strictEqual(appTranslationHarness("zh-Hans", {}).t("Dashboard"), "built in");
+
+const syncStart = appSource.indexOf("function currentLanguage()");
+const syncEnd = appSource.indexOf("function languageLabel", syncStart);
+const control = { value: "en" };
+let renders = 0;
+let saves = 0;
+const operatorHarness = {
+  state: { settings: { language: "en", ageCalculationMode: "yearBorn" }, stackers: [{ id: "1.1" }], results: [{ id: "r1" }], doubles: [{ id: "2.1" }], relays: [{ id: "3.1" }] },
+  window: { StackMeetLanguagePreference: { getPreferredLanguage: () => control.value, setPreferredLanguage: value => { control.value = value; return value; } }, StackMeetI18n: { setDocumentLanguage: value => { operatorHarness.document.documentElement.lang = value; }, normalizeLanguageCode: value => value }, },
+  document: { documentElement: { lang: "en" }, getElementById: id => id === "operatorLanguage" ? control : null },
+  render: () => { renders += 1; },
+  saveState: () => { saves += 1; },
+  globalThis: null
+};
+operatorHarness.globalThis = operatorHarness;
+vm.runInNewContext(`${appSource.slice(syncStart, syncEnd)}; globalThis.hooks = { applyOperatorLanguage };`, operatorHarness);
+const snapshot = JSON.stringify(operatorHarness.state);
+operatorHarness.hooks.applyOperatorLanguage("ms");
+assert.strictEqual(control.value, "ms");
+assert.strictEqual(operatorHarness.document.documentElement.lang, "ms");
+assert.strictEqual(renders, 1);
+operatorHarness.hooks.applyOperatorLanguage("zh-Hans");
+assert.strictEqual(control.value, "zh-Hans");
+assert.strictEqual(operatorHarness.document.documentElement.lang, "zh-Hans");
+assert.strictEqual(renders, 2);
+assert.strictEqual(saves, 0);
+assert.strictEqual(JSON.stringify(operatorHarness.state), snapshot);
 console.log("Multilanguage v2 Phase 2 integration tests passed.");
