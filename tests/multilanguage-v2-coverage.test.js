@@ -86,7 +86,7 @@ const dashboardRefreshEnd = appSource.indexOf('if (rerender && route === "report
 assert.ok(dashboardRefreshStart >= 0 && dashboardRefreshEnd > dashboardRefreshStart, "Dashboard polling rerender must remain detectable");
 assert.match(appSource.slice(dashboardRefreshStart, dashboardRefreshEnd), /renderDashboard\(\);\s*applyTranslations\(view\);/, "Dashboard polling rerenders must reapply authenticated translations");
 for (const resource of ["js/i18n/I18n.js", "js/i18n/locales/en.js", "js/i18n/locales/ms.js", "js/i18n/locales/zh-Hans.js", "js/i18n/LanguagePreference.js", "app.js"]) {
-  assert.match(htmlSource, new RegExp(`${resource.replace(/[./-]/g, "\\$&")}\\?v=multilanguage-v2-phase3a2`), `${resource} must use the Phase 3A.2 cache key`);
+  assert.match(htmlSource, new RegExp(`${resource.replace(/[./-]/g, "\\$&")}\\?v=multilanguage-v2-phase3b`), `${resource} must use the Phase 3B cache key`);
 }
 assert.doesNotMatch(appSource, /applyTranslations\(document\.body\)/, "Login UI must not be included in authenticated translation traversal");
 assert.match(appSource, /operatorIntlLocale/, "Date/time display must follow the selected operator locale");

@@ -1325,8 +1325,10 @@ function currentLanguage() {
 }
 
 function syncOperatorLanguageControl() {
-  const control = document.getElementById("operatorLanguage");
-  if (control) control.value = currentLanguage();
+  ["operatorLanguage", "operatorLanguageAuthenticated"].forEach(id => {
+    const control = document.getElementById(id);
+    if (control) control.value = currentLanguage();
+  });
 }
 
 function applyOperatorLanguage(language) {
@@ -1359,7 +1361,9 @@ function translateChrome() {
   if (resetButton) resetButton.textContent = t("Reset Competition");
   document.getElementById("navMenuBtn") && (document.getElementById("navMenuBtn").textContent = t("Menu"));
   document.getElementById("logoutBtn") && (document.getElementById("logoutBtn").textContent = t("Log Out"));
-  document.querySelector(".operator-language-label")?.firstChild && (document.querySelector(".operator-language-label").firstChild.nodeValue = `${t("Language")} `);
+  document.querySelectorAll(".operator-language-label").forEach(label => {
+    if (label.firstChild) label.firstChild.nodeValue = `${t("Language")} `;
+  });
   const sidebar = document.querySelector(".sidebar-card");
   if (sidebar) {
     sidebar.querySelector("span")?.replaceChildren(document.createTextNode(t("Online mode")));
@@ -6584,16 +6588,16 @@ function cssEscape(value) {
 
 function showBootError(error) {
   const target = document.getElementById("loginError") || document.getElementById("view");
-  if (target) target.textContent = error?.message || String(error || "Unable to start NADITrack.");
+  if (target) target.textContent = window.StackMeetUiLocalization?.translateKnownMessage(error?.message, "Unable to start NADITrack.") || String(error || t("Unable to start NADITrack."));
   document.body.classList.add("auth-pending");
 }
 
 async function initializeApplication() {
   const preference = window.StackMeetLanguagePreference?.getPreferredLanguage();
   window.StackMeetI18n?.setDocumentLanguage(preference || state.settings?.language || "en");
-  document.getElementById("operatorLanguage")?.addEventListener("change", event => {
+  ["operatorLanguage", "operatorLanguageAuthenticated"].forEach(id => document.getElementById(id)?.addEventListener("change", event => {
     applyOperatorLanguage(event.target.value);
-  });
+  }));
   applyBrandingChrome();
   const session = await window.StackMeetAuth.requireLogin();
   repository.setCompetitionKey(session.competitionId);

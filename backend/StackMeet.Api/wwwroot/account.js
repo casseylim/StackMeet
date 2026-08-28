@@ -3,6 +3,9 @@
   const purpose = params.get("purpose") || "activate";
   const token = params.get("token") || "";
   const $ = id => document.getElementById(id);
+  const ui = window.StackMeetUiLocalization;
+  const t = key => ui?.t(key) || key;
+  const knownMessage = (value, fallback) => ui?.translateKnownMessage(value, fallback) || value || fallback || "";
 
   function message(text, ok = false) {
     const target = $("accountMessage");
@@ -25,9 +28,9 @@
     message("");
     const password = $("accountPassword").value;
     const confirm = $("accountConfirmPassword").value;
-    if (!token) return message("This account link is missing its token.");
-    if (password.length < 8) return message("Password must be at least 8 characters.");
-    if (password !== confirm) return message("Passwords do not match.");
+    if (!token) return message(t("This account link is missing its token."));
+    if (password.length < 8) return message(t("Password must be at least 8 characters."));
+    if (password !== confirm) return message(t("Passwords do not match."));
 
     const response = await fetch(endpoint(), {
       method: "POST",
@@ -37,14 +40,23 @@
     if (!response.ok) {
       let error = "Unable to save password.";
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
-      return message(error);
+      return message(knownMessage(error, "Unable to save password."));
     }
 
     $("accountForm").reset();
-    message("Password saved. You can now return to NADITrack and log in.", true);
+    message(t("Password saved. You can now return to NADITrack and log in."), true);
   }
 
-  $("accountTitle").textContent = purpose === "reset" ? "Reset Password" : "Activate Account";
+  const accountRoot = document.querySelector(".account-shell");
+  const languageControl = $("operatorLanguage");
+  if (ui) {
+    languageControl.value = ui.language();
+    ui.apply(accountRoot);
+    languageControl.addEventListener("change", event => ui.setLanguage(event.target.value, accountRoot));
+  }
+  $("accountTitle").setAttribute("data-i18n", purpose === "reset" ? "Reset Password" : "Activate Account");
+  $("accountTitle").textContent = t(purpose === "reset" ? "Reset Password" : "Activate Account");
+  document.title = t(purpose === "reset" ? "Reset Password" : "Activate Account");
   $("displayNameLabel").hidden = purpose === "reset";
-  $("accountForm").addEventListener("submit", event => submit(event).catch(error => message(error.message)));
+  $("accountForm").addEventListener("submit", event => submit(event).catch(error => message(knownMessage(error.message))));
 })();
