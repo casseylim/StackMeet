@@ -51,10 +51,21 @@ const { mergeConcurrentState, legacyStateForSave } = loadFunctions([
   "legacyStateForSave"
 ]);
 
+const findings = [];
+function audit(name, test) {
+  try {
+    test();
+    console.log(`PASS ${name}`);
+  } catch (error) {
+    findings.push(`${name}: ${error.message}`);
+    console.error(`CONFIRMED ${name}: ${error.message}`);
+  }
+}
+
 // P0 regression: an intentional local team deletion must not be resurrected by the
 // pre-save concurrent-state merge. Additive merging is useful for remote creations,
 // but omission from the local collection must remain a valid delete signal.
-{
+audit("TEAM-DELETION-MERGE", () => {
   const latest = {
     doubles: [{ id: "2.1" }, { id: "2.2" }],
     relays: [{ id: "3.1" }, { id: "3.2" }],
@@ -78,12 +89,12 @@ const { mergeConcurrentState, legacyStateForSave } = loadFunctions([
     ["3.1"],
     "Deleted Relay team 3.2 was resurrected during concurrent-state merge."
   );
-}
+});
 
 // P0 regression: Year Born is a competition rule used by division calculation and by
 // the public results API. The authenticated shared-state save payload must preserve it
 // so a reload or public-results calculation cannot silently fall back to actual age.
-{
+audit("YEAR-BORN-PERSISTENCE", () => {
   const saved = legacyStateForSave({
     settings: { ageCalculationMode: "yearBorn", language: "en" },
     stackers: [{ id: "1.1" }],
@@ -96,6 +107,10 @@ const { mergeConcurrentState, legacyStateForSave } = loadFunctions([
   );
   assert.deepStrictEqual(JSON.parse(JSON.stringify(saved.stackers)), [], "SQL-owned stackers must remain excluded from shared state.");
   assert.deepStrictEqual(JSON.parse(JSON.stringify(saved.results)), [], "SQL-owned results must remain excluded from shared state.");
+});
+
+if (findings.length) {
+  throw new Error(`Post-v2 regression audit confirmed ${findings.length} defect(s):\n- ${findings.join("\n- ")}`);
 }
 
 console.log("PASS post-v2 regression audit — team deletions and Year Born persistence are protected");
