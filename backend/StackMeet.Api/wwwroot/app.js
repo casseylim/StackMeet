@@ -939,25 +939,27 @@ function acknowledgeDeletedStateRecords(snapshot) {
 }
 
 async function saveState() {
-  const deletedSnapshot = snapshotDeletedStateRecords();
-  const latestState = await repository.load();
-  const mergedState = latestState ? mergeConcurrentState(latestState, state, {
-    doubles: new Set(deletedSnapshot.doubles.keys()),
-    relays: new Set(deletedSnapshot.relays.keys())
-  }) : state;
-  if (latestState) state = { ...state, ...mergedState };
-  const stateToSave = legacyStateForSave(mergedState);
   queuedSaveCount += 1;
   setSaveStatus("Saving...", "saving");
 
   const queuedSave = pendingSave
     .catch(() => undefined)
-    .then(() => repository.save(stateToSave));
+    .then(async () => {
+      const latestState = await repository.load();
+      const deletedSnapshot = snapshotDeletedStateRecords();
+      const localState = structuredClone(state);
+      const mergedState = latestState ? mergeConcurrentState(latestState, localState, {
+        doubles: new Set(deletedSnapshot.doubles.keys()),
+        relays: new Set(deletedSnapshot.relays.keys())
+      }) : localState;
+      if (latestState) state = { ...state, ...mergedState };
+      await repository.save(legacyStateForSave(mergedState));
+      acknowledgeDeletedStateRecords(deletedSnapshot);
+    });
 
   pendingSave = queuedSave;
   return queuedSave.then(
     () => {
-      acknowledgeDeletedStateRecords(deletedSnapshot);
       queuedSaveCount -= 1;
       if (!queuedSaveCount) {
         setSaveStatus("Saved", "saved");
