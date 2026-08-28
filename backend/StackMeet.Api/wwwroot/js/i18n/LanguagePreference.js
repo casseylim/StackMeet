@@ -10,14 +10,15 @@
   };
   return {
     getPreferredLanguage() {
-      const value = storage()?.getItem(key);
+      let value = null;
+      try { value = storage()?.getItem(key); } catch { return null; }
       return value ? i18n.normalizeLanguageCode(value) : null;
     },
     setPreferredLanguage(code) {
       const normalized = i18n.normalizeLanguageCode(code);
-      storage()?.setItem(key, normalized);
+      try { storage()?.setItem(key, normalized); } catch { /* preference storage is optional */ }
       return normalized;
     },
-    clearPreferredLanguage() { storage()?.removeItem(key); }
+    clearPreferredLanguage() { try { storage()?.removeItem(key); } catch { /* preference storage is optional */ } }
   };
 });

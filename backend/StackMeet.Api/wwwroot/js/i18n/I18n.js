@@ -3,10 +3,11 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.StackMeetI18n = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  const canonical = { en: "en", ms: "ms", zh: "zh-Hans", "zh-hans": "zh-Hans", "zh-Hans": "zh-Hans" };
+  const canonical = { en: "en", ms: "ms", zh: "zh-Hans", "zh-hans": "zh-Hans" };
 
   function normalizeLanguageCode(code) {
-    return canonical[String(code || "en")] || "en";
+    const normalized = String(code ?? "").trim().toLowerCase();
+    return canonical[normalized] || "en";
   }
 
   function supportedLanguages() {

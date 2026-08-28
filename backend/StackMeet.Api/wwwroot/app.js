@@ -1693,7 +1693,7 @@ function renderSettings() {
   setValue("settingSoc", state.settings.soc);
   setValue("settingPrelimTimes", state.settings.prelimTimes);
   setValue("settingPaperless", state.settings.paperless);
-  setValue("settingLanguage", state.settings.language || "en");
+  setValue("settingLanguage", window.StackMeetI18n?.normalizeLanguageCode(state.settings.language) || "en");
   setValue("settingAgeCalculation", state.settings.ageCalculationMode === "yearBorn" ? "yearBorn" : "actual");
   const separateSpecialGender = document.getElementById("settingSeparateSpecialGender");
   if (separateSpecialGender) separateSpecialGender.checked = state.settings.separateSpecialDivisionsByGender === true;
@@ -5214,7 +5214,6 @@ async function saveSettings() {
 }
 
 function saveLanguage() {
-  state.settings.language = window.StackMeetI18n?.normalizeLanguageCode(val("settingLanguage")) || "en";
   document.querySelectorAll("[data-language-key]").forEach(input => {
     const code = input.dataset.languageCode || "ms";
     state.translations[code] = state.translations[code] || {};
