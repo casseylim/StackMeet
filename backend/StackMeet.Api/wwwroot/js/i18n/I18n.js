@@ -14,13 +14,34 @@
     return ["en", "ms", "zh-Hans"];
   }
 
-  function translate(keyOrText, language, translations) {
-    const key = String(keyOrText ?? "");
+  function resolveDictionary(language, translations, builtIns) {
     const code = normalizeLanguageCode(language);
     const dictionary = translations || {};
-    const custom = dictionary[code] || (code === "zh-Hans" ? dictionary.zh : null) || {};
-    const value = custom[key];
-    return typeof value === "string" && value.trim() ? value : key;
+    const locales = builtIns || {};
+    return {
+      code,
+      customCanonical: dictionary[code] || {},
+      customLegacy: code === "zh-Hans" ? (dictionary.zh || {}) : {},
+      builtInCanonical: locales[code] || {},
+      builtInLegacy: code === "zh-Hans" ? (locales.zh || {}) : {}
+    };
+  }
+
+  function translate(keyOrText, language, translations, builtIns) {
+    const key = String(keyOrText ?? "");
+    const dictionaries = resolveDictionary(language, translations, builtIns);
+    for (const dictionary of [dictionaries.customCanonical, dictionaries.customLegacy, dictionaries.builtInCanonical, dictionaries.builtInLegacy]) {
+      const value = dictionary[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+    return key;
+  }
+
+  function format(template, values) {
+    return String(template ?? "").replace(/\{([a-zA-Z][\w]*)\}/g, (match, name) => {
+      const value = values && Object.prototype.hasOwnProperty.call(values, name) ? values[name] : match;
+      return value === null || value === undefined ? "" : String(value);
+    });
   }
 
   function setDocumentLanguage(language, documentObject) {
@@ -29,5 +50,5 @@
     return normalizeLanguageCode(language);
   }
 
-  return { normalizeLanguageCode, supportedLanguages, translate, setDocumentLanguage };
+  return { normalizeLanguageCode, supportedLanguages, resolveDictionary, translate, format, setDocumentLanguage };
 });

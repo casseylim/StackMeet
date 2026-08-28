@@ -32,8 +32,8 @@
       </form>
     </section>
     <div class="app">
-      <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation">
-        <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation">Close</button>
+    <aside class="sidebar" id="sidebarNav" aria-label="Primary navigation" data-i18n-aria-label="Primary navigation">
+      <button id="navCloseBtn" class="drawer-close ghost" type="button" aria-label="Close navigation" data-i18n-aria-label="Close navigation">Close</button>
         <a class="brand" href="#dashboard" data-route="dashboard">
           <span class="brand-mark"><img src="assets/stackmeet-logo.png" alt="StackMeet logo" /></span>
           <span>
@@ -50,14 +50,14 @@
 
       <div class="main">
         <header class="topbar">
-          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav">Menu</button>
+          <button id="navMenuBtn" class="ghost nav-menu-button" type="button" aria-expanded="false" aria-controls="sidebarNav" data-i18n="Menu">Menu</button>
           <div>
             <p class="eyebrow" id="competitionType" hidden></p>
             <h1 id="pageTitle">Dashboard</h1>
           </div>
           <div class="top-actions">
-            <label class="operator-language-label" for="operatorLanguage">Language<select id="operatorLanguage"><option value="en">English</option><option value="ms">Bahasa Malaysia</option><option value="zh-Hans">简体中文</option></select></label>
-            <button id="logoutBtn" class="ghost" type="button">Log Out</button>
+            <label class="operator-language-label" for="operatorLanguage" data-i18n="Language">Language<select id="operatorLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+            <button id="logoutBtn" class="ghost" type="button" data-i18n="Log Out">Log Out</button>
           </div>
         </header>
 
@@ -220,7 +220,7 @@
         </div>
         <div class="form-grid">
           <label>Translation Language To Edit<select id="languageActive"><option value="ms">Bahasa Malaysia</option><option value="zh-Hans">简体中文</option></select></label>
-          <label>Search Translation<input id="languageSearch" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
+          <label data-i18n="Search Translation">Search Translation<input id="languageSearch" data-i18n-placeholder="Search English, Bahasa Malaysia, or Chinese text" placeholder="Search English, Bahasa Malaysia, or Chinese text" /></label>
         </div>
         <div class="table-wrap language-table no-auto-translate"><table><thead><tr><th>English</th><th>Bahasa Malaysia</th></tr></thead><tbody id="languageRows"></tbody></table></div>
       </section>
@@ -244,9 +244,9 @@
           <div class="panel-head"><h2>Competition Setup</h2></div>
           <p class="muted">Create the competition for Individual Stacker registrations.</p>
           <div class="form-grid">
-            <label>Competition Code<input id="sqlCompetitionCode" placeholder="e.g. 2026-MY-OPEN" /></label>
-            <label>Competition Name<input id="sqlCompetitionName" placeholder="Competition name" /></label>
-            <label>Venue<input id="sqlCompetitionVenue" placeholder="Venue" /></label>
+            <label>Competition Code<input id="sqlCompetitionCode" data-i18n-placeholder="e.g. 2026-MY-OPEN" placeholder="e.g. 2026-MY-OPEN" /></label>
+            <label>Competition Name<input id="sqlCompetitionName" data-i18n-placeholder="Competition name" placeholder="Competition name" /></label>
+            <label>Venue<input id="sqlCompetitionVenue" data-i18n-placeholder="Venue" placeholder="Venue" /></label>
             <label>Start Date<input id="sqlCompetitionStart" type="date" /></label>
             <label>End Date<input id="sqlCompetitionEnd" type="date" /></label>
             <label>Status<input id="sqlCompetitionStatus" value="Active" /></label>
@@ -274,20 +274,20 @@
             </div>
           </div>
         <div class="form-grid">
-          <label>First Name<input id="stFirstName" placeholder="First name" /></label>
-          <label>Last Name<input id="stLastName" placeholder="Last name" /></label>
-          <label>WSSA ID<input id="stWssaId" placeholder="Optional" /></label>
+            <label>First Name<input id="stFirstName" data-i18n-placeholder="First name" placeholder="First name" /></label>
+            <label>Last Name<input id="stLastName" data-i18n-placeholder="Last name" placeholder="Last name" /></label>
+            <label>WSSA ID<input id="stWssaId" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
           <label>Gender<select id="stGender"><option>M</option><option>F</option></select></label>
           <label>Date Of Birth<input id="stDob" type="date" /></label>
-          <label>Age<input id="stAge" readonly placeholder="Auto" /></label>
-          <label>Generated Division<input id="stDivision" readonly placeholder="Enter DOB to preview" /></label>
+            <label>Age<input id="stAge" readonly data-i18n-placeholder="Auto" placeholder="Auto" /></label>
+            <label>Generated Division<input id="stDivision" readonly data-i18n-placeholder="Enter DOB to preview" placeholder="Enter DOB to preview" /></label>
           <label class="checkbox-field"><input id="stSpecial" type="checkbox" /> <span>Special / Disability</span></label>
-          <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
-          <label>Organization<input id="stOrg" list="organizationOptions" placeholder="School or club" /><datalist id="organizationOptions"></datalist></label>
+            <label>Custom Division<input id="stCustomDivision" list="customDivisionOptions" data-i18n-placeholder="Optional override" placeholder="Optional override" /><datalist id="customDivisionOptions"></datalist></label>
+            <label>Organization<input id="stOrg" list="organizationOptions" data-i18n-placeholder="School or club" placeholder="School or club" /><datalist id="organizationOptions"></datalist></label>
           <label>Country<select id="stCountry"></select></label>
-          <label>Region<input id="stRegion" list="regionOptions" placeholder="State / region" /><datalist id="regionOptions"></datalist></label>
-          <label>Email<input id="stEmail" type="email" placeholder="Optional" /></label>
-          <label>Phone<input id="stPhone" placeholder="Optional" /></label>
+            <label>Region<input id="stRegion" list="regionOptions" data-i18n-placeholder="State / region" placeholder="State / region" /><datalist id="regionOptions"></datalist></label>
+            <label>Email<input id="stEmail" type="email" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+            <label>Phone<input id="stPhone" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
           <label>Paid<select id="stPaid"><option>Yes</option><option>No</option></select></label>
           <label>Checked In<select id="stCheckedIn"><option>Yes</option><option>No</option></select></label>
         </div>
@@ -295,7 +295,7 @@
         </section>
         <div class="toolbar">
           <button class="ghost" data-action="refresh-stackers" id="refreshStackersBtn" type="button">Refresh</button>
-          <input id="stackerSearch" type="search" placeholder="Search stackers" />
+          <input id="stackerSearch" type="search" data-i18n-placeholder="Search stackers" placeholder="Search stackers" />
           <select id="stackerDivisionFilter"></select>
           <label class="ghost file-action" for="stackerCsvInput">Import Stackers CSV</label>
           <input id="stackerCsvInput" class="visually-hidden" type="file" accept=".csv,text/csv" />
@@ -322,12 +322,12 @@
         <div class="form-grid">
           <label>Generated Type<input id="doubleType" readonly value="Normal Doubles" /></label>
           <label>Status<select id="doubleStatus"><option value="complete">Complete</option><option value="pending">Need Partner</option></select></label>
-          <label>Search Stacker / Child<input id="doubleOneSearch" placeholder="Name or stacker ID" /></label>
+          <label>Search Stacker / Child<input id="doubleOneSearch" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
           <label>Stacker / Child<select id="doubleOne"></select></label>
-          <label>Search Registered Partner<input id="doubleTwoSearch" placeholder="Name or stacker ID" /></label>
+          <label>Search Registered Partner<input id="doubleTwoSearch" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
           <label>Registered Partner<select id="doubleTwo"></select></label>
-          <label>Parent / Guardian<input id="doubleParentName" placeholder="External parent / guardian name" /></label>
-          <label>Custom Division<input id="doubleDivision" placeholder="Auto if blank" /></label>
+          <label>Parent / Guardian<input id="doubleParentName" data-i18n-placeholder="External parent / guardian name" placeholder="External parent / guardian name" /></label>
+          <label>Custom Division<input id="doubleDivision" data-i18n-placeholder="Auto if blank" placeholder="Auto if blank" /></label>
           <div id="doubleWarning" class="inline-warning" hidden></div>
         </div>
         <div class="sub-tabs">
@@ -355,13 +355,13 @@
         </div>
         <div id="relayMessage" class="message" hidden></div>
         <div class="form-grid">
-          <label>Team Name<input id="relayName" placeholder="Relay team name" required /></label>
-          <label>Timed Relay Division<input id="timedRelayDivision" placeholder="Auto from competition rules" /></label>
-          <label>Head-to-Head Division<input id="headToHeadDivision" placeholder="Auto from competition rules" /></label>
-          <label>Team Coordinator<input id="relayCoordinator" placeholder="Coordinator name" /></label>
-          <label>Coordinator Email<input id="relayEmail" type="email" placeholder="Optional" /></label>
-          <label>Coordinator Phone<input id="relayPhone" placeholder="Optional" /></label>
-          <label>Location<input id="relayRegion" placeholder="State / region" /></label>
+          <label>Team Name<input id="relayName" data-i18n-placeholder="Relay team name" placeholder="Relay team name" required /></label>
+          <label>Timed Relay Division<input id="timedRelayDivision" data-i18n-placeholder="Auto from competition rules" placeholder="Auto from competition rules" /></label>
+          <label>Head-to-Head Division<input id="headToHeadDivision" data-i18n-placeholder="Auto from competition rules" placeholder="Auto from competition rules" /></label>
+          <label>Team Coordinator<input id="relayCoordinator" data-i18n-placeholder="Coordinator name" placeholder="Coordinator name" /></label>
+          <label>Coordinator Email<input id="relayEmail" type="email" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+          <label>Coordinator Phone<input id="relayPhone" data-i18n-placeholder="Optional" placeholder="Optional" /></label>
+          <label>Location<input id="relayRegion" data-i18n-placeholder="State / region" placeholder="State / region" /></label>
           <div id="relayWarning" class="inline-warning" hidden></div>
         </div>
         <div class="relay-member-grid" id="relayMemberGrid"></div>
@@ -479,15 +479,15 @@
         <div id="prelimEntryPanel">
           <div id="prelimEntryMessage" class="message" hidden></div>
           <div class="prelim-lookup-row">
-            <label>Time Sheet / Participant ID<input id="timeSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" /></label>
+            <label>Time Sheet / Participant ID<input id="timeSheetId" type="text" inputmode="numeric" autocomplete="off" data-i18n-placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" placeholder="12 / 21 / 31 or 1.12 / 2.1 / 3.7" /></label>
             <button class="ghost" data-action="lookup-prelim-participant" type="button">Find Participant</button>
             <button class="text-button" data-action="clear-prelim-entry" type="button">Clear</button>
           </div>
           <article id="prelimStackerSummary" class="prelim-stacker-summary" hidden></article>
           <div id="prelimEventGrid" class="prelim-event-grid" hidden>
-            <label data-prelim-event="3-3-3">3-3-3 Best Time<input id="prelim333" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="3.145 / 999" /></label>
-            <label data-prelim-event="3-6-3">3-6-3 Best Time<input id="prelim363" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="4.276 / 999" /></label>
-            <label data-prelim-event="Cycle">Cycle Best Time<input id="prelimCycle" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" placeholder="8.512 / 999" /></label>
+            <label data-prelim-event="3-3-3">3-3-3 Best Time<input id="prelim333" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="3.145 / 999" placeholder="3.145 / 999" /></label>
+            <label data-prelim-event="3-6-3">3-6-3 Best Time<input id="prelim363" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="4.276 / 999" placeholder="4.276 / 999" /></label>
+            <label data-prelim-event="Cycle">Cycle Best Time<input id="prelimCycle" class="prelim-time-input" type="text" inputmode="decimal" autocomplete="off" data-i18n-placeholder="8.512 / 999" placeholder="8.512 / 999" /></label>
           </div>
           <div id="prelimSaveActions" class="competition-entry-actions" hidden>
             <button class="primary" data-action="save-prelim-results" type="button">Save Prelim Times</button>
@@ -497,7 +497,7 @@
         <div id="advancedEntryPanel" hidden>
           <div id="finalEntryMessage" class="message" hidden></div>
           <div class="prelim-lookup-row">
-            <label>Final Sheet ID<input id="finalSheetId" type="text" inputmode="numeric" autocomplete="off" placeholder="1.15 / 215 / 34" /></label>
+            <label>Final Sheet ID<input id="finalSheetId" type="text" inputmode="numeric" autocomplete="off" data-i18n-placeholder="1.15 / 215 / 34" placeholder="1.15 / 215 / 34" /></label>
             <button class="ghost" data-action="lookup-final-sheet" type="button">Find Sheet</button>
             <button class="text-button" data-action="clear-final-sheet" type="button">Clear</button>
           </div>

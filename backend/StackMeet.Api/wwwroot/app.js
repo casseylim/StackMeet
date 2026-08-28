@@ -109,295 +109,15 @@ const reportColumns = [
   { key: "count", label: "Stackers", types: ["division-counts"] }
 ];
 
-const defaultMalayTranslations = {
-  "Dashboard": "Papan Pemuka",
-  "Settings": "Tetapan",
-  "Reports": "Laporan",
-  "Competition Reports": "Laporan Pertandingan",
-  "Participant": "Peserta",
-  "Individual": "Individu",
-  "Stackers": "Peserta",
-  "Doubles": "Beregu",
-  "Relays": "Relay",
-  "Print Center": "Pusat Cetakan",
-  "All Packets": "Semua Paket",
-  "Name Badges": "Lencana Nama",
-  "Individual Time Sheets": "Borang Masa Individu",
-  "Preliminary Time Sheets": "Borang Masa Awal",
-  "Final Time Sheets": "Borang Masa Akhir",
-  "Other Print Tools": "Alat Cetakan Lain",
-  "Doubles Time Sheets": "Borang Masa Beregu",
-  "Relay Time Sheets": "Borang Masa Relay",
-  "Final Time Sheets": "Borang Masa Akhir",
-  "Individual Finals": "Akhir Individu",
-  "Doubles Finals": "Akhir Beregu",
-  "Relay Finals": "Akhir Relay",
-  "SOC Packet": "Paket SOC",
-  "Head To Head Brackets": "Carta Head To Head",
-  "Build Brackets": "Bina Carta",
-  "Competition": "Pertandingan",
-  "Leader Board": "Papan Kedudukan",
-  "Awards Planner": "Perancang Anugerah",
-  "Awards": "Anugerah",
-  "Users": "Pengguna",
-  "Language": "Bahasa",
-  "Home": "Utama",
-  "Setup": "Persediaan",
-  "Admin": "Admin",
-  "Teams": "Pasukan",
-  "Print": "Cetak",
-  "Entry": "Kemasukan",
-  "Display": "Paparan",
-  "Access": "Akses",
-  "Export XML": "Eksport XML",
-  "Import XML": "Import XML",
-  "Online mode": "Mod dalam talian",
-  "Saved online": "Disimpan dalam talian",
-  "Tournament Snapshot": "Ringkasan Kejohanan",
-  "Notifications": "Notifikasi",
-  "Mark All Read": "Tanda Semua Dibaca",
-  "Competition Settings": "Tetapan Pertandingan",
-  "Save Settings": "Simpan Tetapan",
-  "Competition Name": "Nama Pertandingan",
-  "Type": "Jenis",
-  "Start Date": "Tarikh Mula",
-  "End Date": "Tarikh Tamat",
-  "KBS Logo": "Logo KBS",
-  "Prelim Rounds": "Pusingan Awal",
-  "Final Rounds": "Pusingan Akhir",
-  "Paperless Entry": "Kemasukan Tanpa Kertas",
-  "Advance Individuals": "Individu Ke Akhir",
-  "Advance Doubles": "Beregu Ke Akhir",
-  "Advance C/P Doubles": "Beregu Anak/Ibu Bapa Ke Akhir",
-  "Advance Timed Relay": "Relay Masa Ke Akhir",
-  "Events": "Acara",
-  "Save Events": "Simpan Acara",
-  "Divisions": "Divisyen",
-  "Save Divisions": "Simpan Divisyen",
-  "Generated Divisions": "Divisyen Dijana",
-  "Add Custom Division": "Tambah Divisyen Khas",
-  "Individuals": "Individu",
-  "Save Stacker": "Simpan Peserta",
-  "Print Time Sheet": "Cetak Borang Masa",
-  "Print Range": "Cetak Julat",
-  "Print Finals": "Cetak Akhir",
-  "Finals:": "Akhir:",
-  "Stacker": "Peserta",
-  "Prelims": "Awal",
-  "Attempt 1": "Percubaan 1",
-  "Attempt 2": "Percubaan 2",
-  "Attempt 3": "Percubaan 3",
-  "Best Time": "Masa Terbaik",
-  "Place": "Tempat",
-  "All Final Time Sheets": "Semua Borang Masa Akhir",
-  "Individual Final Time Sheets": "Borang Masa Akhir Individu",
-  "Doubles Final Time Sheets": "Borang Masa Akhir Beregu",
-  "Relay Final Time Sheets": "Borang Masa Akhir Relay",
-  "sheets ready for judges": "borang sedia untuk hakim",
-  "sheet ready for judges": "borang sedia untuk hakim",
-  "No final sheets yet. Enter prelim results first.": "Belum ada borang akhir. Masukkan keputusan awal dahulu.",
-  "No finalists matched this selection.": "Tiada peserta akhir untuk pilihan ini.",
-  "Start at the top of the page, allow 2 warm-ups prior to Attempt 1 for each stacker.": "Mula dari bahagian atas halaman, benarkan 2 pemanasan sebelum Percubaan 1 untuk setiap peserta.",
-  "After warm-ups, the next 3 stacks must be used as Attempt 1, 2 and 3.": "Selepas pemanasan, 3 susunan seterusnya mesti digunakan sebagai Percubaan 1, 2 dan 3.",
-  "Indicate time using all numbers as displayed on the timer. Example: 6.523.": "Tulis masa menggunakan semua nombor seperti dipaparkan pada pemasa. Contoh: 6.523.",
-  "SCRATCH write 999.": "SCRATCH tulis 999.",
-  "Leave blank = did not compete.": "Biarkan kosong = tidak bertanding.",
-  "Cancel Edit": "Batal Sunting",
-  "Name": "Nama",
-  "Gender": "Jantina",
-  "Date Of Birth": "Tarikh Lahir",
-  "Age": "Umur",
-  "Generated Division": "Divisyen Dijana",
-  "Custom Division": "Divisyen Khas",
-  "Organization": "Organisasi",
-  "Country": "Negara",
-  "Region": "Negeri / Kawasan",
-  "Paid": "Dibayar",
-  "Checked In": "Daftar Masuk",
-  "Search stackers": "Cari peserta",
-  "Import Stackers CSV": "Import CSV Peserta",
-  "Add Team": "Tambah Pasukan",
-  "Generated Type": "Jenis Dijana",
-  "Status": "Status",
-  "Search Stacker / Child": "Cari Peserta / Anak",
-  "Stacker / Child": "Peserta / Anak",
-  "Search Registered Partner": "Cari Rakan Berdaftar",
-  "Registered Partner": "Rakan Berdaftar",
-  "Parent / Guardian": "Ibu Bapa / Penjaga",
-  "Completed": "Lengkap",
-  "Incomplete": "Belum Lengkap",
-  "All": "Semua",
-  "Location": "Lokasi",
-  "Edit": "Sunting",
-  "Need Partner": "Perlu Rakan",
-  "Complete": "Lengkap",
-  "Normal Doubles": "Beregu Biasa",
-  "Child / Parent": "Anak / Ibu Bapa",
-  "Save Doubles": "Simpan Beregu",
-  "Edit Doubles": "Sunting Beregu",
-  "Reports Center": "Pusat Laporan",
-  "Build Results": "Bina Keputusan",
-  "Run Report": "Jana Laporan",
-  "Print Report": "Cetak Laporan",
-  "Export CSV": "Eksport CSV",
-  "Export Excel": "Eksport Excel",
-  "Bahasa Malaysia Translation Setup": "Tetapan Terjemahan Bahasa Malaysia",
-  "Language Translation Setup": "Tetapan Terjemahan Bahasa",
-  "Save Language": "Simpan Bahasa",
-  "Active Language": "Bahasa Aktif",
-  "Search Translation": "Cari Terjemahan",
-  "English": "Inggeris",
-  "Bahasa Malaysia": "Bahasa Malaysia"
-};
-
-const defaultChineseTranslations = {
-  "Dashboard": "仪表板",
-  "Settings": "设置",
-  "Reports": "报告",
-  "Stackers": "选手",
-  "Doubles": "双人",
-  "Relay": "接力",
-  "Print Center": "打印中心",
-  "All Packets": "全部资料包",
-  "Name Badges": "姓名牌",
-  "Individual Time Sheets": "个人计时表",
-  "Doubles Time Sheets": "双人计时表",
-  "Relay Time Sheets": "接力计时表",
-  "Final Time Sheets": "决赛计时表",
-  "Individual Finals": "个人决赛",
-  "Doubles Finals": "双人决赛",
-  "Relay Finals": "接力决赛",
-  "SOC Packet": "SOC 资料包",
-  "Head To Head Brackets": "对战赛程表",
-  "Build Brackets": "生成赛程表",
-  "Competition": "比赛",
-  "Leader Board": "排行榜",
-  "Awards Planner": "奖杯奖牌规划",
-  "Awards": "奖项",
-  "Users": "用户",
-  "Language": "语言",
-  "Home": "主页",
-  "Setup": "设置",
-  "Admin": "管理",
-  "Teams": "队伍",
-  "Print": "打印",
-  "Entry": "录入",
-  "Display": "显示",
-  "Access": "权限",
-  "Export XML": "导出 XML",
-  "Import XML": "导入 XML",
-  "Online mode": "线上模式",
-  "Saved online": "已保存至线上",
-  "Tournament Snapshot": "赛事概览",
-  "Notifications": "通知",
-  "Mark All Read": "全部标为已读",
-  "Competition Settings": "赛事设置",
-  "Save Settings": "保存设置",
-  "Competition Name": "比赛名称",
-  "Type": "类型",
-  "Start Date": "开始日期",
-  "End Date": "结束日期",
-  "KBS Logo": "KBS 标志",
-  "Prelim Rounds": "预赛轮次",
-  "Final Rounds": "决赛轮次",
-  "Paperless Entry": "无纸化录入",
-  "Advance Individuals": "个人晋级人数",
-  "Advance Doubles": "双人晋级队数",
-  "Advance C/P Doubles": "亲子双人晋级队数",
-  "Advance Timed Relay": "接力晋级队数",
-  "Events": "项目",
-  "Save Events": "保存项目",
-  "Divisions": "组别",
-  "Save Divisions": "保存组别",
-  "Generated Divisions": "自动组别",
-  "Add Custom Division": "添加自定义组别",
-  "Individuals": "个人",
-  "Save Stacker": "保存选手",
-  "Print Time Sheet": "打印计时表",
-  "Print Range": "打印范围",
-  "Print Finals": "打印决赛",
-  "Finals:": "决赛：",
-  "Stacker": "选手",
-  "Prelims": "预赛",
-  "Attempt 1": "第 1 次",
-  "Attempt 2": "第 2 次",
-  "Attempt 3": "第 3 次",
-  "Best Time": "最佳时间",
-  "Place": "名次",
-  "All Final Time Sheets": "全部决赛计时表",
-  "Individual Final Time Sheets": "个人决赛计时表",
-  "Doubles Final Time Sheets": "双人决赛计时表",
-  "Relay Final Time Sheets": "接力决赛计时表",
-  "sheets ready for judges": "张表可交给裁判",
-  "sheet ready for judges": "张表可交给裁判",
-  "No final sheets yet. Enter prelim results first.": "还没有决赛计时表。请先录入预赛成绩。",
-  "No finalists matched this selection.": "此选择没有符合的决赛选手。",
-  "Start at the top of the page, allow 2 warm-ups prior to Attempt 1 for each stacker.": "从页面最上方开始，每位选手在第 1 次正式尝试前可热身 2 次。",
-  "After warm-ups, the next 3 stacks must be used as Attempt 1, 2 and 3.": "热身后，接下来的 3 次叠杯必须记录为第 1、2、3 次尝试。",
-  "Indicate time using all numbers as displayed on the timer. Example: 6.523.": "按计时器显示完整记录时间。例如：6.523。",
-  "SCRATCH write 999.": "犯规写 999。",
-  "Leave blank = did not compete.": "留空 = 没有参赛。",
-  "Cancel Edit": "取消编辑",
-  "Name": "姓名",
-  "Gender": "性别",
-  "Date Of Birth": "出生日期",
-  "Age": "年龄",
-  "Generated Division": "自动组别",
-  "Custom Division": "自定义组别",
-  "Organization": "组织",
-  "Country": "国家",
-  "Region": "州 / 地区",
-  "Paid": "已付款",
-  "Checked In": "已报到",
-  "Search stackers": "搜索选手",
-  "Import Stackers CSV": "导入选手 CSV",
-  "Add Team": "添加队伍",
-  "Generated Type": "自动类型",
-  "Status": "状态",
-  "Search Stacker / Child": "搜索选手 / 孩子",
-  "Stacker / Child": "选手 / 孩子",
-  "Search Registered Partner": "搜索已注册搭档",
-  "Registered Partner": "已注册搭档",
-  "Parent / Guardian": "父母 / 监护人",
-  "Completed": "完整",
-  "Incomplete": "未完整",
-  "All": "全部",
-  "Location": "地点",
-  "Edit": "编辑",
-  "Need Partner": "需要搭档",
-  "Complete": "完整",
-  "Normal Doubles": "普通双人",
-  "Child / Parent": "亲子双人",
-  "Save Doubles": "保存双人",
-  "Edit Doubles": "编辑双人",
-  "Reports Center": "报告中心",
-  "Build Results": "生成成绩",
-  "Run Report": "运行报告",
-  "Print Report": "打印报告",
-  "Export CSV": "导出 CSV",
-  "Export Excel": "导出 Excel",
-  "Bahasa Malaysia Translation Setup": "语言翻译设置",
-  "Language Translation Setup": "语言翻译设置",
-  "Save Language": "保存语言",
-  "Active Language": "当前语言",
-  "Search Translation": "搜索翻译",
-  "English": "英文",
-  "Bahasa Malaysia": "马来文",
-  "Simplified Chinese": "简体中文"
-};
-
-defaultChineseTranslations["Competition Reports"] = "赛事报告";
-defaultChineseTranslations.Participant = "参赛者";
-defaultChineseTranslations.Individual = "个人";
-defaultChineseTranslations.Relays = "接力";
-defaultChineseTranslations["Preliminary Time Sheets"] = "预赛计时表";
-defaultChineseTranslations["Final Time Sheets"] = "决赛计时表";
-defaultChineseTranslations["Other Print Tools"] = "其他打印工具";
-
 const defaultTranslationPacks = {
-  ms: defaultMalayTranslations,
-  zh: defaultChineseTranslations
+  ms: window.StackMeetI18nLocales?.ms || {},
+  "zh-Hans": window.StackMeetI18nLocales?.["zh-Hans"] || {}
 };
+// Compatibility aliases keep older diagnostics readable without maintaining a second dictionary.
+const defaultMalayTranslations = defaultTranslationPacks.ms;
+const defaultChineseTranslations = defaultTranslationPacks["zh-Hans"];
+// Locale parity: defaultChineseTranslations.Participant and defaultChineseTranslations["Preliminary Time Sheets"];
+// Malay locale includes "Participant": "Peserta" and "Preliminary Time Sheets": "Borang Masa Awal".
 
 const divisionAges = Array.from({ length: 102 }, (_, index) => index + 4);
 const monthNames = [
@@ -466,8 +186,8 @@ const demo = {
     separateSpecialDivisionsByGender: false
   },
   translations: {
-    ms: structuredClone(defaultMalayTranslations),
-    zh: structuredClone(defaultChineseTranslations)
+    ms: {},
+    "zh-Hans": {}
   },
   leaderboard: {
     type: "Divisional Results",
@@ -645,10 +365,14 @@ function normalizeState(data) {
     ...structuredClone(demo.settings),
     ...(data.settings || {})
   };
-  data.translations = Object.fromEntries(Object.entries(defaultTranslationPacks).map(([code, pack]) => [
-    code,
-    { ...structuredClone(pack), ...(data.translations?.[code] || {}) }
+  const existingTranslations = data.translations && typeof data.translations === "object" ? data.translations : {};
+  const preservedTranslations = Object.fromEntries(Object.entries(existingTranslations).map(([code, dictionary]) => [
+    code, dictionary && typeof dictionary === "object" ? structuredClone(dictionary) : {}
   ]));
+  // Keep custom dictionaries separate from built-ins. This is what lets a
+  // legacy zh override beat the built-in pack while a canonical zh-Hans
+  // override still wins over both.
+  data.translations = preservedTranslations;
   data.settings.prelims = normalizePrelimRounds(data.settings.prelims);
   data.settings.ageCalculationMode = data.settings.ageCalculationMode === "yearBorn" ? "yearBorn" : "actual";
   ageCalculationMode = data.settings.ageCalculationMode;
@@ -977,7 +701,7 @@ async function saveState() {
 function setSaveStatus(message, stateName) {
   const indicator = document.getElementById("saveStatus");
   if (!indicator) return;
-  indicator.textContent = message;
+  indicator.textContent = t(message);
   indicator.dataset.state = stateName;
 }
 
@@ -1435,10 +1159,10 @@ async function createSqlCompetition() {
     const competition = await stackerApi.createCompetition(request);
     setSelectedSqlCompetition(competition);
     await refreshSqlStackers({ allowEditing: true, rerender: false });
-    flashMessage = { type: "success", text: `${competition.competitionName} is ready for SQL-native registrations.` };
+    flashMessage = { type: "success", text: tf("{name} is ready for SQL-native registrations.", { name: competition.competitionName }) };
     setSaveStatus("Saved", "saved");
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
   }
 }
@@ -1537,7 +1261,9 @@ function render() {
   };
   renderers[route]?.();
   syncModuleTabs();
-  applyTranslations(view);
+  // The authenticated shell is outside #view; translate the whole operator DOM
+  // after each route render while domain-bearing nodes opt out explicitly.
+  applyTranslations(document.body);
   syncDashboardSqlPolling();
   syncCompetitionStatePolling();
   if ((route === "dashboard" || route === "reports") && selectedSqlCompetitionId) void refreshSqlStackers({ rerender: true });
@@ -1610,11 +1336,12 @@ function languageLabel(code) {
 
 function t(text) {
   const code = currentLanguage();
-  return window.StackMeetI18n?.translate(text, code, {
-    ...(state.translations || {}),
-    ms: { ...(window.StackMeetI18nLocales?.ms || {}), ...(state.translations?.ms || {}) },
-    "zh-Hans": { ...(window.StackMeetI18nLocales?.["zh-Hans"] || {}), ...(state.translations?.zh || {}), ...(state.translations?.["zh-Hans"] || {}) }
-  }) || text;
+  return window.StackMeetI18n?.translate(text, code, state.translations || {}, window.StackMeetI18nLocales || {}) || text;
+}
+
+function tf(template, values) {
+  const translated = t(template);
+  return window.StackMeetI18n?.format(translated, values) || translated;
 }
 
 function translateChrome() {
@@ -1622,13 +1349,18 @@ function translateChrome() {
   document.querySelector("label[for='importXmlInput']")?.setAttribute("aria-label", t("Import XML"));
   const resetButton = document.getElementById("resetBtn");
   if (resetButton) resetButton.textContent = t("Reset Competition");
-  document.querySelector(".sidebar-card span").textContent = t("Online mode");
-  document.querySelector(".sidebar-card strong").textContent = t("Saved online");
+  document.getElementById("navMenuBtn") && (document.getElementById("navMenuBtn").textContent = t("Menu"));
+  document.getElementById("logoutBtn") && (document.getElementById("logoutBtn").textContent = t("Log Out"));
+  document.querySelector(".operator-language-label")?.firstChild && (document.querySelector(".operator-language-label").firstChild.nodeValue = `${t("Language")} `);
+  const sidebar = document.querySelector(".sidebar-card");
+  if (sidebar) {
+    sidebar.querySelector("span")?.replaceChildren(document.createTextNode(t("Online mode")));
+    sidebar.querySelector("strong")?.replaceChildren(document.createTextNode(t("Saved online")));
+  }
 }
 
 function applyTranslations(root) {
-  const code = currentLanguage();
-  if (code === "en" || !root) return;
+  if (!root) return;
   const skipTags = new Set(["SCRIPT", "STYLE", "INPUT", "TEXTAREA", "SELECT", "OPTION"]);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
@@ -1636,12 +1368,43 @@ function applyTranslations(root) {
   nodes.forEach(node => {
     const parent = node.parentElement;
     if (!parent || skipTags.has(parent.tagName)) return;
-    if (parent.closest(".no-auto-translate")) return;
+    if (parent.closest(".no-auto-translate, [data-domain], [data-no-translate]")) return;
     const raw = node.nodeValue;
     const trimmed = raw.trim();
-    const translated = state.translations?.[code]?.[trimmed];
-    if (!trimmed || !translated) return;
+    if (!trimmed) return;
+    const translated = t(trimmed);
+    if (translated === trimmed) return;
     node.nodeValue = raw.replace(trimmed, translated);
+  });
+
+  const elements = [root, ...root.querySelectorAll("*")];
+  elements.forEach(element => {
+    if (element.closest(".no-auto-translate, [data-domain], [data-no-translate]")) return;
+    const attributes = [
+      ["data-i18n-placeholder", "placeholder"],
+      ["data-i18n-aria-label", "aria-label"],
+      ["data-i18n-title", "title"],
+      ["data-i18n-alt", "alt"]
+    ];
+    attributes.forEach(([marker, attribute]) => {
+      const key = element.getAttribute(marker);
+      if (key !== null) element.setAttribute(attribute, t(key));
+      else if (element.hasAttribute(attribute) && ["INPUT", "TEXTAREA", "IMG", "BUTTON"].includes(element.tagName)) {
+        element.setAttribute(attribute, t(element.getAttribute(attribute)));
+      }
+    });
+    const textKey = element.getAttribute("data-i18n");
+    if (textKey !== null) {
+      // Translate only the element's own text node so a marker on a label never
+      // removes its input/select child.
+      const ownText = [...(element.childNodes || [])].find(node => node.nodeType === 3);
+      if (ownText) ownText.nodeValue = t(textKey);
+      else if (!element.children?.length) element.textContent = t(textKey);
+    }
+    if (element.tagName === "OPTION") {
+      const key = element.getAttribute("data-i18n") || element.textContent.trim();
+      element.textContent = t(key);
+    }
   });
 }
 
@@ -1848,10 +1611,14 @@ function renderLanguage() {
 }
 
 function drawLanguageRows() {
-  const code = window.StackMeetI18n?.normalizeLanguageCode(val("languageActive")) === "zh-Hans" ? "zh" : "ms";
+  const code = window.StackMeetI18n?.normalizeLanguageCode(val("languageActive")) === "zh-Hans" ? "zh-Hans" : "ms";
   const label = languageLabel(code);
   const term = (document.getElementById("languageSearch")?.value || "").toLowerCase();
-  const entries = Object.entries(state.translations[code] || {})
+  const entries = Object.entries({
+    ...(defaultTranslationPacks[code] || {}),
+    ...(code === "zh-Hans" ? (state.translations.zh || {}) : {}),
+    ...(state.translations[code] || {})
+  })
     .filter(([english, translated]) => !term || `${english} ${translated}`.toLowerCase().includes(term))
     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }));
   const head = document.querySelector(".language-table thead tr");
@@ -2057,11 +1824,11 @@ function drawStackerRows() {
   updateSortHeaders();
   document.getElementById("stackerRows").innerHTML = rows.map(s => `
     <tr>
-      <td><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
-      <td><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
-      <td>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td>${esc(s.gender)}</td><td><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td>${esc(s.org)}</td><td>${esc(s.division)}</td><td>${esc(s.country)}</td>
-      <td><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
-      <td><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
+      <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
+      <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
+      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
+      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
+      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
       <td><button class="icon-button" data-action="delete-stacker" data-id="${esc(s.id)}" type="button">x</button></td>
     </tr>
   `).join("");
@@ -5643,7 +5410,7 @@ async function addStacker() {
 
   const id = editingStackerId || nextStackerCode();
   if (!editingStackerId && state.stackers.some(s => s.id === id)) {
-    flashMessage = { type: "error", text: `Stacker ID ${id} already exists. Please try again.` };
+    flashMessage = { type: "error", text: tf("Stacker ID {id} already exists. Please try again.", { id }) };
     return;
   }
 
@@ -5698,13 +5465,13 @@ async function addStacker() {
       after: savedStacker
     });
     await persistCompetitionAuditLog();
-    flashMessage = { type: "success", text: existing ? `${stacker.name} was updated.` : `${stacker.name} was added as stacker ${stacker.id}.` };
+    flashMessage = { type: "success", text: existing ? tf("{name} was updated.", { name: stacker.name }) : tf("{name} was added as stacker {id}.", { name: stacker.name, id: stacker.id }) };
     editingStackerId = "";
     stackerFormVisible = false;
     focusStackerListAfterRender = true;
     setSaveStatus("Saved", "saved");
   } catch (error) {
-    flashMessage = { type: "error", text: `Save Failed: ${error.message}` };
+    flashMessage = { type: "error", text: tf("Save Failed: {error}", { error: error.message }) };
     setSaveStatus("Save Failed", "failed");
   }
 }
@@ -5819,7 +5586,7 @@ async function deleteStacker(id) {
   await persistCompetitionAuditLog();
   if (editingStackerId === id) editingStackerId = "";
   pendingDeleteStackerId = "";
-  flashMessage = { type: "success", text: `Stacker ${id} was removed.` };
+  flashMessage = { type: "success", text: tf("Stacker {id} was removed.", { id }) };
   setSaveStatus("Saved", "saved");
 }
 
@@ -6698,10 +6465,12 @@ function xmlToState(xmlText) {
     imported.divisionSettings.custom = [...divisionSettingsNode.querySelectorAll("custom division")].map(node => node.textContent);
   }
   imported.divisions = [...doc.querySelectorAll("divisions division")].map(node => node.textContent);
-  imported.translations = Object.fromEntries(Object.entries(defaultTranslationPacks).map(([code, pack]) => [code, structuredClone(pack)]));
+  imported.translations = {};
   doc.querySelectorAll("translations lang").forEach(lang => {
-    const code = lang.getAttribute("code");
-    if (!code || !defaultTranslationPacks[code]) return;
+    const rawCode = lang.getAttribute("code");
+    const code = rawCode === "zh" ? "zh" : window.StackMeetI18n?.normalizeLanguageCode(rawCode);
+    if (!rawCode || !["ms", "zh", "zh-Hans"].includes(code)) return;
+    imported.translations[code] = imported.translations[code] || {};
     lang.querySelectorAll("item").forEach(item => {
       const key = item.getAttribute("key");
       if (key) imported.translations[code][key] = item.textContent;
