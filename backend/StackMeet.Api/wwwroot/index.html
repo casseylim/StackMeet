@@ -12,23 +12,24 @@
     <section class="login-screen" id="loginScreen" aria-labelledby="loginTitle">
       <form class="login-panel" id="loginForm">
         <span class="brand-mark login-mark"><img src="assets/stackmeet-logo.png" alt="NADITrack logo" /></span>
-        <p class="eyebrow">Secure Access</p>
-        <h1 id="loginTitle">NADITrack Login</h1>
+        <label class="operator-language-label" for="operatorLanguage" data-i18n="Language">Language<select id="operatorLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+        <p class="eyebrow" data-i18n="Secure Access">Secure Access</p>
+        <h1 id="loginTitle" data-i18n="NADITrack Login">NADITrack Login</h1>
         <div id="loginCredentialsStep" class="login-step">
-          <label>Email Address<input id="loginEmail" type="email" autocomplete="username" required /></label>
-          <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+          <label data-i18n="Email Address">Email Address<input id="loginEmail" type="email" autocomplete="username" required /></label>
+          <label data-i18n="Password">Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
         </div>
         <div id="loginCompetitionStep" class="login-step" hidden>
-          <label>Competition<select id="loginCompetitionSelect" required disabled></select></label>
+          <label data-i18n="Competition">Competition<select id="loginCompetitionSelect" required disabled></select></label>
         </div>
         <p class="form-error" id="loginError" aria-live="polite"></p>
-        <button class="primary" type="submit">Log In</button>
-        <button class="ghost" id="forgotPasswordButton" type="button">Forgot password?</button>
+        <button class="primary" type="submit" data-i18n="Log In">Log In</button>
+        <button class="ghost" id="forgotPasswordButton" type="button" data-i18n="Forgot password?">Forgot password?</button>
         <div id="forgotPasswordPanel" class="login-step" hidden>
-          <label>Reset Email<input id="forgotPasswordEmail" type="email" autocomplete="email" /></label>
-          <button class="ghost" id="sendForgotPassword" type="button">Send reset link</button>
+          <label data-i18n="Reset Email">Reset Email<input id="forgotPasswordEmail" type="email" autocomplete="email" /></label>
+          <button class="ghost" id="sendForgotPassword" type="button" data-i18n="Send reset link">Send reset link</button>
         </div>
-        <button class="ghost" id="loginSwitchAccount" type="button" hidden>Use Different Account</button>
+        <button class="ghost" id="loginSwitchAccount" type="button" hidden data-i18n="Use Different Account">Use Different Account</button>
       </form>
     </section>
     <div class="app">
@@ -56,7 +57,7 @@
             <h1 id="pageTitle" data-i18n="Dashboard">Dashboard</h1>
           </div>
           <div class="top-actions">
-            <label class="operator-language-label" for="operatorLanguage" data-i18n="Language">Language<select id="operatorLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+            <label class="operator-language-label" for="operatorLanguageAuthenticated" data-i18n="Language">Language<select id="operatorLanguageAuthenticated"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
             <button id="logoutBtn" class="ghost" type="button" data-i18n="Log Out">Log Out</button>
           </div>
         </header>
@@ -601,12 +602,13 @@
     </template>
 
     <script src="config.js"></script>
-    <script src="js/i18n/I18n.js?v=multilanguage-v2-phase3a2"></script>
-    <script src="js/i18n/locales/en.js?v=multilanguage-v2-phase3a2"></script>
-    <script src="js/i18n/locales/ms.js?v=multilanguage-v2-phase3a2"></script>
-    <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3a2"></script>
-    <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase3a2"></script>
-    <script src="js/auth/AuthSession.js?v=forgot-lockout-ui"></script>
+    <script src="js/i18n/I18n.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/en.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/ms.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/UiLocalization.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/auth/AuthSession.js?v=multilanguage-v2-phase3b"></script>
     <script src="js/storage/ApiProvider.js?v=20260714-doubles4"></script>
     <script src="js/storage/StackerApi.js?v=20260714-doubles4"></script>
     <script src="js/storage/CompetitionAssetApi.js?v=competition-assets-ui-1"></script>
@@ -617,6 +619,6 @@
     <script src="js/CompetitionPackage.js?v=20260803-package-v1"></script>
     <script src="js/CompetitionPackageAssembler.js?v=20260803-package-assembler-v1"></script>
     <script src="results/vendor/signalr.min.js?v=20260803-live-sync"></script>
-    <script src="app.js?v=multilanguage-v2-phase3a2"></script>
+    <script src="app.js?v=multilanguage-v2-phase3b"></script>
   </body>
 </html>

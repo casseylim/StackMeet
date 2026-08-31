@@ -11,18 +11,25 @@
   <body>
     <main class="admin-shell account-shell">
       <section class="panel account-panel">
-        <span class="brand-mark login-mark"><img src="assets/stackmeet-logo.png" alt="NADITrack logo" /></span>
-        <p class="eyebrow">NADITrack Account</p>
-        <h1 id="accountTitle">Set Password</h1>
+        <label class="operator-language-label" for="operatorLanguage" data-i18n="Language">Language<select id="operatorLanguage"><option value="en" data-i18n="English">English</option><option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option><option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option></select></label>
+        <span class="brand-mark login-mark"><img src="assets/stackmeet-logo.png" alt="NADITrack logo" data-i18n-alt="NADITrack logo" /></span>
+        <p class="eyebrow" data-i18n="NADITrack Account">NADITrack Account</p>
+        <h1 id="accountTitle" data-i18n="Set Password">Set Password</h1>
         <form id="accountForm" class="admin-form">
-          <label id="displayNameLabel">Display Name<input id="accountDisplayName" autocomplete="name" /></label>
-          <label>New Password<input id="accountPassword" type="password" autocomplete="new-password" required /></label>
-          <label>Confirm Password<input id="accountConfirmPassword" type="password" autocomplete="new-password" required /></label>
+          <label id="displayNameLabel" data-i18n="Display Name">Display Name<input id="accountDisplayName" autocomplete="name" /></label>
+          <label data-i18n="New Password">New Password<input id="accountPassword" type="password" autocomplete="new-password" required /></label>
+          <label data-i18n="Confirm Password">Confirm Password<input id="accountConfirmPassword" type="password" autocomplete="new-password" required /></label>
           <p class="form-error" id="accountMessage" aria-live="polite"></p>
-          <button class="primary" type="submit">Save Password</button>
+          <button class="primary" type="submit" data-i18n="Save Password">Save Password</button>
         </form>
       </section>
     </main>
-    <script src="account.js?v=password-reset-security"></script>
+    <script src="js/i18n/I18n.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/en.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/ms.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase3b"></script>
+    <script src="js/i18n/UiLocalization.js?v=multilanguage-v2-phase3b"></script>
+    <script src="account.js?v=multilanguage-v2-phase3b"></script>
   </body>
 </html>

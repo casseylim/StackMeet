@@ -10,7 +10,13 @@
   let toastTimer = null;
 
   const stackMeetTimeZone = "Asia/Kuala_Lumpur";
-  const stackMeetLocale = "en-MY";
+  const ui = window.StackMeetUiLocalization;
+  const t = key => ui?.t(key) || key;
+  const tf = (template, values) => ui?.tf(template, values) || template;
+  const knownMessage = (value, fallback, values) => ui?.translateKnownMessage(value, fallback, values) || (values ? tf(fallback, values) : t(fallback || "Request failed."));
+  const safeError = (error, fallback = "Request failed.") => knownMessage(error?.message || error, fallback);
+  const roleLabel = role => ui?.roleLabel(role) || role || t("Competition Manager");
+  const stackMeetLocale = () => ({ ms: "ms-MY", "zh-Hans": "zh-CN" }[ui?.language?.()] || "en-MY");
 
   const $ = id => document.getElementById(id);
   const message = text => {
@@ -59,7 +65,7 @@
       }
       let error = `Request failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
-      throw new Error(error);
+      throw new Error(knownMessage(error, "Request failed ({status})", { status: response.status }));
     }
     return response;
   }
@@ -87,7 +93,7 @@
   async function loadUserSecurityOptions() {
     const options = await request("/api/admin/users/security-options");
     $("requireEmailConfirmed").checked = Boolean(options.requireEmailConfirmed);
-    $("userSecurityOptionsStatus").textContent = options.requireEmailConfirmed ? "Currently on." : "Currently off.";
+    $("userSecurityOptionsStatus").textContent = t(options.requireEmailConfirmed ? "Currently on." : "Currently off.");
   }
 
   async function loadEmailSettings() {
@@ -102,8 +108,11 @@
     $("emailPassword").value = "";
     $("emailUseTls").checked = settings.useTls !== false;
     $("emailSettingsStatus").textContent = settings.canStoreProtectedSecrets
-      ? `Email secret storage is encrypted. ${settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."} ${settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved yet."}`
-      : "Set Security:SettingsEncryptionKey before saving email secrets.";
+      ? tf("Email secret storage is encrypted. {apiKey} {password}", {
+          apiKey: t(settings.hasBrevoApiKey ? "A Brevo API key is saved." : "No Brevo API key is saved yet."),
+          password: t(settings.hasPassword ? "SMTP password is saved." : "No SMTP password is saved yet.")
+        })
+      : t("Set Security:SettingsEncryptionKey before saving email secrets.");
     updateEmailProviderControls();
   }
 
@@ -138,12 +147,12 @@
   // Reloads all admin data and shows a popup so the Refresh button has visible feedback.
   async function refreshAdminData() {
     await loadAdminData();
-    message("Admin data refreshed.");
+    message(t("Admin data refreshed."));
   }
 
   function drawRows() {
     if (!competitions.length) {
-      $("competitionAdminRows").innerHTML = '<tr><td colspan="6" class="muted">No competitions found.</td></tr>';
+      $("competitionAdminRows").innerHTML = `<tr><td colspan="6" class="muted">${esc(t("No competitions found."))}</td></tr>`;
       return;
     }
 
@@ -151,15 +160,15 @@
       <tr>
         <td><strong>${esc(item.competitionKey)}</strong></td>
         <td>${esc(item.competitionName)}</td>
-        <td>${esc(item.status)}</td>
-        <td>${item.hasState ? "Ready" : "Missing"}</td>
+        <td>${esc(t(item.status))}</td>
+        <td>${esc(t(item.hasState ? "Ready" : "Missing"))}</td>
         <td>${esc(formatDateTime(item.updatedAt))}</td>
-        <td><button class="ghost compact-button" data-key="${esc(item.competitionKey)}" type="button">Edit</button></td>
+        <td><button class="ghost compact-button" data-key="${esc(item.competitionKey)}" type="button">${esc(t("Edit"))}</button></td>
       </tr>`).join("");
   }
 
   function drawCompetitionOptions() {
-    const options = ['<option value="">No competition assignment</option>'].concat(competitions.map(item => `<option value="${item.id}">${esc(item.competitionKey)} — ${esc(item.competitionName)}</option>`));
+    const options = [`<option value="">${esc(t("No competition assignment"))}</option>`].concat(competitions.map(item => `<option value="${item.id}" data-domain-option>${esc(item.competitionKey)} — ${esc(item.competitionName)}</option>`));
     $("inviteCompetition").innerHTML = options.join("");
     $("editAccessCompetition").innerHTML = options.join("");
   }
@@ -174,21 +183,21 @@
   function drawUserRows() {
     const rows = filteredSortedUsers();
     if (!rows.length) {
-      $("userAdminRows").innerHTML = '<tr><td colspan="4" class="muted">No users found.</td></tr>';
+      $("userAdminRows").innerHTML = `<tr><td colspan="4" class="muted">${esc(t("No users found."))}</td></tr>`;
       return;
     }
 
     $("userAdminRows").innerHTML = rows.map(user => {
       const access = user.isSystemAdmin
-        ? "System Admin"
-        : (user.competitionAccess || []).filter(item => item.isActive).map(item => `${esc(item.competitionKey)}: ${esc(item.role)}`).join("<br />") || "No assigned competition";
-      const status = `${user.isActive ? "Active" : "Pending"}${user.emailConfirmed ? "" : " / Unconfirmed"}`;
+        ? esc(t("System Admin"))
+        : (user.competitionAccess || []).filter(item => item.isActive).map(item => `${esc(item.competitionKey)}: ${esc(roleLabel(item.role))}`).join("<br />") || esc(t("No assigned competition"));
+      const status = user.emailConfirmed ? t(user.isActive ? "Active" : "Pending") : tf("{status} / Unconfirmed", { status: t(user.isActive ? "Active" : "Pending") });
       return `
         <tr class="${user.id === selectedUserId ? "selected-row" : ""}" data-user-id="${user.id}">
           <td><strong>${esc(user.email)}</strong><br /><span class="muted">${esc(user.displayName)}</span></td>
           <td>${esc(status)}</td>
           <td>${access}</td>
-          <td><button class="ghost compact-button" data-edit-user="${user.id}" type="button">Edit</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">Reset</button></td>
+          <td><button class="ghost compact-button" data-edit-user="${user.id}" type="button">${esc(t("Edit"))}</button> <button class="ghost compact-button" data-reset-user="${user.id}" type="button">${esc(t("Reset"))}</button></td>
         </tr>`;
     }).join("");
   }
@@ -196,12 +205,12 @@
   // Renders recent MSSQL admin/security audit entries in read-only form.
   function drawAuditRows() {
     if (!auditLogs.length) {
-      $("auditLogRows").innerHTML = '<tr><td colspan="5" class="muted">No audit logs found.</td></tr>';
+      $("auditLogRows").innerHTML = `<tr><td colspan="5" class="muted">${esc(t("No audit logs found."))}</td></tr>`;
       return;
     }
 
     $("auditLogRows").innerHTML = auditLogs.map(item => {
-      const actor = item.userEmail || (item.userId ? `User #${item.userId}` : "Admin key / system");
+      const actor = item.userEmail || (item.userId ? tf("User #{id}", { id: item.userId }) : t("Admin key / system"));
       const target = `${item.entityType}${item.entityId ? ` #${item.entityId}` : ""}${item.competitionKey ? `<br /><span class="muted">${esc(item.competitionKey)}</span>` : ""}`;
       return `
         <tr>
@@ -260,7 +269,7 @@
   // Populates the user edit form and enables controls only after a user is selected.
   function drawUserEditor() {
     const user = selectedUser();
-    $("userEditTitle").textContent = user ? `Edit ${user.email}` : "Select User";
+    $("userEditTitle").textContent = user ? tf("Edit {email}", { email: user.email }) : t("Select User");
     $("userEditForm").querySelectorAll("input, button").forEach(control => { control.disabled = !user; });
     $("addEditAccess").disabled = !user;
     $("editAccessCompetition").disabled = !user;
@@ -280,27 +289,27 @@
   // Renders all competition access rows for the selected user, including inactive history.
   function drawAccessRows(user) {
     if (!user) {
-      $("editAccessRows").innerHTML = '<tr><td colspan="4" class="muted">Select a user to manage competition access.</td></tr>';
+      $("editAccessRows").innerHTML = `<tr><td colspan="4" class="muted">${esc(t("Select a user to manage competition access."))}</td></tr>`;
       return;
     }
 
     const accessRows = user.competitionAccess || [];
     if (!accessRows.length) {
-      $("editAccessRows").innerHTML = '<tr><td colspan="4" class="muted">No competition access assigned.</td></tr>';
+      $("editAccessRows").innerHTML = `<tr><td colspan="4" class="muted">${esc(t("No competition access assigned."))}</td></tr>`;
       return;
     }
 
     $("editAccessRows").innerHTML = accessRows.map(access => `
       <tr>
         <td><strong>${esc(access.competitionKey)}</strong><br /><span class="muted">${esc(access.competitionName)}</span></td>
-        <td>${esc(access.role)}</td>
-        <td>${access.isActive ? "Active" : "Inactive"}</td>
-        <td>${access.isActive ? `<button class="danger-button compact-button" data-remove-access="${access.id}" type="button">Remove</button>` : ""}</td>
+        <td>${esc(roleLabel(access.role))}</td>
+        <td>${esc(t(access.isActive ? "Active" : "Inactive"))}</td>
+        <td>${access.isActive ? `<button class="danger-button compact-button" data-remove-access="${access.id}" type="button">${esc(t("Remove"))}</button>` : ""}</td>
       </tr>`).join("");
   }
 
   function fillForm(item) {
-    $("adminFormTitle").textContent = item ? `Edit ${item.competitionKey}` : "Create Competition";
+    $("adminFormTitle").textContent = item ? tf("Edit {key}", { key: item.competitionKey }) : t("Create Competition");
     $("adminOriginalKey").value = item?.competitionKey || "";
     $("adminCompetitionKey").value = item?.competitionKey || "";
     $("adminCompetitionCode").value = item?.competitionCode || "";
@@ -340,12 +349,12 @@
     }
     await loadCompetitions();
     fillForm(competitions.find(item => item.competitionKey === (originalKey || payload.competitionKey.toUpperCase())));
-    message(`Competition ${originalKey || payload.competitionKey.toUpperCase()} saved.`);
+    message(tf("Competition {key} saved.", { key: originalKey || payload.competitionKey.toUpperCase() }));
   }
 
   async function adminAction(action) {
     const key = $("adminOriginalKey").value;
-    if (!key) return message("Select a competition first.");
+    if (!key) return message(t("Select a competition first."));
     if (action === "export") {
       const data = await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/export`);
       $("adminJsonOutput").hidden = false;
@@ -356,16 +365,16 @@
     if (action === "close") await request(`/api/admin/competitions/${encodeURIComponent(key)}/status`, { method: "POST", body: JSON.stringify({ status: "Closed" }) });
     if (action === "archive") await request(`/api/admin/competitions/${encodeURIComponent(key)}/archive`, { method: "POST", body: JSON.stringify({ archivedBy: "admin" }) });
     if (action === "delete") {
-      const confirmation = prompt(`Type DELETE ${key} to permanently delete only this unused competition.`);
+      const confirmation = prompt(tf("Type DELETE {key} to permanently delete only this unused competition.", { key }));
       if (confirmation !== `DELETE ${key}`) return;
       await request(`/api/admin/competitions/${encodeURIComponent(key)}/delete`, { method: "POST", body: JSON.stringify({ confirmation }) });
       await loadCompetitions();
       fillForm(null);
-      message(`Deleted ${key}.`);
+      message(tf("Deleted {key}.", { key }));
       return;
     }
     if (action === "reset") {
-      const confirmation = prompt(`Type RESET ${key} to reset only ${key}.`);
+      const confirmation = prompt(tf("Type RESET {key} to reset only {key}.", { key }));
       if (confirmation !== `RESET ${key}`) return;
       await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/reset`, { method: "POST", body: JSON.stringify({ confirmation, resultsOnly: false }) });
     }
@@ -375,7 +384,7 @@
   // Exports the selected authoritative competition JSON inside a portable XML document.
   async function exportCompetitionXml() {
     const key = $("adminOriginalKey").value;
-    if (!key) return message("Select a competition first.");
+    if (!key) return message(t("Select a competition first."));
     const data = await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/export`);
     const json = String(data.jsonData || "{}");
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<naditrack-state competitionKey="${xmlAttr(key)}"><![CDATA[${json.replaceAll("]]>", "]]]]><![CDATA[>")}]]></naditrack-state>`;
@@ -384,7 +393,7 @@
     link.download = `${key}-state.xml`;
     link.click();
     URL.revokeObjectURL(link.href);
-    message(`${key} XML exported.`);
+    message(tf("{key} XML exported.", { key }));
   }
 
   // Imports a previously exported XML state into the selected competition after validation.
@@ -393,27 +402,27 @@
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!key || !file) return;
-    if (!confirm(`Import XML into ${key}? This will replace the selected competition state with the contents of ${file.name}.`)) {
-      message("XML import cancelled.");
+    if (!confirm(tf("Import XML into {key}? This will replace the selected competition state with the contents of {file}.", { key, file: file.name }))) {
+      message(t("XML import cancelled."));
       return;
     }
     try {
       const document = new DOMParser().parseFromString(await file.text(), "application/xml");
       const state = document.querySelector("naditrack-state")?.textContent?.trim();
-      if (document.querySelector("parsererror") || !state || document.documentElement.getAttribute("competitionKey")?.toUpperCase() !== key.toUpperCase()) throw new Error("The XML file does not match the selected competition.");
+      if (document.querySelector("parsererror") || !state || document.documentElement.getAttribute("competitionKey")?.toUpperCase() !== key.toUpperCase()) throw new Error(t("The XML file does not match the selected competition."));
       JSON.parse(state);
       const currentStateResponse = await requestResponse(`/api/admin/competitions/${encodeURIComponent(key)}/state/export`);
       const etag = currentStateResponse.headers?.get?.("ETag");
-      if (!etag) throw new Error("Current competition revision is unavailable. Refresh and try the import again.");
+      if (!etag) throw new Error(t("Current competition revision is unavailable. Refresh and try the import again."));
       await currentStateResponse.json();
       await request(`/api/admin/competitions/${encodeURIComponent(key)}/state/import`, {
         method: "POST",
         body: state,
         headers: { "Content-Type": "application/json", "If-Match": etag }
       });
-      message(`${key} XML imported.`);
+      message(tf("{key} XML imported.", { key }));
     } catch (error) {
-      message(`XML import failed: ${error.message}`);
+      message(t("XML import failed."));
     }
   }
 
@@ -423,7 +432,7 @@
   async function activateAdminKey() {
     const value = $("adminKey").value.trim();
     if (!value) {
-      message("Enter the admin key before selecting Use Key.");
+      message(t("Enter the admin key before selecting Use Key."));
       return;
     }
 
@@ -444,7 +453,7 @@
     const email = $("adminLoginEmail").value.trim();
     const password = $("adminLoginPassword").value;
     if (!email || !password) {
-      message("Enter system admin email and password.");
+      message(t("Enter system admin email and password."));
       return;
     }
 
@@ -456,18 +465,18 @@
     if (!response.ok) {
       let error = `Login failed (${response.status})`;
       try { error = (await response.json()).error || error; } catch (_) { /* keep default */ }
-      throw new Error(error);
+      throw new Error(knownMessage(error, "Login failed."));
     }
 
     const session = await response.json();
-    if (!session.isSystemAdmin) throw new Error("This account is not a Global System Admin.");
+    if (!session.isSystemAdmin) throw new Error(t("This account is not a Global System Admin."));
     sessionStorage.setItem(adminSessionName, JSON.stringify(session));
     sessionStorage.removeItem(keyName);
     $("adminLoginPassword").value = "";
     $("adminKey").value = "";
     updateAuthPanelVisibility();
     await loadAdminData();
-    message(`Logged in as ${session.email || session.displayName}.`);
+    message(tf("Logged in as {name}.", { name: session.email || session.displayName }));
   }
 
   // Clears the current admin credential and returns the browser to the admin login panel.
@@ -497,7 +506,7 @@
     drawUserRows();
     drawUserEditor();
     drawAuditRows();
-    message("Logged out.");
+    message(t("Logged out."));
   }
 
   async function saveEmailSettings(event) {
@@ -517,26 +526,26 @@
       })
     });
     await loadEmailSettings();
-    message("Email setup saved.");
+    message(t("Email setup saved."));
   }
 
   // Sends a test email to the explicit recipient entered in Email Setup.
   async function sendTestEmail() {
     const toEmail = $("emailTestRecipient").value.trim();
     if (!toEmail) {
-      message("Enter a test recipient email first.");
+      message(t("Enter a test recipient email first."));
       $("emailTestRecipient").focus();
       return;
     }
 
     const result = await request("/api/admin/email-settings/test", { method: "POST", body: JSON.stringify({ toEmail }) });
-    message(result.message || "Test email sent.");
+    message(knownMessage(result.message, "Test email sent."));
   }
 
   async function inviteUser(event) {
     event.preventDefault();
     const competitionId = competitionIdFromInput("inviteCompetition");
-    if ($("inviteCompetition").value.trim() && !competitionId) return message("Choose an initial competition from the search suggestions.");
+    if ($("inviteCompetition").value.trim() && !competitionId) return message(t("Choose an initial competition from the search suggestions."));
     const invitedEmail = $("inviteEmail").value.trim();
     const competitionAccess = competitionId
       ? [{ competitionId, role: $("inviteRole").value, isActive: true }]
@@ -554,7 +563,7 @@
     await loadUsers();
     const invited = users.find(user => user.email.toLowerCase() === invitedEmail.toLowerCase());
     if (invited) selectUser(invited.id);
-    message(result.message || "Activation email sent.");
+    message(knownMessage(result.message, "Activation email sent."));
   }
 
   // Saves global account-login rules without changing any individual user record.
@@ -564,17 +573,17 @@
       method: "PUT",
       body: JSON.stringify({ requireEmailConfirmed: $("requireEmailConfirmed").checked })
     });
-    $("userSecurityOptionsStatus").textContent = $("requireEmailConfirmed").checked ? "Currently on." : "Currently off.";
-    message("Login security saved.");
+    $("userSecurityOptionsStatus").textContent = t($("requireEmailConfirmed").checked ? "Currently on." : "Currently off.");
+    message(t("Login security saved."));
   }
 
   // Saves editable user metadata and optionally replaces the stored password hash.
   async function saveUser(event) {
     event.preventDefault();
     const userId = Number($("editUserId").value || 0);
-    if (!userId) return message("Select a user first.");
+    if (!userId) return message(t("Select a user first."));
     const password = $("editPassword").value;
-    if (password && password.length < 8) return message("Password must be at least 8 characters.");
+    if (password && password.length < 8) return message(t("Password must be at least 8 characters."));
 
     await request(`/api/admin/users/${encodeURIComponent(userId)}`, {
       method: "PUT",
@@ -595,24 +604,24 @@
     selectedUserId = userId;
     drawUserRows();
     drawUserEditor();
-    message(password ? "User and password saved." : "User saved.");
+    message(t(password ? "User and password saved." : "User saved."));
   }
 
   async function sendPasswordReset(userId) {
     const user = users.find(item => String(item.id) === String(userId));
     if (!user) return;
-    if (!confirm(`Send password reset link to ${user.email}?`)) return;
+    if (!confirm(tf("Send password reset link to {email}?", { email: user.email }))) return;
     const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/password-reset`, { method: "POST" });
-    message(result.message || "Password reset email sent.");
+    message(knownMessage(result.message, "Password reset email sent."));
   }
 
   // Permanently removes a user after a typed confirmation to avoid accidental deletion.
   async function deleteUser(userId = selectedUserId) {
     const user = users.find(item => String(item.id) === String(userId));
-    if (!user) return message("Select a user first.");
+    if (!user) return message(t("Select a user first."));
     const confirmationText = `DELETE ${user.email}`;
-    const confirmation = prompt(`This will permanently delete ${user.email} and remove their competition access.\n\nType ${confirmationText} to confirm.`);
-    if (confirmation !== confirmationText) return message("User deletion cancelled.");
+    const confirmation = prompt(tf("This will permanently delete {email} and remove their competition access.\n\nType {confirmation} to confirm.", { email: user.email, confirmation: confirmationText }));
+    if (confirmation !== confirmationText) return message(t("User deletion cancelled."));
 
     await request(`/api/admin/users/${encodeURIComponent(user.id)}`, {
       method: "DELETE",
@@ -620,14 +629,14 @@
     });
     selectedUserId = null;
     await loadUsers();
-    message(`${user.email} deleted.`);
+    message(tf("{email} deleted.", { email: user.email }));
   }
 
   // Adds or reactivates a competition assignment for the selected user.
   async function assignAccess(userId = selectedUserId) {
-    if (!userId) return message("Select a user first.");
+    if (!userId) return message(t("Select a user first."));
     const competitionId = competitionIdFromInput("editAccessCompetition");
-    if (!competitionId) return message("Choose a competition from the search suggestions before assigning access.");
+    if (!competitionId) return message(t("Choose a competition from the search suggestions before assigning access."));
     const result = await request(`/api/admin/users/${encodeURIComponent(userId)}/competition-access`, {
       method: "POST",
       body: JSON.stringify({ competitionId, role: $("editAccessRole").value, isActive: true })
@@ -636,20 +645,20 @@
     selectedUserId = result.id;
     drawUserRows();
     drawUserEditor();
-    message("User access updated.");
+    message(t("User access updated."));
   }
 
   // Deactivates one competition assignment while keeping the audit row in the database.
   async function removeAccess(accessId) {
     const user = selectedUser();
-    if (!user) return message("Select a user first.");
-    if (!confirm(`Remove this competition access from ${user.email}?`)) return;
+    if (!user) return message(t("Select a user first."));
+    if (!confirm(tf("Remove this competition access from {email}?", { email: user.email }))) return;
 
     const result = await request(`/api/admin/users/${encodeURIComponent(user.id)}/competition-access/${encodeURIComponent(accessId)}`, { method: "DELETE" });
     users = users.map(item => item.id === result.id ? result : item);
     drawUserRows();
     drawUserEditor();
-    message("User access removed.");
+    message(t("User access removed."));
   }
 
   // Toggles the user table sort direction when the same header is clicked again.
@@ -665,8 +674,8 @@
   // Combines before/after audit JSON into a compact detail block for table display.
   function compactAuditDetails(item) {
     const parts = [];
-    if (item.oldValueJson) parts.push(`Before: ${item.oldValueJson}`);
-    if (item.newValueJson) parts.push(`After: ${item.newValueJson}`);
+    if (item.oldValueJson) parts.push(`${t("Before")}: ${item.oldValueJson}`);
+    if (item.newValueJson) parts.push(`${t("After")}: ${item.newValueJson}`);
     return parts.join("\n") || "";
   }
 
@@ -674,7 +683,7 @@
   function formatDateTime(value) {
     const date = parseUtcDate(value);
     return date
-      ? new Intl.DateTimeFormat(stackMeetLocale, {
+      ? new Intl.DateTimeFormat(stackMeetLocale(), {
           timeZone: stackMeetTimeZone,
           year: "numeric",
           month: "2-digit",
@@ -728,29 +737,35 @@
     if (text) toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
   }
 
-  $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(error.message)));
-  $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(error.message)));
-  $("refreshAdmin").addEventListener("click", () => refreshAdminData().catch(error => message(error.message)));
-  $("adminLogout").addEventListener("click", () => logoutAdmin().catch(error => message(error.message)));
+  document.title = t("NADITrack Competition Admin");
+  ui?.apply(document.querySelector(".admin-shell"));
+  $("operatorLanguage")?.addEventListener("change", event => {
+    ui?.setLanguage(event.target.value, document.querySelector(".admin-shell"));
+    document.title = t("NADITrack Competition Admin");
+  });
+  $("saveAdminKey").addEventListener("click", () => activateAdminKey().catch(error => message(safeError(error))));
+  $("adminLogin").addEventListener("click", () => activateSystemAdminLogin().catch(error => message(safeError(error, "Login failed."))));
+  $("refreshAdmin").addEventListener("click", () => refreshAdminData().catch(error => message(safeError(error))));
+  $("adminLogout").addEventListener("click", () => logoutAdmin().catch(error => message(safeError(error))));
   $("newCompetition").addEventListener("click", () => fillForm(null));
   document.querySelectorAll("[data-admin-page-target]").forEach(button => button.addEventListener("click", () => setAdminPage(button.dataset.adminPageTarget)));
-  $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(error.message)));
+  $("emailSettingsForm").addEventListener("submit", event => saveEmailSettings(event).catch(error => message(safeError(error))));
   $("emailProvider").addEventListener("change", updateEmailProviderControls);
-  $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(error.message)));
-  $("userSecurityOptionsForm").addEventListener("submit", event => saveUserSecurityOptions(event).catch(error => message(error.message)));
-  $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(error.message)));
-  $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(error.message)));
-  $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(error.message)));
-  $("editDeleteUser").addEventListener("click", () => deleteUser().catch(error => message(error.message)));
-  $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(error.message)));
+  $("testEmail").addEventListener("click", () => sendTestEmail().catch(error => message(safeError(error))));
+  $("userSecurityOptionsForm").addEventListener("submit", event => saveUserSecurityOptions(event).catch(error => message(safeError(error))));
+  $("inviteUserForm").addEventListener("submit", event => inviteUser(event).catch(error => message(safeError(error))));
+  $("userEditForm").addEventListener("submit", event => saveUser(event).catch(error => message(safeError(error))));
+  $("editPasswordReset").addEventListener("click", () => sendPasswordReset(selectedUserId).catch(error => message(safeError(error))));
+  $("editDeleteUser").addEventListener("click", () => deleteUser().catch(error => message(safeError(error))));
+  $("addEditAccess").addEventListener("click", () => assignAccess().catch(error => message(safeError(error))));
   $("userSearch").addEventListener("input", event => {
     userSearch = event.target.value;
     drawUserRows();
   });
   document.querySelectorAll("[data-user-sort]").forEach(button => button.addEventListener("click", () => setUserSort(button.dataset.userSort)));
-  $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(error.message)));
-  $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(error.message)));
-  $("adminExportXml")?.addEventListener("click", () => exportCompetitionXml().catch(error => message(error.message)));
+  $("refreshAuditLogs").addEventListener("click", () => loadAuditLogs().catch(error => message(safeError(error))));
+  $("competitionAdminForm").addEventListener("submit", event => saveCompetition(event).catch(error => message(safeError(error))));
+  $("adminExportXml")?.addEventListener("click", () => exportCompetitionXml().catch(error => message(safeError(error))));
   $("adminImportXml")?.addEventListener("change", event => importCompetitionXml(event));
   $("competitionAdminRows").addEventListener("click", event => {
     const button = event.target.closest("[data-key]");
@@ -765,7 +780,7 @@
     }
     const resetButton = event.target.closest("[data-reset-user]");
     if (resetButton) {
-      sendPasswordReset(resetButton.dataset.resetUser).catch(error => message(error.message));
+      sendPasswordReset(resetButton.dataset.resetUser).catch(error => message(safeError(error)));
       return;
     }
     const row = event.target.closest("[data-user-id]");
@@ -773,16 +788,16 @@
   });
   $("editAccessRows").addEventListener("click", event => {
     const removeButton = event.target.closest("[data-remove-access]");
-    if (removeButton) removeAccess(removeButton.dataset.removeAccess).catch(error => message(error.message));
+    if (removeButton) removeAccess(removeButton.dataset.removeAccess).catch(error => message(safeError(error)));
   });
-  document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(error.message))));
+  document.querySelectorAll("[data-admin-action]").forEach(button => button.addEventListener("click", () => adminAction(button.dataset.adminAction).catch(error => message(safeError(error)))));
   setAdminPage(location.hash.replace("#", "") || "email");
   updateAuthPanelVisibility();
   fillForm(null);
   drawUserEditor();
   if (sessionStorage.getItem(keyName) || adminSession()) {
-    loadAdminData().catch(error => message(error.message));
+    loadAdminData().catch(error => message(safeError(error)));
   } else {
-    message("Log in as a Global System Admin or enter the admin key to load admin data.");
+    message(t("Log in as a Global System Admin or enter the admin key to load admin data."));
   }
 })();

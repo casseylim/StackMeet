@@ -1,5 +1,22 @@
 (function () {
   const sessionKey = "stackmeet-auth-session-v1";
+  const ui = () => window.StackMeetUiLocalization;
+  const t = key => ui()?.t(key) || key;
+  const tf = (template, values) => ui()?.tf(template, values) || template;
+  const knownMessage = (value, fallback) => ui()?.translateKnownMessage(value, fallback) || t(fallback || "Request failed.");
+
+  function initializeLoginLanguage() {
+    const login = document.getElementById("loginScreen");
+    const control = document.getElementById("operatorLanguage");
+    if (!login || !control || !ui()) return;
+    control.value = ui().language();
+    ui().apply(login);
+    document.title = t("NADITrack Login");
+    control.addEventListener("change", event => {
+      ui().setLanguage(event.target.value, login);
+      document.title = t("NADITrack Login");
+    });
+  }
 
   // Reads the saved account session even before a competition has been selected.
   function readSession() {
@@ -66,7 +83,7 @@
       return saveSession({
         token: "local-file-test-token",
         competitionId: form.competitionId || defaultCompetitionId(),
-        displayName: form.displayName || "Tournament desk",
+        displayName: form.displayName || t("Tournament desk"),
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
         localFileTest: true
       });
@@ -80,7 +97,7 @@
     if (!response.ok) {
       let message = "Login failed.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
-      throw new Error(message);
+      throw new Error(knownMessage(message, "Login failed."));
     }
     return saveSession(normalizeLoginSession(await response.json()));
   }
@@ -93,8 +110,8 @@
       body: JSON.stringify({ email: (email || "").trim() })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Unable to request a password reset.");
-    return data.message || "If this email is registered, a password reset link has been sent.";
+    if (!response.ok) throw new Error(knownMessage(data.error, "Unable to request a password reset."));
+    return knownMessage(data.message, "If this email is registered, a password reset link has been sent.");
   }
 
   // Loads competition choices from assignments, or all competitions for a global admin.
@@ -109,7 +126,7 @@
     if (!response.ok) {
       let message = "Unable to load competitions.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
-      throw new Error(message);
+      throw new Error(knownMessage(message, "Unable to load competitions."));
     }
     return (await response.json()).map(item => ({
       competitionId: item.id,
@@ -152,7 +169,7 @@
     const select = document.getElementById("loginCompetitionSelect");
     if (!select) return;
     select.innerHTML = choices.map(item =>
-      `<option value="${esc(item.competitionId)}">${esc(item.competitionKey)} - ${esc(item.competitionName)} (${esc(item.role || "Competition Manager")})</option>`
+      `<option value="${esc(item.competitionId)}" data-domain-option>${esc(item.competitionKey)} - ${esc(item.competitionName)} (${esc(ui()?.roleLabel(item.role) || item.role || t("Competition Manager"))})</option>`
     ).join("");
   }
 
@@ -161,11 +178,12 @@
     const session = readSession();
     const ready = hasSelectedCompetition(session);
     document.body.classList.toggle("auth-pending", !ready);
-    document.getElementById("sessionCompetition")?.replaceChildren(document.createTextNode(ready ? `${session.selectedCompetitionName || "Competition"} (${session.competitionId})` : ""));
+    document.getElementById("sessionCompetition")?.replaceChildren(document.createTextNode(ready ? `${session.selectedCompetitionName || t("Competition")} (${session.competitionId})` : ""));
   }
 
   // Blocks app startup until email/password login and competition selection are complete.
   async function requireLogin() {
+    initializeLoginLanguage();
     let session = readSession();
     updateChrome();
     if (hasSelectedCompetition(session)) return session;
@@ -183,9 +201,9 @@
     if (error) error.textContent = "";
     forgotButton?.addEventListener("click", () => { if (forgotPanel) forgotPanel.hidden = !forgotPanel.hidden; if (forgotEmail) { forgotEmail.value = document.getElementById("loginEmail")?.value.trim() || ""; forgotEmail.focus(); } });
     sendForgot?.addEventListener("click", async () => {
-      if (!forgotEmail?.value.trim()) { if (error) error.textContent = "Enter your email address first."; return; }
+      if (!forgotEmail?.value.trim()) { if (error) error.textContent = t("Enter your email address first."); return; }
       try { if (error) error.textContent = await requestPasswordReset(forgotEmail.value); }
-      catch (resetError) { if (error) error.textContent = resetError.message; }
+      catch (resetError) { if (error) error.textContent = knownMessage(resetError.message, "Unable to request a password reset."); }
     });
 
     // Toggles form controls so browser validation only applies to the active login step.
@@ -195,7 +213,7 @@
       document.getElementById("loginEmail")?.toggleAttribute("disabled", visible);
       document.getElementById("loginPassword")?.toggleAttribute("disabled", visible);
       document.getElementById("loginCompetitionSelect")?.toggleAttribute("disabled", !visible);
-      if (submitButton) submitButton.textContent = visible ? "Open Competition" : "Log In";
+      if (submitButton) submitButton.textContent = t(visible ? "Open Competition" : "Log In");
       if (switchAccountButton) switchAccountButton.hidden = !visible;
       if (forgotButton) forgotButton.hidden = visible;
       if (forgotPanel) forgotPanel.hidden = true;
@@ -221,7 +239,7 @@
 
     if (session && !hasSelectedCompetition(session)) {
       await showCompetitionStep(session).catch(loginError => {
-        if (error) error.textContent = loginError.message;
+        if (error) error.textContent = knownMessage(loginError.message, "Unable to load competitions.");
       });
     }
 
@@ -244,7 +262,7 @@
           updateChrome();
           resolve(session);
         } catch (loginError) {
-          if (error) error.textContent = loginError.message;
+          if (error) error.textContent = knownMessage(loginError.message, "Login failed.");
         } finally {
           if (submitButton) submitButton.disabled = false;
         }
