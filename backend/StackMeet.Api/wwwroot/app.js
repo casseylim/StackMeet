@@ -3400,7 +3400,7 @@ function stageAllAroundReportDefinition(stage, label, filters) {
       row.rank || "",
       row.participant,
       row.name,
-      row.special === "Yes" ? "Special" : "Normal",
+      row.special === "Yes" ? t("Special") : t("Normal"),
       row.gender,
       row.division,
       fmt(row.events?.["3-3-3"]?.bestValidTime),

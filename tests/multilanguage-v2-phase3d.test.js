@@ -18,6 +18,14 @@ for (const code of ["ms", "zh-Hans"]) {
 }
 const source = fs.readFileSync("backend/StackMeet.Api/wwwroot/js/printing/TimeSheetPrinting.js", "utf8");
 const appSource = fs.readFileSync("backend/StackMeet.Api/wwwroot/app.js", "utf8");
+const requiredReportKeys = ["Prelim Rank", "Prelim Best", "Final Seed", "Final Sheet / Heat", "Tie / Exception", "Champions / 1st", "2nd Places", "3rd Places", "4th Places", "5th Places", "Total Placements", "Participating Stackers", "Individual Entries", "Doubles Teams", "Relay Teams", "Special", "Normal"];
+for (const key of requiredReportKeys) {
+  for (const code of ["en", "ms", "zh-Hans"]) assert.ok(Object.prototype.hasOwnProperty.call(locales[code], key), `${code} missing generated-report key ${key}`);
+  if (!["Special", "Normal"].includes(key)) {
+    assert.notStrictEqual(locales.ms[key], locales.en[key], `Malay must translate ${key}`);
+    assert.notStrictEqual(locales["zh-Hans"][key], locales.en[key], `Chinese must translate ${key}`);
+  }
+}
 assert.ok(source.includes('t("No stackers")'));
 assert.ok(source.includes('tf("{from} to {to}"'));
 assert.match(source, /A4 portrait/);
