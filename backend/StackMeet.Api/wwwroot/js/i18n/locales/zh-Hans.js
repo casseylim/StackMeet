@@ -325,4 +325,5 @@
     "just now": "刚刚",
     "Waiting for results…": "等待成绩…"
   });
+  Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Live results": "实时成绩", "Official results": "正式成绩" });
 })(typeof window !== "undefined" ? window : globalThis);

@@ -32,8 +32,8 @@ for (const [code, allowlist] of [["ms", allowedIdenticalMs], ["zh-Hans", allowed
 for (const code of Object.keys(locales)) {
   for (const [key, value] of Object.entries(locales[code])) {
     assert.ok(typeof value === "string" && value.trim(), code + " blank translation: " + key);
-    const placeholders = value.match(/{[a-zA-Z][w]*}/g) || [];
-    const sourcePlaceholders = (locales.en[key].match(/{[a-zA-Z][w]*}/g) || []);
+    const placeholders = value.match(/\{[A-Za-z]\w*\}/g) || [];
+    const sourcePlaceholders = (locales.en[key].match(/\{[A-Za-z]\w*\}/g) || []);
     assert.deepStrictEqual(placeholders.sort(), sourcePlaceholders.sort(), code + " placeholder parity: " + key);
   }
 }
@@ -51,6 +51,9 @@ assert.match(client, /payload.settings?.language/);
 assert.match(client, /normalizeLanguageCode/);
 assert.match(client, /function publicUrlFor/);
 assert.match(client, /hasExplicitLanguage/);
+assert.match(client, /if \(!hasExplicitLanguage\)/);
+assert.match(client, /t\("Official results"\)/);
+assert.match(client, /t\("Live results"\)/);
 assert.match(client, /history.replaceState/);
 assert.match(client, /document.title/);
 assert.match(client, /setDocumentLanguage/);

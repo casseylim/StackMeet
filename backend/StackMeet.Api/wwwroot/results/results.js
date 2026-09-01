@@ -129,7 +129,7 @@
       const payload = await response.json();
       currentPayload = payload;
       publicTranslations = safeTranslations(payload.translations);
-      if (!explicitLanguage) activeLanguage = isSupportedLanguage(payload.settings?.language)
+      if (!hasExplicitLanguage) activeLanguage = isSupportedLanguage(payload.settings?.language)
         ? i18n.normalizeLanguageCode(payload.settings.language)
         : "en";
       applyStaticTranslations();
@@ -178,8 +178,8 @@
     if (status) {
       const state = !hasPublishedResults ? "waiting" : official ? "official" : "live";
       status.textContent = !hasPublishedResults
-        ? "Waiting for results"
-        : official ? "Official results" : "Live results";
+        ? t("Waiting for results")
+        : official ? t("Official results") : t("Live results");
       status.className = `result-status ${state}`;
     }
     const disclaimer = el("disclaimer");

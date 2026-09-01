@@ -336,4 +336,5 @@
     "just now": "baru sahaja",
     "Waiting for results…": "Menunggu keputusan…"
   });
+  Object.assign(root.StackMeetI18nLocales.ms, { "Live results": "Keputusan langsung", "Official results": "Keputusan rasmi" });
 })(typeof window !== "undefined" ? window : globalThis);
