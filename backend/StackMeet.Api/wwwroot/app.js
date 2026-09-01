@@ -1438,11 +1438,11 @@ function renderDashboard() {
   });
   document.getElementById("snapshot").innerHTML = `
     <div class="list">
-      <div class="list-row"><span>Name</span><strong>${esc(competition.competitionName)}</strong></div>
-      <div class="list-row"><span>Date</span><strong>${esc(competition.startDate)} to ${esc(competition.endDate)}</strong></div>
-      <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
-      <div class="list-row"><span>Rounds</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
-      <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
+      <div class="list-row"><span>${esc(t("Name"))}</span><strong>${esc(competition.competitionName)}</strong></div>
+      <div class="list-row"><span>${esc(t("Date"))}</span><strong>${esc(tf("{from} to {to}", { from: competition.startDate, to: competition.endDate }))}</strong></div>
+      <div class="list-row"><span>${esc(t("Venue"))}</span><strong>${esc(competition.venue || "--")}</strong></div>
+      <div class="list-row"><span>${esc(t("Rounds"))}</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
+      <div class="list-row"><span>${esc(t("Version"))}</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
     <div class="results-share">
       <div>
@@ -1464,8 +1464,8 @@ function renderNotifications() {
   const unread = state.notifications.filter(n => !n.read).length;
   document.getElementById("notificationList").innerHTML = `
     <div class="list">
-      ${state.notifications.map(n => `<div class="list-row"><span><strong>${esc(n.title)}</strong><br><small>${esc(n.time)}</small></span><span class="pill ${n.read ? "" : "warning"}">${n.read ? "Read" : "New"}</span></div>`).join("")}
-      <div class="list-row"><span>Unread</span><strong>${unread}</strong></div>
+      ${state.notifications.map(n => `<div class="list-row"><span><strong>${esc(n.title)}</strong><br><small>${esc(n.time)}</small></span><span class="pill ${n.read ? "" : "warning"}">${n.read ? esc(t("Read")) : esc(t("New"))}</span></div>`).join("")}
+      <div class="list-row"><span>${esc(t("Unread"))}</span><strong>${unread}</strong></div>
     </div>
   `;
 }
@@ -1501,7 +1501,7 @@ function renderSettings() {
 
   document.getElementById("eventMatrix").innerHTML = Object.entries(eventGroups).map(([group, events]) => `
     <article class="check-card">
-      <h3>${esc(group)}</h3>
+      <h3>${esc(t(group))}</h3>
       ${events.map((event, index) => {
         const singleSelection = ["Doubles", "Timed Relay"].includes(group);
         const inputType = singleSelection ? "radio" : "checkbox";
@@ -1574,7 +1574,7 @@ function renderCompetitionAuditLogs() {
   if (!body) return;
   const logs = [...(state.auditLogs || [])].sort((left, right) => String(right.atUtc).localeCompare(String(left.atUtc))).slice(0, 200);
   if (!logs.length) {
-    body.innerHTML = '<tr><td colspan="5" class="muted">No competition audit logs yet.</td></tr>';
+    body.innerHTML = `<tr><td colspan="5" class="muted">${esc(t("No competition audit logs yet."))}</td></tr>`;
     return;
   }
 
@@ -1582,7 +1582,7 @@ function renderCompetitionAuditLogs() {
     <tr>
       <td>${esc(stackMeetDateTime(parseUtcDate(log.atUtc)))}</td>
       <td>${esc(log.action)}</td>
-      <td>${esc(log.actorEmail || log.actorName || "Competition user")}</td>
+      <td>${esc(log.actorEmail || log.actorName || t("Competition user"))}</td>
       <td>${esc([log.entityType, log.entityId].filter(Boolean).join(" #"))}</td>
       <td>${esc(log.summary || auditChangeSummary(log))}</td>
     </tr>
@@ -1635,7 +1635,7 @@ function drawLanguageRows() {
     .filter(([english, translated]) => !term || `${english} ${translated}`.toLowerCase().includes(term))
     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }));
   const head = document.querySelector(".language-table thead tr");
-  if (head) head.innerHTML = `<th>English</th><th>${esc(label)}</th>`;
+  if (head) head.innerHTML = `<th>${esc(t("English"))}</th><th>${esc(label)}</th>`;
   document.getElementById("languageRows").innerHTML = entries.map(([english, malay]) => `
     <tr>
       <td><strong>${esc(english)}</strong></td>
@@ -1839,9 +1839,9 @@ function drawStackerRows() {
     <tr>
       <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
       <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
-      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
-      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
-      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
+      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(t(s.special || "No"))}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
+      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(t(s.paid || "No"))}</span></td>
+      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(t(s.checkedIn || "No"))}</span></td>
       <td><button class="icon-button" data-action="delete-stacker" data-id="${esc(s.id)}" type="button">x</button></td>
     </tr>
   `).join("");
@@ -1894,13 +1894,13 @@ function renderDoubles() {
     <tr>
       <td>${esc(d.id)}</td>
       <td><strong>${esc(participantName("Doubles", d.id))}</strong></td>
-      <td>${esc(doubleTypeLabel(d))}</td>
-      <td><span class="pill ${d.status === "pending" ? "warning" : "blue"}">${esc(doubleStatusLabel(d))}</span></td>
+      <td>${esc(t(doubleTypeLabel(d)))}</td>
+      <td><span class="pill ${d.status === "pending" ? "warning" : "blue"}">${esc(t(doubleStatusLabel(d)))}</span></td>
       <td>${esc(doubleDivision(d))}</td>
       <td>${esc(d.country || teamCountry(d))}</td>
-      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-double" data-id="${esc(d.id)}" type="button">Edit</button><button class="icon-button" data-action="delete-double" data-id="${esc(d.id)}" type="button">x</button></div></td>
+      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-double" data-id="${esc(d.id)}" type="button">${esc(t("Edit"))}</button><button class="icon-button" data-action="delete-double" data-id="${esc(d.id)}" type="button">x</button></div></td>
     </tr>
-  `).join("") || `<tr><td colspan="7"><span class="muted">No doubles found for this tab.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="7"><span class="muted">${esc(t("No doubles found for this tab."))}</span></td></tr>`;
   ["doubleOneSearch", "doubleTwoSearch"].forEach(id => document.getElementById(id)?.addEventListener("input", populateDoubleSelects));
   ["doubleOne", "doubleTwo", "doubleStatus", "doubleParentName"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateDoubleFormMode);
@@ -1969,11 +1969,11 @@ function renderRelay() {
       <td>${esc(relayHeadToHeadDivision(team))}</td>
       <td>${esc(members.map(stackerName).join(" / ") || "--")}</td>
       <td><strong>${members.length}</strong></td>
-      <td><span class="pill ${relayStatusClass(status)}">${esc(status)}</span></td>
+      <td><span class="pill ${relayStatusClass(status)}">${esc(t(status))}</span></td>
       <td>${esc(relayLocation(team))}</td>
-      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button">Edit</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button">x</button></div></td>
+      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button">${esc(t("Edit"))}</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button">x</button></div></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="9"><span class="muted">No relay teams found for this tab.</span></td></tr>`;
+  }).join("") || `<tr><td colspan="9"><span class="muted">${esc(t("No relay teams found for this tab."))}</span></td></tr>`;
   document.querySelectorAll("[data-relay-search]").forEach(input => input.addEventListener("input", populateRelaySelects));
   document.querySelectorAll("[data-relay-member]").forEach(select => select.addEventListener("change", showSelectedRelayWarnings));
 }
@@ -1983,9 +1983,10 @@ function buildRelayMemberControls() {
   if (!grid) return;
   grid.innerHTML = Array.from({ length: 6 }, (_, index) => {
     const slot = index + 1;
-    const memberLabel = slot <= 4 ? `Member ${slot}` : `Optional Member ${slot}`;
-    return `<label data-i18n="Search ${memberLabel}">Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
-      <label data-i18n="${memberLabel}">${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
+    const memberLabel = slot <= 4 ? tf("Member {slot}", { slot }) : tf("Optional Member {slot}", { slot });
+    const searchLabel = slot <= 4 ? tf("Search Member {slot}", { slot }) : tf("Search Optional Member {slot}", { slot });
+    return `<label>${esc(searchLabel)}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="${esc(t("Name or stacker ID"))}" /></label>
+      <label>${esc(memberLabel)}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
   }).join("");
 }
 
@@ -2105,10 +2106,10 @@ function renderAwards() {
   document.getElementById("awardOverallConfig").innerHTML = awardOverallGroups.map(group => {
     const config = state.awards.overall[group.key] || defaultAwards.overall[group.key];
     return `<article class="award-config-card">
-      <h3>${esc(group.label)}</h3>
-      <p class="muted">${esc(group.basis)}</p>
-      <label>Places<select id="awardOverallLimit-${esc(group.key)}">${awardLimitOptions(config.limit, true)}</select></label>
-      <label>Award Item<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
+      <h3>${esc(t(group.label))}</h3>
+      <p class="muted">${esc(t(group.basis))}</p>
+      <label>${esc(t("Places"))}<select id="awardOverallLimit-${esc(group.key)}">${awardLimitOptions(config.limit, true)}</select></label>
+      <label>${esc(t("Award Item"))}<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
     </article>`;
   }).join("");
   document.querySelectorAll("[id^='award']").forEach(select => select.addEventListener("change", handleAwardPlannerChange));
@@ -2138,17 +2139,17 @@ function fillAwardLimitSelect(id, value) {
 
 function awardLimitOptions(selected, allowZero = false) {
   const values = allowZero ? [0, 3, 5, 10] : [3, 5, 10];
-  return values.map(value => `<option value="${value}" ${Number(selected) === value ? "selected" : ""}>${value ? `Top ${value}` : "No Award"}</option>`).join("");
+  return values.map(value => `<option value="${value}" ${Number(selected) === value ? "selected" : ""}>${value ? tf("Top {count}", { count: value }) : t("No Award")}</option>`).join("");
 }
 
 function awardPlaceItemControls(prefix, places, items) {
   return Array.from({ length: Number(places) || 0 }, (_, index) => `
-    <label>${esc(ordinal(index + 1))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
+    <label>${esc(tf("Place {number}", { number: index + 1 }))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
   `).join("");
 }
 
 function awardItemOptions(selected) {
-  return ["Trophy", "Medal"].map(item => `<option ${normalizeAwardItem(selected) === item ? "selected" : ""}>${item}</option>`).join("");
+  return ["Trophy", "Medal"].map(item => `<option value="${esc(item)}" ${normalizeAwardItem(selected) === item ? "selected" : ""}>${esc(t(item))}</option>`).join("");
 }
 
 function saveAwards(renderNow = true) {
@@ -2181,11 +2182,11 @@ function drawAwardSummary() {
     return acc;
   }, {});
   document.getElementById("awardTotals").innerHTML = ["Trophy", "Medal"].map(item => `
-    <article><span>${esc(item)}s Needed</span><strong>${totals[item] || 0}</strong><small>${esc(item.toLowerCase())} inventory</small></article>
+    <article><span>${esc(t(item === "Trophy" ? "Trophies Needed" : "Medals Needed"))}</span><strong>${totals[item] || 0}</strong><small>${esc(t(item.toLowerCase() + " inventory"))}</small></article>
   `).join("");
   document.getElementById("awardRows").innerHTML = rows.map(row => `
-    <tr><td><strong>${esc(row.group)}</strong></td><td>${esc(row.basis)}</td><td>${esc(row.place)}</td><td>${esc(row.item)}</td><td><strong>${row.quantity}</strong></td></tr>
-  `).join("") || `<tr><td colspan="5"><span class="muted">No awards selected.</span></td></tr>`;
+    <tr><td><strong>${esc(row.group)}</strong></td><td>${esc(row.basis)}</td><td>${esc(row.placeNumber ? tf("Place {number}", { number: row.placeNumber }) : row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
+  `).join("") || `<tr><td colspan="5"><span class="muted">${esc(t("No awards selected."))}</span></td></tr>`;
 }
 
 function awardPlanRows() {
@@ -2201,8 +2202,8 @@ function individualAwardRows() {
   const divisions = plannedIndividualAwardDivisions();
   const events = plannedEventsForGroup("Individuals");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Individual - ${division}`,
-      basis: `Planned division // ${event}`,
+      group: tf("Individual - {division}", { division }),
+      basis: tf("Planned division // {event}", { event }),
       places: Number(state.awards.individualPlaces) || 0,
       items: state.awards.individualItems,
       unitsForPlace: () => 1
@@ -2213,8 +2214,8 @@ function doublesAwardRows() {
   const divisions = plannedDoublesAwardDivisions();
   const events = plannedEventsForGroup("Doubles");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Doubles - ${division}`,
-      basis: `Planned category // ${event} // 2 awards per team`,
+      group: tf("Doubles - {division}", { division }),
+      basis: tf("Planned category // {event} // 2 awards per team", { event }),
       places: Number(state.awards.doublesPlaces) || 0,
       items: state.awards.doublesItems,
       unitsForPlace: () => 2
@@ -2225,8 +2226,8 @@ function relayAwardRows() {
   const divisions = plannedRelayAwardDivisions();
   const events = plannedEventsForGroup("Timed Relay");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Relay Teams - ${division}`,
-      basis: `Planned category // ${event} // ${state.awards.relayUnits} awards per team`,
+      group: tf("Relay Teams - {division}", { division }),
+      basis: tf("Planned category // {event} // {count} awards per team", { event, count: state.awards.relayUnits }),
       places: Number(state.awards.relayPlaces) || 0,
       items: state.awards.relayItems,
       unitsForPlace: () => state.awards.relayUnits
@@ -2239,9 +2240,9 @@ function overallAwardRows() {
     const places = Number(config.limit) || 0;
     if (!places) return [];
     return [{
-      group: group.label,
-      basis: group.basis,
-      place: `Top ${places}`,
+      group: t(group.label),
+      basis: t(group.basis),
+      place: tf("Top {count}", { count: places }),
       item: normalizeAwardItem(config.item),
       quantity: places
     }];
@@ -2293,6 +2294,7 @@ function awardRowsForPlaces({ group, basis, places, items, unitsForPlace }) {
     group,
     basis,
     place: ordinal(index + 1),
+    placeNumber: index + 1,
     item: normalizeAwardItem(items[index]),
     quantity: unitsForPlace(index)
   }));
@@ -2478,7 +2480,7 @@ function populateEntryTypeOptions() {
   if (!select) return;
   const current = select.value;
   const options = availableEntryTypes();
-  select.innerHTML = options.map(type => `<option>${esc(type)}</option>`).join("");
+  select.innerHTML = options.map(type => `<option value="${esc(type)}">${esc(t(type))}</option>`).join("");
   select.value = options.includes(current) ? current : options[0] || "Individual";
 }
 
@@ -2504,7 +2506,7 @@ function updateCompetitionEntryMode() {
   if (typeField) typeField.hidden = true;
   if (prelimMissingPanel) prelimMissingPanel.hidden = !isPrelim;
   const heading = document.getElementById("entryHeading");
-  if (heading) heading.textContent = isPrelim ? "Prelim Entry" : isFinals ? "Finals Entry" : `${type} ${stage} Entry`;
+  if (heading) heading.textContent = isPrelim ? t("Prelim Entry") : isFinals ? t("Finals Entry") : tf("{type} {stage} Entry", { type: t(type), stage: t(stage) });
   if (isFinals) {
     populateFinalSheetSelect();
     if (activeFinalSheetId) loadFinalSheet(activeFinalSheetId, false);
@@ -2531,7 +2533,7 @@ function loadPrelimParticipant() {
   const summary = document.getElementById("prelimStackerSummary");
   const identity = prelimParticipantIdentity(participant);
   summary.hidden = false;
-  summary.innerHTML = `<div><span>Participant ID</span><strong>${esc(participant.id)}</strong></div><div><span>${esc(identity.label)}</span><strong>${esc(identity.value)}</strong></div><div><span>Division</span><strong>${esc(participant.division || "Open")}</strong></div><div><span>Organization / Location</span><strong>${esc(participant.org || "Independent")} // ${esc(participant.country || "--")}</strong></div>`;
+  summary.innerHTML = `<div><span>${esc(t("Participant ID"))}</span><strong>${esc(participant.id)}</strong></div><div><span>${esc(t(identity.label))}</span><strong>${esc(identity.value)}</strong></div><div><span>${esc(t("Division"))}</span><strong>${esc(participant.division || t("Open"))}</strong></div><div><span>${esc(t("Organization / Location"))}</span><strong>${esc(participant.org || t("Independent"))} // ${esc(participant.country || "--")}</strong></div>`;
   Object.entries(prelimEventFieldIds).forEach(([event, fieldId]) => {
     const result = findPrelimEntryResult(participant, event);
     setValue(fieldId, participant.events.includes(event) ? prelimResultInputValue(result) : "");
@@ -2771,13 +2773,13 @@ async function persistPrelimResults(options = {}) {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || "unable to verify persistence" }), true);
+    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || t("Unable to verify persistence") }), true);
     if (focusedFieldId) document.getElementById(focusedFieldId)?.focus();
     return false;
   }
   drawResultRows();
   drawMissingTimes();
-  const actionText = [created ? `${created} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(", ");
+  const actionText = [created ? tf("{count} added", { count: created }) : "", updated ? tf("{count} updated", { count: updated }) : ""].filter(Boolean).join(", ");
   clearPrelimEntry();
   await applyPendingCompetitionUpdate();
   // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
@@ -2814,7 +2816,7 @@ function populateFinalSheetSelect() {
   if (!select) return;
   const current = activeFinalSheetId || select.value;
   const sheets = finalSheets();
-  select.innerHTML = [`<option value="">please choose</option>`].concat(sheets.map(sheet => (
+  select.innerHTML = [`<option value="">${esc(t("please choose"))}</option>`].concat(sheets.map(sheet => (
     `<option value="${esc(sheet.id)}" data-domain-option="true">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
   ))).join("");
   if (current && sheets.some(sheet => sheet.id === current)) select.value = current;
@@ -2910,12 +2912,12 @@ function drawFinalMissingSummary(sheets = finalSheets()) {
   if (!box) return;
   box.innerHTML = groups.map(group => `
     <section class="missing-group">
-      <h3>${esc(group.label)} ${group.complete} complete, ${group.total - group.complete} remaining of ${group.total} total</h3>
+      <h3>${esc(tf("{label} {complete} complete, {remaining} remaining of {total} total", { label: t(group.label), complete: group.complete, remaining: group.total - group.complete, total: group.total }))}</h3>
       <div class="missing-entry-list">${group.missing.map(sheet => `
         <button class="missing-entry-button" data-action="load-final-missing" data-id="${esc(sheet.id)}" type="button">
           <span><strong>${esc(sheet.id)}</strong>${esc(sheet.division)} // ${esc(sheet.event)}</span>
-          <small>${esc(sheet.type)}</small>
-        </button>`).join("") || `<p class="muted">No missing divisions</p>`}</div>
+          <small>${esc(t(sheet.type))}</small>
+        </button>`).join("") || `<p class="muted">${esc(t("No missing divisions"))}</p>`}</div>
     </section>
   `).join("");
 }
@@ -2946,10 +2948,10 @@ function loadFinalSheet(id, focusFirst = true) {
   const summary = document.getElementById("finalSheetSummary");
   if (summary) {
     summary.hidden = false;
-    summary.innerHTML = `<div><span>Final Sheet ID</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(sheet.entryType)}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>Advance</span><strong>Top ${Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length)} of ${sheet.prelimRows.length}</strong></div><div><span>Order</span><strong>Slowest qualifier competes first</strong></div>`;
+    summary.innerHTML = `<div><span>${esc(t("Final Sheet ID"))}</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(t(sheet.entryType))}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>${esc(t("Advance"))}</span><strong>${esc(tf("Top {advance} of {total}", { advance: Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length), total: sheet.prelimRows.length }))}</strong></div><div><span>${esc(t("Order"))}</span><strong>${esc(t("Slowest qualifier competes first"))}</strong></div>`;
   }
   drawFinalSheetRows(sheet);
-  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: sheet.entryType, division: sheet.division, event: sheet.event }), false);
+  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: t(sheet.entryType), division: sheet.division, event: sheet.event }), false);
   if (focusFirst) {
     const firstInput = visibleFinalTimeInputs()[0];
     firstInput?.focus();
@@ -3131,7 +3133,7 @@ async function saveFinalResults() {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || "unable to verify persistence" }), true);
+    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || t("Unable to verify persistence") }), true);
     return false;
   }
   showFinalMessage(tf("{id} saved. {count} final result(s) recorded; latest updates will synchronize automatically.", { id: sheet.id, count: saved }), false);
@@ -3843,10 +3845,10 @@ function syncStackerEditState() {
   const saveButton = document.getElementById("saveStackerBtn");
   const cancelButton = document.getElementById("cancelStackerEdit");
   const printButton = document.getElementById("printStackerSheetBtn");
-  if (saveButton) saveButton.textContent = editingStackerId ? `Update ${editingStackerId}` : "Save Stacker";
+  if (saveButton) saveButton.textContent = editingStackerId ? tf("Update {id}", { id: editingStackerId }) : t("Save Stacker");
   if (cancelButton) cancelButton.hidden = false;
   const title = document.getElementById("stackerFormTitle");
-  if (title) title.textContent = editingStackerId ? `Edit Stacker ${editingStackerId}` : "New Stacker";
+  if (title) title.textContent = editingStackerId ? tf("Edit Stacker {id}", { id: editingStackerId }) : t("New Stacker");
   if (printButton) {
     printButton.hidden = !editingStackerId;
     printButton.dataset.id = editingStackerId;
@@ -3863,27 +3865,27 @@ function updateStackerDoublesInfo() {
     return;
   }
   const team = doublesForStacker(editingStackerId)[0];
-  const partner = team ? doublePartnerNameForStacker(team, editingStackerId) : "No doubles entry yet";
+  const partner = team ? doublePartnerNameForStacker(team, editingStackerId) : t("No doubles entry yet");
   const editorHtml = stackerDoubleEditorOpen ? `
     <div class="inline-editor">
-      <label>Status<select id="stDoubleStatus"><option value="complete">Complete</option><option value="pending">Need Partner</option></select></label>
-      <label>Search Registered Partner<input id="stDoublePartnerSearch" placeholder="Name or stacker ID" /></label>
-      <label>Registered Partner<select id="stDoublePartner"></select></label>
-      <label>Parent / Guardian<input id="stDoubleParentName" placeholder="External parent / guardian name" /></label>
-      <label>Custom Division<input id="stDoubleDivision" placeholder="Auto if blank" /></label>
+      <label>${esc(t("Status"))}<select id="stDoubleStatus"><option value="complete">${esc(t("Complete"))}</option><option value="pending">${esc(t("Need Partner"))}</option></select></label>
+      <label>${esc(t("Search Registered Partner"))}<input id="stDoublePartnerSearch" placeholder="${esc(t("Name or stacker ID"))}" /></label>
+      <label>${esc(t("Registered Partner"))}<select id="stDoublePartner"></select></label>
+      <label>${esc(t("Parent / Guardian"))}<input id="stDoubleParentName" placeholder="${esc(t("External parent / guardian name"))}" /></label>
+      <label>${esc(t("Custom Division"))}<input id="stDoubleDivision" placeholder="${esc(t("Auto if blank"))}" /></label>
       <div id="stDoubleWarning" class="inline-warning" hidden></div>
-      <button class="ghost compact-button" data-action="save-stacker-double" type="button">Save Doubles</button>
+      <button class="ghost compact-button" data-action="save-stacker-double" type="button">${esc(t("Save Doubles"))}</button>
     </div>
   ` : "";
   box.hidden = false;
   box.innerHTML = `
     <div class="info-strip-summary">
-      <strong>Doubles</strong>
-      <span>ID: ${esc(team?.id || "New")}</span>
-      <span>Type: ${esc(team ? doubleTypeLabel(team) : "Auto")}</span>
-      <span>Status: ${esc(team ? doubleStatusLabel(team) : "Not assigned")}</span>
-      <span>Partner: ${esc(partner)}</span>
-      <span>Division: ${esc(team ? doubleDivision(team) : "Auto")}</span>
+      <strong>${esc(t("Doubles"))}</strong>
+      <span>${esc(tf("ID: {id}", { id: team?.id || t("New") }))}</span>
+      <span>${esc(tf("Type: {type}", { type: t(team ? doubleTypeLabel(team) : "Auto") }))}</span>
+      <span>${esc(tf("Status: {status}", { status: t(team ? doubleStatusLabel(team) : "Not assigned") }))}</span>
+      <span>${esc(tf("Partner: {partner}", { partner }))}</span>
+      <span>${esc(tf("Division: {division}", { division: team ? doubleDivision(team) : t("Auto") }))}</span>
       <button class="ghost compact-button" data-action="edit-stacker-double" type="button">${esc(t("Edit Doubles"))}</button>
     </div>
     ${editorHtml}
@@ -3951,26 +3953,26 @@ function drawResultRows() {
     .slice(0, 12);
   document.getElementById("resultRows").innerHTML = rows.map(r => `
     <tr>
-      <td>${esc(r.stage)}</td><td><strong>${esc(participantName(r.type, r.participant))}</strong></td><td>${esc(r.event)}</td><td>${fmt(bestAttempt(r))}</td><td>${esc(resultStatusLabel(r))}</td>
+      <td>${esc(t(r.stage))}</td><td><strong>${esc(participantName(r.type, r.participant))}</strong></td><td>${esc(r.event)}</td><td>${fmt(bestAttempt(r))}</td><td>${esc(t(resultStatusLabel(r)))}</td>
       <td><button class="icon-button" data-action="delete-result" data-id="${esc(r.id)}" type="button">x</button></td>
     </tr>
-  `).join("") || `<tr><td colspan="6"><span class="muted">No ${esc(selectedStage || "")} results yet.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="6"><span class="muted">${esc(tf("No {stage} results yet.", { stage: selectedStage ? t(selectedStage) : "" }))}</span></td></tr>`;
 }
 
 function drawMissingTimes() {
   const groups = missingPrelimGroups();
   const totalMissing = groups.reduce((total, group) => total + group.items.length, 0);
-  const summary = `<div class="missing-summary">${groups.map(group => `<div><span>${esc(group.summaryLabel)}</span><strong>${group.items.length}</strong></div>`).join("")}</div>`;
+  const summary = `<div class="missing-summary">${groups.map(group => `<div><span>${esc(t(group.summaryLabel))}</span><strong>${group.items.length}</strong></div>`).join("")}</div>`;
   const lists = groups.map(group => `
     <section class="missing-group">
-      <h3>${esc(group.label)}</h3>
+      <h3>${esc(t(group.label))}</h3>
       <div class="missing-entry-list">${group.items.map(item => `
         <button class="missing-entry-button" data-action="load-missing-prelim" data-id="${esc(item.id)}" type="button">
           <span><strong>${esc(item.id)}</strong>${esc(item.name)}</span>
           <small>${esc(item.missingEvents.join(", "))}</small>
-        </button>`).join("") || `<p class="muted">Complete</p>`}</div>
+        </button>`).join("") || `<p class="muted">${esc(t("Complete"))}</p>`}</div>
     </section>`).join("");
-  document.getElementById("missingTimes").innerHTML = `${summary}${totalMissing ? `<div class="missing-groups">${lists}</div>` : `<div class="list-row"><strong>All required prelim times entered</strong></div>`}`;
+  document.getElementById("missingTimes").innerHTML = `${summary}${totalMissing ? `<div class="missing-groups">${lists}</div>` : `<div class="list-row"><strong>${esc(t("All required prelim times entered"))}</strong></div>`}`;
 }
 
 function missingPrelimGroups() {
@@ -4025,17 +4027,17 @@ function populateCompetitionReportBuilder() {
     const current = divisionSelect.value || "all";
     const divisions = sortedDivisions(["Collegiate C", "Masters 1-4 C", ...state.divisions, ...state.stackers.map(stacker => stacker.division)]);
     divisionSelect.innerHTML = [
-      `<option value="all">All (by Overall)</option>`,
-      `<option value="all-div">All (by Division)</option>`,
+      `<option value="all">${esc(t("All (by Overall)"))}</option>`,
+      `<option value="all-div">${esc(t("All (by Division)"))}</option>`,
       ...divisions.map(division => `<option value="${esc(division)}" data-domain-option="true">${esc(division)}</option>`)
     ].join("");
     if ([...divisionSelect.options].some(option => option.value === current)) divisionSelect.value = current;
   }
   const limitSelect = document.getElementById("competitionLimit");
   if (limitSelect && !limitSelect.options.length) {
-    limitSelect.innerHTML = [`<option value="0">No Limit</option>`, ...Array.from({ length: 25 }, (_, index) => {
+    limitSelect.innerHTML = [`<option value="0">${esc(t("No Limit"))}</option>`, ...Array.from({ length: 25 }, (_, index) => {
       const value = index + 1;
-      return `<option value="${value}">Top ${value}</option>`;
+      return `<option value="${value}">${esc(tf("Top {count}", { count: value }))}</option>`;
     })].join("");
   }
 }
@@ -5965,32 +5967,33 @@ function saveResult() {
 
 function buildPaperwork(type) {
   const out = document.getElementById("paperOutput");
-  const title = type.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
+  const titleKey = { packets: "All Packets", badges: "Name Badges", soc: "SOC Packet" }[type] || type;
+  const title = titleKey;
   if (type.startsWith("finals")) {
     buildFinalPaperwork(type);
     return;
   }
   if (type === "individual-prelim") {
     const stackers = selectedStackersForPrintRange();
-    const range = stackers.length ? `${stackers[0].id} to ${stackers[stackers.length - 1].id}` : "No stackers";
-    out.innerHTML = `<div class="panel-head no-print"><h2>Individual Time Sheets (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">Print Range</button></div>
-      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">No stackers found in this range.</p>`}</div>`;
+    const range = stackers.length ? tf("{from} to {to}", { from: stackers[0].id, to: stackers[stackers.length - 1].id }) : t("No stackers");
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(tf("Individual Time Sheets ({range})", { range }))}</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print Range"))}</button></div>
+      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">${esc(t("No stackers found in this range."))}</p>`}</div>`;
     return;
   }
   if (type === "doubles-prelim") {
     const teams = printableDoublesTeams();
-    out.innerHTML = `<div class="panel-head no-print"><h2>Doubles Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">No completed doubles teams are available for preliminary time sheets.</p>`}</div>`;
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Doubles Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">${esc(t("No completed doubles teams are available for preliminary time sheets."))}</p>`}</div>`;
     return;
   }
   if (type === "relay-prelim") {
     const teams = completedRelays();
-    out.innerHTML = `<div class="panel-head no-print"><h2>Relay Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">No ready relay teams are available for preliminary time sheets.</p>`}</div>`;
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Relay Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">${esc(t("No ready relay teams are available for preliminary time sheets."))}</p>`}</div>`;
     return;
   }
   const sample = state.stackers.slice(0, 6);
-  out.innerHTML = `<div class="panel-head no-print"><h2>${esc(title)}</h2><button class="ghost" data-action="print-paper-preview" type="button">Print</button></div>
+  out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t(title))}</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print"))}</button></div>
     ${sample.map(s => `<article class="sheet-preview"><strong>${esc(s.id)} ${esc(s.name)}</strong><p>${esc(s.division)} // ${esc(s.org)} // ${esc(s.country)}</p><p>3-3-3: _____  3-6-3: _____  Cycle: _____</p></article>`).join("")}`;
 }
 
@@ -6028,8 +6031,8 @@ function individualTimeSheetHtml(stacker) {
     id: stacker.id,
     type: "Individual",
     name: stacker.name,
-    detail: `Division: ${stacker.division || "Open"}`,
-    location: `${stacker.country || "--"} · Organization: ${stacker.org || "Independent"}`,
+    detail: tf("Division: {division}", { division: stacker.division || t("Open") }),
+    location: tf("{country} · Organization: {organization}", { country: stacker.country || "--", organization: stacker.org || t("Independent") }),
     events: ["3-3-3", "3-6-3", "Cycle"]
   });
 }
@@ -6039,7 +6042,7 @@ function doublesTimeSheetHtml(team) {
     id: team.id,
     type: "Doubles",
     name: participantName("Doubles", team.id),
-    detail: `Division: ${doubleDivision(team)}`,
+    detail: tf("Division: {division}", { division: doubleDivision(team) }),
     location: teamCountry(team),
     events: timeSheetEvents("Doubles", ["Cycle"])
   });
@@ -6050,7 +6053,7 @@ function relayTimeSheetHtml(team) {
     id: team.id,
     type: "Relay",
     name: participantName("Timed Relay", team.id),
-    detail: `Stackers: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · Division: ${relayTimedDivision(team)}`,
+    detail: tf("Stackers: {members} · Division: {division}", { members: relayMemberIds(team).map(stackerName).join(", ") || "--", division: relayTimedDivision(team) }),
     location: relayLocation(team),
     events: timeSheetEvents("Timed Relay", ["3-6-3"])
   });
@@ -6069,22 +6072,22 @@ function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
   return `<article class="individual-time-sheet">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
     <header class="time-sheet-header">
-      <div class="time-sheet-identity"><span>${esc(type)}</span><h2>${esc(name)}</h2></div>
-      <div class="time-sheet-stacker-id"><span>ID</span><strong>${esc(id)}</strong></div>
+      <div class="time-sheet-identity"><span>${esc(t(type))}</span><h2>${esc(name)}</h2></div>
+      <div class="time-sheet-stacker-id"><span>${esc(t("ID"))}</span><strong>${esc(id)}</strong></div>
     </header>
-    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>Location: ${esc(location)}</span></div>
+    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>${esc(tf("Location: {location}", { location }))}</span></div>
     <table class="attempt-table">
       <colgroup><col class="event-col" /><col class="attempt-col" /><col class="attempt-col" /><col class="attempt-col" /></colgroup>
-      <thead><tr><th>Event</th>${attempts.map(attempt => `<th>Attempt ${attempt}</th>`).join("")}</tr></thead>
-      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> Best</span></td>`).join("")}</tr>`).join("")}</tbody>
+      <thead><tr><th>${esc(t("Event"))}</th>${attempts.map(attempt => `<th>${esc(tf("Attempt {attempt}", { attempt }))}</th>`).join("")}</tr></thead>
+      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> ${esc(t("Best"))}</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table>
     <div class="time-sheet-notes">
-      <p>Record Attempt 1, Attempt 2 and Attempt 3.</p>
-      <p>Tick the fastest valid attempt.</p>
-      <p>Use 999 for a scratch.</p>
-      <p>Leave blank if the competitor or team did not compete.</p>
+      <p>${esc(t("Record Attempt 1, Attempt 2 and Attempt 3."))}</p>
+      <p>${esc(t("Tick the fastest valid attempt."))}</p>
+      <p>${esc(t("Use 999 for a scratch."))}</p>
+      <p>${esc(t("Leave blank if the competitor or team did not compete."))}</p>
     </div>
-    <footer class="time-sheet-signoff"><span>Judge: ______________________________</span><span>Table: __________</span></footer>
+    <footer class="time-sheet-signoff"><span>${esc(t("Judge:"))} ______________________________</span><span>${esc(t("Table:"))} __________</span></footer>
   </article>`;
 }
 
@@ -6136,8 +6139,8 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
   const out = document.getElementById("paperOutput");
   const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-  out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} Bracket</h2><button class="ghost" onclick="window.print()" type="button">Print</button></div>
-    ${Array.from({ length: size }, (_, i) => `<div class="bracket">Seed ${i + 1}: ____________________________</div>`).join("")}`;
+  out.innerHTML = `<div class="panel-head"><h2>${esc(t(val("bracketType")))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+    ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 
 function countBy(key, value) {
