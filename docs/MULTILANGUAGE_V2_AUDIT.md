@@ -1,28 +1,28 @@
-# Multilanguage v2 Phase 1 audit
+# Multilanguage v2 operator audit — Phase 3E baseline
 
 ## Current system
 
 The authenticated operator UI stores its language in `state.settings.language`. English source text is used as the translation key. `t()` resolves custom competition translations against the built-in Malay and Chinese dictionaries, and `translateChrome()` updates marked DOM chrome. The language settings view edits `data-language-key` inputs and persists the selected dictionary through the existing CompetitionState payload.
 
-The current built-in dictionaries are still retained in `app.js` for compatibility during this incremental foundation phase. Dedicated locale files contain the initial extracted vocabulary and are not yet wired into the legacy renderer.
+The authenticated operator renderer uses the shared localization helpers and dedicated `en`, `ms`, and canonical `zh-Hans` catalogs. This audit records the current final-closure baseline; source-based regression tests remain the authority for newly added UI.
 
 ## Coverage classification
 
 | Area | Status | Evidence / boundary |
 | --- | --- | --- |
-| Main operator chrome and common navigation | PARTIAL | `t()` and `translateChrome()` cover marked chrome; many generated/report strings remain source English. |
-| Competition settings and language editor | PARTIAL | Settings labels and editor chrome are translated; editor currently exposes Malay/legacy Chinese selection behavior. |
-| Participant, Doubles, Relay screens | PARTIAL | Shared chrome is translated; participant data and many generated labels remain data/source text. |
-| Printing and reports | ENGLISH ONLY | Report and print output contain substantial hardcoded labels and are not routed through the new helper. |
-| Login, activation, reset, account pages | ENGLISH ONLY | These screens are separate from the operator dictionary pipeline. |
-| System administration | ENGLISH ONLY | No complete language-resource pipeline was found. |
-| Public Results | ENGLISH ONLY | Results HTML/JS contains hardcoded status, headers, tabs, disclaimers, and connection messages. |
+| Main operator chrome and common navigation | CLOSED | Marked HTML chrome and generated navigation/status text use the shared helpers. |
+| Competition settings and language editor | CLOSED | Settings, event/division controls, branding, public-results settings, and language setup are covered by the catalogs and chrome translation. |
+| Participant, Doubles, Relay screens | CLOSED | Presentation labels and controlled status enums are localized; participant/team domain data remains unchanged. |
+| Printing and reports | CLOSED | Phase 3D report/printing paths are localized and guarded by dedicated tests. |
+| Login, activation, reset, account pages | CLOSED | Phase 3B dynamic titles, safe fallbacks, and supported locales are retained. |
+| System administration | CLOSED | Phase 3B admin UI and dynamic title behavior are retained. |
+| Public Results | CLOSED | Phase 3C language resolution, navigation, refresh persistence, and spectator UI are guarded. |
 
 ## Language inventory
 
 Supported values are English `en`, Bahasa Malaysia `ms`, and Simplified Chinese canonically represented as `zh-Hans`. The legacy stored value `zh` is accepted and normalized by the new helper to `zh-Hans`; existing app dictionaries remain available under their legacy shape while migration is incremental.
 
-Placeholders, titles, and aria labels are only translated where their containing markup is explicitly processed or has a language key; this is not a complete guarantee for generated HTML. No speculative claim is made for unmarked strings.
+Placeholders, titles, aria labels, generated messages, and controlled display enums are translated through explicit keys or localization markers. Domain-owned values are intentionally excluded.
 
 ## Language concepts for later phases
 
@@ -32,6 +32,6 @@ Placeholders, titles, and aria labels are only translated where their containing
 
 The existing persisted competition language remains unchanged for backward compatibility. Public Results language selection should later be a display-only `lang` query parameter (`/{CompetitionID}/Results?lang=en|ms|zh-Hans`); the permanent Results URL remains unchanged.
 
-## Confirmed issue to address later
+## Deferred / excluded work
 
-The language editor currently maps non-English editing to the selected legacy dictionary and does not have a dedicated canonical English editor path. Phase 1 records this as a characterization boundary; no user-visible behavior was changed here.
+Certificate generation remains paused pending the Syncfusion license. Generated reports/printing and the Public Results portal are closed for this multilingual scope; future certificate/PDF implementation is a separate phase.
