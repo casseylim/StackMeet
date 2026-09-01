@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07152e">
-  <meta name="description" content="Live sport stacking competition results">
-  <title>NADITrack Live Results</title>
+  <meta name="description" content="Live sport stacking competition results" data-i18n-content="Live sport stacking competition results">
+  <title data-i18n="NADITrack Live Results">NADITrack Live Results</title>
   <link rel="icon" type="image/png" href="/assets/stackmeet-logo.png?v=results-favicon">
   <link rel="apple-touch-icon" href="/assets/stackmeet-logo.png?v=results-favicon">
   <link rel="stylesheet" href="/results/results.css?v=public-results-quick-jump-20260818a">
@@ -14,21 +14,28 @@
   <div class="app-shell">
     <header class="hero">
       <div class="brand-row">
-        <a class="brand" href="/" aria-label="NADITrack home">
+        <a class="brand" href="/" aria-label="NADITrack home" data-i18n-aria-label="NADITrack home">
           <span class="brand-mark" aria-hidden="true">S</span>
           <span>NADITrack</span>
         </a>
+        <label class="public-language-label" for="publicLanguage" data-i18n="Language">Language
+          <select id="publicLanguage" aria-label="Language" data-i18n-aria-label="Language">
+            <option value="en" data-i18n="English">English</option>
+            <option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option>
+            <option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option>
+          </select>
+        </label>
         <span id="connectionStatus" class="connection" data-state="connecting">
-          <span class="connection-dot"></span><span>Connecting</span>
+          <span class="connection-dot"></span><span data-i18n="Connecting">Connecting</span>
         </span>
       </div>
       <div class="hero-copy">
         <img id="competitionBanner" class="competition-banner" alt="" hidden>
         <div class="status-row">
-          <span id="resultStatus" class="result-status waiting">Waiting for results</span>
-          <span id="lastUpdated">Waiting for results…</span>
+        <span id="resultStatus" class="result-status waiting" data-i18n="Waiting for results">Waiting for results</span>
+          <span id="lastUpdated" data-i18n="Waiting for results…">Waiting for results…</span>
         </div>
-        <h1 id="competitionName">Competition Results</h1>
+        <h1 id="competitionName" data-i18n="Competition Results">Competition Results</h1>
         <img id="competitionLogo" class="competition-logo" alt="" hidden>
         <p id="competitionMeta" class="competition-meta"></p>
       </div>
@@ -36,64 +43,64 @@
 
     <main>
       <aside id="disclaimer" class="disclaimer" role="status">
-        <strong>Waiting for Results</strong>
-        <span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>
+        <strong data-i18n="Waiting for Results">Waiting for Results</strong>
+        <span data-i18n="No results have been published in this section yet. This page will update automatically when officials save the first result.">No results have been published in this section yet. This page will update automatically when officials save the first result.</span>
       </aside>
 
-      <nav class="section-nav" aria-label="Results sections">
-        <a class="active" data-section="Dashboard" href="#">Dashboard</a>
-        <a data-section="Preliminary" href="#">Individual Prelim</a>
-        <a data-section="Finals" href="#">Individual Finals</a>
-        <a data-section="AllAround" href="#">All Around</a>
-        <a data-section="Doubles" href="#">Doubles</a>
-        <a data-section="Relay" href="#">Relay</a>
-        <a data-section="Medals" href="#">Medals</a>
+      <nav class="section-nav" aria-label="Results sections" data-i18n-aria-label="Results sections">
+        <a class="active" data-section="Dashboard" href="#" data-i18n="Dashboard">Dashboard</a>
+        <a data-section="Preliminary" href="#" data-i18n="Individual Prelim">Individual Prelim</a>
+        <a data-section="Finals" href="#" data-i18n="Individual Finals">Individual Finals</a>
+        <a data-section="AllAround" href="#" data-i18n="All Around">All Around</a>
+        <a data-section="Doubles" href="#" data-i18n="Doubles">Doubles</a>
+        <a data-section="Relay" href="#" data-i18n="Relay">Relay</a>
+        <a data-section="Medals" href="#" data-i18n="Medals">Medals</a>
       </nav>
 
       <section id="loadingState" class="panel loading-panel" aria-live="polite">
         <span class="spinner"></span>
-        <p>Loading the latest competition results…</p>
+        <p data-i18n="Loading the latest competition results…">Loading the latest competition results…</p>
       </section>
 
       <section id="errorState" class="panel empty-state" hidden>
         <span class="empty-icon" aria-hidden="true">!</span>
-        <h2>Results are not available yet</h2>
-        <p id="errorMessage">Please check the competition link or try again shortly.</p>
-        <button id="retryButton" type="button">Try again</button>
+        <h2 data-i18n="Results are not available yet">Results are not available yet</h2>
+        <p id="errorMessage" data-i18n="Please check the competition link or try again shortly.">Please check the competition link or try again shortly.</p>
+        <button id="retryButton" type="button" data-i18n="Try again">Try again</button>
       </section>
 
       <div id="dashboard" hidden>
         <section class="panel share-panel" aria-labelledby="shareResultsTitle">
-          <h2 id="shareResultsTitle" class="visually-hidden">Share public results</h2>
-          <img id="publicResultsQr" class="share-qr" width="160" height="160" alt="QR code for public results" loading="lazy">
+          <h2 id="shareResultsTitle" class="visually-hidden" data-i18n="Share public results">Share public results</h2>
+          <img id="publicResultsQr" class="share-qr" width="160" height="160" alt="QR code for public results" data-i18n-alt="QR code for public results" loading="lazy">
           <a class="affiliate-banner" href="https://www.myasp.net/index?r=wssans" target="_blank" rel="noopener noreferrer" aria-label="Visit MyASP">
             <img src="https://www.myasp.net/affiliate/728X90.gif" width="728" height="90" alt="MyASP" loading="lazy">
           </a>
         </section>
         <section class="summary-grid">
           <article class="summary-card accent">
-            <span class="card-label">Current stage</span>
+            <span class="card-label" data-i18n="Current stage">Current stage</span>
             <strong id="currentStage">Preliminary</strong>
             <span id="currentEvent">Waiting for the first result</span>
           </article>
           <article class="summary-card">
-            <span class="card-label">Results entered</span>
+            <span class="card-label" data-i18n="Results entered">Results entered</span>
             <strong id="resultCount">0</strong>
             <span id="participantCount">0 participants</span>
           </article>
           <article class="summary-card">
-            <span class="card-label">Latest update</span>
+            <span class="card-label" data-i18n="Latest update">Latest update</span>
             <strong id="latestTime">—</strong>
-            <span>Automatic live refresh</span>
+            <span data-i18n="Automatic live refresh">Automatic live refresh</span>
           </article>
         </section>
 
         <section class="panel section-overview" aria-labelledby="sectionOverviewTitle">
           <div class="panel-heading">
             <div>
-              <span class="eyebrow">Results availability</span>
-              <h2 id="sectionOverviewTitle">Competition results</h2>
-              <p>Open a section to view the latest published standings.</p>
+              <span class="eyebrow" data-i18n="Results availability">Results availability</span>
+              <h2 id="sectionOverviewTitle" data-i18n="Competition results">Competition results</h2>
+              <p data-i18n="Open a section to view the latest published standings.">Open a section to view the latest published standings.</p>
             </div>
           </div>
           <div id="sectionStatusGrid" class="section-status-grid" aria-live="polite"></div>
@@ -103,7 +110,7 @@
           <article class="panel leader-panel">
             <div class="panel-heading">
               <div>
-                <span class="eyebrow">Current leader</span>
+              <span class="eyebrow" data-i18n="Current leader">Current leader</span>
                 <h2 id="leaderEvent">Awaiting results</h2>
               </div>
               <span class="medal" aria-hidden="true">1</span>
@@ -111,14 +118,14 @@
             <div id="leaderCard" class="leader-card empty">
               <div class="avatar">—</div>
               <div>
-                <strong>No result entered yet</strong>
-                <span>Live standings will appear here.</span>
+                <strong data-i18n="No result entered yet">No result entered yet</strong>
+                <span data-i18n="Live standings will appear here.">Live standings will appear here.</span>
               </div>
               <b>—</b>
             </div>
             <div class="progress-block">
               <div class="progress-copy">
-                <span>Competition progress</span>
+                <span data-i18n="Competition progress">Competition progress</span>
                 <strong id="progressText">0 results</strong>
               </div>
               <div class="progress-track"><span id="progressBar"></span></div>
@@ -128,10 +135,10 @@
           <article class="panel">
             <div class="panel-heading">
               <div>
-                <span class="eyebrow">Just published</span>
-                <h2>Latest results</h2>
+                <span class="eyebrow" data-i18n="Just published">Just published</span>
+                <h2 data-i18n="Latest results">Latest results</h2>
               </div>
-              <span class="live-pulse">Live</span>
+              <span class="live-pulse" data-i18n="Live">Live</span>
             </div>
             <ol id="latestResults" class="latest-list"></ol>
           </article>
@@ -140,8 +147,8 @@
         <section class="panel stage-panel">
           <div class="panel-heading">
             <div>
-              <span class="eyebrow">Competition overview</span>
-              <h2>Results by stage</h2>
+              <span class="eyebrow" data-i18n="Competition overview">Competition overview</span>
+              <h2 data-i18n="Results by stage">Results by stage</h2>
             </div>
           </div>
           <div id="stageStats" class="stage-stats"></div>
@@ -151,9 +158,9 @@
       <section id="preliminary" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Competition standings</span>
-            <h2>Individual Preliminary Results</h2>
-            <p>Rankings are grouped by division and event. Live standings may change until each event is verified.</p>
+            <span class="eyebrow" data-i18n="Competition standings">Competition standings</span>
+            <h2 data-i18n="Individual Preliminary Results">Individual Preliminary Results</h2>
+            <p data-i18n="Rankings are grouped by division and event. Live standings may change until each event is verified.">Rankings are grouped by division and event. Live standings may change until each event is verified.</p>
           </div>
           <span id="preliminarySummary" class="page-summary">Waiting for results</span>
         </div>
@@ -163,9 +170,9 @@
       <section id="finals" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Championship standings</span>
-            <h2>Individual Final Results</h2>
-            <p>Final rankings are grouped by division and event. Medal positions remain provisional until the competition is closed and verified.</p>
+            <span class="eyebrow" data-i18n="Championship standings">Championship standings</span>
+            <h2 data-i18n="Individual Final Results">Individual Final Results</h2>
+            <p data-i18n="Final rankings are grouped by division and event. Medal positions remain provisional until the competition is closed and verified.">Final rankings are grouped by division and event. Medal positions remain provisional until the competition is closed and verified.</p>
           </div>
           <span id="finalsSummary" class="page-summary">Waiting for results</span>
         </div>
@@ -175,18 +182,18 @@
       <section id="allAround" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Three-event championship</span>
-            <h2>All-Around Results</h2>
-            <p>Each total combines one valid best time from 3-3-3, 3-6-3, and Cycle. Rankings include overall, gender, category, and division groups.</p>
+            <span class="eyebrow" data-i18n="Three-event championship">Three-event championship</span>
+            <h2 data-i18n="All-Around Results">All-Around Results</h2>
+            <p data-i18n="Each total combines one valid best time from 3-3-3, 3-6-3, and Cycle. Rankings include overall, gender, category, and division groups.">Each total combines one valid best time from 3-3-3, 3-6-3, and Cycle. Rankings include overall, gender, category, and division groups.</p>
           </div>
           <span id="allAroundSummary" class="page-summary">Waiting for results</span>
         </div>
         <div id="allAroundGroups" class="allaround-groups"></div>
         <section id="allAroundByDivision" class="allaround-by-division" hidden>
           <div class="section-heading">
-            <span class="eyebrow">Competition divisions</span>
-            <h3>All-Around by Division</h3>
-            <p>Rankings within each Individual division using each stacker's best published 3-3-3, 3-6-3 and Cycle times.</p>
+            <span class="eyebrow" data-i18n="Competition divisions">Competition divisions</span>
+            <h3 data-i18n="All-Around by Division">All-Around by Division</h3>
+            <p data-i18n="Rankings within each Individual division using each stacker's best published 3-3-3, 3-6-3 and Cycle times.">Rankings within each Individual division using each stacker's best published 3-3-3, 3-6-3 and Cycle times.</p>
           </div>
           <div id="allAroundDivisionGroups"></div>
         </section>
@@ -195,9 +202,9 @@
       <section id="doubles" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Two-stacker championship</span>
-            <h2>Doubles Results</h2>
-            <p>Normal and child/parent Doubles are ranked within their configured division and stage. Final podiums remain provisional until verified.</p>
+            <span class="eyebrow" data-i18n="Two-stacker championship">Two-stacker championship</span>
+            <h2 data-i18n="Doubles Results">Doubles Results</h2>
+            <p data-i18n="Normal and child/parent Doubles are ranked within their configured division and stage. Final podiums remain provisional until verified.">Normal and child/parent Doubles are ranked within their configured division and stage. Final podiums remain provisional until verified.</p>
           </div>
           <span id="doublesSummary" class="page-summary">Waiting for results</span>
         </div>
@@ -207,9 +214,9 @@
       <section id="relay" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Team championship</span>
-            <h2>Relay Results</h2>
-            <p>Relay teams are ranked within their configured division and stage. Final podiums remain provisional until verified.</p>
+            <span class="eyebrow" data-i18n="Team championship">Team championship</span>
+            <h2 data-i18n="Relay Results">Relay Results</h2>
+            <p data-i18n="Relay teams are ranked within their configured division and stage. Final podiums remain provisional until verified.">Relay teams are ranked within their configured division and stage. Final podiums remain provisional until verified.</p>
           </div>
           <span id="relaySummary" class="page-summary">Waiting for results</span>
         </div>
@@ -219,23 +226,23 @@
       <section id="medals" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">Championship overview</span>
-            <h2>Medal Table</h2>
-            <p>Final-event podiums are combined by organization. Teams representing more than one organization are shown as a combined entry.</p>
+            <span class="eyebrow" data-i18n="Championship overview">Championship overview</span>
+            <h2 data-i18n="Medal Table">Medal Table</h2>
+            <p data-i18n="Final-event podiums are combined by organization. Teams representing more than one organization are shown as a combined entry.">Final-event podiums are combined by organization. Teams representing more than one organization are shown as a combined entry.</p>
           </div>
           <span id="medalsSummary" class="page-summary">Waiting for results</span>
         </div>
         <section class="panel medal-table-panel">
           <div class="results-table-wrap">
             <table class="results-table medal-table">
-              <thead><tr><th>Rank</th><th>Organization</th><th>Gold</th><th>Silver</th><th>Bronze</th><th>Total</th></tr></thead>
+              <thead><tr><th data-i18n="Rank">Rank</th><th data-i18n="Organization">Organization</th><th data-i18n="Gold">Gold</th><th data-i18n="Silver">Silver</th><th data-i18n="Bronze">Bronze</th><th data-i18n="Total">Total</th></tr></thead>
               <tbody id="medalRows"></tbody>
             </table>
           </div>
           <div id="medalsEmpty" class="empty-state compact" hidden>
             <span class="empty-icon clock" aria-hidden="true">↗</span>
-            <h2>No final medals published yet</h2>
-            <p>The medal table will update automatically when valid Final results produce podium positions.</p>
+            <h2 data-i18n="No final medals published yet">No final medals published yet</h2>
+            <p data-i18n="The medal table will update automatically when valid Final results produce podium positions.">The medal table will update automatically when valid Final results produce podium positions.</p>
           </div>
         </section>
       </section>
@@ -243,17 +250,21 @@
       <section id="comingSoon" class="panel empty-state" hidden>
         <span class="empty-icon clock" aria-hidden="true">↗</span>
         <h2 id="sectionTitle">Results section</h2>
-        <p>This section is part of the next portal milestone. The live dashboard is already connected to official result saves.</p>
-        <a class="back-link" href="#">Return to dashboard</a>
+        <p data-i18n="This section is part of the next portal milestone. The live dashboard is already connected to official result saves.">This section is part of the next portal milestone. The live dashboard is already connected to official result saves.</p>
+        <a class="back-link" href="#" data-i18n="Return to dashboard">Return to dashboard</a>
       </section>
     </main>
 
     <footer>
-      <span>Powered by NADITrack</span>
+      <span data-i18n="Powered by NADITrack">Powered by NADITrack</span>
       <span id="competitionCode"></span>
     </footer>
   </div>
+  <script src="/js/i18n/I18n.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/en.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/ms.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3c"></script>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=public-results-sync-events-20260826a"></script>
+  <script src="/results/results.js?v=multilanguage-v2-phase3c"></script>
 </body>
 </html>
