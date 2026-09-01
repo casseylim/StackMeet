@@ -1438,10 +1438,10 @@ function renderDashboard() {
   });
   document.getElementById("snapshot").innerHTML = `
     <div class="list">
-      <div class="list-row"><span>Name</span><strong>${esc(competition.competitionName)}</strong></div>
-      <div class="list-row"><span>Date</span><strong>${esc(competition.startDate)} to ${esc(competition.endDate)}</strong></div>
-      <div class="list-row"><span>Venue</span><strong>${esc(competition.venue || "--")}</strong></div>
-      <div class="list-row"><span>Rounds</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
+      <div class="list-row"><span>${esc(t("Name"))}</span><strong>${esc(competition.competitionName)}</strong></div>
+      <div class="list-row"><span>${esc(t("Date"))}</span><strong>${esc(tf("{from} to {to}", { from: competition.startDate, to: competition.endDate }))}</strong></div>
+      <div class="list-row"><span>${esc(t("Venue"))}</span><strong>${esc(competition.venue || "--")}</strong></div>
+      <div class="list-row"><span>${esc(t("Rounds"))}</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
       <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
     <div class="results-share">
@@ -1464,8 +1464,8 @@ function renderNotifications() {
   const unread = state.notifications.filter(n => !n.read).length;
   document.getElementById("notificationList").innerHTML = `
     <div class="list">
-      ${state.notifications.map(n => `<div class="list-row"><span><strong>${esc(n.title)}</strong><br><small>${esc(n.time)}</small></span><span class="pill ${n.read ? "" : "warning"}">${n.read ? "Read" : "New"}</span></div>`).join("")}
-      <div class="list-row"><span>Unread</span><strong>${unread}</strong></div>
+      ${state.notifications.map(n => `<div class="list-row"><span><strong>${esc(n.title)}</strong><br><small>${esc(n.time)}</small></span><span class="pill ${n.read ? "" : "warning"}">${n.read ? esc(t("Read")) : esc(t("New"))}</span></div>`).join("")}
+      <div class="list-row"><span>${esc(t("Unread"))}</span><strong>${unread}</strong></div>
     </div>
   `;
 }
@@ -1501,7 +1501,7 @@ function renderSettings() {
 
   document.getElementById("eventMatrix").innerHTML = Object.entries(eventGroups).map(([group, events]) => `
     <article class="check-card">
-      <h3>${esc(group)}</h3>
+      <h3>${esc(t(group))}</h3>
       ${events.map((event, index) => {
         const singleSelection = ["Doubles", "Timed Relay"].includes(group);
         const inputType = singleSelection ? "radio" : "checkbox";
@@ -1574,7 +1574,7 @@ function renderCompetitionAuditLogs() {
   if (!body) return;
   const logs = [...(state.auditLogs || [])].sort((left, right) => String(right.atUtc).localeCompare(String(left.atUtc))).slice(0, 200);
   if (!logs.length) {
-    body.innerHTML = '<tr><td colspan="5" class="muted">No competition audit logs yet.</td></tr>';
+    body.innerHTML = `<tr><td colspan="5" class="muted">${esc(t("No competition audit logs yet."))}</td></tr>`;
     return;
   }
 
@@ -1582,7 +1582,7 @@ function renderCompetitionAuditLogs() {
     <tr>
       <td>${esc(stackMeetDateTime(parseUtcDate(log.atUtc)))}</td>
       <td>${esc(log.action)}</td>
-      <td>${esc(log.actorEmail || log.actorName || "Competition user")}</td>
+      <td>${esc(log.actorEmail || log.actorName || t("Competition user"))}</td>
       <td>${esc([log.entityType, log.entityId].filter(Boolean).join(" #"))}</td>
       <td>${esc(log.summary || auditChangeSummary(log))}</td>
     </tr>
@@ -2107,7 +2107,7 @@ function renderAwards() {
     return `<article class="award-config-card">
       <h3>${esc(group.label)}</h3>
       <p class="muted">${esc(group.basis)}</p>
-      <label>Places<select id="awardOverallLimit-${esc(group.key)}">${awardLimitOptions(config.limit, true)}</select></label>
+      <label>${esc(t("Places"))}<select id="awardOverallLimit-${esc(group.key)}">${awardLimitOptions(config.limit, true)}</select></label>
       <label>Award Item<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
     </article>`;
   }).join("");
@@ -2138,7 +2138,7 @@ function fillAwardLimitSelect(id, value) {
 
 function awardLimitOptions(selected, allowZero = false) {
   const values = allowZero ? [0, 3, 5, 10] : [3, 5, 10];
-  return values.map(value => `<option value="${value}" ${Number(selected) === value ? "selected" : ""}>${value ? `Top ${value}` : "No Award"}</option>`).join("");
+  return values.map(value => `<option value="${value}" ${Number(selected) === value ? "selected" : ""}>${value ? tf("Top {count}", { count: value }) : t("No Award")}</option>`).join("");
 }
 
 function awardPlaceItemControls(prefix, places, items) {
@@ -2148,7 +2148,7 @@ function awardPlaceItemControls(prefix, places, items) {
 }
 
 function awardItemOptions(selected) {
-  return ["Trophy", "Medal"].map(item => `<option ${normalizeAwardItem(selected) === item ? "selected" : ""}>${item}</option>`).join("");
+  return ["Trophy", "Medal"].map(item => `<option value="${esc(item)}" ${normalizeAwardItem(selected) === item ? "selected" : ""}>${esc(t(item))}</option>`).join("");
 }
 
 function saveAwards(renderNow = true) {
@@ -2181,11 +2181,11 @@ function drawAwardSummary() {
     return acc;
   }, {});
   document.getElementById("awardTotals").innerHTML = ["Trophy", "Medal"].map(item => `
-    <article><span>${esc(item)}s Needed</span><strong>${totals[item] || 0}</strong><small>${esc(item.toLowerCase())} inventory</small></article>
+    <article><span>${esc(t(item === "Trophy" ? "Trophies Needed" : "Medals Needed"))}</span><strong>${totals[item] || 0}</strong><small>${esc(t(item.toLowerCase() + " inventory"))}</small></article>
   `).join("");
   document.getElementById("awardRows").innerHTML = rows.map(row => `
     <tr><td><strong>${esc(row.group)}</strong></td><td>${esc(row.basis)}</td><td>${esc(row.place)}</td><td>${esc(row.item)}</td><td><strong>${row.quantity}</strong></td></tr>
-  `).join("") || `<tr><td colspan="5"><span class="muted">No awards selected.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="5"><span class="muted">${esc(t("No awards selected."))}</span></td></tr>`;
 }
 
 function awardPlanRows() {
@@ -2478,7 +2478,7 @@ function populateEntryTypeOptions() {
   if (!select) return;
   const current = select.value;
   const options = availableEntryTypes();
-  select.innerHTML = options.map(type => `<option>${esc(type)}</option>`).join("");
+  select.innerHTML = options.map(type => `<option value="${esc(type)}">${esc(t(type))}</option>`).join("");
   select.value = options.includes(current) ? current : options[0] || "Individual";
 }
 
@@ -2531,7 +2531,7 @@ function loadPrelimParticipant() {
   const summary = document.getElementById("prelimStackerSummary");
   const identity = prelimParticipantIdentity(participant);
   summary.hidden = false;
-  summary.innerHTML = `<div><span>Participant ID</span><strong>${esc(participant.id)}</strong></div><div><span>${esc(identity.label)}</span><strong>${esc(identity.value)}</strong></div><div><span>Division</span><strong>${esc(participant.division || "Open")}</strong></div><div><span>Organization / Location</span><strong>${esc(participant.org || "Independent")} // ${esc(participant.country || "--")}</strong></div>`;
+  summary.innerHTML = `<div><span>${esc(t("Participant ID"))}</span><strong>${esc(participant.id)}</strong></div><div><span>${esc(t(identity.label))}</span><strong>${esc(identity.value)}</strong></div><div><span>${esc(t("Division"))}</span><strong>${esc(participant.division || t("Open"))}</strong></div><div><span>${esc(t("Organization / Location"))}</span><strong>${esc(participant.org || t("Independent"))} // ${esc(participant.country || "--")}</strong></div>`;
   Object.entries(prelimEventFieldIds).forEach(([event, fieldId]) => {
     const result = findPrelimEntryResult(participant, event);
     setValue(fieldId, participant.events.includes(event) ? prelimResultInputValue(result) : "");
@@ -2814,7 +2814,7 @@ function populateFinalSheetSelect() {
   if (!select) return;
   const current = activeFinalSheetId || select.value;
   const sheets = finalSheets();
-  select.innerHTML = [`<option value="">please choose</option>`].concat(sheets.map(sheet => (
+  select.innerHTML = [`<option value="">${esc(t("please choose"))}</option>`].concat(sheets.map(sheet => (
     `<option value="${esc(sheet.id)}" data-domain-option="true">${esc(sheet.division)} // ${esc(sheet.event)} // ID:${esc(sheet.id)}</option>`
   ))).join("");
   if (current && sheets.some(sheet => sheet.id === current)) select.value = current;
@@ -2910,7 +2910,7 @@ function drawFinalMissingSummary(sheets = finalSheets()) {
   if (!box) return;
   box.innerHTML = groups.map(group => `
     <section class="missing-group">
-      <h3>${esc(group.label)} ${group.complete} complete, ${group.total - group.complete} remaining of ${group.total} total</h3>
+      <h3>${esc(tf("{label} {complete} complete, {remaining} remaining of {total} total", { label: t(group.label), complete: group.complete, remaining: group.total - group.complete, total: group.total }))}</h3>
       <div class="missing-entry-list">${group.missing.map(sheet => `
         <button class="missing-entry-button" data-action="load-final-missing" data-id="${esc(sheet.id)}" type="button">
           <span><strong>${esc(sheet.id)}</strong>${esc(sheet.division)} // ${esc(sheet.event)}</span>
@@ -2946,7 +2946,7 @@ function loadFinalSheet(id, focusFirst = true) {
   const summary = document.getElementById("finalSheetSummary");
   if (summary) {
     summary.hidden = false;
-    summary.innerHTML = `<div><span>Final Sheet ID</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(sheet.entryType)}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>Advance</span><strong>Top ${Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length)} of ${sheet.prelimRows.length}</strong></div><div><span>Order</span><strong>Slowest qualifier competes first</strong></div>`;
+    summary.innerHTML = `<div><span>${esc(t("Final Sheet ID"))}</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(t(sheet.entryType))}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>${esc(t("Advance"))}</span><strong>${esc(tf("Top {advance} of {total}", { advance: Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length), total: sheet.prelimRows.length }))}</strong></div><div><span>${esc(t("Order"))}</span><strong>${esc(t("Slowest qualifier competes first"))}</strong></div>`;
   }
   drawFinalSheetRows(sheet);
   showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: sheet.entryType, division: sheet.division, event: sheet.event }), false);
