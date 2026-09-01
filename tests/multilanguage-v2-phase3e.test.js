@@ -53,6 +53,12 @@ assert.ok(app.includes('t("All required prelim times entered")') && app.includes
 assert.ok(app.includes('tf("{from} to {to}"') && app.includes('t("Print Range")') && app.includes('t("No stackers found in this range.")'), "print preview rerenders must localize chrome");
 assert.ok(app.includes('t("All (by Overall)")') && app.includes('t("All (by Division)")') && app.includes('t("No Limit")'), "report filter options must localize dynamic labels");
 assert.ok(app.includes('t("English")'), "language editor header must localize on rerender");
+assert.ok(app.includes('t(doubleTypeLabel(d))') && app.includes('t(doubleStatusLabel(d))') && app.includes('t("No doubles found for this tab.")'), "doubles tab rerender must localize presentation");
+assert.ok(app.includes('t(status)') && app.includes('t("No relay teams found for this tab.")') && app.includes('tf("Member {number}"'), "relay tab rerender must localize presentation");
+assert.ok(app.includes("placeNumber") && app.includes('tf("Place {number}"') && !app.includes('tf("{place} place"'), "award rows must use numeric localized placement");
+assert.ok(app.includes('tf("Search {member}"') && app.includes('tf("{country} · Organization: {organization}"') && app.includes('tf("Stackers: {members} · Division: {division}"'), "dynamic print/editor composites must preserve domain placeholders");
+assert.ok(app.includes('packets: "All Packets"') && app.includes('badges: "Name Badges"') && app.includes('soc: "SOC Packet"') && app.includes('t(title)'), "print center generic titles must use translated labels");
+assert.ok(app.includes('t(val("bracketType"))'), "bracket type must be presentation-localized");
 
 for (const file of [index, app, auth, print]) assert.ok(file.includes("t(") || file.includes("data-i18n"), "operator source uses localization");
 assert.ok(index.includes("data-i18n=\"Language\""));

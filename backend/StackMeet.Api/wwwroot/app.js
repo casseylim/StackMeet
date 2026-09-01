@@ -1894,13 +1894,13 @@ function renderDoubles() {
     <tr>
       <td>${esc(d.id)}</td>
       <td><strong>${esc(participantName("Doubles", d.id))}</strong></td>
-      <td>${esc(doubleTypeLabel(d))}</td>
-      <td><span class="pill ${d.status === "pending" ? "warning" : "blue"}">${esc(doubleStatusLabel(d))}</span></td>
+      <td>${esc(t(doubleTypeLabel(d)))}</td>
+      <td><span class="pill ${d.status === "pending" ? "warning" : "blue"}">${esc(t(doubleStatusLabel(d)))}</span></td>
       <td>${esc(doubleDivision(d))}</td>
       <td>${esc(d.country || teamCountry(d))}</td>
-      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-double" data-id="${esc(d.id)}" type="button">Edit</button><button class="icon-button" data-action="delete-double" data-id="${esc(d.id)}" type="button">x</button></div></td>
+      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-double" data-id="${esc(d.id)}" type="button">${esc(t("Edit"))}</button><button class="icon-button" data-action="delete-double" data-id="${esc(d.id)}" type="button">x</button></div></td>
     </tr>
-  `).join("") || `<tr><td colspan="7"><span class="muted">No doubles found for this tab.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="7"><span class="muted">${esc(t("No doubles found for this tab."))}</span></td></tr>`;
   ["doubleOneSearch", "doubleTwoSearch"].forEach(id => document.getElementById(id)?.addEventListener("input", populateDoubleSelects));
   ["doubleOne", "doubleTwo", "doubleStatus", "doubleParentName"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateDoubleFormMode);
@@ -1969,11 +1969,11 @@ function renderRelay() {
       <td>${esc(relayHeadToHeadDivision(team))}</td>
       <td>${esc(members.map(stackerName).join(" / ") || "--")}</td>
       <td><strong>${members.length}</strong></td>
-      <td><span class="pill ${relayStatusClass(status)}">${esc(status)}</span></td>
+      <td><span class="pill ${relayStatusClass(status)}">${esc(t(status))}</span></td>
       <td>${esc(relayLocation(team))}</td>
-      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button">Edit</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button">x</button></div></td>
+      <td><div class="button-row compact-actions"><button class="ghost compact-button" data-action="edit-relay" data-id="${esc(team.id)}" type="button">${esc(t("Edit"))}</button><button class="icon-button" data-action="delete-relay" data-id="${esc(team.id)}" type="button">x</button></div></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="9"><span class="muted">No relay teams found for this tab.</span></td></tr>`;
+  }).join("") || `<tr><td colspan="9"><span class="muted">${esc(t("No relay teams found for this tab."))}</span></td></tr>`;
   document.querySelectorAll("[data-relay-search]").forEach(input => input.addEventListener("input", populateRelaySelects));
   document.querySelectorAll("[data-relay-member]").forEach(select => select.addEventListener("change", showSelectedRelayWarnings));
 }
@@ -1983,9 +1983,9 @@ function buildRelayMemberControls() {
   if (!grid) return;
   grid.innerHTML = Array.from({ length: 6 }, (_, index) => {
     const slot = index + 1;
-    const memberLabel = slot <= 4 ? `Member ${slot}` : `Optional Member ${slot}`;
-    return `<label data-i18n="Search ${memberLabel}">Search ${memberLabel}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" data-i18n-placeholder="Name or stacker ID" placeholder="Name or stacker ID" /></label>
-      <label data-i18n="${memberLabel}">${memberLabel}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
+    const memberLabel = slot <= 4 ? tf("Member {number}", { number: slot }) : tf("Optional Member {number}", { number: slot });
+    return `<label>${esc(tf("Search {member}", { member: memberLabel }))}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="${esc(t("Name or stacker ID"))}" /></label>
+      <label>${esc(memberLabel)}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
   }).join("");
 }
 
@@ -2184,7 +2184,7 @@ function drawAwardSummary() {
     <article><span>${esc(t(item === "Trophy" ? "Trophies Needed" : "Medals Needed"))}</span><strong>${totals[item] || 0}</strong><small>${esc(t(item.toLowerCase() + " inventory"))}</small></article>
   `).join("");
   document.getElementById("awardRows").innerHTML = rows.map(row => `
-    <tr><td><strong>${esc(translateAwardText(row.group))}</strong></td><td>${esc(translateAwardText(row.basis))}</td><td>${esc(row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
+    <tr><td><strong>${esc(translateAwardText(row.group))}</strong></td><td>${esc(translateAwardText(row.basis))}</td><td>${esc(row.placeNumber ? tf("Place {number}", { number: row.placeNumber }) : row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
   `).join("") || `<tr><td colspan="5"><span class="muted">${esc(t("No awards selected."))}</span></td></tr>`;
 }
 
@@ -2293,6 +2293,7 @@ function awardRowsForPlaces({ group, basis, places, items, unitsForPlace }) {
     group,
     basis,
     place: ordinal(index + 1),
+    placeNumber: index + 1,
     item: normalizeAwardItem(items[index]),
     quantity: unitsForPlace(index)
   }));
@@ -5969,7 +5970,8 @@ function saveResult() {
 
 function buildPaperwork(type) {
   const out = document.getElementById("paperOutput");
-  const title = type.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
+  const titleKey = { packets: "All Packets", badges: "Name Badges", soc: "SOC Packet" }[type] || type;
+  const title = titleKey;
   if (type.startsWith("finals")) {
     buildFinalPaperwork(type);
     return;
@@ -5994,7 +5996,7 @@ function buildPaperwork(type) {
     return;
   }
   const sample = state.stackers.slice(0, 6);
-  out.innerHTML = `<div class="panel-head no-print"><h2>${esc(title)}</h2><button class="ghost" data-action="print-paper-preview" type="button">Print</button></div>
+  out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t(title))}</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print"))}</button></div>
     ${sample.map(s => `<article class="sheet-preview"><strong>${esc(s.id)} ${esc(s.name)}</strong><p>${esc(s.division)} // ${esc(s.org)} // ${esc(s.country)}</p><p>3-3-3: _____  3-6-3: _____  Cycle: _____</p></article>`).join("")}`;
 }
 
@@ -6032,8 +6034,8 @@ function individualTimeSheetHtml(stacker) {
     id: stacker.id,
     type: "Individual",
     name: stacker.name,
-    detail: `Division: ${stacker.division || "Open"}`,
-    location: `${stacker.country || "--"} · Organization: ${stacker.org || "Independent"}`,
+    detail: tf("Division: {division}", { division: stacker.division || t("Open") }),
+    location: tf("{country} · Organization: {organization}", { country: stacker.country || "--", organization: stacker.org || t("Independent") }),
     events: ["3-3-3", "3-6-3", "Cycle"]
   });
 }
@@ -6043,7 +6045,7 @@ function doublesTimeSheetHtml(team) {
     id: team.id,
     type: "Doubles",
     name: participantName("Doubles", team.id),
-    detail: `Division: ${doubleDivision(team)}`,
+    detail: tf("Division: {division}", { division: doubleDivision(team) }),
     location: teamCountry(team),
     events: timeSheetEvents("Doubles", ["Cycle"])
   });
@@ -6054,7 +6056,7 @@ function relayTimeSheetHtml(team) {
     id: team.id,
     type: "Relay",
     name: participantName("Timed Relay", team.id),
-    detail: `Stackers: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · Division: ${relayTimedDivision(team)}`,
+    detail: tf("Stackers: {members} · Division: {division}", { members: relayMemberIds(team).map(stackerName).join(", ") || "--", division: relayTimedDivision(team) }),
     location: relayLocation(team),
     events: timeSheetEvents("Timed Relay", ["3-6-3"])
   });
@@ -6073,22 +6075,22 @@ function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
   return `<article class="individual-time-sheet">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
     <header class="time-sheet-header">
-      <div class="time-sheet-identity"><span>${esc(type)}</span><h2>${esc(name)}</h2></div>
-      <div class="time-sheet-stacker-id"><span>ID</span><strong>${esc(id)}</strong></div>
+      <div class="time-sheet-identity"><span>${esc(t(type))}</span><h2>${esc(name)}</h2></div>
+      <div class="time-sheet-stacker-id"><span>${esc(t("ID"))}</span><strong>${esc(id)}</strong></div>
     </header>
-    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>Location: ${esc(location)}</span></div>
+    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>${esc(tf("Location: {location}", { location }))}</span></div>
     <table class="attempt-table">
       <colgroup><col class="event-col" /><col class="attempt-col" /><col class="attempt-col" /><col class="attempt-col" /></colgroup>
-      <thead><tr><th>Event</th>${attempts.map(attempt => `<th>Attempt ${attempt}</th>`).join("")}</tr></thead>
-      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> Best</span></td>`).join("")}</tr>`).join("")}</tbody>
+      <thead><tr><th>${esc(t("Event"))}</th>${attempts.map(attempt => `<th>${esc(tf("Attempt {attempt}", { attempt }))}</th>`).join("")}</tr></thead>
+      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> ${esc(t("Best"))}</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table>
     <div class="time-sheet-notes">
-      <p>Record Attempt 1, Attempt 2 and Attempt 3.</p>
-      <p>Tick the fastest valid attempt.</p>
-      <p>Use 999 for a scratch.</p>
-      <p>Leave blank if the competitor or team did not compete.</p>
+      <p>${esc(t("Record Attempt 1, Attempt 2 and Attempt 3."))}</p>
+      <p>${esc(t("Tick the fastest valid attempt."))}</p>
+      <p>${esc(t("Use 999 for a scratch."))}</p>
+      <p>${esc(t("Leave blank if the competitor or team did not compete."))}</p>
     </div>
-    <footer class="time-sheet-signoff"><span>Judge: ______________________________</span><span>Table: __________</span></footer>
+    <footer class="time-sheet-signoff"><span>${esc(t("Judge:"))} ______________________________</span><span>${esc(t("Table:"))} __________</span></footer>
   </article>`;
 }
 
@@ -6140,7 +6142,7 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
   const out = document.getElementById("paperOutput");
   const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-  out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+  out.innerHTML = `<div class="panel-head"><h2>${esc(t(val("bracketType")))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
     ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 
