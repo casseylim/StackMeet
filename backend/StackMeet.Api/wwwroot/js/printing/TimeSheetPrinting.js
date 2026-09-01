@@ -8,7 +8,7 @@ function buildPaperwork(type) {
     }
     if (type === "individual-prelim") {
         const stackers = selectedStackersForPrintRange();
-        const range = stackers.length ? `${stackers[0].id} to ${stackers[stackers.length - 1].id}` : t("No stackers");
+        const range = stackers.length ? tf("{from} to {to}", { from: stackers[0].id, to: stackers[stackers.length - 1].id }) : t("No stackers");
         out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Individual Time Sheets"))} (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print Range"))}</button></div>
       <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">${esc(t("No stackers found in this range."))}</p>`}</div>`;
         return;

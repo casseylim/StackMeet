@@ -3330,11 +3330,11 @@ function stageReportDefinition(stage, kind, filters) {
   });
   if (kind === "division") rows.sort((a, b) => compareDivisionNames(a.division, b.division) || (a.rank || Infinity) - (b.rank || Infinity));
   const title = kind === "missing" ? `${label} Missing Results` : kind === "scratch" ? `${label} Scratch Report` : kind === "event" ? `${label} Results by Event` : kind === "division" ? `${label} Results by Division` : `${label} Results by Division and Event`;
-  return { stage, kind, title, headers: ["Rank", "Stacker ID", "Name", "Organization", "Division", "Event", "Best Time", "Gap", "Status"], rows: rows.map(row => {
+  return { stage, kind, title, headers: ["Rank", "Stacker ID", "Name", "Organization", "Division", "Event", "Best Time", "Gap", "Status"].map(t), rows: rows.map(row => {
     const champion = champions.get(`${row.type}|${row.division}|${row.event}`);
     const gap = Number.isFinite(champion) && Number.isFinite(row.bestValidTime) && row.bestValidTime !== champion ? `+${fmt(row.bestValidTime - champion)}` : "";
     return [row.rank || "", row.participant, row.name, row.org, row.division, row.event, fmt(row.bestValidTime), gap, row.resultStatus];
-  }), rowClasses: rows.map(row => highlighted.has(row.participant) ? "finals-highlight" : ""), filters, empty: kind === "event" && filters.event === "all" ? "Select one event for the judges' report." : "No matching results." };
+  }), rowClasses: rows.map(row => highlighted.has(row.participant) ? "finals-highlight" : ""), filters, empty: kind === "event" && filters.event === "all" ? t("Select one event for the judges' report.") : t("No matching results.") };
 }
 
 function stageBoardReportDefinition(stage, kind, filters, allRows, events, highlighted, label) {
@@ -3376,12 +3376,12 @@ function stageBoardReportDefinition(stage, kind, filters, allRows, events, highl
     kind,
     title,
     boardGroups,
-    headers: ["Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Division", "Best Time", "Gap", "Status"],
+    headers: ["Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Division", "Best Time", "Gap", "Status"].map(t),
     rows: csvRows,
-    csvHeaders: ["Report Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Participant Division", "Best Time", "Gap", "Status"],
+    csvHeaders: ["Report Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Participant Division", "Best Time", "Gap", "Status"].map(t),
     csvRows,
     filters,
-    empty: "No matching results."
+    empty: t("No matching results.")
   };
 }
 
@@ -3394,7 +3394,7 @@ function stageAllAroundReportDefinition(stage, label, filters) {
     stage,
     kind: "all-around",
     title: `${label} All-Around`,
-    headers: ["Rank", "Competition ID", "Name", "Category", "Gender", "Division", "3-3-3", "3-6-3", "Cycle", "All-Around Total", "Status"],
+    headers: ["Rank", "Competition ID", "Name", "Category", "Gender", "Division", "3-3-3", "3-6-3", "Cycle", "All-Around Total", "Status"].map(t),
     rows: rows.map(row => [
       row.rank || "",
       row.participant,
@@ -3409,7 +3409,7 @@ function stageAllAroundReportDefinition(stage, label, filters) {
       row.resultStatus
     ]),
     filters,
-    empty: "No matching individual all-around results."
+    empty: t("No matching individual all-around results.")
   };
 }
 
@@ -3456,14 +3456,14 @@ function stageBoardDisplayRow(row, champion, highlighted) {
 
 function finalsReportMeta(definition) {
   const filters = definition.filters;
-  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", stackMeetDateTime()], ["Returned rows", definition.rows.length]];
+  return [[t("Report header"), brandText("reportHeader")], [t("Active competition"), state.settings.name], [t("Stage"), t(definition.stage || "Finals")], [t("Report"), definition.title], [t("Filters"), `${t("Type")}: ${t(filters.participantType)}; ${t("Division")}: ${filters.division}; ${t("Event")}: ${filters.event}; ${t("Category")}: ${t(filters.category)}; ${t("Gender")}: ${t(filters.gender || "Combined")}; ${t("Org")}: ${filters.org || t("Any")}; ${t("Country")}: ${filters.country || t("Any")}; ${t("Region")}: ${filters.region || t("Any")}`], [t("Data as of"), stackMeetDateTime()], [t("Returned rows"), definition.rows.length]];
 }
 
 function finalsReportPrintFilterSummary(definition) {
   const filters = definition.filters || {};
   const category = filters.category === "special" ? "Special Stackers" : filters.category === "normal" ? "Normal Stackers" : "Mixed Stackers (Normal + Special)";
   const gender = filters.gender === "M" ? "Male" : filters.gender === "F" ? "Female" : "Combined (Male + Female)";
-  return `Filter: ${category} / ${gender}`;
+  return `${t("Filter")}: ${category} / ${gender}`;
 }
 
 function runFinalsReport() {
@@ -3474,10 +3474,10 @@ function runFinalsReport() {
     definition = finalsReportDefinition();
   } catch (error) {
     console.error("Unable to build competition report.", error);
-    output.innerHTML = `<div class="report-empty"><strong>Unable to build report.</strong><br>${esc(error?.message || error)}</div>`;
+    output.innerHTML = `<div class="report-empty"><strong>${esc(t("Unable to build report."))}</strong><br>${esc(t("Report details unavailable."))}</div>`;
     return;
   }
-  const qualificationActions = definition.kind === "qualification" ? `<button class="ghost" data-action="generate-qualification-snapshots" type="button">Generate Draft Qualification Snapshots</button>` : "";
+  const qualificationActions = definition.kind === "qualification" ? `<button class="ghost" data-action="generate-qualification-snapshots" type="button">${esc(t("Generate Draft Qualification Snapshots"))}</button>` : "";
   const table = definition.rows.map((row, index) => `<tr${definition.rowClasses?.[index] ? ` class="${definition.rowClasses[index]}"` : ""}>${row.map(cell => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${definition.headers.length}">${esc(definition.empty)}</td></tr>`;
   const drilldown = definition.contributors ? `<details class="report-drilldown"><summary>Organization placement contributors</summary>${definition.contributors.map(org => `<h3>${esc(org.organization)}</h3><ul>${org.placements.map(item => `<li>${esc(`${item.name} — ${item.type} — ${item.division} — ${item.event} — Place ${item.rank} — ${fmt(item.bestValidTime)} — credited to ${item.representedOrganization}`)}</li>`).join("")}</ul>`).join("")}</details>` : "";
   const drafts = definition.kind === "qualification" ? state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Draft").map(snapshot => `<li>${esc(`${snapshot.participantType} / ${snapshot.division} / ${snapshot.event}: ${snapshot.tieException?.required ? "exception required" : "ready"}`)} ${snapshot.tieException?.required ? "" : `<button class="ghost compact-button" data-action="approve-qualification-snapshot" data-id="${esc(snapshot.id)}" type="button">Approve</button>`}</li>`).join("") : "";
@@ -3511,7 +3511,7 @@ function stageBoardReportHtml(definition) {
         ${group.sections.map(section => `
           <article class="stage-board-section">
             <h4>${esc(section.title)}</h4>
-            <div class="stage-board-header"><span>#</span><span>Stacker</span><span>Time</span><span>Gap</span></div>
+            <div class="stage-board-header"><span>#</span><span>${esc(t("Stacker"))}</span><span>${esc(t("Time"))}</span><span>${esc(t("Gap"))}</span></div>
             ${section.rows.length ? section.rows.map(row => `
               <div class="stage-board-row${row.highlight ? " finals-highlight" : ""}">
                 <span>${esc(row.rank)}</span>
@@ -3519,7 +3519,7 @@ function stageBoardReportHtml(definition) {
                 <span>${esc(row.time)}</span>
                 <span>${esc(row.gap)}</span>
               </div>
-            `).join("") : `<div class="stage-board-empty">No results</div>`}
+            `).join("") : `<div class="stage-board-empty">${esc(t("No results"))}</div>`}
           </article>
         `).join("")}
       </div>
