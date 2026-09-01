@@ -1983,8 +1983,9 @@ function buildRelayMemberControls() {
   if (!grid) return;
   grid.innerHTML = Array.from({ length: 6 }, (_, index) => {
     const slot = index + 1;
-    const memberLabel = slot <= 4 ? tf("Member {number}", { number: slot }) : tf("Optional Member {number}", { number: slot });
-    return `<label>${esc(tf("Search {member}", { member: memberLabel }))}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="${esc(t("Name or stacker ID"))}" /></label>
+    const memberLabel = slot <= 4 ? tf("Member {slot}", { slot }) : tf("Optional Member {slot}", { slot });
+    const searchLabel = slot <= 4 ? tf("Search Member {slot}", { slot }) : tf("Search Optional Member {slot}", { slot });
+    return `<label>${esc(searchLabel)}<input id="relayMemberSearch${slot}" data-relay-search="${slot}" placeholder="${esc(t("Name or stacker ID"))}" /></label>
       <label>${esc(memberLabel)}<select id="relayMember${slot}" data-relay-member="${slot}" data-domain-options></select></label>`;
   }).join("");
 }
@@ -2184,7 +2185,7 @@ function drawAwardSummary() {
     <article><span>${esc(t(item === "Trophy" ? "Trophies Needed" : "Medals Needed"))}</span><strong>${totals[item] || 0}</strong><small>${esc(t(item.toLowerCase() + " inventory"))}</small></article>
   `).join("");
   document.getElementById("awardRows").innerHTML = rows.map(row => `
-    <tr><td><strong>${esc(translateAwardText(row.group))}</strong></td><td>${esc(translateAwardText(row.basis))}</td><td>${esc(row.placeNumber ? tf("Place {number}", { number: row.placeNumber }) : row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
+    <tr><td><strong>${esc(row.group)}</strong></td><td>${esc(row.basis)}</td><td>${esc(row.placeNumber ? tf("Place {number}", { number: row.placeNumber }) : row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
   `).join("") || `<tr><td colspan="5"><span class="muted">${esc(t("No awards selected."))}</span></td></tr>`;
 }
 
@@ -2297,10 +2298,6 @@ function awardRowsForPlaces({ group, basis, places, items, unitsForPlace }) {
     item: normalizeAwardItem(items[index]),
     quantity: unitsForPlace(index)
   }));
-}
-
-function translateAwardText(value) {
-  return value;
 }
 
 function groupItemsByValue(items, getValue) {

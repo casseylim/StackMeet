@@ -32,7 +32,7 @@ for (const key of required) {
   }
 }
 
-const phase3eKeys = ["Version", "Prelim Entry", "Finals Entry", "{type} {stage} Entry", "{count} added", "{count} updated", "Unable to verify persistence", "{place} place", "Individual - {division}", "Doubles - {division}", "Relay Teams - {division}", "Planned division // {event}", "Planned category // {event} // 2 awards per team", "Planned category // {event} // {count} awards per team", "Top Male", "Top Female", "Top Special Male", "Top Special Female", "Top Overall Combined", "Normal male stackers", "Normal female stackers", "Special male stackers", "Special female stackers", "All normal stackers combined", "Award Item", "Trophy", "Medal", "Yes", "No", "No missing divisions"];
+const phase3eKeys = ["Version", "Prelim Entry", "Finals Entry", "{type} {stage} Entry", "{count} added", "{count} updated", "Unable to verify persistence", "Place {number}", "Individual - {division}", "Doubles - {division}", "Relay Teams - {division}", "Planned division // {event}", "Planned category // {event} // 2 awards per team", "Planned category // {event} // {count} awards per team", "Top Male", "Top Female", "Top Special Male", "Top Special Female", "Top Overall Combined", "Normal male stackers", "Normal female stackers", "Special male stackers", "Special female stackers", "All normal stackers combined", "Award Item", "Trophy", "Medal", "Yes", "No", "No missing divisions", "Member {slot}", "Optional Member {slot}", "Search Member {slot}", "Search Optional Member {slot}", "Location: {location}", "{country} · Organization: {organization}", "Stackers: {members} · Division: {division}"];
 for (const key of phase3eKeys) {
   for (const code of ["en", "ms", "zh-Hans"]) assert.ok(Object.prototype.hasOwnProperty.call(locales[code], key), `${code} missing generated UI key: ${key}`);
 }
@@ -54,11 +54,12 @@ assert.ok(app.includes('tf("{from} to {to}"') && app.includes('t("Print Range")'
 assert.ok(app.includes('t("All (by Overall)")') && app.includes('t("All (by Division)")') && app.includes('t("No Limit")'), "report filter options must localize dynamic labels");
 assert.ok(app.includes('t("English")'), "language editor header must localize on rerender");
 assert.ok(app.includes('t(doubleTypeLabel(d))') && app.includes('t(doubleStatusLabel(d))') && app.includes('t("No doubles found for this tab.")'), "doubles tab rerender must localize presentation");
-assert.ok(app.includes('t(status)') && app.includes('t("No relay teams found for this tab.")') && app.includes('tf("Member {number}"'), "relay tab rerender must localize presentation");
+assert.ok(app.includes('t(status)') && app.includes('t("No relay teams found for this tab.")') && app.includes('tf("Member {slot}"'), "relay tab rerender must localize presentation");
 assert.ok(app.includes("placeNumber") && app.includes('tf("Place {number}"') && !app.includes('tf("{place} place"'), "award rows must use numeric localized placement");
-assert.ok(app.includes('tf("Search {member}"') && app.includes('tf("{country} · Organization: {organization}"') && app.includes('tf("Stackers: {members} · Division: {division}"'), "dynamic print/editor composites must preserve domain placeholders");
+assert.ok(app.includes('tf("Search Member {slot}"') && app.includes('tf("Search Optional Member {slot}"') && app.includes('tf("{country} · Organization: {organization}"') && app.includes('tf("Stackers: {members} · Division: {division}"'), "dynamic print/editor composites must preserve domain placeholders");
 assert.ok(app.includes('packets: "All Packets"') && app.includes('badges: "Name Badges"') && app.includes('soc: "SOC Packet"') && app.includes('t(title)'), "print center generic titles must use translated labels");
 assert.ok(app.includes('t(val("bracketType"))'), "bracket type must be presentation-localized");
+assert.ok(!app.includes("translateAwardText"), "no-op award translation helper must not remain");
 
 for (const file of [index, app, auth, print]) assert.ok(file.includes("t(") || file.includes("data-i18n"), "operator source uses localization");
 assert.ok(index.includes("data-i18n=\"Language\""));
