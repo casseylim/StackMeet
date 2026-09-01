@@ -337,4 +337,5 @@
     "Waiting for results…": "Menunggu keputusan…"
   });
   Object.assign(root.StackMeetI18nLocales.ms, { "Live results": "Keputusan langsung", "Official results": "Keputusan rasmi" });
+  Object.assign(root.StackMeetI18nLocales.ms, { "Gold": "Emas", "Silver": "Perak", "Bronze": "Gangsa", "Total": "Jumlah", "No final medals published yet": "Belum ada pingat akhir diterbitkan", "This section is part of the next portal milestone. The live dashboard is already connected to official result saves.": "Bahagian ini adalah sebahagian daripada pencapaian portal seterusnya. Papan pemuka langsung telah disambungkan kepada simpanan keputusan rasmi.", "Return to dashboard": "Kembali ke papan pemuka" });
 })(typeof window !== "undefined" ? window : globalThis);

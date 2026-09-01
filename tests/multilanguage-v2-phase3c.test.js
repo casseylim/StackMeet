@@ -46,6 +46,7 @@ assert.strictEqual(locales["zh-Hans"]["Waiting for Results"], "等待成绩");
 assert.strictEqual(locales["zh-Hans"]["{count} participants"], "{count} 名选手");
 
 const client = fs.readFileSync("backend/StackMeet.Api/wwwroot/results/results.js", "utf8");
+const html = fs.readFileSync("backend/StackMeet.Api/wwwroot/results/index.html", "utf8");
 const controller = fs.readFileSync("backend/StackMeet.Api/Controllers/PublicResultsController.cs", "utf8");
 assert.match(client, /payload.settings?.language/);
 assert.match(client, /normalizeLanguageCode/);
@@ -54,6 +55,12 @@ assert.match(client, /hasExplicitLanguage/);
 assert.match(client, /if \(!hasExplicitLanguage\)/);
 assert.match(client, /t\("Official results"\)/);
 assert.match(client, /t\("Live results"\)/);
+assert.match(client, /function updatePublicNavigation/);
+assert.match(client, /updatePublicNavigation\(\)/);
+assert.match(client, /hasExplicitLanguage \|\| query\.get\("lang"\)/);
+for (const key of ["Automatic live refresh", "Competition results", "Latest results", "Results by stage", "Individual Preliminary Results", "Individual Final Results", "All-Around Results", "Doubles Results", "Relay Results", "Medal Table", "Powered by NADITrack"]) {
+  assert.ok(html.includes("data-i18n=\"" + key + "\""), "static UI must be localization-marked: " + key);
+}
 assert.match(client, /history.replaceState/);
 assert.match(client, /document.title/);
 assert.match(client, /setDocumentLanguage/);

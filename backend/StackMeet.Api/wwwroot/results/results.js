@@ -77,6 +77,7 @@
       hasExplicitLanguage = true;
     }
     applyStaticTranslations();
+    updatePublicNavigation();
     const selector = el("publicLanguage");
     if (selector) selector.value = activeLanguage;
     if (currentPayload) render(currentPayload);
@@ -85,17 +86,19 @@
   el("publicLanguage")?.addEventListener("change", event => updatePublicLanguage(event.target.value));
   applyStaticTranslations();
 
-  document.querySelectorAll(".section-nav a").forEach(link => {
-    const targetSection = link.dataset.section || "Dashboard";
-    const suffix = targetSection.toLowerCase() === "dashboard"
-      ? ""
-      : `/${encodeURIComponent(targetSection)}`;
-    link.href = publicUrlFor(`${resultsRoot}${suffix}`);
-    link.classList.toggle("active", targetSection.toLowerCase() === section.toLowerCase());
-  });
-
-  const backLink = document.querySelector(".back-link");
-  if (backLink) backLink.href = publicUrlFor(resultsRoot);
+  function updatePublicNavigation() {
+    document.querySelectorAll(".section-nav a").forEach(link => {
+      const targetSection = link.dataset.section || "Dashboard";
+      const suffix = targetSection.toLowerCase() === "dashboard"
+        ? ""
+        : `/${encodeURIComponent(targetSection)}`;
+      link.href = publicUrlFor(`${resultsRoot}${suffix}`);
+      link.classList.toggle("active", targetSection.toLowerCase() === section.toLowerCase());
+    });
+    const backLink = document.querySelector(".back-link");
+    if (backLink) backLink.href = publicUrlFor(resultsRoot);
+  }
+  updatePublicNavigation();
 
   if (!competitionId) {
     renderError("The competition ID is missing from this results link.");
@@ -164,7 +167,7 @@
     text("competitionCode", competition.id || competitionId);
     // Preserve the exact public results section currently being viewed when sharing.
     const publicUrlObject = new URL(location.pathname, "https://naditrack.com");
-    if (explicitLanguage || query.get("lang")) publicUrlObject.searchParams.set("lang", activeLanguage);
+    if (hasExplicitLanguage || query.get("lang")) publicUrlObject.searchParams.set("lang", activeLanguage);
     const publicUrl = publicUrlObject.toString();
     const qr = el("publicResultsQr");
     if (qr) qr.src = `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`;

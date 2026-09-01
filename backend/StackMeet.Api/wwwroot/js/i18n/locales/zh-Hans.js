@@ -326,4 +326,5 @@
     "Waiting for results…": "等待成绩…"
   });
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Live results": "实时成绩", "Official results": "正式成绩" });
+  Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Gold": "金牌", "Silver": "银牌", "Bronze": "铜牌", "Total": "总计", "No final medals published yet": "尚未公布决赛奖牌", "This section is part of the next portal milestone. The live dashboard is already connected to official result saves.": "此部分将在下一个门户里程碑中推出。实时仪表板已连接至正式成绩保存。", "Return to dashboard": "返回仪表板" });
 })(typeof window !== "undefined" ? window : globalThis);
