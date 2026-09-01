@@ -44,6 +44,15 @@ assert.ok(app.includes('tf("Individual - {division}"') && app.includes('tf("Plan
 assert.ok(app.includes('t(row.item)') && app.includes('t("Award Item")'), "award presentation must be localized");
 assert.ok(app.includes('t("No missing divisions")') && app.includes('t(sheet.entryType)'), "final presentation values must be localized");
 assert.ok(!/t\(\s*s\.(name|org|division|country)\s*\)/.test(app) && !/t\(\s*participant\.name\s*\)/.test(app), "domain data must not be translated");
+assert.ok(app.includes('group: t(group.label)') && app.includes('basis: t(group.basis)') && app.includes('tf("Top {count}"'), "dynamic award rows must be localized at source");
+assert.ok(app.includes('tf("Place {number}"') && !app.includes('tf("{place} place"'), "award ordinals must not leak English fragments");
+assert.ok(app.includes('tf("Update {id}"') && app.includes('tf("Edit Stacker {id}"'), "stacker edit labels must survive rerender");
+assert.ok(app.includes('tf("ID: {id}"') && app.includes('tf("Type: {type}"') && app.includes('tf("Status: {status}"') && app.includes('tf("Partner: {partner}"'), "doubles profile info must use formatted localization");
+assert.ok(app.includes('t(r.stage)') && app.includes('t(resultStatusLabel(r))') && app.includes('tf("No {stage} results yet."'), "result rows must localize controlled display values");
+assert.ok(app.includes('t("All required prelim times entered")') && app.includes('t("Complete")'), "missing-time rerenders must localize states");
+assert.ok(app.includes('tf("{from} to {to}"') && app.includes('t("Print Range")') && app.includes('t("No stackers found in this range.")'), "print preview rerenders must localize chrome");
+assert.ok(app.includes('t("All (by Overall)")') && app.includes('t("All (by Division)")') && app.includes('t("No Limit")'), "report filter options must localize dynamic labels");
+assert.ok(app.includes('t("English")'), "language editor header must localize on rerender");
 
 for (const file of [index, app, auth, print]) assert.ok(file.includes("t(") || file.includes("data-i18n"), "operator source uses localization");
 assert.ok(index.includes("data-i18n=\"Language\""));

@@ -1635,7 +1635,7 @@ function drawLanguageRows() {
     .filter(([english, translated]) => !term || `${english} ${translated}`.toLowerCase().includes(term))
     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }));
   const head = document.querySelector(".language-table thead tr");
-  if (head) head.innerHTML = `<th>English</th><th>${esc(label)}</th>`;
+  if (head) head.innerHTML = `<th>${esc(t("English"))}</th><th>${esc(label)}</th>`;
   document.getElementById("languageRows").innerHTML = entries.map(([english, malay]) => `
     <tr>
       <td><strong>${esc(english)}</strong></td>
@@ -2143,7 +2143,7 @@ function awardLimitOptions(selected, allowZero = false) {
 
 function awardPlaceItemControls(prefix, places, items) {
   return Array.from({ length: Number(places) || 0 }, (_, index) => `
-    <label>${esc(tf("{place} place", { place: ordinal(index + 1) }))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
+    <label>${esc(tf("Place {number}", { number: index + 1 }))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
   `).join("");
 }
 
@@ -2239,9 +2239,9 @@ function overallAwardRows() {
     const places = Number(config.limit) || 0;
     if (!places) return [];
     return [{
-      group: group.label,
-      basis: group.basis,
-      place: `Top ${places}`,
+      group: t(group.label),
+      basis: t(group.basis),
+      place: tf("Top {count}", { count: places }),
       item: normalizeAwardItem(config.item),
       quantity: places
     }];
@@ -3847,10 +3847,10 @@ function syncStackerEditState() {
   const saveButton = document.getElementById("saveStackerBtn");
   const cancelButton = document.getElementById("cancelStackerEdit");
   const printButton = document.getElementById("printStackerSheetBtn");
-  if (saveButton) saveButton.textContent = editingStackerId ? `Update ${editingStackerId}` : "Save Stacker";
+  if (saveButton) saveButton.textContent = editingStackerId ? tf("Update {id}", { id: editingStackerId }) : t("Save Stacker");
   if (cancelButton) cancelButton.hidden = false;
   const title = document.getElementById("stackerFormTitle");
-  if (title) title.textContent = editingStackerId ? `Edit Stacker ${editingStackerId}` : "New Stacker";
+  if (title) title.textContent = editingStackerId ? tf("Edit Stacker {id}", { id: editingStackerId }) : t("New Stacker");
   if (printButton) {
     printButton.hidden = !editingStackerId;
     printButton.dataset.id = editingStackerId;
@@ -3867,27 +3867,27 @@ function updateStackerDoublesInfo() {
     return;
   }
   const team = doublesForStacker(editingStackerId)[0];
-  const partner = team ? doublePartnerNameForStacker(team, editingStackerId) : "No doubles entry yet";
+  const partner = team ? doublePartnerNameForStacker(team, editingStackerId) : t("No doubles entry yet");
   const editorHtml = stackerDoubleEditorOpen ? `
     <div class="inline-editor">
-      <label>Status<select id="stDoubleStatus"><option value="complete">Complete</option><option value="pending">Need Partner</option></select></label>
-      <label>Search Registered Partner<input id="stDoublePartnerSearch" placeholder="Name or stacker ID" /></label>
-      <label>Registered Partner<select id="stDoublePartner"></select></label>
-      <label>Parent / Guardian<input id="stDoubleParentName" placeholder="External parent / guardian name" /></label>
-      <label>Custom Division<input id="stDoubleDivision" placeholder="Auto if blank" /></label>
+      <label>${esc(t("Status"))}<select id="stDoubleStatus"><option value="complete">${esc(t("Complete"))}</option><option value="pending">${esc(t("Need Partner"))}</option></select></label>
+      <label>${esc(t("Search Registered Partner"))}<input id="stDoublePartnerSearch" placeholder="${esc(t("Name or stacker ID"))}" /></label>
+      <label>${esc(t("Registered Partner"))}<select id="stDoublePartner"></select></label>
+      <label>${esc(t("Parent / Guardian"))}<input id="stDoubleParentName" placeholder="${esc(t("External parent / guardian name"))}" /></label>
+      <label>${esc(t("Custom Division"))}<input id="stDoubleDivision" placeholder="${esc(t("Auto if blank"))}" /></label>
       <div id="stDoubleWarning" class="inline-warning" hidden></div>
-      <button class="ghost compact-button" data-action="save-stacker-double" type="button">Save Doubles</button>
+      <button class="ghost compact-button" data-action="save-stacker-double" type="button">${esc(t("Save Doubles"))}</button>
     </div>
   ` : "";
   box.hidden = false;
   box.innerHTML = `
     <div class="info-strip-summary">
-      <strong>Doubles</strong>
-      <span>ID: ${esc(team?.id || "New")}</span>
-      <span>Type: ${esc(team ? doubleTypeLabel(team) : "Auto")}</span>
-      <span>Status: ${esc(team ? doubleStatusLabel(team) : "Not assigned")}</span>
-      <span>Partner: ${esc(partner)}</span>
-      <span>Division: ${esc(team ? doubleDivision(team) : "Auto")}</span>
+      <strong>${esc(t("Doubles"))}</strong>
+      <span>${esc(tf("ID: {id}", { id: team?.id || t("New") }))}</span>
+      <span>${esc(tf("Type: {type}", { type: t(team ? doubleTypeLabel(team) : "Auto") }))}</span>
+      <span>${esc(tf("Status: {status}", { status: t(team ? doubleStatusLabel(team) : "Not assigned") }))}</span>
+      <span>${esc(tf("Partner: {partner}", { partner }))}</span>
+      <span>${esc(tf("Division: {division}", { division: team ? doubleDivision(team) : t("Auto") }))}</span>
       <button class="ghost compact-button" data-action="edit-stacker-double" type="button">${esc(t("Edit Doubles"))}</button>
     </div>
     ${editorHtml}
@@ -3955,26 +3955,26 @@ function drawResultRows() {
     .slice(0, 12);
   document.getElementById("resultRows").innerHTML = rows.map(r => `
     <tr>
-      <td>${esc(r.stage)}</td><td><strong>${esc(participantName(r.type, r.participant))}</strong></td><td>${esc(r.event)}</td><td>${fmt(bestAttempt(r))}</td><td>${esc(resultStatusLabel(r))}</td>
+      <td>${esc(t(r.stage))}</td><td><strong>${esc(participantName(r.type, r.participant))}</strong></td><td>${esc(r.event)}</td><td>${fmt(bestAttempt(r))}</td><td>${esc(t(resultStatusLabel(r)))}</td>
       <td><button class="icon-button" data-action="delete-result" data-id="${esc(r.id)}" type="button">x</button></td>
     </tr>
-  `).join("") || `<tr><td colspan="6"><span class="muted">No ${esc(selectedStage || "")} results yet.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="6"><span class="muted">${esc(tf("No {stage} results yet.", { stage: selectedStage ? t(selectedStage) : "" }))}</span></td></tr>`;
 }
 
 function drawMissingTimes() {
   const groups = missingPrelimGroups();
   const totalMissing = groups.reduce((total, group) => total + group.items.length, 0);
-  const summary = `<div class="missing-summary">${groups.map(group => `<div><span>${esc(group.summaryLabel)}</span><strong>${group.items.length}</strong></div>`).join("")}</div>`;
+  const summary = `<div class="missing-summary">${groups.map(group => `<div><span>${esc(t(group.summaryLabel))}</span><strong>${group.items.length}</strong></div>`).join("")}</div>`;
   const lists = groups.map(group => `
     <section class="missing-group">
-      <h3>${esc(group.label)}</h3>
+      <h3>${esc(t(group.label))}</h3>
       <div class="missing-entry-list">${group.items.map(item => `
         <button class="missing-entry-button" data-action="load-missing-prelim" data-id="${esc(item.id)}" type="button">
           <span><strong>${esc(item.id)}</strong>${esc(item.name)}</span>
           <small>${esc(item.missingEvents.join(", "))}</small>
-        </button>`).join("") || `<p class="muted">Complete</p>`}</div>
+        </button>`).join("") || `<p class="muted">${esc(t("Complete"))}</p>`}</div>
     </section>`).join("");
-  document.getElementById("missingTimes").innerHTML = `${summary}${totalMissing ? `<div class="missing-groups">${lists}</div>` : `<div class="list-row"><strong>All required prelim times entered</strong></div>`}`;
+  document.getElementById("missingTimes").innerHTML = `${summary}${totalMissing ? `<div class="missing-groups">${lists}</div>` : `<div class="list-row"><strong>${esc(t("All required prelim times entered"))}</strong></div>`}`;
 }
 
 function missingPrelimGroups() {
@@ -4029,17 +4029,17 @@ function populateCompetitionReportBuilder() {
     const current = divisionSelect.value || "all";
     const divisions = sortedDivisions(["Collegiate C", "Masters 1-4 C", ...state.divisions, ...state.stackers.map(stacker => stacker.division)]);
     divisionSelect.innerHTML = [
-      `<option value="all">All (by Overall)</option>`,
-      `<option value="all-div">All (by Division)</option>`,
+      `<option value="all">${esc(t("All (by Overall)"))}</option>`,
+      `<option value="all-div">${esc(t("All (by Division)"))}</option>`,
       ...divisions.map(division => `<option value="${esc(division)}" data-domain-option="true">${esc(division)}</option>`)
     ].join("");
     if ([...divisionSelect.options].some(option => option.value === current)) divisionSelect.value = current;
   }
   const limitSelect = document.getElementById("competitionLimit");
   if (limitSelect && !limitSelect.options.length) {
-    limitSelect.innerHTML = [`<option value="0">No Limit</option>`, ...Array.from({ length: 25 }, (_, index) => {
+    limitSelect.innerHTML = [`<option value="0">${esc(t("No Limit"))}</option>`, ...Array.from({ length: 25 }, (_, index) => {
       const value = index + 1;
-      return `<option value="${value}">Top ${value}</option>`;
+      return `<option value="${value}">${esc(tf("Top {count}", { count: value }))}</option>`;
     })].join("");
   }
 }
@@ -5976,21 +5976,21 @@ function buildPaperwork(type) {
   }
   if (type === "individual-prelim") {
     const stackers = selectedStackersForPrintRange();
-    const range = stackers.length ? `${stackers[0].id} to ${stackers[stackers.length - 1].id}` : "No stackers";
-    out.innerHTML = `<div class="panel-head no-print"><h2>Individual Time Sheets (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">Print Range</button></div>
-      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">No stackers found in this range.</p>`}</div>`;
+    const range = stackers.length ? tf("{from} to {to}", { from: stackers[0].id, to: stackers[stackers.length - 1].id }) : t("No stackers");
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(tf("Individual Time Sheets ({range})", { range }))}</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print Range"))}</button></div>
+      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">${esc(t("No stackers found in this range."))}</p>`}</div>`;
     return;
   }
   if (type === "doubles-prelim") {
     const teams = printableDoublesTeams();
-    out.innerHTML = `<div class="panel-head no-print"><h2>Doubles Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">No completed doubles teams are available for preliminary time sheets.</p>`}</div>`;
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Doubles Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">${esc(t("No completed doubles teams are available for preliminary time sheets."))}</p>`}</div>`;
     return;
   }
   if (type === "relay-prelim") {
     const teams = completedRelays();
-    out.innerHTML = `<div class="panel-head no-print"><h2>Relay Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">No ready relay teams are available for preliminary time sheets.</p>`}</div>`;
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Relay Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">${esc(t("No ready relay teams are available for preliminary time sheets."))}</p>`}</div>`;
     return;
   }
   const sample = state.stackers.slice(0, 6);
@@ -6140,8 +6140,8 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
   const out = document.getElementById("paperOutput");
   const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-  out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} Bracket</h2><button class="ghost" onclick="window.print()" type="button">Print</button></div>
-    ${Array.from({ length: size }, (_, i) => `<div class="bracket">Seed ${i + 1}: ____________________________</div>`).join("")}`;
+  out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+    ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 
 function countBy(key, value) {
