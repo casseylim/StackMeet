@@ -8,25 +8,94 @@
   const resultsRoot = competitionId ? `/${encodeURIComponent(competitionId)}/Results` : "";
   const endpoint = `/api/public/competitions/${encodeURIComponent(competitionId)}/results`;
   const stackMeetTimeZone = "Asia/Kuala_Lumpur";
-  const stackMeetLocale = "en-MY";
+  const i18n = window.StackMeetI18n || {
+    normalizeLanguageCode: code => code === "ms" ? "ms" : code === "zh" || code === "zh-Hans" ? "zh-Hans" : "en",
+    supportedLanguages: () => ["en", "ms", "zh-Hans"],
+    translate: value => String(value ?? ""),
+    format: (template, values) => String(template ?? "").replace(/\{([a-zA-Z][\w]*)\}/g, (match, name) => values && Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : match),
+    setDocumentLanguage: () => "en"
+  };
+  const builtInLocales = window.StackMeetI18nLocales || {};
+  const query = typeof URLSearchParams !== "undefined"
+    ? new URLSearchParams(typeof location.search === "string" ? location.search : "")
+    : { get: () => null };
+  const rawQueryLanguage = query.get("lang");
+  const isSupportedLanguage = value => i18n.supportedLanguages().some(code => String(code).toLowerCase() === String(value || "").toLowerCase() || (code === "zh-Hans" && String(value).toLowerCase() === "zh"));
+  const explicitLanguage = rawQueryLanguage && isSupportedLanguage(rawQueryLanguage) ? i18n.normalizeLanguageCode(rawQueryLanguage) : "";
+  let hasExplicitLanguage = Boolean(explicitLanguage);
+  let activeLanguage = explicitLanguage || "en";
+  let publicTranslations = {};
+  let currentPayload = null;
+  const stackMeetLocale = () => activeLanguage === "ms" ? "ms-MY" : activeLanguage === "zh-Hans" ? "zh-Hans-MY" : "en-MY";
   let lastVersion = "";
   let refreshInFlight = false;
 
   const el = id => document.getElementById(id);
-  const text = (id, value) => { const node = el(id); if (node) node.textContent = value; };
+  const t = key => i18n.translate(key, activeLanguage, publicTranslations, builtInLocales);
+  const tf = (template, values) => i18n.format(t(template), values);
+  const display = value => {
+    const source = String(value ?? "");
+    return Object.prototype.hasOwnProperty.call(builtInLocales[activeLanguage] || {}, source)
+      || Object.prototype.hasOwnProperty.call(publicTranslations[activeLanguage] || {}, source)
+      ? t(source)
+      : source;
+  };
+  const text = (id, value) => { const node = el(id); if (node) node.textContent = display(value); };
   const show = (id, visible) => { const node = el(id); if (node) node.hidden = !visible; };
+
+  function safeTranslations(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const result = {};
+    for (const code of ["en", "ms", "zh-Hans", "zh"]) {
+      if (!value[code] || typeof value[code] !== "object" || Array.isArray(value[code])) continue;
+      result[code] = Object.fromEntries(Object.entries(value[code]).filter(([key, item]) => typeof key === "string" && key.trim() && typeof item === "string" && item.trim()));
+    }
+    return result;
+  }
+
+  function publicUrlFor(path) {
+    if (!hasExplicitLanguage && !query.get("lang")) return path;
+    const separator = String(path).includes("?") ? "&" : "?";
+    return `${path}${separator}lang=${encodeURIComponent(activeLanguage)}`;
+  }
+
+  function applyStaticTranslations() {
+    document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = t(node.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria-label]").forEach(node => node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel)));
+    document.querySelectorAll("[data-i18n-alt]").forEach(node => node.setAttribute("alt", t(node.dataset.i18nAlt)));
+    document.querySelectorAll("[data-i18n-content]").forEach(node => node.setAttribute("content", t(node.dataset.i18nContent)));
+    document.querySelectorAll("[data-i18n-title]").forEach(node => node.setAttribute("title", t(node.dataset.i18nTitle)));
+    i18n.setDocumentLanguage(activeLanguage, document);
+    document.title = t("NADITrack Live Results");
+  }
+
+  function updatePublicLanguage(language, replaceUrl = true) {
+    activeLanguage = i18n.normalizeLanguageCode(language);
+    if (replaceUrl && typeof history !== "undefined" && history.replaceState) {
+      const path = String(location.pathname || "");
+      history.replaceState(null, "", `${path}?lang=${encodeURIComponent(activeLanguage)}`);
+      hasExplicitLanguage = true;
+    }
+    applyStaticTranslations();
+    const selector = el("publicLanguage");
+    if (selector) selector.value = activeLanguage;
+    if (currentPayload) render(currentPayload);
+  }
+
+  el("publicLanguage")?.addEventListener("change", event => updatePublicLanguage(event.target.value));
+  applyStaticTranslations();
 
   document.querySelectorAll(".section-nav a").forEach(link => {
     const targetSection = link.dataset.section || "Dashboard";
     const suffix = targetSection.toLowerCase() === "dashboard"
       ? ""
       : `/${encodeURIComponent(targetSection)}`;
-    link.href = `${resultsRoot}${suffix}`;
+    link.href = publicUrlFor(`${resultsRoot}${suffix}`);
     link.classList.toggle("active", targetSection.toLowerCase() === section.toLowerCase());
   });
 
   const backLink = document.querySelector(".back-link");
-  if (backLink) backLink.href = resultsRoot;
+  if (backLink) backLink.href = publicUrlFor(resultsRoot);
 
   if (!competitionId) {
     renderError("The competition ID is missing from this results link.");
@@ -58,13 +127,21 @@
       }
 
       const payload = await response.json();
+      currentPayload = payload;
+      publicTranslations = safeTranslations(payload.translations);
+      if (!explicitLanguage) activeLanguage = isSupportedLanguage(payload.settings?.language)
+        ? i18n.normalizeLanguageCode(payload.settings.language)
+        : "en";
+      applyStaticTranslations();
       const branding = payload.branding || {};
       const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
       if (showLoader || version !== lastVersion) render(payload);
       lastVersion = version;
       setConnection("live", "Connected");
     } catch (error) {
-      if (showLoader || !lastVersion) renderError(error.message);
+      if (showLoader || !lastVersion) renderError(error.message === "The competition does not exist, is archived, or has no published results yet."
+        ? error.message
+        : "The results service is temporarily unavailable.");
       setConnection("offline", "Reconnecting");
     } finally {
       refreshInFlight = false;
@@ -81,15 +158,17 @@
     if (logo) { logo.onerror = () => { logo.onerror = null; logo.src = "/assets/stackmeet-logo.png"; }; logo.src = branding.logoUrl || "/assets/stackmeet-logo.png"; logo.alt = `${competition.name || "Competition"} logo`; logo.hidden = false; }
     const banner = el("competitionBanner");
     if (banner) { banner.onerror = () => { banner.onerror = null; banner.src = "/assets/competition-banner.png"; }; banner.src = branding.bannerUrl || "/assets/competition-banner.png"; banner.alt = `${competition.name || "Competition"} banner`; banner.hidden = false; }
-    document.title = `${competition.name || "Competition"} · NADITrack Results`;
+    document.title = `${competition.name || t("Competition")} · ${t("NADITrack Results")}`;
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));
     text("competitionCode", competition.id || competitionId);
     // Preserve the exact public results section currently being viewed when sharing.
-    const publicUrl = new URL(location.pathname, "https://naditrack.com").toString();
+    const publicUrlObject = new URL(location.pathname, "https://naditrack.com");
+    if (explicitLanguage || query.get("lang")) publicUrlObject.searchParams.set("lang", activeLanguage);
+    const publicUrl = publicUrlObject.toString();
     const qr = el("publicResultsQr");
     if (qr) qr.src = `https://qrcodecat.com/api/qrcode?size=300x300&format=png&margin=10&color=0f172a&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`;
-    text("lastUpdated", `Updated ${formatClock(payload.lastUpdatedAt)}`);
+    text("lastUpdated", tf("Updated {time}", { time: formatClock(payload.lastUpdatedAt) }));
     text("latestTime", formatClock(payload.lastUpdatedAt));
 
     const official = competition.isOfficial === true;
@@ -106,14 +185,14 @@
     const disclaimer = el("disclaimer");
     if (disclaimer) {
       if (!hasPublishedResults) {
-        disclaimer.innerHTML = "<strong>Waiting for Results</strong><span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>";
+        disclaimer.replaceChildren(make("strong", "", t("Waiting for Results")), make("span", "", t("No results have been published in this section yet. This page will update automatically when officials save the first result.")));
       } else if (selectedSection === "preliminary" || selectedSection === "prelims") {
         // Preliminary standings are live, so the qualifier labels must stay clearly non-final.
-        disclaimer.innerHTML = "<strong>Results are not final, times/rankings may change.</strong><span>Qualified status is based on the current finals cutoff and may change as new preliminary times are saved.</span>";
+        disclaimer.replaceChildren(make("strong", "", t("Results are not final, times/rankings may change.")), make("span", "", t("Qualified status is based on the current finals cutoff and may change as new preliminary times are saved.")));
       } else if (official) {
-        disclaimer.innerHTML = "<strong>Official Results</strong><span>This competition is closed and the published results are official.</span>";
+        disclaimer.replaceChildren(make("strong", "", t("Official Results")), make("span", "", t("This competition is closed and the published results are official.")));
       } else {
-        disclaimer.innerHTML = "<strong>Live Results</strong><span>Results update automatically as officials enter them. Rankings, qualification positions, and medal standings are provisional until the event is completed and verified.</span>";
+        disclaimer.replaceChildren(make("strong", "", t("Live Results")), make("span", "", t("Results update automatically as officials enter them. Rankings, qualification positions, and medal standings are provisional until the event is completed and verified.")));
       }
     }
     show("medals", false);
@@ -218,13 +297,13 @@
     const participantIds = new Set(results.map(result => result.participant).filter(Boolean));
 
     text("resultCount", String(results.length));
-    text("participantCount", `${participantIds.size} participant${participantIds.size === 1 ? "" : "s"}`);
+    text("participantCount", tf("{count} participants", { count: participantIds.size }));
     text("currentStage", current?.stage || "Preliminary");
-    text("currentEvent", current ? [current.type, current.event].filter(Boolean).join(" · ") : "Waiting for the first result");
+    text("currentEvent", current ? [current.type, current.event].filter(Boolean).join(" · ") : t("Waiting for the first result"));
 
     const eligible = Math.max(stackers.length, participantIds.size);
     const percentage = eligible ? Math.min(100, Math.round((participantIds.size / eligible) * 100)) : 0;
-    text("progressText", eligible ? `${participantIds.size} / ${eligible} participants` : "0 results");
+    text("progressText", eligible ? `${participantIds.size} / ${eligible} ${t("participants")}` : `0 ${t("results")}`);
     const progress = el("progressBar");
     if (progress) progress.style.width = `${percentage}%`;
 
@@ -286,16 +365,16 @@
       const state = available ? (official ? "official" : "live") : "not-started";
       const statusLabel = available ? (official ? "Official" : "Live") : "Not started";
       const countLabel = available
-        ? `${item.count} ${item.noun}${item.count === 1 ? "" : "s"}`
-        : "Waiting for results";
+        ? `${item.count} ${t(item.noun)}${item.count === 1 ? "" : "s"}`
+        : t("Waiting for results");
       const link = make("a", "section-status-card");
-      link.href = `${resultsRoot}/${item.route}`;
+      link.href = publicUrlFor(`${resultsRoot}/${item.route}`);
       link.dataset.status = state;
-      link.setAttribute("aria-label", `${item.label}: ${statusLabel}. ${countLabel}.`);
+      link.setAttribute("aria-label", `${t(item.label)}: ${t(statusLabel)}. ${countLabel}.`);
       const copy = make("span", "section-status-copy");
-      copy.append(make("strong", "", item.label), make("span", "", item.description));
+      copy.append(make("strong", "", t(item.label)), make("span", "", t(item.description)));
       const meta = make("span", "section-status-meta");
-      meta.append(make("span", `section-state ${state}`, statusLabel), make("span", "section-count", countLabel));
+      meta.append(make("span", `section-state ${state}`, t(statusLabel)), make("span", "section-count", countLabel));
       link.append(copy, meta, make("span", "section-status-arrow", "→"));
       grid.append(link);
     });
@@ -1701,7 +1780,7 @@
   function formatClock(value) {
     const date = parseUtcDate(value);
     return date
-      ? new Intl.DateTimeFormat(stackMeetLocale, { timeZone: stackMeetTimeZone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)
+      ? new Intl.DateTimeFormat(stackMeetLocale(), { timeZone: stackMeetTimeZone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)
       : "just now";
   }
 
@@ -1716,7 +1795,7 @@
     const startDate = dateOnly(start);
     const endDate = dateOnly(end);
     if (!startDate) return "";
-    const format = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+    const format = new Intl.DateTimeFormat(stackMeetLocale(), { timeZone: stackMeetTimeZone, day: "numeric", month: "short", year: "numeric" });
     if (!endDate || startDate.getTime() === endDate.getTime()) return format.format(startDate);
     return `${format.format(startDate)} – ${format.format(endDate)}`;
   }

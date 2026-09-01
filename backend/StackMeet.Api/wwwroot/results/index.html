@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07152e">
-  <meta name="description" content="Live sport stacking competition results">
-  <title>NADITrack Live Results</title>
+  <meta name="description" content="Live sport stacking competition results" data-i18n-content="Live sport stacking competition results">
+  <title data-i18n="NADITrack Live Results">NADITrack Live Results</title>
   <link rel="icon" type="image/png" href="/assets/stackmeet-logo.png?v=results-favicon">
   <link rel="apple-touch-icon" href="/assets/stackmeet-logo.png?v=results-favicon">
   <link rel="stylesheet" href="/results/results.css?v=public-results-quick-jump-20260818a">
@@ -14,21 +14,28 @@
   <div class="app-shell">
     <header class="hero">
       <div class="brand-row">
-        <a class="brand" href="/" aria-label="NADITrack home">
+        <a class="brand" href="/" aria-label="NADITrack home" data-i18n-aria-label="NADITrack home">
           <span class="brand-mark" aria-hidden="true">S</span>
           <span>NADITrack</span>
         </a>
+        <label class="public-language-label" for="publicLanguage" data-i18n="Language">Language
+          <select id="publicLanguage" aria-label="Language" data-i18n-aria-label="Language">
+            <option value="en" data-i18n="English">English</option>
+            <option value="ms" data-i18n="Bahasa Malaysia">Bahasa Malaysia</option>
+            <option value="zh-Hans" data-i18n="Simplified Chinese">简体中文</option>
+          </select>
+        </label>
         <span id="connectionStatus" class="connection" data-state="connecting">
-          <span class="connection-dot"></span><span>Connecting</span>
+          <span class="connection-dot"></span><span data-i18n="Connecting">Connecting</span>
         </span>
       </div>
       <div class="hero-copy">
         <img id="competitionBanner" class="competition-banner" alt="" hidden>
         <div class="status-row">
-          <span id="resultStatus" class="result-status waiting">Waiting for results</span>
-          <span id="lastUpdated">Waiting for results…</span>
+        <span id="resultStatus" class="result-status waiting" data-i18n="Waiting for results">Waiting for results</span>
+          <span id="lastUpdated" data-i18n="Waiting for results…">Waiting for results…</span>
         </div>
-        <h1 id="competitionName">Competition Results</h1>
+        <h1 id="competitionName" data-i18n="Competition Results">Competition Results</h1>
         <img id="competitionLogo" class="competition-logo" alt="" hidden>
         <p id="competitionMeta" class="competition-meta"></p>
       </div>
@@ -36,36 +43,36 @@
 
     <main>
       <aside id="disclaimer" class="disclaimer" role="status">
-        <strong>Waiting for Results</strong>
-        <span>No results have been published in this section yet. This page will update automatically when officials save the first result.</span>
+        <strong data-i18n="Waiting for Results">Waiting for Results</strong>
+        <span data-i18n="No results have been published in this section yet. This page will update automatically when officials save the first result.">No results have been published in this section yet. This page will update automatically when officials save the first result.</span>
       </aside>
 
-      <nav class="section-nav" aria-label="Results sections">
-        <a class="active" data-section="Dashboard" href="#">Dashboard</a>
-        <a data-section="Preliminary" href="#">Individual Prelim</a>
-        <a data-section="Finals" href="#">Individual Finals</a>
-        <a data-section="AllAround" href="#">All Around</a>
-        <a data-section="Doubles" href="#">Doubles</a>
-        <a data-section="Relay" href="#">Relay</a>
-        <a data-section="Medals" href="#">Medals</a>
+      <nav class="section-nav" aria-label="Results sections" data-i18n-aria-label="Results sections">
+        <a class="active" data-section="Dashboard" href="#" data-i18n="Dashboard">Dashboard</a>
+        <a data-section="Preliminary" href="#" data-i18n="Individual Prelim">Individual Prelim</a>
+        <a data-section="Finals" href="#" data-i18n="Individual Finals">Individual Finals</a>
+        <a data-section="AllAround" href="#" data-i18n="All Around">All Around</a>
+        <a data-section="Doubles" href="#" data-i18n="Doubles">Doubles</a>
+        <a data-section="Relay" href="#" data-i18n="Relay">Relay</a>
+        <a data-section="Medals" href="#" data-i18n="Medals">Medals</a>
       </nav>
 
       <section id="loadingState" class="panel loading-panel" aria-live="polite">
         <span class="spinner"></span>
-        <p>Loading the latest competition results…</p>
+        <p data-i18n="Loading the latest competition results…">Loading the latest competition results…</p>
       </section>
 
       <section id="errorState" class="panel empty-state" hidden>
         <span class="empty-icon" aria-hidden="true">!</span>
-        <h2>Results are not available yet</h2>
-        <p id="errorMessage">Please check the competition link or try again shortly.</p>
-        <button id="retryButton" type="button">Try again</button>
+        <h2 data-i18n="Results are not available yet">Results are not available yet</h2>
+        <p id="errorMessage" data-i18n="Please check the competition link or try again shortly.">Please check the competition link or try again shortly.</p>
+        <button id="retryButton" type="button" data-i18n="Try again">Try again</button>
       </section>
 
       <div id="dashboard" hidden>
         <section class="panel share-panel" aria-labelledby="shareResultsTitle">
-          <h2 id="shareResultsTitle" class="visually-hidden">Share public results</h2>
-          <img id="publicResultsQr" class="share-qr" width="160" height="160" alt="QR code for public results" loading="lazy">
+          <h2 id="shareResultsTitle" class="visually-hidden" data-i18n="Share public results">Share public results</h2>
+          <img id="publicResultsQr" class="share-qr" width="160" height="160" alt="QR code for public results" data-i18n-alt="QR code for public results" loading="lazy">
           <a class="affiliate-banner" href="https://www.myasp.net/index?r=wssans" target="_blank" rel="noopener noreferrer" aria-label="Visit MyASP">
             <img src="https://www.myasp.net/affiliate/728X90.gif" width="728" height="90" alt="MyASP" loading="lazy">
           </a>
@@ -253,7 +260,11 @@
       <span id="competitionCode"></span>
     </footer>
   </div>
+  <script src="/js/i18n/I18n.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/en.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/ms.js?v=multilanguage-v2-phase3c"></script>
+  <script src="/js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3c"></script>
   <script src="/results/vendor/signalr.min.js"></script>
-  <script src="/results/results.js?v=public-results-sync-events-20260826a"></script>
+  <script src="/results/results.js?v=multilanguage-v2-phase3c"></script>
 </body>
 </html>

@@ -106,6 +106,7 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             branding,
             lastUpdatedAt = sqlResults.Select(item => (DateTime?)item.UpdatedAt).Concat(new[] { (DateTime?)savedState.UpdatedAt, assetUpdatedAt, stackersUpdatedAt }).Max(),
             settings = PublicSettings(root),
+            translations = PublicTranslations(root),
             divisions = PublicDivisions(root),
             results = resultRows,
             doubles = PublicDoubles(root),
@@ -127,8 +128,32 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
             advanceIndividuals = Number(settings, "advanceIndividuals"),
             advanceDoubles = Number(settings, "advanceDoubles"),
             advanceCpDoubles = Number(settings, "advanceCpDoubles"),
-            advanceRelay = Number(settings, "advanceRelay")
+            advanceRelay = Number(settings, "advanceRelay"),
+            language = Text(settings, "language")
         };
+    }
+
+    private static Dictionary<string, Dictionary<string, string>> PublicTranslations(JsonElement root)
+    {
+        var result = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        if (!root.TryGetProperty("translations", out var translations) || translations.ValueKind != JsonValueKind.Object)
+            return result;
+
+        foreach (var locale in new[] { "en", "ms", "zh-Hans", "zh" })
+        {
+            if (!translations.TryGetProperty(locale, out var dictionary) || dictionary.ValueKind != JsonValueKind.Object)
+                continue;
+            var safe = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var entry in dictionary.EnumerateObject())
+            {
+                if (entry.Value.ValueKind != JsonValueKind.String) continue;
+                var value = entry.Value.GetString();
+                if (!string.IsNullOrWhiteSpace(entry.Name) && !string.IsNullOrWhiteSpace(value))
+                    safe[entry.Name] = value!;
+            }
+            result[locale] = safe;
+        }
+        return result;
     }
 
     private static string[] PublicDivisions(JsonElement root)
