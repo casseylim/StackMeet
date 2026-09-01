@@ -32,6 +32,19 @@ for (const key of required) {
   }
 }
 
+const phase3eKeys = ["Version", "Prelim Entry", "Finals Entry", "{type} {stage} Entry", "{count} added", "{count} updated", "Unable to verify persistence", "{place} place", "Individual - {division}", "Doubles - {division}", "Relay Teams - {division}", "Planned division // {event}", "Planned category // {event} // 2 awards per team", "Planned category // {event} // {count} awards per team", "Top Male", "Top Female", "Top Special Male", "Top Special Female", "Top Overall Combined", "Normal male stackers", "Normal female stackers", "Special male stackers", "Special female stackers", "All normal stackers combined", "Award Item", "Trophy", "Medal", "Yes", "No", "No missing divisions"];
+for (const key of phase3eKeys) {
+  for (const code of ["en", "ms", "zh-Hans"]) assert.ok(Object.prototype.hasOwnProperty.call(locales[code], key), `${code} missing generated UI key: ${key}`);
+}
+assert.ok(app.includes('t(s.special || "No")') && app.includes('t(s.paid || "No")') && app.includes('t(s.checkedIn || "No")'), "participant status display must be localized");
+assert.ok(app.includes('t("Version")'), "dashboard version must be localized");
+assert.ok(app.includes('tf("{count} added"') && app.includes('tf("{count} updated"'), "prelim actions must be localized");
+assert.ok(app.includes('tf("{type} {stage} Entry"'), "entry heading must be localized");
+assert.ok(app.includes('tf("Individual - {division}"') && app.includes('tf("Planned division // {event}"'), "award summaries must preserve domain placeholders");
+assert.ok(app.includes('t(row.item)') && app.includes('t("Award Item")'), "award presentation must be localized");
+assert.ok(app.includes('t("No missing divisions")') && app.includes('t(sheet.entryType)'), "final presentation values must be localized");
+assert.ok(!/t\(\s*s\.(name|org|division|country)\s*\)/.test(app) && !/t\(\s*participant\.name\s*\)/.test(app), "domain data must not be translated");
+
 for (const file of [index, app, auth, print]) assert.ok(file.includes("t(") || file.includes("data-i18n"), "operator source uses localization");
 assert.ok(index.includes("data-i18n=\"Language\""));
 assert.ok(app.includes("translateChrome()") || app.includes("translateChrome"));

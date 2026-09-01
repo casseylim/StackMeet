@@ -1442,7 +1442,7 @@ function renderDashboard() {
       <div class="list-row"><span>${esc(t("Date"))}</span><strong>${esc(tf("{from} to {to}", { from: competition.startDate, to: competition.endDate }))}</strong></div>
       <div class="list-row"><span>${esc(t("Venue"))}</span><strong>${esc(competition.venue || "--")}</strong></div>
       <div class="list-row"><span>${esc(t("Rounds"))}</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
-      <div class="list-row"><span>Version</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
+      <div class="list-row"><span>${esc(t("Version"))}</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
     <div class="results-share">
       <div>
@@ -1839,9 +1839,9 @@ function drawStackerRows() {
     <tr>
       <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.id)}</button></td>
       <td data-domain><button class="link-button" data-action="edit-stacker" data-id="${esc(s.id)}" type="button">${esc(s.name)}</button></td>
-      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(s.special || "No")}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
-      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(s.paid)}</span></td>
-      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(s.checkedIn || "No")}</span></td>
+      <td data-domain>${esc(s.age || ageOnCompetitionDate(s.dob, state.settings.start))}</td><td data-domain>${esc(s.gender)}</td><td data-domain><span class="pill ${s.special === "Yes" ? "blue" : ""}">${esc(t(s.special || "No"))}</span></td><td data-domain>${esc(s.org)}</td><td data-domain>${esc(s.division)}</td><td data-domain>${esc(s.country)}</td>
+      <td data-domain><span class="pill ${s.paid === "Yes" ? "" : "warning"}">${esc(t(s.paid || "No"))}</span></td>
+      <td data-domain><span class="pill ${s.checkedIn === "Yes" ? "blue" : "warning"}">${esc(t(s.checkedIn || "No"))}</span></td>
       <td><button class="icon-button" data-action="delete-stacker" data-id="${esc(s.id)}" type="button">x</button></td>
     </tr>
   `).join("");
@@ -2105,10 +2105,10 @@ function renderAwards() {
   document.getElementById("awardOverallConfig").innerHTML = awardOverallGroups.map(group => {
     const config = state.awards.overall[group.key] || defaultAwards.overall[group.key];
     return `<article class="award-config-card">
-      <h3>${esc(group.label)}</h3>
-      <p class="muted">${esc(group.basis)}</p>
+      <h3>${esc(t(group.label))}</h3>
+      <p class="muted">${esc(t(group.basis))}</p>
       <label>${esc(t("Places"))}<select id="awardOverallLimit-${esc(group.key)}">${awardLimitOptions(config.limit, true)}</select></label>
-      <label>Award Item<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
+      <label>${esc(t("Award Item"))}<select id="awardOverallItem-${esc(group.key)}">${awardItemOptions(config.item)}</select></label>
     </article>`;
   }).join("");
   document.querySelectorAll("[id^='award']").forEach(select => select.addEventListener("change", handleAwardPlannerChange));
@@ -2143,7 +2143,7 @@ function awardLimitOptions(selected, allowZero = false) {
 
 function awardPlaceItemControls(prefix, places, items) {
   return Array.from({ length: Number(places) || 0 }, (_, index) => `
-    <label>${esc(ordinal(index + 1))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
+    <label>${esc(tf("{place} place", { place: ordinal(index + 1) }))}<select id="award-${prefix}-${index}">${awardItemOptions(items[index])}</select></label>
   `).join("");
 }
 
@@ -2184,7 +2184,7 @@ function drawAwardSummary() {
     <article><span>${esc(t(item === "Trophy" ? "Trophies Needed" : "Medals Needed"))}</span><strong>${totals[item] || 0}</strong><small>${esc(t(item.toLowerCase() + " inventory"))}</small></article>
   `).join("");
   document.getElementById("awardRows").innerHTML = rows.map(row => `
-    <tr><td><strong>${esc(row.group)}</strong></td><td>${esc(row.basis)}</td><td>${esc(row.place)}</td><td>${esc(row.item)}</td><td><strong>${row.quantity}</strong></td></tr>
+    <tr><td><strong>${esc(translateAwardText(row.group))}</strong></td><td>${esc(translateAwardText(row.basis))}</td><td>${esc(row.place)}</td><td>${esc(t(row.item))}</td><td><strong>${row.quantity}</strong></td></tr>
   `).join("") || `<tr><td colspan="5"><span class="muted">${esc(t("No awards selected."))}</span></td></tr>`;
 }
 
@@ -2201,8 +2201,8 @@ function individualAwardRows() {
   const divisions = plannedIndividualAwardDivisions();
   const events = plannedEventsForGroup("Individuals");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Individual - ${division}`,
-      basis: `Planned division // ${event}`,
+      group: tf("Individual - {division}", { division }),
+      basis: tf("Planned division // {event}", { event }),
       places: Number(state.awards.individualPlaces) || 0,
       items: state.awards.individualItems,
       unitsForPlace: () => 1
@@ -2213,8 +2213,8 @@ function doublesAwardRows() {
   const divisions = plannedDoublesAwardDivisions();
   const events = plannedEventsForGroup("Doubles");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Doubles - ${division}`,
-      basis: `Planned category // ${event} // 2 awards per team`,
+      group: tf("Doubles - {division}", { division }),
+      basis: tf("Planned category // {event} // 2 awards per team", { event }),
       places: Number(state.awards.doublesPlaces) || 0,
       items: state.awards.doublesItems,
       unitsForPlace: () => 2
@@ -2225,8 +2225,8 @@ function relayAwardRows() {
   const divisions = plannedRelayAwardDivisions();
   const events = plannedEventsForGroup("Timed Relay");
   return divisions.flatMap(division => events.flatMap(event => awardRowsForPlaces({
-      group: `Relay Teams - ${division}`,
-      basis: `Planned category // ${event} // ${state.awards.relayUnits} awards per team`,
+      group: tf("Relay Teams - {division}", { division }),
+      basis: tf("Planned category // {event} // {count} awards per team", { event, count: state.awards.relayUnits }),
       places: Number(state.awards.relayPlaces) || 0,
       items: state.awards.relayItems,
       unitsForPlace: () => state.awards.relayUnits
@@ -2296,6 +2296,10 @@ function awardRowsForPlaces({ group, basis, places, items, unitsForPlace }) {
     item: normalizeAwardItem(items[index]),
     quantity: unitsForPlace(index)
   }));
+}
+
+function translateAwardText(value) {
+  return value;
 }
 
 function groupItemsByValue(items, getValue) {
@@ -2504,7 +2508,7 @@ function updateCompetitionEntryMode() {
   if (typeField) typeField.hidden = true;
   if (prelimMissingPanel) prelimMissingPanel.hidden = !isPrelim;
   const heading = document.getElementById("entryHeading");
-  if (heading) heading.textContent = isPrelim ? "Prelim Entry" : isFinals ? "Finals Entry" : `${type} ${stage} Entry`;
+  if (heading) heading.textContent = isPrelim ? t("Prelim Entry") : isFinals ? t("Finals Entry") : tf("{type} {stage} Entry", { type: t(type), stage: t(stage) });
   if (isFinals) {
     populateFinalSheetSelect();
     if (activeFinalSheetId) loadFinalSheet(activeFinalSheetId, false);
@@ -2771,13 +2775,13 @@ async function persistPrelimResults(options = {}) {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || "unable to verify persistence" }), true);
+    showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || t("Unable to verify persistence") }), true);
     if (focusedFieldId) document.getElementById(focusedFieldId)?.focus();
     return false;
   }
   drawResultRows();
   drawMissingTimes();
-  const actionText = [created ? `${created} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(", ");
+  const actionText = [created ? tf("{count} added", { count: created }) : "", updated ? tf("{count} updated", { count: updated }) : ""].filter(Boolean).join(", ");
   clearPrelimEntry();
   await applyPendingCompetitionUpdate();
   // The online refresh may re-render the entry panel, so restore the scan field after it finishes.
@@ -2914,8 +2918,8 @@ function drawFinalMissingSummary(sheets = finalSheets()) {
       <div class="missing-entry-list">${group.missing.map(sheet => `
         <button class="missing-entry-button" data-action="load-final-missing" data-id="${esc(sheet.id)}" type="button">
           <span><strong>${esc(sheet.id)}</strong>${esc(sheet.division)} // ${esc(sheet.event)}</span>
-          <small>${esc(sheet.type)}</small>
-        </button>`).join("") || `<p class="muted">No missing divisions</p>`}</div>
+          <small>${esc(t(sheet.type))}</small>
+        </button>`).join("") || `<p class="muted">${esc(t("No missing divisions"))}</p>`}</div>
     </section>
   `).join("");
 }
@@ -2949,7 +2953,7 @@ function loadFinalSheet(id, focusFirst = true) {
     summary.innerHTML = `<div><span>${esc(t("Final Sheet ID"))}</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(t(sheet.entryType))}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>${esc(t("Advance"))}</span><strong>${esc(tf("Top {advance} of {total}", { advance: Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length), total: sheet.prelimRows.length }))}</strong></div><div><span>${esc(t("Order"))}</span><strong>${esc(t("Slowest qualifier competes first"))}</strong></div>`;
   }
   drawFinalSheetRows(sheet);
-  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: sheet.entryType, division: sheet.division, event: sheet.event }), false);
+  showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: t(sheet.entryType), division: sheet.division, event: sheet.event }), false);
   if (focusFirst) {
     const firstInput = visibleFinalTimeInputs()[0];
     firstInput?.focus();
@@ -3131,7 +3135,7 @@ async function saveFinalResults() {
     } else await saveState();
   } catch (error) {
     state = previousState;
-    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || "unable to verify persistence" }), true);
+    showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || t("Unable to verify persistence") }), true);
     return false;
   }
   showFinalMessage(tf("{id} saved. {count} final result(s) recorded; latest updates will synchronize automatically.", { id: sheet.id, count: saved }), false);
