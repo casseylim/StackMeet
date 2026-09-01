@@ -3282,7 +3282,7 @@ function finalsReportDefinition() {
   let title = "", headers = [], rows = [], contributors = null;
   if (kind === "qualification") {
     const snapshots = state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Approved");
-    title = "Finals Qualification Report";
+    title = t("Finals Qualification Report");
     headers = ["Status", "Participant Type", "Division", "Event", "Participant", "Prelim Rank", "Prelim Best", "Final Seed", "Final Sheet / Heat", "Tie / Exception"];
     rows = snapshots.flatMap(snapshot => snapshot.selectedQualifiers.map(item => {
       const meta = FinalsReportEngine.participantMeta(state, snapshot.participantType, item.participantId);
@@ -3294,7 +3294,7 @@ function finalsReportDefinition() {
   if (kind === "all-around") {
     return stageAllAroundReportDefinition("Finals", "Finals", filters);
   } else if (kind === "organization") {
-    title = "Organization Championship Ranking";
+    title = t("Organization Championship Ranking");
     headers = ["Rank", "Organization", "Champions / 1st", "2nd Places", "3rd Places", "4th Places", "5th Places", "Total Placements", "Participating Stackers", "Individual Entries", "Doubles Teams", "Relay Teams"];
     contributors = FinalsReportEngine.organizationCredits(state, filters);
     rows = contributors.map(row => [row.rank, row.organization, row.counts[1] || 0, row.counts[2] || 0, row.counts[3] || 0, row.counts[4] || 0, row.counts[5] || 0, row.totalPlacements, row.participatingStackers, row.individualEntries, row.doublesTeams, row.relayTeams]);
@@ -4222,16 +4222,16 @@ function competitionReportTable(title, rows) {
   let lastGroup = "";
   const body = rows.map((row, index) => {
     const group = groupedByDivision ? competitionGroupKey(row) : "Overall";
-    const groupHeader = group !== lastGroup ? `<tr class="group-row"><td colspan="6">${esc(group)}</td></tr>` : "";
+  const groupHeader = group !== lastGroup ? `<tr class="group-row"><td colspan="6">${esc(group)}</td></tr>` : "";
     if (group !== lastGroup) {
       lastGroup = group;
     }
     const finalClass = highlight && advanceLimit && row.rank <= advanceLimit ? ` class="finals-highlight"` : "";
     return `${groupHeader}<tr${finalClass}><td>${row.rank}</td><td>${esc(row.event)}</td><td><strong>${esc(row.name)}</strong><small>${esc(row.org || row.country || "")}</small></td><td>${esc(row.division)}</td><td>${fmt(row.time)}</td><td>${row.gap ? `+${fmt(row.gap)}` : ""}</td></tr>`;
   }).join("");
-  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">Export JSON</button><button class="ghost" data-action="export-results-csv" type="button">Export CSV</button><button class="ghost" onclick="window.print()" type="button">Print</button></div>`;
+  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">${esc(t("Export JSON"))}</button><button class="ghost" data-action="export-results-csv" type="button">${esc(t("Export CSV"))}</button><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>`;
   return `<div class="panel-head"><h2>${esc(title)}</h2>${exportButtons}</div>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>Event</th><th>Stacker</th><th>Division</th><th>Time</th><th>Gap</th></tr></thead><tbody>${body || `<tr><td colspan="6">No matching results yet</td></tr>`}</tbody></table></div>`;
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>${esc(t("Event"))}</th><th>${esc(t("Stacker"))}</th><th>${esc(t("Division"))}</th><th>${esc(t("Time"))}</th><th>${esc(t("Gap"))}</th></tr></thead><tbody>${body || `<tr><td colspan="6">${esc(t("No matching results yet"))}</td></tr>`}</tbody></table></div>`;
 }
 
 function competitionGroupKey(row) {
@@ -4253,7 +4253,7 @@ function competitionReportTitle(count) {
   const typeLabel = selectedOptionText("competitionTypeReport");
   const divisionLabel = selectedOptionText("competitionDivision");
   const eventLabel = selectedOptionText("competitionEvent");
-  return `${typeLabel} / ${stageLabel} / Division: ${divisionLabel} / Events: ${eventLabel} (${count})`;
+  return `${t(typeLabel)} / ${t(stageLabel)} / ${t("Division")}: ${divisionLabel} / ${t("Events")}: ${eventLabel} (${count})`;
 }
 
 function competitionResultTypeName(type) {
@@ -4424,15 +4424,15 @@ function sortAdminReportBy(index) {
 
 function adminReportMeta(type, group) {
   return [
-    ["Report Header", brandText("reportHeader")],
-    ["Tournament", state.settings.name],
-    ["Report Type", reportTypeLabel(type)],
-    ["Group By", group ? reportLabel(group) : "None"],
-    ["Country", filterSummary("reportCountry", "reportCountryOp")],
-    ["Region", filterSummary("reportRegion", "reportRegionOp")],
-    ["Org", filterSummary("reportOrg", "reportOrgOp")],
-    ["Team", selectedOptionText("reportTeam") || "--"],
-    ["Generated", stackMeetDateTime()]
+    [t("Report Header"), brandText("reportHeader")],
+    [t("Tournament"), state.settings.name],
+    [t("Report Type"), t(reportTypeLabel(type))],
+    [t("Group By"), group ? reportLabel(group) : t("None")],
+    [t("Country"), filterSummary("reportCountry", "reportCountryOp")],
+    [t("Region"), filterSummary("reportRegion", "reportRegionOp")],
+    [t("Org"), filterSummary("reportOrg", "reportOrgOp")],
+    [t("Team"), selectedOptionText("reportTeam") || "--"],
+    [t("Generated"), stackMeetDateTime()]
   ];
 }
 
@@ -4449,7 +4449,7 @@ function reportTypeLabel(type) {
 
 function filterSummary(valueId, opId) {
   const value = val(valueId);
-  return value ? `${val(opId) || "="} ${value}` : "Any";
+  return value ? `${val(opId) || "="} ${value}` : t("Any");
 }
 
 function adminReportHtml(report) {
@@ -4463,15 +4463,15 @@ function adminReportHtml(report) {
     <div class="report-document" data-report-kind="admin">
       <div class="report-actions no-print">
         <label class="print-layout-control">
-          <span>Print Layout</span>
+          <span>${esc(t("Print Layout"))}</span>
           <select id="adminPrintOrientation">
-            <option value="portrait"${adminPrintOrientation === "portrait" ? " selected" : ""}>Portrait</option>
-            <option value="landscape"${adminPrintOrientation === "landscape" ? " selected" : ""}>Landscape</option>
+            <option value="portrait"${adminPrintOrientation === "portrait" ? " selected" : ""}>${esc(t("Portrait"))}</option>
+            <option value="landscape"${adminPrintOrientation === "landscape" ? " selected" : ""}>${esc(t("Landscape"))}</option>
           </select>
         </label>
-        <button class="ghost" data-action="print-admin-report" type="button">Print Report</button>
-        <button class="ghost" data-action="export-admin-csv" type="button">Export CSV</button>
-        <button class="ghost" data-action="export-admin-excel" type="button">Export Excel</button>
+        <button class="ghost" data-action="print-admin-report" type="button">${esc(t("Print Report"))}</button>
+        <button class="ghost" data-action="export-admin-csv" type="button">${esc(t("Export CSV"))}</button>
+        <button class="ghost" data-action="export-admin-excel" type="button">${esc(t("Export Excel"))}</button>
       </div>
       <header class="report-header">
         <p>${esc(brandText("reportHeader"))}</p>
@@ -4482,7 +4482,7 @@ function adminReportHtml(report) {
       <div class="table-wrap report-table-wrap">
         <table>
           <thead><tr>${report.headers.map((h, index) => `<th><button class="sort-header" data-action="sort-admin-report" data-sort-index="${index}" type="button">${esc(h)}${adminSortIndicator(index)}</button></th>`).join("")}</tr></thead>
-          <tbody>${rowsHtml || `<tr><td colspan="${report.headers.length}">No matching records</td></tr>`}</tbody>
+          <tbody>${rowsHtml || `<tr><td colspan="${report.headers.length}">${esc(t("No matching records"))}</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
