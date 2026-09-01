@@ -3282,20 +3282,20 @@ function finalsReportDefinition() {
   let title = "", headers = [], rows = [], contributors = null;
   if (kind === "qualification") {
     const snapshots = state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Approved");
-    title = "Finals Qualification Report";
-    headers = ["Status", "Participant Type", "Division", "Event", "Participant", "Prelim Rank", "Prelim Best", "Final Seed", "Final Sheet / Heat", "Tie / Exception"];
+    title = t("Finals Qualification Report");
+    headers = ["Status", "Participant Type", "Division", "Event", "Participant", "Prelim Rank", "Prelim Best", "Final Seed", "Final Sheet / Heat", "Tie / Exception"].map(t);
     rows = snapshots.flatMap(snapshot => snapshot.selectedQualifiers.map(item => {
       const meta = FinalsReportEngine.participantMeta(state, snapshot.participantType, item.participantId);
       const source = snapshot.sourcePreliminaryResults.find(row => row.participantId === item.participantId) || {};
       return [snapshot.status, snapshot.participantType, snapshot.division, snapshot.event, meta.name, item.preliminaryRank, fmt(source.bestValidTime), item.finalSeed, [item.finalSheetId, item.heat].filter(Boolean).join(" / "), snapshot.tieException?.rationale || "--"];
     }));
-    return { kind, title, headers, rows, empty: snapshots.length ? "No qualifiers match the approved snapshots." : "Qualification has not been approved.", filters };
+    return { kind, title, headers, rows, empty: snapshots.length ? t("No qualifiers match the approved snapshots.") : t("Qualification has not been approved."), filters };
   }
   if (kind === "all-around") {
     return stageAllAroundReportDefinition("Finals", "Finals", filters);
   } else if (kind === "organization") {
-    title = "Organization Championship Ranking";
-    headers = ["Rank", "Organization", "Champions / 1st", "2nd Places", "3rd Places", "4th Places", "5th Places", "Total Placements", "Participating Stackers", "Individual Entries", "Doubles Teams", "Relay Teams"];
+    title = t("Organization Championship Ranking");
+    headers = ["Rank", "Organization", "Champions / 1st", "2nd Places", "3rd Places", "4th Places", "5th Places", "Total Placements", "Participating Stackers", "Individual Entries", "Doubles Teams", "Relay Teams"].map(t);
     contributors = FinalsReportEngine.organizationCredits(state, filters);
     rows = contributors.map(row => [row.rank, row.organization, row.counts[1] || 0, row.counts[2] || 0, row.counts[3] || 0, row.counts[4] || 0, row.counts[5] || 0, row.totalPlacements, row.participatingStackers, row.individualEntries, row.doublesTeams, row.relayTeams]);
   } else {
@@ -3303,11 +3303,11 @@ function finalsReportDefinition() {
     if (kind === "missing") reportRows = finalMissingReportRows(filters);
     if (kind === "top-performance") reportRows = FinalsReportEngine.rankFinalRows(reportRows.filter(row => row.resultStatus === "valid"));
     if (limit) reportRows = reportRows.slice(0, limit);
-    title = kind === "top-performance" ? `${filters.category === "mixed" ? "Mixed" : filters.category === "special" ? "Special" : "Normal"} Stackers — ${filters.gender === "M" ? "Male" : filters.gender === "F" ? "Female" : "Combined"} — ${filters.event === "all" ? "Finals" : filters.event} Top Performance` : kind === "missing" ? "Finals Missing Results Report" : kind === "placements" ? "Finals Placement Report" : "Final Results by Division and Event";
-    headers = ["Place / Rank", "Competition ID", "Participant / Team", "Member Names", "Category", "Gender", "Division", "Organization", "Country", "Region", "Event", "Attempts", "Best Valid Time", "Result Status", "Tie"];
-    rows = reportRows.map(row => [row.rank || "", row.participant, row.name, row.members.map(member => member.name || member.id).join(" / "), row.special === "Yes" ? "Special" : "Normal", row.gender, row.division, row.org, row.country, row.region, row.event, row.attempts?.join(", ") || "", fmt(row.bestValidTime), row.resultStatus, row.tie ? "Equal performance" : ""]);
+    title = kind === "top-performance" ? `${t(filters.category === "mixed" ? "Mixed" : filters.category === "special" ? "Special" : "Normal")} ${t("Stackers")} — ${t(filters.gender === "M" ? "Male" : filters.gender === "F" ? "Female" : "Combined")} — ${filters.event === "all" ? t("Finals") : filters.event} ${t("Top Performance")}` : kind === "missing" ? t("Finals Missing Results Report") : kind === "placements" ? t("Finals Placement Report") : t("Final Results by Division and Event");
+    headers = ["Place / Rank", "Competition ID", "Participant / Team", "Member Names", "Category", "Gender", "Division", "Organization", "Country", "Region", "Event", "Attempts", "Best Valid Time", "Result Status", "Tie"].map(t);
+    rows = reportRows.map(row => [row.rank || "", row.participant, row.name, row.members.map(member => member.name || member.id).join(" / "), row.special === "Yes" ? t("Special") : t("Normal"), row.gender, row.division, row.org, row.country, row.region, row.event, row.attempts?.join(", ") || "", fmt(row.bestValidTime), row.resultStatus, row.tie ? t("Equal performance") : ""]);
   }
-  return { kind, title, headers, rows, contributors, filters, empty: "No matching final results." };
+  return { kind, title, headers, rows, contributors, filters, empty: t("No matching final results.") };
 }
 
 function stageReportDefinition(stage, kind, filters) {
@@ -3329,12 +3329,12 @@ function stageReportDefinition(stage, kind, filters) {
     champions.set(key, Math.min(champions.get(key) ?? Infinity, row.bestValidTime));
   });
   if (kind === "division") rows.sort((a, b) => compareDivisionNames(a.division, b.division) || (a.rank || Infinity) - (b.rank || Infinity));
-  const title = kind === "missing" ? `${label} Missing Results` : kind === "scratch" ? `${label} Scratch Report` : kind === "event" ? `${label} Results by Event` : kind === "division" ? `${label} Results by Division` : `${label} Results by Division and Event`;
-  return { stage, kind, title, headers: ["Rank", "Stacker ID", "Name", "Organization", "Division", "Event", "Best Time", "Gap", "Status"], rows: rows.map(row => {
+  const title = kind === "missing" ? `${t(label)} ${t("Missing Results")}` : kind === "scratch" ? `${t(label)} ${t("Scratch Report")}` : kind === "event" ? `${t(label)} ${t("Results by Event")}` : kind === "division" ? `${t(label)} ${t("Results by Division")}` : `${t(label)} ${t("Results by Division and Event")}`;
+  return { stage, kind, title, headers: ["Rank", "Stacker ID", "Name", "Organization", "Division", "Event", "Best Time", "Gap", "Status"].map(t), rows: rows.map(row => {
     const champion = champions.get(`${row.type}|${row.division}|${row.event}`);
     const gap = Number.isFinite(champion) && Number.isFinite(row.bestValidTime) && row.bestValidTime !== champion ? `+${fmt(row.bestValidTime - champion)}` : "";
     return [row.rank || "", row.participant, row.name, row.org, row.division, row.event, fmt(row.bestValidTime), gap, row.resultStatus];
-  }), rowClasses: rows.map(row => highlighted.has(row.participant) ? "finals-highlight" : ""), filters, empty: kind === "event" && filters.event === "all" ? "Select one event for the judges' report." : "No matching results." };
+  }), rowClasses: rows.map(row => highlighted.has(row.participant) ? "finals-highlight" : ""), filters, empty: kind === "event" && filters.event === "all" ? t("Select one event for the judges' report.") : t("No matching results.") };
 }
 
 function stageBoardReportDefinition(stage, kind, filters, allRows, events, highlighted, label) {
@@ -3345,11 +3345,12 @@ function stageBoardReportDefinition(stage, kind, filters, allRows, events, highl
   const allAroundEvents = ["3-3-3", "3-6-3", "cycle"];
   const hasAllAround = allAroundEvents.every(event => events.some(item => normalizeEventName(item) === event));
   const eventSections = events.map(event => ({ title: event, event }));
-  const sections = hasAllAround ? [...eventSections, { title: "All Around", event: "All Around" }] : eventSections;
+  const sections = hasAllAround ? [...eventSections, { title: t("All Around"), event: "All Around" }] : eventSections;
   const boardGroups = groups.map(group => {
     const groupRows = grouped ? allRows.filter(row => (row.division || "Unassigned") === group) : allRows;
     return {
-      title: grouped ? `Division: ${group}` : `Division: ${filters.division === "all" ? "All" : filters.division || "All"}`,
+      value: group,
+      title: grouped ? `${t("Division")}: ${group}` : `${t("Division")}: ${filters.division === "all" ? t("All") : filters.division || t("All")}`,
       sections: sections.map(section => ({
         title: section.title,
         rows: section.event === "All Around"
@@ -3359,7 +3360,7 @@ function stageBoardReportDefinition(stage, kind, filters, allRows, events, highl
     };
   }).filter(group => group.sections.some(section => section.rows.length));
   const csvRows = boardGroups.flatMap(group => group.sections.flatMap(section => section.rows.map(row => [
-    group.title.replace(/^Division: /, ""),
+    group.value,
     section.title,
     row.rank,
     row.participant,
@@ -3370,18 +3371,18 @@ function stageBoardReportDefinition(stage, kind, filters, allRows, events, highl
     row.gap,
     row.status
   ])));
-  const title = kind === "overall" ? `${label} Overall Results` : kind === "division" ? `${label} Results by Division` : `${label} Results by Division and Event`;
+  const title = kind === "overall" ? `${t(label)} ${t("Overall Results")}` : kind === "division" ? `${t(label)} ${t("Results by Division")}` : `${t(label)} ${t("Results by Division and Event")}`;
   return {
     stage,
     kind,
     title,
     boardGroups,
-    headers: ["Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Division", "Best Time", "Gap", "Status"],
+    headers: ["Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Division", "Best Time", "Gap", "Status"].map(t),
     rows: csvRows,
-    csvHeaders: ["Report Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Participant Division", "Best Time", "Gap", "Status"],
+    csvHeaders: ["Report Division", "Event", "Rank", "Stacker ID", "Name", "Organization", "Participant Division", "Best Time", "Gap", "Status"].map(t),
     csvRows,
     filters,
-    empty: "No matching results."
+    empty: t("No matching results.")
   };
 }
 
@@ -3393,13 +3394,13 @@ function stageAllAroundReportDefinition(stage, label, filters) {
   return {
     stage,
     kind: "all-around",
-    title: `${label} All-Around`,
-    headers: ["Rank", "Competition ID", "Name", "Category", "Gender", "Division", "3-3-3", "3-6-3", "Cycle", "All-Around Total", "Status"],
+    title: `${t(label)} ${t("All-Around")}`,
+    headers: ["Rank", "Competition ID", "Name", "Category", "Gender", "Division", "3-3-3", "3-6-3", "Cycle", "All-Around Total", "Status"].map(t),
     rows: rows.map(row => [
       row.rank || "",
       row.participant,
       row.name,
-      row.special === "Yes" ? "Special" : "Normal",
+      row.special === "Yes" ? t("Special") : t("Normal"),
       row.gender,
       row.division,
       fmt(row.events?.["3-3-3"]?.bestValidTime),
@@ -3409,7 +3410,7 @@ function stageAllAroundReportDefinition(stage, label, filters) {
       row.resultStatus
     ]),
     filters,
-    empty: "No matching individual all-around results."
+    empty: t("No matching individual all-around results.")
   };
 }
 
@@ -3456,14 +3457,14 @@ function stageBoardDisplayRow(row, champion, highlighted) {
 
 function finalsReportMeta(definition) {
   const filters = definition.filters;
-  return [["Report header", brandText("reportHeader")], ["Active competition", state.settings.name], ["Stage", definition.stage || "Finals"], ["Report", definition.title], ["Filters", `Type: ${filters.participantType}; Division: ${filters.division}; Event: ${filters.event}; Category: ${filters.category}; Gender: ${filters.gender || "Combined"}; Org: ${filters.org || "Any"}; Country: ${filters.country || "Any"}; Region: ${filters.region || "Any"}`], ["Data as of", stackMeetDateTime()], ["Returned rows", definition.rows.length]];
+  return [[t("Report header"), brandText("reportHeader")], [t("Active competition"), state.settings.name], [t("Stage"), t(definition.stage || "Finals")], [t("Report"), definition.title], [t("Filters"), `${t("Type")}: ${t(filters.participantType)}; ${t("Division")}: ${filters.division}; ${t("Event")}: ${filters.event}; ${t("Category")}: ${t(filters.category)}; ${t("Gender")}: ${t(filters.gender || "Combined")}; ${t("Org")}: ${filters.org || t("Any")}; ${t("Country")}: ${filters.country || t("Any")}; ${t("Region")}: ${filters.region || t("Any")}`], [t("Data as of"), stackMeetDateTime()], [t("Returned rows"), definition.rows.length]];
 }
 
 function finalsReportPrintFilterSummary(definition) {
   const filters = definition.filters || {};
-  const category = filters.category === "special" ? "Special Stackers" : filters.category === "normal" ? "Normal Stackers" : "Mixed Stackers (Normal + Special)";
-  const gender = filters.gender === "M" ? "Male" : filters.gender === "F" ? "Female" : "Combined (Male + Female)";
-  return `Filter: ${category} / ${gender}`;
+  const category = filters.category === "special" ? t("Special Stackers") : filters.category === "normal" ? t("Normal Stackers") : t("Mixed Stackers (Normal + Special)");
+  const gender = filters.gender === "M" ? t("Male") : filters.gender === "F" ? t("Female") : t("Combined (Male + Female)");
+  return `${t("Filter")}: ${category} / ${gender}`;
 }
 
 function runFinalsReport() {
@@ -3474,18 +3475,19 @@ function runFinalsReport() {
     definition = finalsReportDefinition();
   } catch (error) {
     console.error("Unable to build competition report.", error);
-    output.innerHTML = `<div class="report-empty"><strong>Unable to build report.</strong><br>${esc(error?.message || error)}</div>`;
+    output.innerHTML = `<div class="report-empty"><strong>${esc(t("Unable to build report."))}</strong><br>${esc(t("Report details unavailable."))}</div>`;
     return;
   }
-  const qualificationActions = definition.kind === "qualification" ? `<button class="ghost" data-action="generate-qualification-snapshots" type="button">Generate Draft Qualification Snapshots</button>` : "";
+  const qualificationActions = definition.kind === "qualification" ? `<button class="ghost" data-action="generate-qualification-snapshots" type="button">${esc(t("Generate Draft Qualification Snapshots"))}</button>` : "";
+  const finalsReportActions = `<button class="ghost" data-action="print-finals-report" type="button">${esc(t("Print"))}</button><button class="ghost" data-action="export-finals-csv" type="button">${esc(t("Export CSV"))}</button>`;
   const table = definition.rows.map((row, index) => `<tr${definition.rowClasses?.[index] ? ` class="${definition.rowClasses[index]}"` : ""}>${row.map(cell => `<td>${esc(cell)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${definition.headers.length}">${esc(definition.empty)}</td></tr>`;
-  const drilldown = definition.contributors ? `<details class="report-drilldown"><summary>Organization placement contributors</summary>${definition.contributors.map(org => `<h3>${esc(org.organization)}</h3><ul>${org.placements.map(item => `<li>${esc(`${item.name} — ${item.type} — ${item.division} — ${item.event} — Place ${item.rank} — ${fmt(item.bestValidTime)} — credited to ${item.representedOrganization}`)}</li>`).join("")}</ul>`).join("")}</details>` : "";
-  const drafts = definition.kind === "qualification" ? state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Draft").map(snapshot => `<li>${esc(`${snapshot.participantType} / ${snapshot.division} / ${snapshot.event}: ${snapshot.tieException?.required ? "exception required" : "ready"}`)} ${snapshot.tieException?.required ? "" : `<button class="ghost compact-button" data-action="approve-qualification-snapshot" data-id="${esc(snapshot.id)}" type="button">Approve</button>`}</li>`).join("") : "";
+  const drilldown = definition.contributors ? `<details class="report-drilldown"><summary>${esc(t("Organization placement contributors"))}</summary>${definition.contributors.map(org => `<h3>${esc(org.organization)}</h3><ul>${org.placements.map(item => `<li>${esc(`${item.name} — ${item.type} — ${item.division} — ${item.event} — ${t("Place")} ${item.rank} — ${fmt(item.bestValidTime)} — ${t("credited to")} ${item.representedOrganization}`)}</li>`).join("")}</ul>`).join("")}</details>` : "";
+  const drafts = definition.kind === "qualification" ? state.finalQualificationSnapshots.filter(snapshot => snapshot.status === "Draft").map(snapshot => `<li>${esc(`${snapshot.participantType} / ${snapshot.division} / ${snapshot.event}: ${snapshot.tieException?.required ? t("exception required") : t("ready")}`)} ${snapshot.tieException?.required ? "" : `<button class="ghost compact-button" data-action="approve-qualification-snapshot" data-id="${esc(snapshot.id)}" type="button">${esc(t("Approve"))}</button>`}</li>`).join("") : "";
   if (definition.boardGroups) {
-    output.innerHTML = `<div class="report-document report-board-document" data-report-kind="finals"><div class="report-actions no-print">${qualificationActions}<button class="ghost" data-action="print-finals-report" type="button">Print</button><button class="ghost" data-action="export-finals-csv" type="button">Export CSV</button></div><header class="report-header" data-print-filter=""><p>${esc(brandText("reportHeader"))}</p><h2>${esc(definition.title)}</h2><strong>${esc(state.settings.name)}${state.settings.start ? ` - ${esc(state.settings.start)}` : ""}</strong></header><div class="report-meta">${finalsReportMeta(definition).map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div>${drafts ? `<div class="report-note"><strong>Draft qualification snapshots</strong><ul>${drafts}</ul></div>` : ""}${stageBoardReportHtml(definition)}${drilldown}</div>`;
+    output.innerHTML = `<div class="report-document report-board-document" data-report-kind="finals"><div class="report-actions no-print">${qualificationActions}${finalsReportActions}</div><header class="report-header" data-print-filter=""><p>${esc(brandText("reportHeader"))}</p><h2>${esc(definition.title)}</h2><strong>${esc(state.settings.name)}${state.settings.start ? ` - ${esc(state.settings.start)}` : ""}</strong></header><div class="report-meta">${finalsReportMeta(definition).map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div>${drafts ? `<div class="report-note"><strong>${esc(t("Draft qualification snapshots"))}</strong><ul>${drafts}</ul></div>` : ""}${stageBoardReportHtml(definition)}${drilldown}</div>`;
     return;
   }
-  output.innerHTML = `<div class="report-document" data-report-kind="finals"><div class="report-actions no-print">${qualificationActions}<button class="ghost" data-action="print-finals-report" type="button">Print</button><button class="ghost" data-action="export-finals-csv" type="button">Export CSV</button></div><header class="report-header"><p>${esc(brandText("reportHeader"))}</p><h2>${esc(definition.title)}</h2><strong>${esc(state.settings.name)}${state.settings.start ? ` — ${esc(state.settings.start)}` : ""}</strong></header><div class="report-meta">${finalsReportMeta(definition).map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div>${drafts ? `<div class="report-note"><strong>Draft qualification snapshots</strong><ul>${drafts}</ul></div>` : ""}<div class="table-wrap report-table-wrap"><table><thead><tr>${definition.headers.map(header => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${table}</tbody></table></div>${drilldown}</div>`;
+  output.innerHTML = `<div class="report-document" data-report-kind="finals"><div class="report-actions no-print">${qualificationActions}${finalsReportActions}</div><header class="report-header"><p>${esc(brandText("reportHeader"))}</p><h2>${esc(definition.title)}</h2><strong>${esc(state.settings.name)}${state.settings.start ? ` — ${esc(state.settings.start)}` : ""}</strong></header><div class="report-meta">${finalsReportMeta(definition).map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div>${drafts ? `<div class="report-note"><strong>${esc(t("Draft qualification snapshots"))}</strong><ul>${drafts}</ul></div>` : ""}<div class="table-wrap report-table-wrap"><table><thead><tr>${definition.headers.map(header => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${table}</tbody></table></div>${drilldown}</div>`;
   decorateFinalsReportForPrint(output, definition);
 }
 
@@ -3511,7 +3513,7 @@ function stageBoardReportHtml(definition) {
         ${group.sections.map(section => `
           <article class="stage-board-section">
             <h4>${esc(section.title)}</h4>
-            <div class="stage-board-header"><span>#</span><span>Stacker</span><span>Time</span><span>Gap</span></div>
+            <div class="stage-board-header"><span>#</span><span>${esc(t("Stacker"))}</span><span>${esc(t("Time"))}</span><span>${esc(t("Gap"))}</span></div>
             ${section.rows.length ? section.rows.map(row => `
               <div class="stage-board-row${row.highlight ? " finals-highlight" : ""}">
                 <span>${esc(row.rank)}</span>
@@ -3519,7 +3521,7 @@ function stageBoardReportHtml(definition) {
                 <span>${esc(row.time)}</span>
                 <span>${esc(row.gap)}</span>
               </div>
-            `).join("") : `<div class="stage-board-empty">No results</div>`}
+            `).join("") : `<div class="stage-board-empty">${esc(t("No results"))}</div>`}
           </article>
         `).join("")}
       </div>
@@ -4222,16 +4224,16 @@ function competitionReportTable(title, rows) {
   let lastGroup = "";
   const body = rows.map((row, index) => {
     const group = groupedByDivision ? competitionGroupKey(row) : "Overall";
-    const groupHeader = group !== lastGroup ? `<tr class="group-row"><td colspan="6">${esc(group)}</td></tr>` : "";
+  const groupHeader = group !== lastGroup ? `<tr class="group-row"><td colspan="6">${esc(group)}</td></tr>` : "";
     if (group !== lastGroup) {
       lastGroup = group;
     }
     const finalClass = highlight && advanceLimit && row.rank <= advanceLimit ? ` class="finals-highlight"` : "";
     return `${groupHeader}<tr${finalClass}><td>${row.rank}</td><td>${esc(row.event)}</td><td><strong>${esc(row.name)}</strong><small>${esc(row.org || row.country || "")}</small></td><td>${esc(row.division)}</td><td>${fmt(row.time)}</td><td>${row.gap ? `+${fmt(row.gap)}` : ""}</td></tr>`;
   }).join("");
-  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">Export JSON</button><button class="ghost" data-action="export-results-csv" type="button">Export CSV</button><button class="ghost" onclick="window.print()" type="button">Print</button></div>`;
+  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">${esc(t("Export JSON"))}</button><button class="ghost" data-action="export-results-csv" type="button">${esc(t("Export CSV"))}</button><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>`;
   return `<div class="panel-head"><h2>${esc(title)}</h2>${exportButtons}</div>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>Event</th><th>Stacker</th><th>Division</th><th>Time</th><th>Gap</th></tr></thead><tbody>${body || `<tr><td colspan="6">No matching results yet</td></tr>`}</tbody></table></div>`;
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>${esc(t("Event"))}</th><th>${esc(t("Stacker"))}</th><th>${esc(t("Division"))}</th><th>${esc(t("Time"))}</th><th>${esc(t("Gap"))}</th></tr></thead><tbody>${body || `<tr><td colspan="6">${esc(t("No matching results yet"))}</td></tr>`}</tbody></table></div>`;
 }
 
 function competitionGroupKey(row) {
@@ -4253,7 +4255,7 @@ function competitionReportTitle(count) {
   const typeLabel = selectedOptionText("competitionTypeReport");
   const divisionLabel = selectedOptionText("competitionDivision");
   const eventLabel = selectedOptionText("competitionEvent");
-  return `${typeLabel} / ${stageLabel} / Division: ${divisionLabel} / Events: ${eventLabel} (${count})`;
+  return `${t(typeLabel)} / ${t(stageLabel)} / ${t("Division")}: ${divisionLabel} / ${t("Events")}: ${eventLabel} (${count})`;
 }
 
 function competitionResultTypeName(type) {
@@ -4355,7 +4357,7 @@ function runReport() {
     out.innerHTML = adminReportHtml(report);
   } catch (error) {
     console.error("Unable to build admin report.", error);
-    out.innerHTML = `<div class="report-empty"><strong>Unable to build report.</strong><br>${esc(error?.message || error)}</div>`;
+    out.innerHTML = `<div class="report-empty"><strong>${esc(t("Unable to build report."))}</strong><br>${esc(t("Report details unavailable."))}</div>`;
   }
 }
 
@@ -4365,12 +4367,12 @@ function buildAdminReportData() {
   if (type === "division-counts") {
     const counts = Object.entries(groupCounts(filterReportRows(state.stackers), "division"))
       .sort(([a], [b]) => compareDivisionNames(a, b));
-    return sortAdminReport({ title: "All Division Counts", headers: ["Division", "Stackers"], rows: counts, groups: [], meta: adminReportMeta(type, "") });
+    return sortAdminReport({ title: t("All Division Counts"), headers: ["Division", "Stackers"].map(t), rows: counts, groups: [], meta: adminReportMeta(type, "") });
   }
   if (type === "results") {
     return sortAdminReport({
-      title: "Competition Results",
-      headers: ["Stage", "Name", "Event", "Official"],
+      title: t("Competition Results"),
+      headers: ["Stage", "Name", "Event", "Official"].map(t),
       rows: bestResults().map(r => [r.stage, participantName(r.type, r.participant), r.event, fmt(official(r))]),
       groups: [],
       meta: adminReportMeta(type, "")
@@ -4378,11 +4380,11 @@ function buildAdminReportData() {
   }
   const selectedColumns = selectedReportColumns(type);
   const sourceRows = filterReportRows(reportRowsForType(type));
-  const title = reportTitle(type, group, sourceRows.length);
-  const headers = selectedColumns.map(col => col.label);
+  const title = t(reportTitle(type, group, sourceRows.length));
+  const headers = selectedColumns.map(col => t(col.label));
   if (group) {
     const buckets = sourceRows.reduce((acc, item) => {
-      const key = reportValue(item, group, type) || "Blank";
+      const key = reportValue(item, group, type) || t("Blank");
       if (!acc[key]) acc[key] = [];
       acc[key].push(selectedColumns.map(col => reportValue(item, col.key, type)));
       return acc;
@@ -4424,15 +4426,15 @@ function sortAdminReportBy(index) {
 
 function adminReportMeta(type, group) {
   return [
-    ["Report Header", brandText("reportHeader")],
-    ["Tournament", state.settings.name],
-    ["Report Type", reportTypeLabel(type)],
-    ["Group By", group ? reportLabel(group) : "None"],
-    ["Country", filterSummary("reportCountry", "reportCountryOp")],
-    ["Region", filterSummary("reportRegion", "reportRegionOp")],
-    ["Org", filterSummary("reportOrg", "reportOrgOp")],
-    ["Team", selectedOptionText("reportTeam") || "--"],
-    ["Generated", stackMeetDateTime()]
+    [t("Report Header"), brandText("reportHeader")],
+    [t("Tournament"), state.settings.name],
+    [t("Report Type"), t(reportTypeLabel(type))],
+    [t("Group By"), group ? reportLabel(group) : t("None")],
+    [t("Country"), filterSummary("reportCountry", "reportCountryOp")],
+    [t("Region"), filterSummary("reportRegion", "reportRegionOp")],
+    [t("Org"), filterSummary("reportOrg", "reportOrgOp")],
+    [t("Team"), selectedOptionText("reportTeam") || "--"],
+    [t("Generated"), stackMeetDateTime()]
   ];
 }
 
@@ -4449,7 +4451,7 @@ function reportTypeLabel(type) {
 
 function filterSummary(valueId, opId) {
   const value = val(valueId);
-  return value ? `${val(opId) || "="} ${value}` : "Any";
+  return value ? `${val(opId) || "="} ${value}` : t("Any");
 }
 
 function adminReportHtml(report) {
@@ -4463,15 +4465,15 @@ function adminReportHtml(report) {
     <div class="report-document" data-report-kind="admin">
       <div class="report-actions no-print">
         <label class="print-layout-control">
-          <span>Print Layout</span>
+          <span>${esc(t("Print Layout"))}</span>
           <select id="adminPrintOrientation">
-            <option value="portrait"${adminPrintOrientation === "portrait" ? " selected" : ""}>Portrait</option>
-            <option value="landscape"${adminPrintOrientation === "landscape" ? " selected" : ""}>Landscape</option>
+            <option value="portrait"${adminPrintOrientation === "portrait" ? " selected" : ""}>${esc(t("Portrait"))}</option>
+            <option value="landscape"${adminPrintOrientation === "landscape" ? " selected" : ""}>${esc(t("Landscape"))}</option>
           </select>
         </label>
-        <button class="ghost" data-action="print-admin-report" type="button">Print Report</button>
-        <button class="ghost" data-action="export-admin-csv" type="button">Export CSV</button>
-        <button class="ghost" data-action="export-admin-excel" type="button">Export Excel</button>
+        <button class="ghost" data-action="print-admin-report" type="button">${esc(t("Print Report"))}</button>
+        <button class="ghost" data-action="export-admin-csv" type="button">${esc(t("Export CSV"))}</button>
+        <button class="ghost" data-action="export-admin-excel" type="button">${esc(t("Export Excel"))}</button>
       </div>
       <header class="report-header">
         <p>${esc(brandText("reportHeader"))}</p>
@@ -4482,7 +4484,7 @@ function adminReportHtml(report) {
       <div class="table-wrap report-table-wrap">
         <table>
           <thead><tr>${report.headers.map((h, index) => `<th><button class="sort-header" data-action="sort-admin-report" data-sort-index="${index}" type="button">${esc(h)}${adminSortIndicator(index)}</button></th>`).join("")}</tr></thead>
-          <tbody>${rowsHtml || `<tr><td colspan="${report.headers.length}">No matching records</td></tr>`}</tbody>
+          <tbody>${rowsHtml || `<tr><td colspan="${report.headers.length}">${esc(t("No matching records"))}</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -4597,7 +4599,7 @@ function populateReportColumns(preferredColumns = null) {
   const defaults = defaultReportColumns(type);
   const selected = current.length ? current : defaults;
   const options = reportColumns.filter(col => col.types.includes(type));
-  select.innerHTML = options.map(col => `<option value="${esc(col.key)}" ${selected.includes(col.key) ? "selected" : ""}>${esc(col.label)}</option>`).join("");
+  select.innerHTML = options.map(col => `<option value="${esc(col.key)}" ${selected.includes(col.key) ? "selected" : ""}>${esc(t(col.label))}</option>`).join("");
 }
 
 function applyReportPreset(presetKey) {

@@ -8,25 +8,25 @@ function buildPaperwork(type) {
     }
     if (type === "individual-prelim") {
         const stackers = selectedStackersForPrintRange();
-        const range = stackers.length ? `${stackers[0].id} to ${stackers[stackers.length - 1].id}` : "No stackers";
-        out.innerHTML = `<div class="panel-head no-print"><h2>Individual Time Sheets (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">Print Range</button></div>
-      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">No stackers found in this range.</p>`}</div>`;
+        const range = stackers.length ? tf("{from} to {to}", { from: stackers[0].id, to: stackers[stackers.length - 1].id }) : t("No stackers");
+        out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Individual Time Sheets"))} (${esc(range)})</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print Range"))}</button></div>
+      <div class="time-sheet-list">${stackers.map(individualTimeSheetHtml).join("") || `<p class="muted">${esc(t("No stackers found in this range."))}</p>`}</div>`;
         return;
     }
     if (type === "doubles-prelim") {
         const teams = printableDoublesTeams();
-        out.innerHTML = `<div class="panel-head no-print"><h2>Doubles Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">No completed doubles teams are available for preliminary time sheets.</p>`}</div>`;
+        out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Doubles Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(doublesTimeSheetHtml).join("") || `<p class="muted">${esc(t("No completed doubles teams are available for preliminary time sheets."))}</p>`}</div>`;
         return;
     }
     if (type === "relay-prelim") {
         const teams = completedRelays();
-        out.innerHTML = `<div class="panel-head no-print"><h2>Relay Time Sheets</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>Print</button></div>
-      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">No ready relay teams are available for preliminary time sheets.</p>`}</div>`;
+        out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t("Relay Time Sheets"))}</h2><button class="ghost" data-action="print-paper-preview" type="button"${teams.length ? "" : " disabled"}>${esc(t("Print"))}</button></div>
+      <div class="time-sheet-list">${teams.map(relayTimeSheetHtml).join("") || `<p class="muted">${esc(t("No ready relay teams are available for preliminary time sheets."))}</p>`}</div>`;
         return;
     }
     const sample = state.stackers.slice(0, 6);
-    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(title)}</h2><button class="ghost" data-action="print-paper-preview" type="button">Print</button></div>
+    out.innerHTML = `<div class="panel-head no-print"><h2>${esc(t(title))}</h2><button class="ghost" data-action="print-paper-preview" type="button">${esc(t("Print"))}</button></div>
     ${sample.map(s => `<article class="sheet-preview"><strong>${esc(s.id)} ${esc(s.name)}</strong><p>${esc(s.division)} // ${esc(s.org)} // ${esc(s.country)}</p><p>3-3-3: _____  3-6-3: _____  Cycle: _____</p></article>`).join("")}`;
 }
 
@@ -64,8 +64,8 @@ function individualTimeSheetHtml(stacker) {
         id: stacker.id,
         type: "Individual",
         name: stacker.name,
-        detail: `Division: ${stacker.division || "Open"}`,
-        location: `${stacker.country || "--"} · Organization: ${stacker.org || "Independent"}`,
+        detail: `${t("Division")}: ${stacker.division || t("Open")}`,
+        location: `${stacker.country || "--"} · ${t("Organization")}: ${stacker.org || t("Independent")}`,
         events: ["3-3-3", "3-6-3", "Cycle"]
     });
 }
@@ -75,7 +75,7 @@ function doublesTimeSheetHtml(team) {
         id: team.id,
         type: "Doubles",
         name: participantName("Doubles", team.id),
-        detail: `Division: ${doubleDivision(team)}`,
+        detail: `${t("Division")}: ${doubleDivision(team)}`,
         location: teamCountry(team),
         events: timeSheetEvents("Doubles", ["Cycle"])
     });
@@ -86,7 +86,7 @@ function relayTimeSheetHtml(team) {
         id: team.id,
         type: "Relay",
         name: participantName("Timed Relay", team.id),
-        detail: `Stackers: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · Division: ${relayTimedDivision(team)}`,
+        detail: `${t("Stackers")}: ${relayMemberIds(team).map(stackerName).join(", ") || "--"} · ${t("Division")}: ${relayTimedDivision(team)}`,
         location: relayLocation(team),
         events: timeSheetEvents("Timed Relay", ["3-6-3"])
     });
@@ -105,22 +105,22 @@ function prelimTimeSheetHtml({ id, type, name, detail, location, events }) {
     return `<article class="individual-time-sheet">
     <div class="time-sheet-brand">${esc(brandText("reportHeader"))}</div>
     <header class="time-sheet-header">
-      <div class="time-sheet-identity"><span>${esc(type)}</span><h2>${esc(name)}</h2></div>
-      <div class="time-sheet-stacker-id"><span>ID</span><strong>${esc(id)}</strong></div>
+      <div class="time-sheet-identity"><span>${esc(t(type))}</span><h2>${esc(name)}</h2></div>
+      <div class="time-sheet-stacker-id"><span>${esc(t("ID"))}</span><strong>${esc(id)}</strong></div>
     </header>
-    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>Location: ${esc(location)}</span></div>
+    <div class="time-sheet-subline"><strong>${esc(detail)}</strong><span>${esc(t("Location"))}: ${esc(location)}</span></div>
     <table class="attempt-table">
       <colgroup><col class="event-col" /><col class="attempt-col" /><col class="attempt-col" /><col class="attempt-col" /></colgroup>
-      <thead><tr><th>Event</th>${attempts.map(attempt => `<th>Attempt ${attempt}</th>`).join("")}</tr></thead>
-      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> Best</span></td>`).join("")}</tr>`).join("")}</tbody>
+      <thead><tr><th>${esc(t("Event"))}</th>${attempts.map(attempt => `<th>${esc(tf("Attempt {attempt}", { attempt }))}</th>`).join("")}</tr></thead>
+      <tbody>${events.map(event => `<tr><th>${esc(event)}</th>${attempts.map(() => `<td><span class="time-write-line"></span><span class="best-mark"><i></i> ${esc(t("Best"))}</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table>
     <div class="time-sheet-notes">
-      <p>Record Attempt 1, Attempt 2 and Attempt 3.</p>
-      <p>Tick the fastest valid attempt.</p>
-      <p>Use 999 for a scratch.</p>
-      <p>Leave blank if the competitor or team did not compete.</p>
+      <p>${esc(t("Record Attempt 1, Attempt 2 and Attempt 3."))}</p>
+      <p>${esc(t("Tick the fastest valid attempt."))}</p>
+      <p>${esc(t("Use 999 for a scratch."))}</p>
+      <p>${esc(t("Leave blank if the competitor or team did not compete."))}</p>
     </div>
-    <footer class="time-sheet-signoff"><span>Judge: ______________________________</span><span>Table: __________</span></footer>
+    <footer class="time-sheet-signoff"><span>${esc(t("Judge:"))} ______________________________</span><span>${esc(t("Table:"))} __________</span></footer>
   </article>`;
 }
 
@@ -169,15 +169,15 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
     const out = document.getElementById("paperOutput");
     const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-    out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} Bracket</h2><button class="ghost" onclick="window.print()" type="button">Print</button></div>
-    ${Array.from({ length: size }, (_, i) => `<div class="bracket">Seed ${i + 1}: ____________________________</div>`).join("")}`;
+    out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+    ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 
 
 function printCurrentFinalSheet() {
     const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
     if (!sheet) {
-        showFinalMessage("Find a final sheet before printing.", true);
+        showFinalMessage(t("Find a final sheet before printing."), true);
         return;
     }
     buildFinalSheetPrint(sheet);
