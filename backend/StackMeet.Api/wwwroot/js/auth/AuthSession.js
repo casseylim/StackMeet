@@ -97,7 +97,7 @@
     if (!response.ok) {
       let message = "Login failed.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
-      throw new Error(knownMessage(message, "Login failed."));
+      throw new Error(message || "Login failed.");
     }
     return saveSession(normalizeLoginSession(await response.json()));
   }

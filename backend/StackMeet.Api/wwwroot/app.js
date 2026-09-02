@@ -11,7 +11,7 @@ const branding = Object.freeze({
   shortName: "WSSA",
   productName: "NADITrack",
   reportHeader: "Sistem NADI Track",
-  browserTitle: "Sistem NADITrack",
+  browserTitle: "NADITrack System",
   sidebarTitle: "WSSA",
   sidebarSubtitle: "Sport Stacking Centre",
   defaultCompetitionName: "WSSA NS Sport Stacking Centre",
@@ -945,7 +945,7 @@ function updateSqlDashboardPresentation() {
 }
 
 function applyBrandingChrome() {
-  document.title = brandText("browserTitle");
+  document.title = t(brandText("browserTitle"));
   document.querySelectorAll("[data-brand]").forEach(node => {
     const value = brandText(node.dataset.brand);
     if (value) node.textContent = value;
@@ -2402,7 +2402,7 @@ function renderPaperwork() {
   document.querySelectorAll("[data-participant-group]").forEach(button => {
     button.toggleAttribute("hidden", !participantAvailability[button.dataset.participantGroup]);
   });
-  document.getElementById("paperOutput").innerHTML = `<h2>Preview</h2><p class="muted">Choose a print item to generate a printable preview.</p>`;
+  document.getElementById("paperOutput").innerHTML = `<h2>${esc(t("Preview"))}</h2><p class="muted">${esc(t("Choose a print item to generate a printable preview."))}</p>`;
 }
 
 function paperworkPreviewActive() {

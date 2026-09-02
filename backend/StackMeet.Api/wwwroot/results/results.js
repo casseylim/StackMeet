@@ -40,6 +40,8 @@
       ? t(source)
       : source;
   };
+  const statusDisplay = value => t(value);
+  const organizationDisplay = value => value === "Independent" ? t(value) : value;
   const text = (id, value) => { const node = el(id); if (node) node.textContent = display(value); };
   const show = (id, visible) => { const node = el(id); if (node) node.hidden = !visible; };
 
@@ -60,7 +62,11 @@
   }
 
   function applyStaticTranslations() {
-    document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = t(node.dataset.i18n); });
+    document.querySelectorAll("[data-i18n]").forEach(node => {
+      const ownText = [...node.childNodes].find(child => child.nodeType === Node.TEXT_NODE);
+      if (ownText) ownText.nodeValue = t(node.dataset.i18n);
+      else if (!node.children.length) node.textContent = t(node.dataset.i18n);
+    });
     document.querySelectorAll("[data-i18n-aria-label]").forEach(node => node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel)));
     document.querySelectorAll("[data-i18n-alt]").forEach(node => node.setAttribute("alt", t(node.dataset.i18nAlt)));
     document.querySelectorAll("[data-i18n-content]").forEach(node => node.setAttribute("content", t(node.dataset.i18nContent)));
@@ -302,7 +308,7 @@
     text("resultCount", String(results.length));
     text("participantCount", tf("{count} participants", { count: participantIds.size }));
     text("currentStage", current?.stage || "Preliminary");
-    text("currentEvent", current ? [current.type, current.event].filter(Boolean).join(" · ") : t("Waiting for the first result"));
+    text("currentEvent", current ? [current.type ? t(current.type) : "", current.event].filter(Boolean).join(" · ") : t("Waiting for the first result"));
 
     const eligible = Math.max(stackers.length, participantIds.size);
     const percentage = eligible ? Math.min(100, Math.round((participantIds.size / eligible) * 100)) : 0;
@@ -550,8 +556,8 @@
     const card = make("article", "results-event");
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
-    eventCopy.append(make("span", "eyebrow", "Event"), make("h3", "", eventName));
-    heading.append(eventCopy, make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional"));
+    eventCopy.append(make("span", "eyebrow", t("Event")), make("h3", "", eventName));
+    heading.append(eventCopy, make("span", `event-state ${official ? "official" : "provisional"}`, statusDisplay(official ? "Official" : "Provisional")));
     card.append(heading);
 
     rows.sort((left, right) => {
@@ -566,7 +572,7 @@
     const table = make("table", "results-table");
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["Rank", "Stacker", "Organization", "Best", "Status"].forEach(label => headRow.append(make("th", "", label)));
+    ["Rank", "Stacker", "Organization", "Best", "Status"].forEach(label => headRow.append(make("th", "", t(label))));
     head.append(headRow);
     table.append(head);
 
@@ -591,9 +597,9 @@
       tr.append(
         rankCell,
         nameCell,
-        make("td", "organization-cell", row.stacker.org || "Independent"),
+        make("td", "organization-cell", organizationDisplay(row.stacker.org || "Independent")),
         make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
-        make("td", "status-cell", official ? "Official" : valid && advanceLimit > 0 && rank <= advanceLimit ? "Qualified" : "Provisional")
+        make("td", "status-cell", statusDisplay(official ? "Official" : valid && advanceLimit > 0 && rank <= advanceLimit ? "Qualified" : "Provisional"))
       );
       body.append(tr);
     });
@@ -801,7 +807,7 @@
       tr.append(
         rankCell,
         nameCell,
-        make("td", "organization-cell", row.stacker.org || "Independent"),
+        make("td", "organization-cell", organizationDisplay(row.stacker.org || "Independent")),
         make("td", `time-cell ${valid ? "" : "scr"}`, formatTime(row.best)),
         make("td", "status-cell", valid && Number.isFinite(winningBest) && row.best > winningBest ? `+${formatTime(row.best - winningBest)}` : "--")
       );
@@ -1025,7 +1031,7 @@
       board.id = divisionAnchorId("allaround-by-division", group.division);
       const heading = make("div", "division-heading allaround-heading");
       const title = make("div", "");
-      title.append(make("span", "eyebrow", official ? "Official division ranking" : "Provisional division ranking"));
+      title.append(make("span", "eyebrow", t(official ? "Official division ranking" : "Provisional division ranking")));
       title.append(make("h2", "", group.division));
       heading.append(title, make("span", "division-count", `${group.rows.length} complete`));
       board.append(heading);
@@ -1112,12 +1118,12 @@
       tr.append(
         make("td", `rank-cell ${rank <= 3 ? "medal-rank" : ""}`, medalPlace(rank)),
         nameCell,
-        make("td", "organization-cell", row.stacker.org || "Independent"),
+        make("td", "organization-cell", organizationDisplay(row.stacker.org || "Independent")),
         allAroundTimeCell("3-3-3", row.times["333"], "event-time-333"),
         allAroundTimeCell("3-6-3", row.times["363"], "event-time-363"),
         allAroundTimeCell("Cycle", row.times.cycle, "event-time-cycle"),
         allAroundTimeCell("Total", row.total, "allaround-total"),
-        make("td", "status-cell", official ? "Official" : "Provisional")
+        make("td", "status-cell", statusDisplay(official ? "Official" : "Provisional"))
       );
       body.append(tr);
     });
@@ -1358,10 +1364,10 @@
     const card = make("article", "results-event doubles-event");
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
-    eventCopy.append(make("span", "eyebrow", "Doubles event"), make("h3", "", eventName));
+    eventCopy.append(make("span", "eyebrow", t("Doubles event")), make("h3", "", eventName));
     heading.append(
       eventCopy,
-      make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional")
+      make("span", `event-state ${official ? "official" : "provisional"}`, statusDisplay(official ? "Official" : "Provisional"))
     );
     card.append(heading);
 
@@ -1378,7 +1384,7 @@
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
     ["Place", "Team", "Stackers", "Organization", "Best", "Status"]
-      .forEach(label => headRow.append(make("th", "", label)));
+      .forEach(label => headRow.append(make("th", "", t(label))));
     head.append(headRow);
     table.append(head);
 
@@ -1407,9 +1413,9 @@
           valid ? (isFinal ? medalPlace(rank) : String(rank)) : "—"),
         teamCell,
         memberCell,
-        make("td", "organization-cell", row.meta.organization),
+        make("td", "organization-cell", organizationDisplay(row.meta.organization)),
         make("td", `time-cell doubles-time ${valid ? "" : "scr"}`, formatTime(row.best)),
-        make("td", "status-cell", official ? "Official" : "Provisional")
+        make("td", "status-cell", statusDisplay(official ? "Official" : "Provisional"))
       );
       body.append(tr);
     });
@@ -1535,10 +1541,10 @@
     const card = make("article", "results-event relay-event");
     const heading = make("div", "event-heading");
     const eventCopy = make("div", "");
-    eventCopy.append(make("span", "eyebrow", "Relay event"), make("h3", "", eventName));
+    eventCopy.append(make("span", "eyebrow", t("Relay event")), make("h3", "", eventName));
     heading.append(
       eventCopy,
-      make("span", `event-state ${official ? "official" : "provisional"}`, official ? "Official" : "Provisional")
+      make("span", `event-state ${official ? "official" : "provisional"}`, statusDisplay(official ? "Official" : "Provisional"))
     );
     card.append(heading);
 
@@ -1555,7 +1561,7 @@
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
     ["Place", "Team", "Members", "Organization", "Best", "Status"]
-      .forEach(label => headRow.append(make("th", "", label)));
+      .forEach(label => headRow.append(make("th", "", t(label))));
     head.append(headRow);
     table.append(head);
 
@@ -1584,9 +1590,9 @@
           valid ? (isFinal ? medalPlace(rank) : String(rank)) : "—"),
         teamCell,
         memberCell,
-        make("td", "organization-cell", row.meta.organization),
+        make("td", "organization-cell", organizationDisplay(row.meta.organization)),
         make("td", `time-cell relay-time ${valid ? "" : "scr"}`, formatTime(row.best)),
-        make("td", "status-cell", official ? "Official" : "Provisional")
+        make("td", "status-cell", statusDisplay(official ? "Official" : "Provisional"))
       );
       body.append(tr);
     });
