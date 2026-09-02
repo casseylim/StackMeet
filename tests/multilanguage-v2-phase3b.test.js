@@ -87,7 +87,21 @@ assert.strictEqual(translated("This will permanently delete {email} and remove t
 assert.strictEqual(translated("This will permanently delete {email} and remove their competition access.\n\nType {confirmation} to confirm.", "zh-Hans", { email: "operator@example.com", confirmation: "DELETE operator@example.com" }), "这将永久删除 operator@example.com 并移除其比赛访问权限。\n\n输入 DELETE operator@example.com 以确认。");
 
 assert.match(authSource, /initializeLoginLanguage/);
-assert.match(authSource, /knownMessage\(message, "Login failed\."\)/);
+assert.match(
+  authSource,
+  /throw new Error\(message \|\| "Login failed\."\);/,
+  "login must preserve canonical API errors before presentation translation"
+);
+assert.doesNotMatch(
+  authSource,
+  /throw new Error\(knownMessage\(message, "Login failed\."\)\);/,
+  "login must not pre-translate API errors"
+);
+assert.match(
+  authSource,
+  /catch \(loginError\)[\s\S]*knownMessage\(loginError\.message, "Login failed\."\)/,
+  "login errors must be translated at the UI presentation boundary"
+);
 assert.match(authSource, /data-domain-option/);
 assert.match(authSource, /ui\(\)\.setLanguage\(event\.target\.value, login\)[\s\S]*document\.title = t\("NADITrack Login"\)/);
 assert.match(accountSource, /ui\.apply\(accountRoot\)/);
