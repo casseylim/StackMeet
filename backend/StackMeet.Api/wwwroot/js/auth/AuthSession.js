@@ -14,6 +14,8 @@
     document.title = t("NADITrack Login");
     control.addEventListener("change", event => {
       ui().setLanguage(event.target.value, login);
+      const error = document.getElementById("loginError");
+      if (error) error.textContent = "";
       document.title = t("NADITrack Login");
     });
   }
