@@ -22,8 +22,18 @@ node_modules/
 # Machine-specific configuration and secrets
 **/appsettings.Development.json
 **/appsettings.Production.json
+**/.env
+**/.env.*
+!**/.env.example
 *.pfx
 *.key
+*.pem
+*.p12
+*.jks
+*.keystore
+*.publishsettings
+*.pubxml
+*.pubxml.user
 
 # Local verification artifacts
 .tmp.driveupload/
