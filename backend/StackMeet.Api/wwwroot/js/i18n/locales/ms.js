@@ -105,7 +105,7 @@
     Object.assign(root.StackMeetI18nLocales.ms, {
       "Language": "Bahasa", "English": "Inggeris", "Simplified Chinese": "Cina Ringkas",
       "Connecting": "Menyambung", "Connected": "Disambungkan", "Reconnecting": "Menyambung semula",
-      "Auto refresh": "Segar semula automatik", "NADITrack Live Results": "Keputusan Langsung NADITrack",
+      "Auto refresh": "Segar semula automatik", "NADITrack Live Results": "Keputusan Langsung NADITrack", "Live Results": "Keputusan Langsung", "NADITrack System": "Sistem NADITrack",
       "NADITrack Results": "Keputusan NADITrack", "Waiting for results": "Menunggu keputusan",
       "Results are not available yet": "Keputusan belum tersedia", "Try again": "Cuba lagi",
       "Preliminary": "Awal", "Finals": "Akhir", "Final": "Akhir", "Official": "Rasmi",
@@ -347,4 +347,5 @@
   Object.assign(root.StackMeetI18nLocales.ms, { "Place {number}": "Tempat {number}", "ID: {id}": "Nombor pengenalan: {id}", "Type: {type}": "Jenis: {type}", "Status: {status}": "Status: {status}", "Partner: {partner}": "Rakan: {partner}", "Division: {division}": "Divisyen: {division}", "No doubles entry yet": "Tiada penyertaan beregu lagi", "No {stage} results yet.": "Tiada keputusan {stage} lagi.", "All required prelim times entered": "Semua masa awal yang diperlukan telah dimasukkan", "Individual Time Sheets ({range})": "Borang Masa Individu ({range})", "No stackers": "Tiada peserta", "No stackers found in this range.": "Tiada peserta dalam julat ini.", "No completed doubles teams are available for preliminary time sheets.": "Tiada pasukan beregu lengkap tersedia untuk borang masa awal.", "No ready relay teams are available for preliminary time sheets.": "Tiada pasukan relay sedia tersedia untuk borang masa awal.", "Bracket": "Carta pertandingan", "Seed {number}": "Biji {number}", "All (by Overall)": "Semua (mengikut keseluruhan)", "All (by Division)": "Semua (mengikut divisyen)", "No Limit": "Tiada had" });
   Object.assign(root.StackMeetI18nLocales.ms, { "Status: {status}": "Keadaan: {status}" });
   Object.assign(root.StackMeetI18nLocales.ms, { "Location: {location}": "Lokasi: {location}", "{country} · Organization: {organization}": "{country} · Organisasi: {organization}", "Stackers: {members} · Division: {division}": "Peserta: {members} · Divisyen: {division}" });
+  Object.assign(root.StackMeetI18nLocales.ms, { "Preview": "Pratonton", "Choose a print item to generate a printable preview.": "Pilih item cetakan untuk menjana pratonton yang boleh dicetak." });
 })(typeof window !== "undefined" ? window : globalThis);

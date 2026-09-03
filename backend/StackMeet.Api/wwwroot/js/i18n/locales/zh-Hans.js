@@ -97,7 +97,7 @@
     Object.assign(root.StackMeetI18nLocales["zh-Hans"], {
       "Language": "语言", "English": "英文", "Simplified Chinese": "简体中文",
       "Connecting": "正在连接", "Connected": "已连接", "Reconnecting": "正在重新连接",
-      "Auto refresh": "自动刷新", "NADITrack Live Results": "NADITrack 实时成绩",
+      "Auto refresh": "自动刷新", "NADITrack Live Results": "NADITrack 实时成绩", "Live Results": "实时成绩", "NADITrack System": "NADITrack 系统",
       "NADITrack Results": "NADITrack 成绩", "Waiting for results": "等待成绩",
       "Results are not available yet": "成绩尚未提供", "Try again": "重试",
       "Preliminary": "预赛", "Finals": "决赛", "Final": "决赛", "Official": "正式",
@@ -335,4 +335,5 @@
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Prelim Entry": "预赛录入", "Finals Entry": "决赛录入", "{type} {stage} Entry": "{stage}{type}录入", "{count} added": "新增 {count} 项", "{count} updated": "更新 {count} 项", "Unable to verify persistence": "无法验证保存结果", "{place} place": "第 {place} 名", "Individual - {division}": "个人 - {division}", "Doubles - {division}": "双人 - {division}", "Relay Teams - {division}": "接力队 - {division}", "Planned division // {event}": "计划组别 // {event}", "Planned category // {event} // 2 awards per team": "计划类别 // {event} // 每队 2 个奖项", "Planned category // {event} // {count} awards per team": "计划类别 // {event} // 每队 {count} 个奖项", "Top Male": "男子前列", "Top Female": "女子前列", "Top Special Male": "特殊男子前列", "Top Special Female": "特殊女子前列", "Top Overall Combined": "综合前列", "Normal male stackers": "普通男子选手", "Normal female stackers": "普通女子选手", "Special male stackers": "特殊男子选手", "Special female stackers": "特殊女子选手", "All normal stackers combined": "所有普通选手合计" });
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Place {number}": "第 {number} 名", "ID: {id}": "编号：{id}", "Type: {type}": "类型：{type}", "Status: {status}": "状态：{status}", "Partner: {partner}": "搭档：{partner}", "Division: {division}": "组别：{division}", "No doubles entry yet": "暂无双人赛记录", "No {stage} results yet.": "暂无{stage}成绩。", "All required prelim times entered": "所有必需的预赛时间均已录入", "Individual Time Sheets ({range})": "个人计时表（{range}）", "No stackers": "暂无选手", "No stackers found in this range.": "此范围内没有找到选手。", "No completed doubles teams are available for preliminary time sheets.": "暂无完成的双人队伍可用于预赛计时表。", "No ready relay teams are available for preliminary time sheets.": "暂无准备就绪的接力队伍可用于预赛计时表。", "Bracket": "对阵表", "Seed {number}": "种子 {number}", "All (by Overall)": "全部（按总成绩）", "All (by Division)": "全部（按组别）", "No Limit": "不限" });
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Location: {location}": "地点：{location}", "{country} · Organization: {organization}": "{country} · 组织：{organization}", "Stackers: {members} · Division: {division}": "选手：{members} · 组别：{division}" });
+  Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Preview": "预览", "Choose a print item to generate a printable preview.": "选择一个打印项目以生成可打印的预览。" });
 })(typeof window !== "undefined" ? window : globalThis);

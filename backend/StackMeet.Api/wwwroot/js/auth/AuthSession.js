@@ -14,6 +14,8 @@
     document.title = t("NADITrack Login");
     control.addEventListener("change", event => {
       ui().setLanguage(event.target.value, login);
+      const error = document.getElementById("loginError");
+      if (error) error.textContent = "";
       document.title = t("NADITrack Login");
     });
   }
@@ -97,7 +99,7 @@
     if (!response.ok) {
       let message = "Login failed.";
       try { message = (await response.json()).error || message; } catch (_) { /* keep default */ }
-      throw new Error(knownMessage(message, "Login failed."));
+      throw new Error(message || "Login failed.");
     }
     return saveSession(normalizeLoginSession(await response.json()));
   }
