@@ -9,9 +9,9 @@ namespace StackMeet.Api.Services;
 /// <remarks>The worker uses MSSQL audit rows and remains independent of competition JSON state.</remarks>
 public sealed class DailyAuditReportService(
     IServiceScopeFactory scopes,
+    IConfiguration configuration,
     ILogger<DailyAuditReportService> logger) : BackgroundService
 {
-    const string Recipient = "casseylim@hotmail.com";
     static readonly TimeZoneInfo MalaysiaTime = ResolveMalaysiaTimeZone();
 
     /// <summary>Waits for the next Malaysia midnight and sends one report for the completed local day.</summary>
@@ -34,6 +34,13 @@ public sealed class DailyAuditReportService(
     /// <remarks>Only audit fields are included; password, API-key and secret values are never added.</remarks>
     async Task SendReport(DateTime reportDate, CancellationToken ct)
     {
+        var recipient = configuration["AuditReport:Recipient"];
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            logger.LogWarning("Daily NADITrack audit report skipped because AuditReport:Recipient is not configured.");
+            return;
+        }
+
         var day = DateOnly.FromDateTime(reportDate);
         await using var scope = scopes.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<StackMeetDbContext>();
@@ -48,7 +55,7 @@ public sealed class DailyAuditReportService(
             .ToListAsync(ct);
 
         var csv = BuildCsv(rows);
-        await emails.SendAuditReportEmail(Recipient, day, csv, ct);
+        await emails.SendAuditReportEmail(recipient, day, csv, ct);
         logger.LogInformation("Sent daily NADITrack audit report for {ReportDate} with {Count} rows.", day, rows.Count);
     }
 
