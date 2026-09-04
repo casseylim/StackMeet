@@ -7,7 +7,7 @@ on:
         description: Operation
         required: true
         type: choice
-        options: [preflight, deploy, verify]
+        options: [preflight, ftp-readcheck, deploy, verify]
       commit_sha:
         description: Exact 40-char master SHA
         required: true
@@ -21,7 +21,7 @@ on:
         required: false
         type: string
       expected_live_sha256:
-        description: Current live DLL SHA256; required for deploy
+        description: Current live DLL SHA256; required for ftp-readcheck and deploy
         required: false
         type: string
       pool_confirmation:
@@ -134,6 +134,54 @@ jobs:
           - Remote path confirmed: `$env:REMOTE_PATH_CONFIRMED`
           - Deploy capability: `READY; production Environment credentials and all manual interlocks still required`
           - Production writes: `NONE`
+          "@ | Add-Content $env:GITHUB_STEP_SUMMARY
+
+  ftp_readcheck:
+    name: FTP live DLL read-only check
+    if: ${{ inputs.operation == 'ftp-readcheck' }}
+    runs-on: windows-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      EXPECTED_LIVE: ${{ inputs.expected_live_sha256 }}
+    steps:
+      - name: RETR exact live DLL and verify SHA256 - no remote writes
+        shell: pwsh
+        env:
+          FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+          FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+          FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+          FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
+        run: |
+          $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
+          if($env:REMOTE_PATH_CONFIRMED -cne 'true'){throw 'Remote FTP path confirmation gate failed'}
+          if($env:EXPECTED_LIVE -notmatch '^[0-9a-fA-F]{64}$'){throw 'expected_live_sha256 must be SHA256'}
+          foreach($n in 'FTP_HOST','FTP_USER','FTP_PASS','FTP_PORT','FTP_SSL'){if([string]::IsNullOrWhiteSpace((Get-Item "env:$n").Value)){throw "$n missing"}}
+          $port=0; if(-not[int]::TryParse($env:FTP_PORT,[ref]$port)-or $port-lt 1-or $port-gt 65535){throw 'Invalid FTP port'}
+          $ssl=switch($env:FTP_SSL.Trim().ToLower()){'true'{$true}'false'{$false}default{throw 'FTP_SSL must be true/false'}}
+          $remote=$env:APPROVED_REMOTE_PATH
+          if($remote -cne '/StackMeet.Api.dll'){throw 'Unexpected approved remote path'}
+          $url="ftp://$($env:FTP_HOST):$port$remote"
+          $out=Join-Path $env:RUNNER_TEMP 'live.readonly.dll'
+          $args=@('--fail','--silent','--show-error','--ftp-pasv','--connect-timeout','30','--max-time','120','--proto','=ftp','--user',"$($env:FTP_USER):$($env:FTP_PASS)",'--output',$out,$url)
+          if($ssl){$args+='--ssl-reqd'}
+          & curl.exe @args
+          if($LASTEXITCODE){throw 'Read-only RETR failed'}
+          if(-not(Test-Path -LiteralPath $out -PathType Leaf)){throw 'Read-only RETR produced no file'}
+          $hash=(Get-FileHash $out -Algorithm SHA256).Hash.ToUpper()
+          if($hash -ne $env:EXPECTED_LIVE.Trim().ToUpper()){throw "Live DLL SHA256 mismatch: $hash"}
+          'FTP_READ_ONLY_CHECK=PASS'
+          "LIVE_DLL_SHA256=$hash"
+          "REMOTE_PATH=$remote"
+          'PRODUCTION_CONNECTIONS=1'
+          'PRODUCTION_WRITES=0'
+          @"
+          ## FTP live DLL read-only check
+          - Remote path: `$remote`
+          - Live DLL SHA256: `$hash`
+          - Remote writes: `NONE`
+          - IIS/database changes: `NONE`
           "@ | Add-Content $env:GITHUB_STEP_SUMMARY
 
   deploy:
