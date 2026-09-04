@@ -10,6 +10,7 @@ const no = (r, m) => assert.ok(!r.test(w), m || `forbidden: ${r}`);
 
 has('workflow_dispatch:');
 no(/\n\s*(push|pull_request|schedule):\s*\n/i, 'production workflow must remain manual-only');
+has('options: [preflight, ftp-readcheck, deploy, verify]');
 has('contents: read');
 has('group: naditrack-production');
 has('cancel-in-progress: false');
@@ -28,6 +29,22 @@ has('ROLLBACK_ATTEMPTED=True');
 has('ROLLBACK_VERIFIED=False');
 has('PRODUCTION_STATE=UNKNOWN');
 has('DO NOT START THE POOL');
+
+has('ftp_readcheck:');
+has('name: FTP live DLL read-only check');
+has("if: ${{ inputs.operation == 'ftp-readcheck' }}");
+has('FTP_READ_ONLY_CHECK=PASS');
+has('Read-only RETR failed');
+has("'PRODUCTION_WRITES=0'");
+const readStart = w.indexOf('  ftp_readcheck:');
+const readEnd = w.indexOf('\n  deploy:', readStart);
+assert.ok(readStart >= 0 && readEnd > readStart, 'read-only FTP job boundaries must be present');
+const readOnly = w.slice(readStart, readEnd);
+assert.ok(readOnly.includes('environment: production'), 'read-only FTP check must use production Environment');
+assert.ok(readOnly.includes('APPROVED_REMOTE_PATH'), 'read-only FTP check must use approved remote path');
+assert.ok(readOnly.includes('Get-FileHash'), 'read-only FTP check must verify the downloaded DLL hash');
+assert.ok(!/--upload-file|\bStor\b|\bSTOR\b|Remove-Item|Rename-Item|Move-Item/i.test(readOnly), 'read-only FTP job must not contain remote-write primitives');
+assert.ok(!/POOL-STOPPED|DEPLOY StackMeet\.Api\.dll/.test(readOnly), 'read-only FTP job must not require deployment interlocks or imply deployment');
 
 has('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4');
 has('actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4');
