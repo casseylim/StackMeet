@@ -1,0 +1,255 @@
+name: NADITrack Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operation
+        required: true
+        type: choice
+        options: [preflight, deploy, verify]
+      commit_sha:
+        description: Exact 40-char master SHA
+        required: true
+        type: string
+      live_source_sha:
+        description: Source SHA of currently deployed DLL
+        required: false
+        type: string
+      expected_build_sha256:
+        description: Preflight SHA256; required for deploy
+        required: false
+        type: string
+      expected_live_sha256:
+        description: Current live DLL SHA256; required for deploy
+        required: false
+        type: string
+      pool_confirmation:
+        description: Deploy only; enter POOL-STOPPED after manual pool stop
+        required: false
+        default: NOT-CONFIRMED
+        type: string
+      remote_path_confirmation:
+        description: Deploy only; exact FTP-relative DLL path after separate confirmation
+        required: false
+        default: NOT-CONFIRMED
+        type: string
+      deployment_confirmation:
+        description: Deploy only; enter DEPLOY StackMeet.Api.dll
+        required: false
+        default: NOT-CONFIRMED
+        type: string
+      verification_competition_id:
+        description: Competition ID for read-only post-start verification
+        required: false
+        type: string
+      expected_results_count:
+        required: false
+        type: string
+      expected_stackers_count:
+        required: false
+        type: string
+      expected_doubles_count:
+        required: false
+        type: string
+      expected_relays_count:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naditrack-production
+  cancel-in-progress: false
+
+env:
+  APPROVED_LOCAL_DLL: backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll
+  # Fail-closed. A separate reviewed PR must replace this value and enable deploy
+  # only after the FTP login root is independently confirmed.
+  APPROVED_REMOTE_PATH: __UNCONFIRMED__
+  REMOTE_PATH_CONFIRMED: 'false'
+  PRODUCTION_BASE_URL: https://wssans-001-site1.htempurl.com
+
+jobs:
+  preflight:
+    name: Production preflight - no production writes
+    if: ${{ inputs.operation == 'preflight' }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DEPLOY_SHA: ${{ inputs.commit_sha }}
+      LIVE_SHA: ${{ inputs.live_source_sha }}
+    steps:
+      - name: Checkout exact master
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: backend/StackMeet.Api/StackMeet.Api.csproj
+      - name: Validate source gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
+          function Sha40($v,$n){if($v -notmatch '^[0-9a-fA-F]{40}$'){throw "$n must be exact SHA40"}}
+          Sha40 $env:DEPLOY_SHA 'commit_sha'
+          if($env:GITHUB_REF -ne 'refs/heads/master'){throw 'Dispatch must be launched from master'}
+          $head=(git rev-parse HEAD).Trim().ToLower(); $want=$env:DEPLOY_SHA.Trim().ToLower()
+          if($head -ne $want){throw "Requested $want != master $head"}
+          if(-not [string]::IsNullOrWhiteSpace($env:LIVE_SHA)){
+            Sha40 $env:LIVE_SHA 'live_source_sha'; $live=$env:LIVE_SHA.Trim().ToLower()
+            git cat-file -e "$live^{commit}"; if($LASTEXITCODE){throw 'live_source_sha not found'}
+            git merge-base --is-ancestor $live $want; if($LASTEXITCODE){throw 'live_source_sha is not an ancestor'}
+            $blocked=@('(^|/)Migrations/','\.sql$','^backend/StackMeet\.Api/StackMeet\.Api\.csproj$','(^|/)web\.config$','(^|/)appsettings(?:\..+)?\.json$')
+            foreach($p in @(git diff --name-only "$live..$want")){foreach($r in $blocked){if($p -imatch $r){throw "Forbidden deployment-class change: $p"}}}
+          }
+          'MASTER_EXACT_HEAD_GATE=PASS'; 'DATABASE_AND_CONFIG_SOURCE_GUARDS=PASS'
+      - name: Restore and build Release
+        shell: pwsh
+        run: |
+          dotnet restore StackMeet.sln --configfile NuGet.Config
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          dotnet build StackMeet.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true -p:SourceRevisionId=$env:DEPLOY_SHA
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Report binary identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if(-not(Test-Path -LiteralPath $env:APPROVED_LOCAL_DLL -PathType Leaf)){throw 'Approved DLL missing'}
+          $h=(Get-FileHash $env:APPROVED_LOCAL_DLL -Algorithm SHA256).Hash.ToUpper()
+          $v=[Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path $env:APPROVED_LOCAL_DLL)).ProductVersion
+          'DEPLOY_FILE_COUNT=1'; "TARGET_SHA256=$h"; "TARGET_PRODUCT_VERSION=$v"
+          "REMOTE_PATH_CONFIRMED=$env:REMOTE_PATH_CONFIRMED"; 'PRODUCTION_CONNECTIONS=0'; 'PRODUCTION_WRITES=0'
+          @"
+          ## Production preflight
+          - Source: `$env:DEPLOY_SHA`
+          - File count: `1`
+          - DLL SHA256: `$h`
+          - ProductVersion: `$v`
+          - Remote path confirmed: `$env:REMOTE_PATH_CONFIRMED`
+          - Deploy capability: `DISABLED pending FTP-root confirmation`
+          - Production writes: `NONE`
+          "@ | Add-Content $env:GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy exact DLL - currently disabled
+    # Structural fail-closed gate. Change false -> true only in a reviewed PR after
+    # APPROVED_REMOTE_PATH is independently confirmed relative to the FTP login root.
+    if: ${{ inputs.operation == 'deploy' && false }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      DEPLOY_SHA: ${{ inputs.commit_sha }}
+      LIVE_SHA: ${{ inputs.live_source_sha }}
+      EXPECTED_BUILD: ${{ inputs.expected_build_sha256 }}
+      EXPECTED_LIVE: ${{ inputs.expected_live_sha256 }}
+      POOL_CONFIRM: ${{ inputs.pool_confirmation }}
+      PATH_CONFIRM: ${{ inputs.remote_path_confirmation }}
+      DEPLOY_CONFIRM: ${{ inputs.deployment_confirmation }}
+    steps:
+      - name: Checkout exact master
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: backend/StackMeet.Api/StackMeet.Api.csproj
+      - name: Validate all deploy interlocks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
+          if($env:REMOTE_PATH_CONFIRMED -cne 'true'){throw 'Deployment structurally disabled: remote FTP path is unconfirmed'}
+          function Sha40($v,$n){if($v -notmatch '^[0-9a-fA-F]{40}$'){throw "$n must be SHA40"}}
+          function Sha64($v,$n){if($v -notmatch '^[0-9a-fA-F]{64}$'){throw "$n must be SHA256"}}
+          Sha40 $env:DEPLOY_SHA commit_sha; Sha40 $env:LIVE_SHA live_source_sha; Sha64 $env:EXPECTED_BUILD expected_build_sha256; Sha64 $env:EXPECTED_LIVE expected_live_sha256
+          if($env:POOL_CONFIRM -cne 'POOL-STOPPED'){throw 'Pool interlock failed'}
+          if($env:PATH_CONFIRM -cne $env:APPROVED_REMOTE_PATH){throw 'Remote path confirmation failed'}
+          if($env:DEPLOY_CONFIRM -cne 'DEPLOY StackMeet.Api.dll'){throw 'Deployment phrase failed'}
+          if($env:GITHUB_REF -ne 'refs/heads/master'){throw 'Dispatch must be launched from master'}
+          $head=(git rev-parse HEAD).Trim().ToLower(); $want=$env:DEPLOY_SHA.Trim().ToLower(); if($head -ne $want){throw 'Master SHA moved'}
+          $live=$env:LIVE_SHA.Trim().ToLower(); git merge-base --is-ancestor $live $want; if($LASTEXITCODE){throw 'live_source_sha is not ancestor'}
+          $blocked=@('(^|/)Migrations/','\.sql$','^backend/StackMeet\.Api/StackMeet\.Api\.csproj$','(^|/)web\.config$','(^|/)appsettings(?:\..+)?\.json$')
+          foreach($p in @(git diff --name-only "$live..$want")){foreach($r in $blocked){if($p -imatch $r){throw "Forbidden deployment-class change: $p"}}}
+      - name: Rebuild exact approved source
+        shell: pwsh
+        run: |
+          dotnet restore StackMeet.sln --configfile NuGet.Config
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          dotnet build StackMeet.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true -p:SourceRevisionId=$env:DEPLOY_SHA
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          $h=(Get-FileHash $env:APPROVED_LOCAL_DLL -Algorithm SHA256).Hash.ToUpper(); if($h -ne $env:EXPECTED_BUILD.Trim().ToUpper()){throw 'Build hash mismatch'}
+      - name: Backup, upload one DLL, verify, rollback on any write failure
+        shell: pwsh
+        env:
+          FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+          FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+          FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+          FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
+          foreach($n in 'FTP_HOST','FTP_USER','FTP_PASS','FTP_PORT','FTP_SSL','GH_TOKEN'){if([string]::IsNullOrWhiteSpace((Get-Item "env:$n").Value)){throw "$n missing"}}
+          $port=0; if(-not[int]::TryParse($env:FTP_PORT,[ref]$port)-or $port-lt 1-or $port-gt 65535){throw 'Invalid FTP port'}
+          $ssl=switch($env:FTP_SSL.Trim().ToLower()){'true'{$true}'false'{$false}default{throw 'FTP_SSL must be true/false'}}
+          function Url($p){if($p-cne $env:APPROVED_REMOTE_PATH){throw 'Unexpected remote path'}; "ftp://$($env:FTP_HOST):$port$p"}
+          function Args(){ $a=@('--fail','--silent','--show-error','--ftp-pasv','--connect-timeout','30','--max-time','120','--proto','=ftp','--user',"$($env:FTP_USER):$($env:FTP_PASS)"); if($ssl){$a+='--ssl-reqd'}; ,$a }
+          function Retr($p,$o){$a=@(Args);$a+=@('--output',$o,(Url $p)); & curl.exe @a; if($LASTEXITCODE){throw "RETR failed: $p"}}
+          function Stor($i,$p){$a=@(Args);$a+=@('--upload-file',$i,(Url $p)); & curl.exe @a; if($LASTEXITCODE){throw "STOR failed: $p"}}
+          function Hash($p){(Get-FileHash $p -Algorithm SHA256).Hash.ToUpper()}
+          function Master(){ $hdr=@{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28'}; (Invoke-RestMethod "https://api.github.com/repos/$env:GITHUB_REPOSITORY/commits/master" -Headers $hdr -TimeoutSec 30).sha.ToLower() }
+          $remote=$env:APPROVED_REMOTE_PATH; $dll=$env:APPROVED_LOCAL_DLL; $backup=Join-Path $env:RUNNER_TEMP live.backup.dll; $check=Join-Path $env:RUNNER_TEMP remote.check.dll; $restore=Join-Path $env:RUNNER_TEMP rollback.check.dll
+          Retr $remote $backup; $before=Hash $backup; if($before-ne$env:EXPECTED_LIVE.Trim().ToUpper()){throw 'Live hash mismatch; no write attempted'}
+          'PRE_UPLOAD_BACKUP=PASS'; "PRE_UPLOAD_LIVE_SHA256=$before"
+          if((Master)-ne$env:DEPLOY_SHA.Trim().ToLower()){throw 'Master advanced; no write attempted'}
+          'MASTER_RECHECK_BEFORE_WRITE=PASS'
+          $wrote=$false
+          try{
+            $wrote=$true; Stor $dll $remote; Retr $remote $check; $after=Hash $check
+            if($after-ne$env:EXPECTED_BUILD.Trim().ToUpper()){throw 'Post-upload hash mismatch'}
+            "DEPLOYMENT_BINARY_VERIFIED=PASS"; "POST_UPLOAD_REMOTE_SHA256=$after"
+          }catch{
+            $first=$_.Exception.Message; if(-not$wrote){throw}
+            $ok=$false; $rb=''; try{Stor $backup $remote; Retr $remote $restore; $rb=Hash $restore; if($rb-ne$before){throw 'Rollback hash mismatch'};$ok=$true}catch{$rbe=$_.Exception.Message}
+            if($ok){'ROLLBACK_ATTEMPTED=True';'ROLLBACK_VERIFIED=True';throw "Deploy failed; rollback verified. $first"}
+            'ROLLBACK_ATTEMPTED=True';'ROLLBACK_VERIFIED=False';'PRODUCTION_STATE=UNKNOWN';'DO NOT START THE POOL';throw "CRITICAL rollback unverified. $first / $rbe"
+          }
+
+  verify:
+    name: Post-start verification - read only
+    if: ${{ inputs.operation == 'verify' }}
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      CID: ${{ inputs.verification_competition_id }}
+      ER: ${{ inputs.expected_results_count }}
+      ES: ${{ inputs.expected_stackers_count }}
+      ED: ${{ inputs.expected_doubles_count }}
+      EL: ${{ inputs.expected_relays_count }}
+    steps:
+      - name: Verify HTTP 200, Phase 3F shape, counts, privacy
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
+          if([string]::IsNullOrWhiteSpace($env:CID)){throw 'verification_competition_id required'}
+          function Get200($u){$r=Invoke-WebRequest $u -TimeoutSec 30 -MaximumRedirection 5;if($r.StatusCode-ne200){throw "$u returned $($r.StatusCode)"};$r}
+          function Count($a,$e,$n){if([string]::IsNullOrWhiteSpace($e)){return};$x=0;if(-not[int]::TryParse($e,[ref]$x)-or$x-lt0){throw "Invalid $n count"};if(@($a).Count-ne$x){throw "$n count mismatch"}}
+          function Privacy($v,$p='$'){if($null-eq$v){return};$bad=@('password','passwordhash','apikey','token','resettoken','securitystamp','connectionstring','connectionstrings','adminkey');if($v-is[pscustomobject]){foreach($q in $v.PSObject.Properties){if($bad-icontains$q.Name){throw "Forbidden key $($q.Name) at $p"};Privacy $q.Value "$p.$($q.Name)"}}elseif($v-is[Collections.IDictionary]){foreach($k in $v.Keys){if($bad-icontains[string]$k){throw "Forbidden key $k at $p"};Privacy $v[$k] "$p.$k"}}elseif($v-is[Collections.IEnumerable]-and$v-isnot[string]){foreach($i in $v){Privacy $i $p}}}
+          $b=$env:PRODUCTION_BASE_URL.TrimEnd('/'); Get200 "$b/api/health"|Out-Null; Get200 "$b/api/version"|Out-Null
+          $id=[Uri]::EscapeDataString($env:CID.Trim()); $j=(Get200 "$b/api/public/competitions/$id/results").Content|ConvertFrom-Json -Depth 100
+          foreach($n in 'settings','translations','results','stackers','doubles','relays'){if(-not($j.PSObject.Properties.Name-contains$n)){throw "Missing $n"}}
+          if(-not($j.settings.PSObject.Properties.Name-contains'language')){throw 'Missing settings.language'}
+          Count $j.results $env:ER results; Count $j.stackers $env:ES stackers; Count $j.doubles $env:ED doubles; Count $j.relays $env:EL relays; Privacy $j
+          'POST_START_HTTP_VALIDATION=PASS';'PHASE3F_PUBLIC_API_SHAPE=PASS';'PRIVACY_CHECK=PASS';'PRODUCTION_WRITES=0'
