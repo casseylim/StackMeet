@@ -46,6 +46,26 @@ assert.ok(readOnly.includes('Get-FileHash'), 'read-only FTP check must verify th
 assert.ok(!/--upload-file|\bStor\b|\bSTOR\b|Remove-Item|Rename-Item|Move-Item/i.test(readOnly), 'read-only FTP job must not contain remote-write primitives');
 assert.ok(!/POOL-STOPPED|DEPLOY StackMeet\.Api\.dll/.test(readOnly), 'read-only FTP job must not require deployment interlocks or imply deployment');
 
+has('enforce_expected_counts:');
+has('default: false');
+has('ENFORCE_COUNTS: ${{ inputs.enforce_expected_counts }}');
+has('Production data count drift');
+has('if($enforce){throw "$n count mismatch"}');
+has('RESULTS_COUNT=$resultsCount');
+has('STACKERS_COUNT=$stackersCount');
+has('DOUBLES_COUNT=$doublesCount');
+has('RELAYS_COUNT=$relaysCount');
+has('COUNT_ENFORCEMENT=$enforce');
+has('## Post-start verification');
+const verifyStart = w.indexOf('  verify:');
+assert.ok(verifyStart >= 0, 'verify job must be present');
+const verifyOnly = w.slice(verifyStart);
+assert.ok(verifyOnly.includes("'POST_START_HTTP_VALIDATION=PASS'"), 'verify must keep HTTP as a hard validation gate');
+assert.ok(verifyOnly.includes("'PHASE3F_PUBLIC_API_SHAPE=PASS'"), 'verify must keep Phase 3F shape as a hard gate');
+assert.ok(verifyOnly.includes("'PRIVACY_CHECK=PASS'"), 'verify must keep privacy as a hard gate');
+assert.ok(verifyOnly.includes("'PRODUCTION_WRITES=0'"), 'verify must remain read only');
+assert.ok(!/--upload-file|\bStor\b|\bSTOR\b|Remove-Item|Rename-Item|Move-Item/i.test(verifyOnly), 'verify job must not contain write primitives');
+
 has('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4');
 has('actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4');
 no(/uses:\s+actions\/(?:checkout|setup-dotnet)@v\d+/i, 'production actions must be pinned');

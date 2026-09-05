@@ -55,6 +55,11 @@ on:
       expected_relays_count:
         required: false
         type: string
+      enforce_expected_counts:
+        description: Verify only; fail when supplied expected counts differ from live values
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -284,18 +289,53 @@ jobs:
       ES: ${{ inputs.expected_stackers_count }}
       ED: ${{ inputs.expected_doubles_count }}
       EL: ${{ inputs.expected_relays_count }}
+      ENFORCE_COUNTS: ${{ inputs.enforce_expected_counts }}
     steps:
-      - name: Verify HTTP 200, Phase 3F shape, counts, privacy
+      - name: Verify HTTP 200, Phase 3F shape, privacy, and optional count drift
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
           if([string]::IsNullOrWhiteSpace($env:CID)){throw 'verification_competition_id required'}
+          $enforce=switch($env:ENFORCE_COUNTS.Trim().ToLower()){'true'{$true}'false'{$false}default{throw 'enforce_expected_counts must be true/false'}}
           function Get200($u){$r=Invoke-WebRequest $u -TimeoutSec 30 -MaximumRedirection 5;if($r.StatusCode-ne200){throw "$u returned $($r.StatusCode)"};$r}
-          function Count($a,$e,$n){if([string]::IsNullOrWhiteSpace($e)){return};$x=0;if(-not[int]::TryParse($e,[ref]$x)-or$x-lt0){throw "Invalid $n count"};if(@($a).Count-ne$x){throw "$n count mismatch"}}
+          function CountCheck($a,$e,$n){
+            $actual=@($a).Count
+            if([string]::IsNullOrWhiteSpace($e)){return $actual}
+            $x=0;if(-not[int]::TryParse($e,[ref]$x)-or$x-lt0){throw "Invalid $n count"}
+            if($actual-ne$x){
+              Write-Output "::warning title=Production data count drift::$n expected $x but live is $actual"
+              if($enforce){throw "$n count mismatch"}
+            }
+            return $actual
+          }
+          function Expected($e){if([string]::IsNullOrWhiteSpace($e)){'not supplied'}else{$e.Trim()}}
           function Privacy($v,$p='$'){if($null-eq$v){return};$bad=@('password','passwordhash','apikey','token','resettoken','securitystamp','connectionstring','connectionstrings','adminkey');if($v-is[pscustomobject]){foreach($q in $v.PSObject.Properties){if($bad-icontains$q.Name){throw "Forbidden key $($q.Name) at $p"};Privacy $q.Value "$p.$($q.Name)"}}elseif($v-is[Collections.IDictionary]){foreach($k in $v.Keys){if($bad-icontains[string]$k){throw "Forbidden key $k at $p"};Privacy $v[$k] "$p.$k"}}elseif($v-is[Collections.IEnumerable]-and$v-isnot[string]){foreach($i in $v){Privacy $i $p}}}
           $b=$env:PRODUCTION_BASE_URL.TrimEnd('/'); Get200 "$b/api/health"|Out-Null; Get200 "$b/api/version"|Out-Null
           $id=[Uri]::EscapeDataString($env:CID.Trim()); $j=(Get200 "$b/api/public/competitions/$id/results").Content|ConvertFrom-Json -Depth 100
           foreach($n in 'settings','translations','results','stackers','doubles','relays'){if(-not($j.PSObject.Properties.Name-contains$n)){throw "Missing $n"}}
           if(-not($j.settings.PSObject.Properties.Name-contains'language')){throw 'Missing settings.language'}
-          Count $j.results $env:ER results; Count $j.stackers $env:ES stackers; Count $j.doubles $env:ED doubles; Count $j.relays $env:EL relays; Privacy $j
-          'POST_START_HTTP_VALIDATION=PASS';'PHASE3F_PUBLIC_API_SHAPE=PASS';'PRIVACY_CHECK=PASS';'PRODUCTION_WRITES=0'
+          Privacy $j
+          $resultsCount=CountCheck $j.results $env:ER 'results'
+          $stackersCount=CountCheck $j.stackers $env:ES 'stackers'
+          $doublesCount=CountCheck $j.doubles $env:ED 'doubles'
+          $relaysCount=CountCheck $j.relays $env:EL 'relays'
+          'POST_START_HTTP_VALIDATION=PASS';'PHASE3F_PUBLIC_API_SHAPE=PASS';'PRIVACY_CHECK=PASS'
+          "RESULTS_COUNT=$resultsCount";"STACKERS_COUNT=$stackersCount";"DOUBLES_COUNT=$doublesCount";"RELAYS_COUNT=$relaysCount"
+          "LANGUAGE=$($j.settings.language)";"COUNT_ENFORCEMENT=$enforce";'PRODUCTION_WRITES=0'
+          $er=Expected $env:ER; $es=Expected $env:ES; $ed=Expected $env:ED; $el=Expected $env:EL
+          @"
+          ## Post-start verification
+          - HTTP health/version/public results: `PASS`
+          - Phase 3F API shape: `PASS`
+          - Privacy deny-list: `PASS`
+          - Language: `$($j.settings.language)`
+          - Count enforcement: `$enforce`
+          - Production writes: `NONE`
+
+          | Dataset | Live | Expected |
+          | --- | ---: | ---: |
+          | Results | `$resultsCount` | `$er` |
+          | Stackers | `$stackersCount` | `$es` |
+          | Doubles | `$doublesCount` | `$ed` |
+          | Relays | `$relaysCount` | `$el` |
+          "@ | Add-Content $env:GITHUB_STEP_SUMMARY
