@@ -4,6 +4,39 @@
   const t = key => ui()?.t(key) || key;
   const tf = (template, values) => ui()?.tf(template, values) || template;
   const knownMessage = (value, fallback) => ui()?.translateKnownMessage(value, fallback) || t(fallback || "Request failed.");
+  const activityRuntime = {
+    descriptor: null,
+    supports(capability) {
+      return this.descriptor?.capabilities?.[capability] === true;
+    }
+  };
+  window.StackMeetActivityRuntime = activityRuntime;
+
+  function clearActivityDescriptor() {
+    activityRuntime.descriptor = null;
+  }
+
+  // Loads generic activity metadata for the already-authorized SQL competition.
+  // This read is optional: legacy/local modes and descriptor failures continue with compatibility behavior.
+  async function loadActivityDescriptor(session) {
+    clearActivityDescriptor();
+    const competitionId = Number(session?.selectedCompetitionSqlId);
+    if (!Number.isInteger(competitionId) || competitionId <= 0 || session?.localFileTest) return null;
+
+    try {
+      const response = await fetch(`/api/competitions/${encodeURIComponent(competitionId)}/activity`, {
+        method: "GET",
+        headers: { Accept: "application/json", ...authHeaders() }
+      });
+      if (!response.ok) throw new Error(`Competition activity request failed (${response.status}).`);
+      const descriptor = await response.json();
+      activityRuntime.descriptor = descriptor && typeof descriptor === "object" ? descriptor : null;
+      return activityRuntime.descriptor;
+    } catch (error) {
+      console.warn("Competition activity descriptor unavailable; continuing with compatibility behavior.", error);
+      return null;
+    }
+  }
 
   function initializeLoginLanguage() {
     const login = document.getElementById("loginScreen");
@@ -38,6 +71,7 @@
 
   function clearSession() {
     sessionStorage.removeItem(sessionKey);
+    clearActivityDescriptor();
   }
 
   function saveSession(session) {
@@ -143,6 +177,7 @@
     const choices = Array.isArray(session.competitionAccess) ? session.competitionAccess : [];
     const selected = choices.find(item => String(item.competitionId) === String(competitionId));
     if (!selected) throw new Error("Choose an assigned competition.");
+    clearActivityDescriptor();
     const nextSession = saveSession({
       ...session,
       competitionId: selected.competitionKey,
@@ -188,7 +223,10 @@
     initializeLoginLanguage();
     let session = readSession();
     updateChrome();
-    if (hasSelectedCompetition(session)) return session;
+    if (hasSelectedCompetition(session)) {
+      await loadActivityDescriptor(session);
+      return session;
+    }
 
     const form = document.getElementById("loginForm");
     const error = document.getElementById("loginError");
@@ -262,6 +300,7 @@
 
           session = chooseCompetition(session, document.getElementById("loginCompetitionSelect")?.value);
           updateChrome();
+          await loadActivityDescriptor(session);
           resolve(session);
         } catch (loginError) {
           if (error) error.textContent = knownMessage(loginError.message, "Login failed.");
