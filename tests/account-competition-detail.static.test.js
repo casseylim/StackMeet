@@ -6,8 +6,11 @@ const root = path.resolve(__dirname, "..");
 const controller = fs.readFileSync(path.join(root, "backend/StackMeet.Api/Controllers/CompetitionsController.cs"), "utf8");
 
 const getStart = controller.indexOf('[HttpGet("{id:int}")]');
+const nextReadStart = controller.indexOf('[HttpGet("{id:int}/activity")]', getStart);
 const createStart = controller.indexOf("[HttpPost]", getStart);
-const getMethod = controller.slice(getStart, createStart);
+assert.ok(getStart >= 0 && createStart > getStart, "Competition detail GET and create action must exist.");
+const getEnd = nextReadStart > getStart && nextReadStart < createStart ? nextReadStart : createStart;
+const getMethod = controller.slice(getStart, getEnd);
 
 assert.match(getMethod, /session\.IsAccountSession && !session\.IsSystemAdmin/,
   "Account users must use competition assignments when reading one competition.");
