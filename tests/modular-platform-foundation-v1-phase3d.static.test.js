@@ -11,6 +11,8 @@ const competitionDto = read('backend/StackMeet.Api/Dtos/CompetitionDtos.cs');
 const competition = read('backend/StackMeet.Api/Models/Competition.cs');
 const resultsController = read('backend/StackMeet.Api/Controllers/CompetitionResultsController.cs');
 const stateController = read('backend/StackMeet.Api/Controllers/CompetitionStateController.cs');
+const authSession = read('backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js');
+const app = read('backend/StackMeet.Api/wwwroot/app.js');
 const migrationsDir = path.join(root, 'backend/StackMeet.Api/Migrations');
 const migrations = fs.readdirSync(migrationsDir)
   .filter(name => name.endsWith('.cs'))
@@ -69,6 +71,10 @@ assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-autho
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must remain outside Phase 3D resolver routing');
 assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3D must not persist activity selection');
 assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3D must not add an activity migration');
-assert.ok(!frontendJs.includes('/activity'), 'Phase 3D must not add frontend activity descriptor consumption yet');
+
+const frontendActivityRefs = frontendJs.match(/\/activity/g) || [];
+assert.strictEqual(frontendActivityRefs.length, 1, 'later frontend activation must keep exactly one bounded activity descriptor route reference');
+assert.ok(authSession.includes('/activity'), 'the single frontend activity descriptor read must remain in the competition-selection shell');
+assert.ok(!app.includes('/activity'), 'the Sport Stacking application monolith must not call the activity descriptor directly');
 
 console.log('Modular Platform Foundation v1 Phase 3D activity descriptor guards passed.');
