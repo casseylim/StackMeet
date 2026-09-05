@@ -9,10 +9,13 @@ const resolver = read('backend/StackMeet.Api/Activities/CompetitionActivityResol
 const registration = read('backend/StackMeet.Api/Activities/ActivityModuleRegistration.cs');
 const competition = read('backend/StackMeet.Api/Models/Competition.cs');
 const controllersDir = path.join(root, 'backend/StackMeet.Api/Controllers');
-const controllers = fs.readdirSync(controllersDir)
-  .filter(name => name.endsWith('.cs'))
+const controllerFiles = fs.readdirSync(controllersDir)
+  .filter(name => name.endsWith('.cs'));
+const controllers = controllerFiles
   .map(name => fs.readFileSync(path.join(controllersDir, name), 'utf8'))
   .join('\n');
+const resolverConsumers = controllerFiles.filter(name =>
+  fs.readFileSync(path.join(controllersDir, name), 'utf8').includes('CompetitionActivityResolver'));
 const migrationsDir = path.join(root, 'backend/StackMeet.Api/Migrations');
 const migrations = fs.readdirSync(migrationsDir)
   .filter(name => name.endsWith('.cs'))
@@ -29,8 +32,8 @@ for (const forbiddenRule of ['3-3-3', '3-6-3', 'Cycle', 'WssaId', 'SpecialStacke
   assert.ok(!resolver.includes(forbiddenRule), `compatibility resolver must not contain Sport Stacking rule token: ${forbiddenRule}`);
 }
 
-assert.ok(!controllers.includes('CompetitionActivityResolver'), 'Phase 3B must not route any controller through the resolver yet');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3B must not add a persisted activity field');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3B must not add an activity migration');
+assert.deepStrictEqual(resolverConsumers, ['CompetitionsController.cs'], 'resolver consumption must remain limited to the bounded Phase 3C competition detail read seam');
+assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'compatibility phase must not add a persisted activity field');
+assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'compatibility phase must not add an activity migration');
 
 console.log('Modular Platform Foundation v1 Phase 3B compatibility resolver guards passed.');
