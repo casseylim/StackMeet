@@ -19,8 +19,8 @@ const migrations = fs.readdirSync(migrationsDir)
 
 assert.ok(auth.includes('window.StackMeetActivityRuntime = activityRuntime;'), 'Phase 3E must expose one generic frontend activity runtime seam');
 assert.ok(
-  auth.includes('return this.descriptor?.capabilities?.[capability] === true;'),
-  'activity runtime capability lookup must remain generic and boolean-only'
+  auth.includes('return this.descriptor?.capabilities?.[capability] !== false;'),
+  'activity runtime capability lookup must remain generic while preserving compatibility when metadata is absent'
 );
 assert.ok(auth.includes('descriptor: null'), 'activity runtime must start without a selected descriptor');
 assert.ok(!/sport-stacking|Sport Stacking|SportStackingActivityModule/.test(auth), 'frontend activity runtime must remain free of Sport Stacking implementation knowledge');
@@ -64,7 +64,7 @@ assert.ok(!/sessionStorage\.setItem\([^\n]*activity/i.test(auth), 'Phase 3E must
 assert.ok(controller.includes('[HttpGet("{id:int}/activity")]'), 'Phase 3E frontend bootstrap must continue consuming the bounded Phase 3D GET contract');
 assert.strictEqual((auth.match(/\/activity/g) || []).length, 1, 'AuthSession must contain exactly one activity endpoint reference');
 assert.ok(!app.includes('/activity'), 'Sport Stacking application runtime must not call the activity endpoint directly');
-assert.ok(!app.includes('StackMeetActivityRuntime'), 'Phase 3E must not change route/domain behavior based on activity capabilities yet');
+assert.ok(!app.includes('StackMeetActivityRuntime'), 'the Sport Stacking monolith must remain independent of the generic activity runtime');
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside activity routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must remain outside activity routing');
 assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3E must not persist activity selection');
