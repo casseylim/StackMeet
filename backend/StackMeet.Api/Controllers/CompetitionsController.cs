@@ -54,6 +54,28 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
         return Ok(Map(item));
     }
 
+    [HttpGet("{id:int}/activity")]
+    public async Task<ActionResult<CompetitionActivityResponse>> Activity(int id, CancellationToken ct)
+    {
+        var query = database.Competitions.AsNoTracking().Where(x => x.Id == id);
+        if (HttpContext.Items["StackMeetSession"] is SessionToken session)
+        {
+            if (session.IsAccountSession && !session.IsSystemAdmin)
+            {
+                query = query.Where(item => item.CompetitionUsers.Any(access => access.IsActive && access.UserId == session.UserId));
+            }
+            else if (!session.IsAccountSession)
+            {
+                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
+            }
+        }
+
+        var item = await query.SingleOrDefaultAsync(ct);
+        if (item is null) return NotFound();
+        var module = activityResolver.Resolve(item);
+        return Ok(MapActivity(module));
+    }
+
     [HttpPost]
     public async Task<ActionResult<CompetitionResponse>> Create(CompetitionRequest request, CancellationToken ct)
     {
@@ -112,6 +134,17 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
     static CompetitionRequest Normalize(CompetitionRequest x) => x with { CompetitionCode = CompetitionKeyRules.Normalize(x.CompetitionCode), CompetitionName = x.CompetitionName.Trim(), Venue = x.Venue.Trim(), Status = NormalizeStatus(x.Status)! };
     static string? NormalizeStatus(string? status) => status?.Trim().ToUpperInvariant() switch { "ACTIVE" => "Active", "CLOSED" => "Closed", "ARCHIVED" => "Archived", "DRAFT" => "Draft", _ => null };
     static CompetitionResponse Map(Competition x)=>new(x.Id,x.CompetitionCode,x.CompetitionName,x.Venue,x.StartDate,x.EndDate,x.Status,x.IsPubliclyListed,x.CreatedAt,x.UpdatedAt);
+    static CompetitionActivityResponse MapActivity(IActivityModule module) => new(
+        module.Code,
+        module.DisplayName,
+        module.Version,
+        new ActivityCapabilitiesResponse(
+            module.Capabilities.SupportsTeamEntries,
+            module.Capabilities.SupportsCategories,
+            module.Capabilities.SupportsStages,
+            module.Capabilities.SupportsLiveResults,
+            module.Capabilities.SupportsCertificates,
+            module.Capabilities.SupportsOfflinePackage));
     static bool StateHasMeaningfulData(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return false;
