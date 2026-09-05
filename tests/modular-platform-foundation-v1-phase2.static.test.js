@@ -9,7 +9,6 @@ const contracts = read('backend/StackMeet.Api/Activities/ActivityModuleContracts
 const registry = read('backend/StackMeet.Api/Activities/ActivityModuleRegistry.cs');
 const sportStacking = read('backend/StackMeet.Api/Activities/SportStackingActivityModule.cs');
 const registration = read('backend/StackMeet.Api/Activities/ActivityModuleRegistration.cs');
-const program = read('backend/StackMeet.Api/Program.cs');
 const competition = read('backend/StackMeet.Api/Models/Competition.cs');
 
 assert.ok(contracts.includes('public interface IActivityModule'), 'activity module contract must exist');
@@ -28,7 +27,7 @@ assert.ok(registry.includes('Unknown activity module'), 'unknown explicit module
 assert.ok(registry.includes('string.IsNullOrWhiteSpace(moduleCode)'), 'blank module code must use compatibility resolution');
 
 assert.ok(registration.includes('AddNadiTrackActivityModules'), 'DI registration seam must exist');
-assert.ok(registration.includes('AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'Sport Stacking must be the only built-in module in Phase 2');
+assert.ok(registration.includes('AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'Sport Stacking must be the only built-in module in the foundation seam');
 assert.ok(registration.includes('AddSingleton<ActivityModuleRegistry>()'), 'activity module registry must be DI-registerable');
 
 const sharedCoreSurface = `${contracts}\n${registry}\n${registration}`;
@@ -51,7 +50,6 @@ for (const forbidden of ['DbContext', 'SqlServer', 'CompetitionResultRules', 'Fi
   assert.ok(!sharedCoreSurface.includes(forbidden), `module registry seam must not depend on runtime/domain implementation: ${forbidden}`);
 }
 
-assert.ok(!program.includes('AddNadiTrackActivityModules('), 'Phase 2 must not activate the module system in the request pipeline yet');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 2 must not require a Competition schema change');
+assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'foundation must not require a Competition schema change');
 
 console.log('Modular Platform Foundation v1 Phase 2 static guards passed.');

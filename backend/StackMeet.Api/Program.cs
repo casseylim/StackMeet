@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
 using StackMeet.Api.Hubs;
+using StackMeet.Api.Activities;
 
 var builder = WebApplication.CreateBuilder(args);
 var apiKeyHeaderName = builder.Configuration["Security:ApiKeyHeaderName"] ?? "X-StackMeet-Api-Key";
@@ -13,6 +14,7 @@ var allowedOrigins = builder.Configuration.GetSection("Security:AllowedOrigins")
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers();
+builder.Services.AddNadiTrackActivityModules();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
