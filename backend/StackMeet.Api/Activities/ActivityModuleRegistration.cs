@@ -4,8 +4,9 @@ namespace StackMeet.Api.Activities;
 
 /// <summary>
 /// Dependency-injection registration seam for the activity module system.
-/// Phase 2 intentionally does not invoke this from Program.cs yet, so introducing
-/// the seam cannot affect the current request pipeline or application behavior.
+/// The registry and compatibility resolver are infrastructure only; existing
+/// controllers continue to use their current Sport Stacking behavior until a
+/// later bounded adapter phase explicitly consumes the resolver.
 /// </summary>
 public static class ActivityModuleRegistration
 {
@@ -15,6 +16,7 @@ public static class ActivityModuleRegistration
 
         services.AddSingleton<IActivityModule, SportStackingActivityModule>();
         services.AddSingleton<ActivityModuleRegistry>();
+        services.AddSingleton<CompetitionActivityResolver>();
         return services;
     }
 }
