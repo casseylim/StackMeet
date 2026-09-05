@@ -7,13 +7,37 @@
   const activityRuntime = {
     descriptor: null,
     supports(capability) {
-      return this.descriptor?.capabilities?.[capability] === true;
+      return this.descriptor?.capabilities?.[capability] !== false;
     }
   };
   window.StackMeetActivityRuntime = activityRuntime;
 
+  function enforceActivityShellRoute() {
+    if (!activityRuntime.supports("supportsLiveResults") && location.hash.replace("#", "") === "leaderboard") {
+      location.hash = "dashboard";
+    }
+  }
+
+  function applyActivityShellCapabilities() {
+    const liveResultsEnabled = activityRuntime.supports("supportsLiveResults");
+    document.querySelectorAll('[data-route="leaderboard"]').forEach(node => {
+      node.hidden = !liveResultsEnabled;
+    });
+    enforceActivityShellRoute();
+  }
+
+  function observeActivityShell() {
+    const nav = document.getElementById("nav");
+    if (!nav || typeof MutationObserver === "undefined") return;
+    new MutationObserver(() => applyActivityShellCapabilities()).observe(nav, { childList: true, subtree: true });
+    applyActivityShellCapabilities();
+  }
+
+  window.addEventListener("hashchange", enforceActivityShellRoute);
+
   function clearActivityDescriptor() {
     activityRuntime.descriptor = null;
+    applyActivityShellCapabilities();
   }
 
   // Loads generic activity metadata for the already-authorized SQL competition.
@@ -31,6 +55,7 @@
       if (!response.ok) throw new Error(`Competition activity request failed (${response.status}).`);
       const descriptor = await response.json();
       activityRuntime.descriptor = descriptor && typeof descriptor === "object" ? descriptor : null;
+      applyActivityShellCapabilities();
       return activityRuntime.descriptor;
     } catch (error) {
       console.warn("Competition activity descriptor unavailable; continuing with compatibility behavior.", error);
@@ -330,5 +355,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("logoutBtn")?.addEventListener("click", logout);
     updateChrome();
+    observeActivityShell();
   });
 })();
