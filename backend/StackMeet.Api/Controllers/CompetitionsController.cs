@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using StackMeet.Api.Activities;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
 using StackMeet.Api.Models;
@@ -10,7 +11,7 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions")]
-public sealed class CompetitionsController(StackMeetDbContext database) : ControllerBase
+public sealed class CompetitionsController(StackMeetDbContext database, CompetitionActivityResolver activityResolver) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CompetitionResponse>>> List(CancellationToken ct)
@@ -48,7 +49,9 @@ public sealed class CompetitionsController(StackMeetDbContext database) : Contro
         }
 
         var item = await query.SingleOrDefaultAsync(ct);
-        return item is null ? NotFound() : Ok(Map(item));
+        if (item is null) return NotFound();
+        _ = activityResolver.Resolve(item);
+        return Ok(Map(item));
     }
 
     [HttpPost]
