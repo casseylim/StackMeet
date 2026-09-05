@@ -12,8 +12,20 @@
   };
   window.StackMeetActivityRuntime = activityRuntime;
 
+  function teamEntryRoutes() {
+    const template = document.getElementById("settingsView");
+    if (!template?.content) return new Set();
+    return new Set([...template.content.querySelectorAll(".team-builder-action[data-route]")]
+      .map(node => node.dataset.route)
+      .filter(Boolean));
+  }
+
   function enforceActivityShellRoute() {
     if (!activityRuntime.supports("supportsLiveResults") && location.hash.replace("#", "") === "leaderboard") {
+      location.hash = "dashboard";
+    }
+    const requestedRoute = location.hash.replace("#", "") || "dashboard";
+    if (!activityRuntime.supports("supportsTeamEntries") && teamEntryRoutes().has(requestedRoute)) {
       location.hash = "dashboard";
     }
   }
@@ -23,6 +35,11 @@
     document.querySelectorAll('[data-route="leaderboard"]').forEach(node => {
       node.hidden = !liveResultsEnabled;
     });
+    const teamEntriesEnabled = activityRuntime.supports("supportsTeamEntries");
+    const teamRoutes = teamEntryRoutes();
+    document.querySelectorAll("[data-route]").forEach(node => {
+      if (teamRoutes.has(node.dataset.route)) node.hidden = !teamEntriesEnabled;
+    });
     enforceActivityShellRoute();
   }
 
@@ -30,6 +47,8 @@
     const nav = document.getElementById("nav");
     if (!nav || typeof MutationObserver === "undefined") return;
     new MutationObserver(() => applyActivityShellCapabilities()).observe(nav, { childList: true, subtree: true });
+    const view = document.getElementById("view");
+    if (view) new MutationObserver(() => applyActivityShellCapabilities()).observe(view, { childList: true, subtree: true });
     applyActivityShellCapabilities();
   }
 
