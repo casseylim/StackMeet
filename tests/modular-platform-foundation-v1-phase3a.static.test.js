@@ -52,7 +52,9 @@ assert.ok(
 
 assert.ok(!program.includes('GetRequiredService<ActivityModuleRegistry>'), 'Program must not resolve the registry at runtime yet');
 assert.ok(!program.includes('.Resolve('), 'Program must not select an activity module yet');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3A must not add an activity column to Competition');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3A must not add a database migration for activity selection');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 3A activation guards passed.');

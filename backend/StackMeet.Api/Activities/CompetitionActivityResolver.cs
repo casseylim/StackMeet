@@ -3,11 +3,9 @@ using StackMeet.Api.Models;
 namespace StackMeet.Api.Activities;
 
 /// <summary>
-/// Resolves the activity module for a competition without requiring a persisted
-/// activity column during the compatibility phase. Existing competitions are
-/// intentionally mapped to the registry's Sport Stacking compatibility default.
-/// A future schema-backed selector can replace the compatibility code source
-/// without changing callers of this resolver.
+/// Resolves the activity module selected by the shared Competition model.
+/// Existing competitions keep a null selector and therefore continue through
+/// the registry's Sport Stacking compatibility default without a data backfill.
 /// </summary>
 public sealed class CompetitionActivityResolver
 {
@@ -21,6 +19,6 @@ public sealed class CompetitionActivityResolver
     public IActivityModule Resolve(Competition competition)
     {
         ArgumentNullException.ThrowIfNull(competition);
-        return _registry.Resolve(moduleCode: null);
+        return _registry.Resolve(competition.ActivityModuleCode);
     }
 }

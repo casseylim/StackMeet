@@ -41,7 +41,9 @@ assert.ok(dto.includes(expectedDto), 'competition response contract must remain 
 
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must not route through the resolver');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must not route through the resolver');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'no persisted activity field may be added');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'no activity migration may be added');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 3C bounded read projection guards passed.');

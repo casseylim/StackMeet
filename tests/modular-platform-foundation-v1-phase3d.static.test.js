@@ -69,8 +69,10 @@ const expectedCompetitionDto = 'public sealed record CompetitionResponse(int Id,
 assert.ok(competitionDto.includes(expectedCompetitionDto), 'existing competition detail response contract must remain unchanged');
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside Phase 3D resolver routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must remain outside Phase 3D resolver routing');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3D must not persist activity selection');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3D must not add an activity migration');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 const frontendActivityRefs = frontendJs.match(/\/activity/g) || [];
 assert.strictEqual(frontendActivityRefs.length, 1, 'later frontend activation must keep exactly one bounded activity descriptor route reference');
