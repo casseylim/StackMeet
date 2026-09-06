@@ -67,7 +67,9 @@ assert.ok(!app.includes('/activity'), 'Sport Stacking application runtime must n
 assert.ok(!app.includes('StackMeetActivityRuntime'), 'the Sport Stacking monolith must remain independent of the generic activity runtime');
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside activity routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must remain outside activity routing');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3E must not persist activity selection');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3E must not add an activity migration');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 3E frontend descriptor bootstrap guards passed.');

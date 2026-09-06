@@ -50,6 +50,7 @@ for (const forbidden of ['DbContext', 'SqlServer', 'CompetitionResultRules', 'Fi
   assert.ok(!sharedCoreSurface.includes(forbidden), `module registry seam must not depend on runtime/domain implementation: ${forbidden}`);
 }
 
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'foundation must not require a Competition schema change');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must use one nullable shared activity selector');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 2 static guards passed.');

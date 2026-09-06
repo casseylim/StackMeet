@@ -62,7 +62,9 @@ assert.ok(controller.includes('[HttpGet("{id:int}/activity")]'), 'Phase 3F must 
 assert.strictEqual((auth.match(/\/activity/g) || []).length, 1, 'Phase 3F must not add another descriptor endpoint call');
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside activity routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy competition state must remain outside activity routing');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'Phase 3F must not persist activity selection');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'Phase 3F must not add an activity migration');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 3F live-results shell capability guards passed.');

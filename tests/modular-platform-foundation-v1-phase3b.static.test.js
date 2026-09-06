@@ -25,15 +25,17 @@ const migrations = fs.readdirSync(migrationsDir)
 assert.ok(resolver.includes('public sealed class CompetitionActivityResolver'), 'compatibility resolver must exist');
 assert.ok(resolver.includes('ActivityModuleRegistry _registry'), 'resolver must depend on the activity registry');
 assert.ok(resolver.includes('Resolve(Competition competition)'), 'resolver must accept the shared Competition model');
-assert.ok(resolver.includes('_registry.Resolve(moduleCode: null)'), 'existing competitions must resolve through the compatibility default');
+assert.ok(resolver.includes('_registry.Resolve(competition.ActivityModuleCode)'), 'later schema activation must preserve registry-owned compatibility semantics');
 assert.ok(registration.includes('AddSingleton<CompetitionActivityResolver>()'), 'compatibility resolver must be registered with DI');
 
 for (const forbiddenRule of ['3-3-3', '3-6-3', 'Cycle', 'WssaId', 'SpecialStacker', 'Child/Parent', 'Timed Relay']) {
   assert.ok(!resolver.includes(forbiddenRule), `compatibility resolver must not contain Sport Stacking rule token: ${forbiddenRule}`);
 }
 
-assert.deepStrictEqual(resolverConsumers, ['CompetitionsController.cs'], 'resolver consumption must remain limited to the bounded Phase 3C competition detail read seam');
-assert.ok(!competition.includes('ActivityModuleCode') && !competition.includes('ActivityCode'), 'compatibility phase must not add a persisted activity field');
-assert.ok(!migrations.includes('ActivityModuleCode') && !migrations.includes('ActivityCode'), 'compatibility phase must not add an activity migration');
+assert.deepStrictEqual(resolverConsumers, ['CompetitionsController.cs'], 'resolver consumption must remain limited to the bounded competition read seams');
+assert.ok(competition.includes('public string? ActivityModuleCode { get; set; }'), 'later schema activation must keep the selector nullable for compatibility');
+assert.ok(!competition.includes('ActivityCode'), 'no competing activity selector field may be introduced');
+assert.ok(migrations.includes('name: "ActivityModuleCode"'), 'later schema activation must use the shared activity selector column');
+assert.ok(!migrations.includes('name: "ActivityCode"'), 'no competing activity selector migration may be introduced');
 
 console.log('Modular Platform Foundation v1 Phase 3B compatibility resolver guards passed.');
