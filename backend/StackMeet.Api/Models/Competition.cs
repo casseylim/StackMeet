@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace StackMeet.Api.Models;
 
 public sealed class Competition
@@ -10,6 +12,9 @@ public sealed class Competition
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    /// <summary>Optional shared activity selector. Null or blank preserves the registry compatibility default.</summary>
+    [MaxLength(100)]
+    public string? ActivityModuleCode { get; set; }
     /// <summary>Controls whether this competition appears on the public all-competitions directory.</summary>
     public bool IsPubliclyListed { get; set; }
     /// <summary>Latest committed mutation revision for this competition's result dataset.</summary>
