@@ -24,6 +24,7 @@ assert.ok(csproj.includes('Microsoft.AspNetCore.Mvc.Testing'), 'Phase 4C must us
 assert.ok(runtime.includes('await Phase4CActivityAssignmentRuntimeAssertions.RunAsync();'), 'Phase 4C runtime suite must have an explicit executable entrypoint');
 assert.ok(!runtime.includes('ModuleInitializer'), 'Phase 4C must not rely on module-initializer execution');
 assert.ok(runtime.includes('WebApplicationFactory<CompetitionActivityResolver>'), 'test host must target the real API assembly without modifying production Program');
+assert.ok(runtime.includes('builder.UseContentRoot(Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "backend", "StackMeet.Api")))'), 'test host must pin the real backend/StackMeet.Api content root');
 assert.ok(runtime.includes('services.RemoveAll<IActivityModule>()'), 'test host must isolate module registrations inside the test service provider');
 assert.ok(runtime.includes('services.AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'test registry must preserve the compatibility module');
 assert.ok(runtime.includes('services.AddSingleton<IActivityModule, Phase4CTestActivityModule>()'), 'test-only second module must exist only in integration DI');

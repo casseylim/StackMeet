@@ -263,6 +263,7 @@ internal static class Phase4CActivityAssignmentRuntimeAssertions
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
+            builder.UseContentRoot(Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "backend", "StackMeet.Api")));
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:StackMeet"] = connectionString,
