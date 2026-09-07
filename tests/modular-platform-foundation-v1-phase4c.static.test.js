@@ -8,13 +8,16 @@ const runtime = read('tests/CoreIntegrityIntegrationTests/Phase4CActivityAssignm
 const csproj = read('tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj');
 const registration = read('backend/StackMeet.Api/Activities/ActivityModuleRegistration.cs');
 
-function readTree(dir) {
-  return fs.readdirSync(dir, { withFileTypes: true }).map(entry => {
+function readSourceTree(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    if (entry.name === 'bin' || entry.name === 'obj') return [];
     const full = path.join(dir, entry.name);
-    return entry.isDirectory() ? readTree(full) : fs.readFileSync(full, 'utf8');
+    if (entry.isDirectory()) return [readSourceTree(full)];
+    if (!/\.(cs|js|json|csproj|html|css)$/i.test(entry.name)) return [];
+    return [fs.readFileSync(full, 'utf8')];
   }).join('\n');
 }
-const backend = readTree(path.join(root, 'backend/StackMeet.Api'));
+const backend = readSourceTree(path.join(root, 'backend/StackMeet.Api'));
 
 assert.ok(csproj.includes('Microsoft.AspNetCore.Mvc.Testing'), 'Phase 4C must use the standard ASP.NET in-process test host');
 assert.ok(runtime.includes('[ModuleInitializer]'), 'Phase 4C runtime assertions must execute as part of the existing LocalDB harness');
@@ -43,7 +46,7 @@ for (const token of [
 assert.ok(runtime.includes('StackMeet_Phase4C_'), 'Phase 4C database names must use a dedicated safety prefix');
 assert.ok(runtime.includes('InitialCatalog = "master"'), 'Phase 4C cleanup must reconnect through master');
 assert.ok(runtime.includes('SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE'), 'Phase 4C must clean up only its isolated LocalDB database');
-assert.ok(!backend.includes('test-activity'), 'test-only activity module must never appear in backend production code');
+assert.ok(!backend.includes('test-activity'), 'test-only activity module must never appear in backend production source');
 assert.ok(!registration.includes('Phase4CTestActivityModule'), 'production registration must remain unaware of the test-only module');
 assert.ok(registration.includes('AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'Sport Stacking must remain the only production module during Phase 4C');
 
