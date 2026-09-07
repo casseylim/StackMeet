@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,16 +14,15 @@ using StackMeet.Api.Data;
 using StackMeet.Api.Models;
 using StackMeet.Api.Services;
 
+await Phase4CActivityAssignmentRuntimeAssertions.RunAsync();
+
 internal static class Phase4CActivityAssignmentRuntimeAssertions
 {
     const string Server = @"(localdb)\MSSQLLocalDB";
     const string ApiKey = "phase-4c-maintenance-key";
     const string SessionSigningKey = "phase-4c-session-signing-key-32-bytes-minimum";
 
-    [ModuleInitializer]
-    internal static void Initialize() => RunAsync().GetAwaiter().GetResult();
-
-    static async Task RunAsync()
+    internal static async Task RunAsync()
     {
         var databaseName = $"StackMeet_Phase4C_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}";
         var builder = new SqlConnectionStringBuilder
@@ -147,6 +145,7 @@ internal static class Phase4CActivityAssignmentRuntimeAssertions
         }
 
         using var client = Client(factory);
+        client.Timeout = TimeSpan.FromSeconds(15);
         client.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", ApiKey);
 
         var blank = await PutActivity(client, ids.Empty, " ");
@@ -183,11 +182,16 @@ internal static class Phase4CActivityAssignmentRuntimeAssertions
         Expect(await SelectorAsync(connectionString, ids.Result) == SportStackingActivityModule.ModuleCode, "Phase 4C result-blocked switch preserves selector");
     }
 
-    static HttpClient Client(Phase4CTestApiFactory factory) => factory.CreateClient(new WebApplicationFactoryClientOptions
+    static HttpClient Client(Phase4CTestApiFactory factory)
     {
-        BaseAddress = new Uri("https://localhost"),
-        AllowAutoRedirect = false
-    });
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
+        });
+        client.Timeout = TimeSpan.FromSeconds(15);
+        return client;
+    }
 
     static Task<HttpResponseMessage> PutActivity(HttpClient client, int id, string? moduleCode) =>
         client.PutAsJsonAsync($"/api/competitions/{id}/activity", new { activityModuleCode = moduleCode });
