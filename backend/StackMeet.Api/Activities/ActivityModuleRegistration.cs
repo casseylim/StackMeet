@@ -4,9 +4,8 @@ namespace StackMeet.Api.Activities;
 
 /// <summary>
 /// Dependency-injection registration seam for the activity module system.
-/// The registry and compatibility resolver are infrastructure only; existing
-/// controllers continue to use their current Sport Stacking behavior until a
-/// later bounded adapter phase explicitly consumes the resolver.
+/// The registry, compatibility resolver and assignment policy are infrastructure
+/// only; activity-specific domain rules remain inside their own modules.
 /// </summary>
 public static class ActivityModuleRegistration
 {
@@ -17,6 +16,7 @@ public static class ActivityModuleRegistration
         services.AddSingleton<IActivityModule, SportStackingActivityModule>();
         services.AddSingleton<ActivityModuleRegistry>();
         services.AddSingleton<CompetitionActivityResolver>();
+        services.AddSingleton<ActivityAssignmentPolicy>();
         return services;
     }
 }

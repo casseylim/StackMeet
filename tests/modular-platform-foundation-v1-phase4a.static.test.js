@@ -43,8 +43,12 @@ const snapshotProperty = snapshot.match(/b\.Property<string>\("ActivityModuleCod
 assert.ok(snapshotProperty, 'EF model snapshot must include the nullable bounded selector');
 assert.ok(!snapshotProperty[0].includes('.IsRequired()'), 'EF snapshot selector must remain nullable');
 
-assert.ok(!dto.includes('ActivityModuleCode') && !dto.includes('ActivityCode'), 'Phase 4A must not expose selector writes or reads through the existing competition DTO contract');
-assert.ok(!controller.includes('ActivityModuleCode') && !controller.includes('ActivityCode'), 'existing competition admin actions must not mutate the selector in Phase 4A');
+assert.ok(!dto.includes('ActivityModuleCode') && !dto.includes('ActivityCode'), 'existing CompetitionRequest/CompetitionResponse contract must remain selector-neutral');
+const activityPutStart = controller.indexOf('[HttpPut("{id:int}/activity")]');
+const legacyAdminStart = controller.indexOf('[HttpPost]', activityPutStart);
+assert.ok(activityPutStart >= 0 && legacyAdminStart > activityPutStart, 'later phases may add only a bounded activity-specific write seam before existing admin actions');
+assert.strictEqual((controller.match(/item\.ActivityModuleCode\s*=/g) || []).length, 1, 'the persisted selector may be assigned in exactly one bounded write seam');
+assert.ok(!controller.slice(legacyAdminStart).includes('ActivityModuleCode'), 'existing competition POST/PUT/DELETE admin actions must remain unable to mutate the selector');
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside module routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy CompetitionState must remain outside module routing');
 assert.ok(!app.includes('ActivityModuleCode') && !app.includes('ActivityCode'), 'Sport Stacking application monolith must remain unaware of persisted selection');

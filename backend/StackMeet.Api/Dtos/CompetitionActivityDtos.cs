@@ -13,3 +13,5 @@ public sealed record CompetitionActivityResponse(
     string DisplayName,
     string Version,
     ActivityCapabilitiesResponse Capabilities);
+
+public sealed record CompetitionActivityAssignmentRequest(string? ActivityModuleCode);
