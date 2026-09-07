@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Text.Json;
 using StackMeet.Api.Activities;
 using StackMeet.Api.Data;
@@ -74,6 +75,44 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
         if (item is null) return NotFound();
         var module = activityResolver.Resolve(item);
         return Ok(MapActivity(module));
+    }
+
+    [HttpPut("{id:int}/activity")]
+    public async Task<ActionResult<CompetitionActivityResponse>> AssignActivity(
+        int id,
+        CompetitionActivityAssignmentRequest request,
+        [FromServices] ActivityAssignmentPolicy activityAssignmentPolicy,
+        CancellationToken ct)
+    {
+        if (!IsMaintenanceRequest()) return StatusCode(StatusCodes.Status403Forbidden);
+
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var item = await database.Competitions
+            .FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+            .SingleOrDefaultAsync(ct);
+        if (item is null) return NotFound();
+
+        var hasDurableActivityData =
+            await database.Stackers.AnyAsync(x => x.CompetitionId == id, ct) ||
+            await database.CompetitionResults.AnyAsync(x => x.CompetitionId == id, ct) ||
+            await database.CompetitionStates.AnyAsync(x => x.CompetitionKey == item.CompetitionKey, ct);
+
+        var decision = activityAssignmentPolicy.Evaluate(item, request.ActivityModuleCode, hasDurableActivityData);
+        if (!decision.IsAllowed)
+        {
+            if (decision.Failure == ActivityAssignmentFailure.DurableActivityData)
+            {
+                return Conflict(new { error = decision.Error });
+            }
+
+            return BadRequest(new { error = decision.Error });
+        }
+
+        item.ActivityModuleCode = decision.Module!.Code;
+        item.UpdatedAt = DateTime.UtcNow;
+        await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Ok(MapActivity(decision.Module));
     }
 
     [HttpPost]
