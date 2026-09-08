@@ -51,6 +51,6 @@ assert.ok(assignment.includes('return Ok(MapActivity(decision.Module'), 'success
 assert.ok(!resultsController.includes('ActivityAssignmentPolicy') && !stateController.includes('ActivityAssignmentPolicy'), 'results/state controllers must remain outside assignment policy');
 assert.ok(!app.includes('ActivityModuleCode'), 'Sport Stacking frontend must remain unaware of assignment mechanics');
 assert.strictEqual(migrations.filter(content => content.includes('name: "ActivityModuleCode"')).length, 1, 'Phase 4B must add no new selector migration');
-assert.ok(!/ChessActivityModule|SwimmingActivityModule|AthleticsActivityModule/.test(registration), 'Phase 4B must not add a second module');
+assert.ok(registration.includes('AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'Sport Stacking compatibility registration must remain present as later phases add modules');
 
 console.log('Modular Platform Foundation v1 Phase 4B activity assignment policy guards passed.');
