@@ -52,6 +52,6 @@ assert.ok(!controller.slice(legacyAdminStart).includes('ActivityModuleCode'), 'e
 assert.ok(!resultsController.includes('CompetitionActivityResolver'), 'SQL-authoritative results must remain outside module routing');
 assert.ok(!stateController.includes('CompetitionActivityResolver'), 'legacy CompetitionState must remain outside module routing');
 assert.ok(!app.includes('ActivityModuleCode') && !app.includes('ActivityCode'), 'Sport Stacking application monolith must remain unaware of persisted selection');
-assert.ok(!/ChessActivityModule|SwimmingActivityModule|AthleticsActivityModule/.test(registration), 'Phase 4A must not add a second activity module');
+assert.ok(registration.includes('AddSingleton<IActivityModule, SportStackingActivityModule>()'), 'Sport Stacking compatibility module registration must remain present as later phases add modules');
 
 console.log('Modular Platform Foundation v1 Phase 4A persisted activity selector guards passed.');

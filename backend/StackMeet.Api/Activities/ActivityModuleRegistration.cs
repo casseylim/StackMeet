@@ -14,6 +14,7 @@ public static class ActivityModuleRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IActivityModule, SportStackingActivityModule>();
+        services.AddSingleton<IActivityModule, ChessActivityModule>();
         services.AddSingleton<ActivityModuleRegistry>();
         services.AddSingleton<CompetitionActivityResolver>();
         services.AddSingleton<ActivityAssignmentPolicy>();
