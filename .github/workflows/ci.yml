@@ -43,9 +43,13 @@ jobs:
         run: |
           dotnet restore StackMeet.sln --configfile NuGet.Config
           dotnet restore tests/Phase4CActivityAssignmentIntegrationTests/Phase4CActivityAssignmentIntegrationTests.csproj --configfile NuGet.Config
+          dotnet restore tests/Phase5AActivityModuleIntegrationTests/Phase5AActivityModuleIntegrationTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
+
+      - name: Run Phase 5A production module integration tests
+        run: dotnet run --project tests/Phase5AActivityModuleIntegrationTests/Phase5AActivityModuleIntegrationTests.csproj -c Release --no-restore
 
       - name: Start LocalDB for core integrity harness
         shell: pwsh
