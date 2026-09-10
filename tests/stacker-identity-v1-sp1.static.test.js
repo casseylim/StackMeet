@@ -11,10 +11,12 @@ const generatorPath = 'backend/StackMeet.Api/Activities/SportStacking/Identity/N
 const servicePath = 'backend/StackMeet.Api/Activities/SportStacking/Identity/StackerIdentityPersistenceService.cs';
 const modelsPath = 'backend/StackMeet.Api/Activities/SportStacking/Identity/StackerIdentityPersistenceModels.cs';
 const migrationPath = 'backend/StackMeet.Api/Migrations/20260910103000_StackerIdentityPersistenceV1.cs';
+const snapshotPath = 'backend/StackMeet.Api/Migrations/StackMeetDbContextModelSnapshot.cs';
+const dbContextPath = 'backend/StackMeet.Api/Data/StackMeetDbContext.cs';
 const integrationProject = 'tests/StackerIdentityPersistenceTests/StackerIdentityPersistenceTests.csproj';
 const integrationProgram = 'tests/StackerIdentityPersistenceTests/Program.cs';
 
-for (const file of [identityPath, linkPath, generatorPath, servicePath, modelsPath, migrationPath, integrationProject, integrationProgram]) {
+for (const file of [identityPath, linkPath, generatorPath, servicePath, modelsPath, migrationPath, snapshotPath, dbContextPath, integrationProject, integrationProgram]) {
   assert.ok(fs.existsSync(path.join(root, file)), `${file} must exist`);
 }
 
@@ -58,6 +60,18 @@ assert.match(migration, /ResolutionReasonCode/);
 assert.match(migration, /ResolutionNote/);
 assert.match(migration, /onDelete: ReferentialAction\.Restrict/);
 assert.ok(!/unique:\s*true[\s\S]{0,120}WssaId/.test(migration), 'SP-1 must not introduce WSSA uniqueness before legacy-data audit');
+
+const snapshot = read(snapshotPath);
+assert.match(snapshot, /Activities\.SportStacking\.Identity\.SportStackerIdentity/);
+assert.match(snapshot, /Activities\.SportStacking\.Identity\.StackerIdentityLink/);
+assert.match(snapshot, /UX_SportStackerIdentity_NadiTrackId/);
+assert.match(snapshot, /UX_StackerIdentityLink_StackerId/);
+assert.match(snapshot, /WithOne\("IdentityLink"\)/);
+assert.match(snapshot, /OnDelete\(DeleteBehavior\.Restrict\)/);
+
+const dbContext = read(dbContextPath);
+assert.match(dbContext, /DbSet<SportStackerIdentity> SportStackerIdentities/);
+assert.match(dbContext, /DbSet<StackerIdentityLink> StackerIdentityLinks/);
 
 const stackerModel = read('backend/StackMeet.Api/Models/Stacker.cs');
 const stackerDtos = read('backend/StackMeet.Api/Dtos/StackerDtos.cs');
