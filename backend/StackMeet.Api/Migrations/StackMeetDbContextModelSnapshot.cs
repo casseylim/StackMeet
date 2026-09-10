@@ -22,6 +22,123 @@ namespace StackMeet.Api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("StackMeet.Api.Activities.SportStacking.Identity.SportStackerIdentity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Club")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsPublicProfile")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NadiTrackId")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WssaId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "NadiTrackId" }, "UX_SportStackerIdentity_NadiTrackId")
+                        .IsUnique();
+
+                    b.ToTable("SportStackerIdentity", "dbo");
+                });
+
+            modelBuilder.Entity("StackMeet.Api.Activities.SportStacking.Identity.StackerIdentityLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("LinkedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("LinkedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MatchMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ResolutionNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ResolutionReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("SportStackerIdentityId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("StackerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "SportStackerIdentityId" }, "IX_StackerIdentityLink_SportStackerIdentityId");
+
+                    b.HasIndex(new[] { "StackerId" }, "UX_StackerIdentityLink_StackerId")
+                        .IsUnique();
+
+                    b.ToTable("StackerIdentityLink", "dbo");
+                });
+
             modelBuilder.Entity("StackMeet.Api.Models.AppRole", b =>
                 {
                     b.Property<int>("Id")
@@ -648,6 +765,25 @@ namespace StackMeet.Api.Migrations
                     b.ToTable("Stacker", "dbo");
                 });
 
+            modelBuilder.Entity("StackMeet.Api.Activities.SportStacking.Identity.StackerIdentityLink", b =>
+                {
+                    b.HasOne("StackMeet.Api.Activities.SportStacking.Identity.SportStackerIdentity", "SportStackerIdentity")
+                        .WithMany()
+                        .HasForeignKey("SportStackerIdentityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StackMeet.Api.Models.Stacker", "Stacker")
+                        .WithOne("IdentityLink")
+                        .HasForeignKey("StackMeet.Api.Activities.SportStacking.Identity.StackerIdentityLink", "StackerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SportStackerIdentity");
+
+                    b.Navigation("Stacker");
+                });
+
             modelBuilder.Entity("StackMeet.Api.Models.AppUserToken", b =>
                 {
                     b.HasOne("StackMeet.Api.Models.AppUser", "User")
@@ -766,6 +902,11 @@ namespace StackMeet.Api.Migrations
                     b.Navigation("Results");
 
                     b.Navigation("Stackers");
+                });
+
+            modelBuilder.Entity("StackMeet.Api.Models.Stacker", b =>
+                {
+                    b.Navigation("IdentityLink");
                 });
 #pragma warning restore 612, 618
         }

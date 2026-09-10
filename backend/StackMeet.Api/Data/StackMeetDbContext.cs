@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StackMeet.Api.Activities.SportStacking.Identity;
 using StackMeet.Api.Models;
 using StackMeet.Api.Services;
 
@@ -15,6 +16,8 @@ public sealed class StackMeetDbContext(DbContextOptions<StackMeetDbContext> opti
     public DbSet<CompetitionState> CompetitionStates => Set<CompetitionState>();
     public DbSet<Competition> Competitions => Set<Competition>();
     public DbSet<Stacker> Stackers => Set<Stacker>();
+    public DbSet<SportStackerIdentity> SportStackerIdentities => Set<SportStackerIdentity>();
+    public DbSet<StackerIdentityLink> StackerIdentityLinks => Set<StackerIdentityLink>();
     public DbSet<CompetitionResult> CompetitionResults => Set<CompetitionResult>();
     public DbSet<CompetitionAsset> CompetitionAssets => Set<CompetitionAsset>();
 
