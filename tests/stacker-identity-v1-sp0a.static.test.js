@@ -51,31 +51,21 @@ for (const invariant of [
   'same NADITrack ID for life',
   'WssaId` is optional external-reference metadata only',
   'must never auto-merge two identities based on name alone',
-  'must not rewrite historical competition registration snapshots',
-  'SP-0A intentionally does **not**'
+  'must not rewrite historical competition registration snapshots'
 ]) {
   assert.ok(design.includes(invariant), `design invariant missing: ${invariant}`);
 }
 
-// SP-0A is domain-only: preserve the existing competition API and persistence behavior.
+// SP-0A's temporary no-persistence boundary is intentionally superseded by SP-1.
+// Preserve the more important compatibility contract: the competition-scoped Stacker/API does not gain a public NadiTrackId field.
 const stackerModel = read('backend/StackMeet.Api/Models/Stacker.cs');
 const stackerDtos = read('backend/StackMeet.Api/Dtos/StackerDtos.cs');
 const stackerController = read('backend/StackMeet.Api/Controllers/StackersController.cs');
-const dbContext = read('backend/StackMeet.Api/Data/StackMeetDbContext.cs');
 assert.match(stackerModel, /string\? WssaId/);
-assert.ok(!stackerModel.includes('NadiTrackId'), 'SP-0A must not mutate the competition-scoped Stacker contract');
+assert.ok(!stackerModel.includes('NadiTrackId'), 'competition-scoped Stacker must not become the permanent identity');
 assert.match(stackerDtos, /WssaId/);
-assert.ok(!stackerDtos.includes('NadiTrackId'), 'SP-0A must not mutate existing Stacker DTOs');
+assert.ok(!stackerDtos.includes('NadiTrackId'), 'existing Stacker DTOs must remain backward compatible');
 assert.match(stackerController, /WssaId/);
-assert.ok(!stackerController.includes('NadiTrackId'), 'SP-0A must not change current registration behavior');
-assert.ok(!dbContext.includes('SportStackerIdentity'), 'SP-0A must not wire permanent identity persistence yet');
-assert.ok(!dbContext.includes('StackerIdentityLink'), 'SP-0A must not wire identity links into EF yet');
-
-const migrationsDir = path.join(root, 'backend/StackMeet.Api/Migrations');
-for (const file of fs.readdirSync(migrationsDir).filter(name => name.endsWith('.cs'))) {
-  const migration = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-  assert.ok(!migration.includes('SportStackerIdentity'), `SP-0A must not persist identity in migration ${file}`);
-  assert.ok(!migration.includes('StackerIdentityLink'), `SP-0A must not persist links in migration ${file}`);
-}
+assert.ok(!stackerController.includes('NadiTrackId'), 'current Stacker API behavior must remain unchanged during SP-1');
 
 console.log('SP-0A permanent NADITrack identity foundation guards passed.');
