@@ -46,6 +46,7 @@ jobs:
           dotnet restore tests/Phase5AActivityModuleIntegrationTests/Phase5AActivityModuleIntegrationTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerIdentityMatchingTests/StackerIdentityMatchingTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerIdentityResolutionTests/StackerIdentityResolutionTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerIdentityPersistenceTests/StackerIdentityPersistenceTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -59,11 +60,14 @@ jobs:
       - name: Run SP-0C stacker identity resolution tests
         run: dotnet run --project tests/StackerIdentityResolutionTests/StackerIdentityResolutionTests.csproj -c Release --no-restore
 
-      - name: Start LocalDB for core integrity harness
+      - name: Start LocalDB for integration harnesses
         shell: pwsh
         run: |
           SqlLocalDB.exe start MSSQLLocalDB
           SqlLocalDB.exe info MSSQLLocalDB
+
+      - name: Run SP-1 stacker identity persistence tests
+        run: dotnet run --project tests/StackerIdentityPersistenceTests/StackerIdentityPersistenceTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
