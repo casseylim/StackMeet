@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using StackMeet.Api.Activities.SportStacking.Identity;
+
 namespace StackMeet.Api.Models;
 
 public sealed class Stacker
@@ -22,4 +25,11 @@ public sealed class Stacker
     public bool IsSpecialStacker { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Optional internal association to the permanent NADITrack person identity.
+    /// This is not part of the public competition-stacker DTO contract.
+    /// </summary>
+    [JsonIgnore]
+    public StackerIdentityLink? IdentityLink { get; set; }
 }
