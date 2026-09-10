@@ -9,7 +9,7 @@ public sealed class SportStackerIdentity
     /// <summary>Internal persistence key. This is never the public athlete identifier.</summary>
     public long Id { get; set; }
 
-    /// <summary>Permanent public NADITrack identifier, for example NDT-7K4M2P.</summary>
+    /// <summary>Permanent public NADITrack identifier, for example NDT-7K4M2PX.</summary>
     public string NadiTrackId { get; set; } = string.Empty;
 
     /// <summary>Optional external WSSA reference. NADITrack ID remains the authoritative NADITrack identity.</summary>
