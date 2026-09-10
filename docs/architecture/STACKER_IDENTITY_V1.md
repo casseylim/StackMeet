@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-0A foundation
+Status: SP-0B matching foundation
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The core distinction is:
 
 > A competition Stacker is an entry. A NADITrack Stacker is a person.
 
-SP-0A defines this identity contract only. It deliberately does not change current competition registration, persistence, migrations, public APIs, or production behavior.
+SP-0A defined the permanent identity contract. SP-0B adds the deterministic existing/new-stacker candidate-matching policy while still leaving current registration persistence and public APIs unchanged.
 
 ## Identity authority
 
@@ -19,7 +19,7 @@ SP-0A defines this identity contract only. It deliberately does not change curre
 - The NADITrack ID is immutable once issued.
 - Database primary keys remain internal and are never substituted for the public NADITrack ID.
 - `WssaId` is optional external-reference metadata only. It is not the NADITrack primary identity.
-- Existing competition-scoped `Stacker.WssaId` remains untouched during SP-0A for backward compatibility.
+- Existing competition-scoped `Stacker.WssaId` remains untouched during SP-0A/SP-0B for backward compatibility.
 
 ## Public identifier format
 
@@ -59,7 +59,7 @@ The target UX is:
 
 `Add Stacker -> Existing NADITrack Stacker / New Stacker -> duplicate check -> competition entry`
 
-SP-0B will design and implement the matching/search boundary. SP-1 will implement issuance/persistence. SP-2 will address historical linking/backfill.
+SP-0B implements the pure matching/search decision boundary. SP-1 will implement issuance/persistence. SP-2 will address historical linking/backfill.
 
 ## Matching and duplicate-detection policy
 
@@ -76,6 +76,29 @@ NADITrack must never auto-merge two identities based on name alone. Strong candi
 
 Link provenance values record how an association was established; they are audit metadata and do not themselves authorize an automatic merge.
 
+## SP-0B matching boundary
+
+`StackerIdentityMatcher` is a pure in-memory policy component. Persistence adapters can later supply identity candidates without moving matching rules into controllers or SQL queries.
+
+An explicit NADITrack ID is handled fail-closed:
+
+- malformed ID -> `InvalidNadiTrackId`;
+- valid but unknown ID -> `NadiTrackIdNotFound`;
+- one exact ID -> `ExactNadiTrackIdMatch` and authoritative selection;
+- duplicate stored permanent IDs -> integrity exception.
+
+When no NADITrack ID is supplied, the matcher produces ranked candidates only:
+
+- WSSA ID, exact name + birth date, email, and phone are `Strong` evidence;
+- exact name with matching country + club is `Possible` evidence;
+- exact name alone is `Possible` evidence;
+- every non-authoritative candidate requires operator confirmation;
+- no evidence means the New Stacker path may continue to identity creation in a later persistence phase.
+
+Name comparison is case-insensitive and whitespace-normalized. Email comparison is case-insensitive. Phone matching ignores formatting characters and requires at least seven digits on both sides.
+
+SP-0B does not write, merge, link, issue IDs, or mutate registrations. It only answers: exact existing identity, invalid/unknown explicit ID, candidate list requiring confirmation, or no candidate.
+
 ## Historical snapshot rule
 
 Permanent-profile updates must not rewrite historical competition registration snapshots.
@@ -90,9 +113,9 @@ A public athlete profile is opt-in. The existence of `IsPublicProfile` does not 
 
 Birth date, email, phone, parent/guardian information, home address, and other sensitive registration details must never become public merely because a career profile is enabled. Public/minor-profile policy is deferred to the dedicated profile/privacy phase.
 
-## SP-0A persistence boundary
+## SP-0A/SP-0B persistence boundary
 
-SP-0A intentionally does **not**:
+These foundation phases intentionally do **not**:
 
 - register `SportStackerIdentity` or `StackerIdentityLink` in `StackMeetDbContext`;
 - add or modify EF Core migrations;
@@ -103,7 +126,7 @@ SP-0A intentionally does **not**:
 - change public results;
 - deploy anything to production.
 
-This keeps the current Sport Stacking competition behavior unchanged while the permanent identity contract is reviewed.
+This keeps the current Sport Stacking competition behavior unchanged while the permanent identity and matching contracts are reviewed.
 
 ## Phase sequence
 
