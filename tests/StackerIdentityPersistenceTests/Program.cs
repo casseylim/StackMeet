@@ -74,6 +74,7 @@ try
     var exactStacker = NewStacker(competition.Id, "S1", "Exact", "Athlete", "Alpha Club");
     var newStacker = NewStacker(competition.Id, "S2", "Brand", "New", "Beta Club");
     var manualStacker = NewStacker(competition.Id, "S3", "Exact", "Athlete", "Alpha Club");
+    manualStacker.BirthDate = new DateOnly(2006, 6, 6);
     var overrideStacker = NewStacker(competition.Id, "S4", "Exact", "Athlete", "Alpha Club");
     db.Stackers.AddRange(exactStacker, newStacker, manualStacker, overrideStacker);
 
