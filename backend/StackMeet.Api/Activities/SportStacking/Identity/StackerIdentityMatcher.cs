@@ -56,6 +56,7 @@ public static class StackerIdentityMatcher
             .Select(item => EvaluateCandidate(query, item))
             .Where(item => item.Strength != StackerIdentityMatchStrength.None)
             .OrderByDescending(item => item.Strength)
+            .ThenByDescending(CandidateSpecificity)
             .ThenByDescending(item => item.Evidence.Count)
             .ThenBy(item => item.Identity.NadiTrackId, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -127,6 +128,18 @@ public static class StackerIdentityMatcher
                 : StackerIdentityMatchStrength.None;
 
         return new StackerIdentityMatchCandidate(identity, strength, evidence, false);
+    }
+
+    private static int CandidateSpecificity(StackerIdentityMatchCandidate candidate)
+    {
+        if (candidate.Evidence.Contains(StackerIdentityMatchMethod.NadiTrackId)) return 100;
+        if (candidate.Evidence.Contains(StackerIdentityMatchMethod.WssaId)) return 90;
+        if (candidate.Evidence.Contains(StackerIdentityMatchMethod.NameAndBirthDate)) return 80;
+        if (candidate.Evidence.Contains(StackerIdentityMatchMethod.Email)) return 75;
+        if (candidate.Evidence.Contains(StackerIdentityMatchMethod.Phone)) return 70;
+        if (candidate.Evidence.Contains("NAME_COUNTRY_CLUB")) return 20;
+        if (candidate.Evidence.Contains("NAME")) return 10;
+        return 0;
     }
 
     private static StackerIdentityMatchResult Empty(StackerIdentityLookupStatus status) =>
