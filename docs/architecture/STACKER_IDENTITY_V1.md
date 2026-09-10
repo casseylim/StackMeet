@@ -115,6 +115,8 @@ Birth date, email, phone, parent/guardian information, home address, and other s
 
 ## SP-0A/SP-0B persistence boundary
 
+SP-0A intentionally does **not** register or persist permanent identities or links. SP-0B preserves that same persistence boundary while adding matching policy only.
+
 These foundation phases intentionally do **not**:
 
 - register `SportStackerIdentity` or `StackerIdentityLink` in `StackMeetDbContext`;
