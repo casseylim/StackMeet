@@ -37,7 +37,9 @@ jobs:
         env:
           ConnectionStrings__StackMeet: Server=(localdb)\MSSQLLocalDB;Database=StackMeet_SP1_Snapshot_Generation;Trusted_Connection=True;TrustServerCertificate=True
         run: |
-          dotnet ef migrations add SP1SnapshotGenerationOnly `
+          $ef = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-ef.exe'
+          if (!(Test-Path $ef)) { throw "dotnet-ef was not installed at $ef" }
+          & $ef migrations add SP1SnapshotGenerationOnly `
             --project backend/StackMeet.Api/StackMeet.Api.csproj `
             --startup-project backend/StackMeet.Api/StackMeet.Api.csproj `
             --output-dir Migrations/SP1SnapshotGenerationOnly
