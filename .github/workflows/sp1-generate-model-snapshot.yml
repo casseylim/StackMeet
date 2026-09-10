@@ -1,0 +1,60 @@
+name: SP-1 Generate EF Model Snapshot
+
+on:
+  push:
+    branches:
+      - feature/stacker-identity-v1-sp1
+    paths:
+      - .github/workflows/sp1-generate-model-snapshot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  generate-snapshot:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore API
+        run: dotnet restore backend/StackMeet.Api/StackMeet.Api.csproj --configfile NuGet.Config
+
+      - name: Install matching EF tool
+        run: dotnet tool install --global dotnet-ef --version 8.0.8
+
+      - name: Generate current model snapshot only
+        shell: pwsh
+        env:
+          ConnectionStrings__StackMeet: Server=(localdb)\MSSQLLocalDB;Database=StackMeet_SP1_Snapshot_Generation;Trusted_Connection=True;TrustServerCertificate=True
+        run: |
+          dotnet ef migrations add SP1SnapshotGenerationOnly `
+            --project backend/StackMeet.Api/StackMeet.Api.csproj `
+            --startup-project backend/StackMeet.Api/StackMeet.Api.csproj `
+            --output-dir Migrations/SP1SnapshotGenerationOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path backend/StackMeet.Api/Migrations/StackMeetDbContextModelSnapshot.cs)) {
+            throw 'EF did not generate the expected model snapshot.'
+          }
+
+      - name: Commit only the generated snapshot
+        shell: pwsh
+        run: |
+          git status --short
+          git add backend/StackMeet.Api/Migrations/StackMeetDbContextModelSnapshot.cs
+          if (git diff --cached --quiet) {
+            throw 'EF generated no model snapshot change.'
+          }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: sync SP-1 EF model snapshot'
+          git push origin HEAD:feature/stacker-identity-v1-sp1
