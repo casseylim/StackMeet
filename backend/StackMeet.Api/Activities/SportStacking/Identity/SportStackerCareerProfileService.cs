@@ -98,18 +98,24 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
             .ToList();
 
+        // Reduce multiple Prelims/Finals rows to one best finalized Individual performance
+        // per competition/event. This shared reduction feeds both tournament history and
+        // career progression so the two public views cannot disagree about a tournament time.
+        var tournamentBestCandidates = candidates
+            .GroupBy(item => new { item.CompetitionId, item.EventCode })
+            .Select(group => group
+                .OrderBy(item => item.OfficialTime)
+                .ThenBy(item => item.ResultId)
+                .First())
+            .ToList();
+
         var tournamentHistory = appearances
             .OrderByDescending(item => item.StartDate)
             .ThenByDescending(item => item.CompetitionId)
             .Select(appearance =>
             {
-                var performances = candidates
+                var performances = tournamentBestCandidates
                     .Where(item => item.CompetitionId == appearance.CompetitionId)
-                    .GroupBy(item => item.EventCode, StringComparer.Ordinal)
-                    .Select(group => group
-                        .OrderBy(item => item.OfficialTime)
-                        .ThenBy(item => item.ResultId)
-                        .First())
                     .Select(item => new SportStackerTournamentPerformance(
                         item.EventCode,
                         item.OfficialTime,
@@ -128,6 +134,8 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             })
             .ToList();
 
+        var careerProgression = BuildCareerProgression(tournamentBestCandidates);
+
         var firstCompetitionDate = appearances.Count == 0
             ? (DateOnly?)null
             : appearances.Min(item => item.StartDate);
@@ -145,7 +153,52 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             firstCompetitionDate,
             latestCompetitionDate,
             tournamentHistory,
+            careerProgression,
             personalBests);
+    }
+
+    private static IReadOnlyList<SportStackerEventProgression> BuildCareerProgression(
+        IReadOnlyList<PersonalBestCandidate> tournamentBestCandidates)
+    {
+        return tournamentBestCandidates
+            .GroupBy(item => item.EventCode, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                decimal? personalBest = null;
+                var points = new List<SportStackerCareerProgressPoint>();
+
+                foreach (var item in group
+                    .OrderBy(candidate => candidate.CompetitionDate)
+                    .ThenBy(candidate => candidate.CompetitionId)
+                    .ThenBy(candidate => candidate.ResultId))
+                {
+                    var previousBest = personalBest;
+                    var isNewPersonalBest = previousBest is null || item.OfficialTime < previousBest.Value;
+                    decimal? improvementFromPreviousBest = previousBest is not null && item.OfficialTime < previousBest.Value
+                        ? previousBest.Value - item.OfficialTime
+                        : null;
+
+                    if (isNewPersonalBest)
+                    {
+                        personalBest = item.OfficialTime;
+                    }
+
+                    points.Add(new SportStackerCareerProgressPoint(
+                        item.CompetitionKey,
+                        item.CompetitionName,
+                        item.CompetitionDate,
+                        item.OfficialTime,
+                        item.Stage,
+                        isNewPersonalBest,
+                        personalBest ?? item.OfficialTime,
+                        improvementFromPreviousBest));
+                }
+
+                return new SportStackerEventProgression(group.Key, points);
+            })
+            .OrderBy(item => EventSort(item.EventCode))
+            .ThenBy(item => item.EventCode, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static PersonalBestCandidate? TryCreateCandidate(CareerResultRow row)
