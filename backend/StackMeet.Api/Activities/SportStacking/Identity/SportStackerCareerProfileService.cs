@@ -135,6 +135,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .ToList();
 
         var careerProgression = BuildCareerProgression(tournamentBestCandidates);
+        var finalsCareer = BuildFinalsCareer(resultRows);
 
         var firstCompetitionDate = appearances.Count == 0
             ? (DateOnly?)null
@@ -154,6 +155,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             latestCompetitionDate,
             tournamentHistory,
             careerProgression,
+            finalsCareer,
             personalBests);
     }
 
@@ -199,6 +201,133 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .OrderBy(item => EventSort(item.EventCode))
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static IReadOnlyList<SportStackerEventFinalsSummary> BuildFinalsCareer(
+        IReadOnlyList<CareerResultRow> resultRows)
+    {
+        var finals = resultRows
+            .Select(TryCreateFinalsCandidate)
+            .Where(item => item is not null)
+            .Select(item => item!)
+            // A well-formed competition normally has one Finals row per participant/event.
+            // If legacy data contains duplicates, publish one deterministic history point,
+            // preferring a valid performance and then the lowest official time.
+            .GroupBy(item => new { item.CompetitionId, item.EventCode })
+            .Select(group => group
+                .OrderBy(item => FinalsStatusSort(item.Status))
+                .ThenBy(item => item.OfficialTime ?? decimal.MaxValue)
+                .ThenBy(item => item.ResultId)
+                .First())
+            .ToList();
+
+        return finals
+            .GroupBy(item => item.EventCode, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var ordered = group
+                    .OrderBy(item => item.CompetitionDate)
+                    .ThenBy(item => item.CompetitionId)
+                    .ThenBy(item => item.ResultId)
+                    .ToList();
+                var valid = ordered
+                    .Where(item => item.Status == "Valid" && item.OfficialTime is not null)
+                    .ToList();
+                var best = valid
+                    .OrderBy(item => item.OfficialTime)
+                    .ThenBy(item => item.CompetitionDate)
+                    .ThenBy(item => item.ResultId)
+                    .FirstOrDefault();
+
+                return new SportStackerEventFinalsSummary(
+                    group.Key,
+                    ordered.Count,
+                    valid.Count,
+                    ordered.First().CompetitionDate,
+                    ordered.Last().CompetitionDate,
+                    best?.OfficialTime,
+                    best?.CompetitionKey,
+                    best?.CompetitionName,
+                    best?.CompetitionDate,
+                    ordered.Select(item => new SportStackerFinalsHistoryPoint(
+                        item.CompetitionKey,
+                        item.CompetitionName,
+                        item.CompetitionDate,
+                        item.Status,
+                        item.OfficialTime,
+                        item.RawBestTime,
+                        item.AppliedPenalty)).ToList());
+            })
+            .OrderBy(item => EventSort(item.EventCode))
+            .ThenBy(item => item.EventCode, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static FinalsHistoryCandidate? TryCreateFinalsCandidate(CareerResultRow row)
+    {
+        var eventCode = CompetitionResultRules.NormalizeEvent(row.EventCode);
+        var stage = CompetitionResultRules.NormalizeStage(row.Stage);
+        if (eventCode is null || stage != "Finals") return null;
+
+        decimal[] attempts;
+        try
+        {
+            attempts = JsonSerializer.Deserialize<decimal[]>(row.AttemptsJson) ?? [];
+        }
+        catch (JsonException)
+        {
+            return new FinalsHistoryCandidate(
+                row.CompetitionId,
+                row.ResultId,
+                eventCode,
+                row.CompetitionKey,
+                row.CompetitionName,
+                row.CompetitionDate,
+                "Invalid",
+                null,
+                null,
+                0m);
+        }
+
+        var validAttempts = attempts
+            .Where(value => value > 0m && value < 999m)
+            .ToArray();
+        if (validAttempts.Length > 0)
+        {
+            var rawBestTime = validAttempts.Min();
+            var appliedPenalty = row.Penalty > 0m && row.Penalty < 999m
+                ? row.Penalty
+                : 0m;
+            return new FinalsHistoryCandidate(
+                row.CompetitionId,
+                row.ResultId,
+                eventCode,
+                row.CompetitionKey,
+                row.CompetitionName,
+                row.CompetitionDate,
+                "Valid",
+                rawBestTime + appliedPenalty,
+                rawBestTime,
+                appliedPenalty);
+        }
+
+        var status = attempts.Length == 0
+            ? "Missing"
+            : attempts.All(value => value == 999m) || row.Penalty >= 999m
+                ? "Scratch"
+                : "Invalid";
+
+        return new FinalsHistoryCandidate(
+            row.CompetitionId,
+            row.ResultId,
+            eventCode,
+            row.CompetitionKey,
+            row.CompetitionName,
+            row.CompetitionDate,
+            status,
+            null,
+            null,
+            0m);
     }
 
     private static PersonalBestCandidate? TryCreateCandidate(CareerResultRow row)
@@ -247,6 +376,15 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
         return index < 0 ? int.MaxValue : index;
     }
 
+    private static int FinalsStatusSort(string status) => status switch
+    {
+        "Valid" => 0,
+        "Scratch" => 1,
+        "Invalid" => 2,
+        "Missing" => 3,
+        _ => int.MaxValue
+    };
+
     private static string? TrimOrNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -278,4 +416,16 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
         string CompetitionName,
         DateOnly CompetitionDate,
         string Stage);
+
+    private sealed record FinalsHistoryCandidate(
+        int CompetitionId,
+        long ResultId,
+        string EventCode,
+        string CompetitionKey,
+        string CompetitionName,
+        DateOnly CompetitionDate,
+        string Status,
+        decimal? OfficialTime,
+        decimal? RawBestTime,
+        decimal AppliedPenalty);
 }
