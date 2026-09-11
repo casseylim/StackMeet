@@ -15,6 +15,27 @@ public sealed record SportStackerPersonalBest(
     string Stage);
 
 /// <summary>
+/// One finalized public tournament performance for an individual event.
+/// This is competition-history data only; no private registration attributes are exposed.
+/// </summary>
+public sealed record SportStackerTournamentPerformance(
+    string EventCode,
+    decimal OfficialTime,
+    decimal RawBestTime,
+    decimal AppliedPenalty,
+    string Stage);
+
+/// <summary>
+/// One finalized, publicly listed competition appearance in the athlete's career history.
+/// A competition is retained even when there is no valid individual result for that appearance.
+/// </summary>
+public sealed record SportStackerTournamentHistory(
+    string CompetitionKey,
+    string CompetitionName,
+    DateOnly CompetitionDate,
+    IReadOnlyList<SportStackerTournamentPerformance> Performances);
+
+/// <summary>
 /// Privacy-safe public career projection keyed by the permanent NADITrack ID.
 /// Birth date, email, phone, gender and external IDs are deliberately not part of this contract.
 /// </summary>
@@ -27,4 +48,5 @@ public sealed record PublicSportStackerCareerProfile(
     int CompetitionCount,
     DateOnly? FirstCompetitionDate,
     DateOnly? LatestCompetitionDate,
+    IReadOnlyList<SportStackerTournamentHistory> TournamentHistory,
     IReadOnlyList<SportStackerPersonalBest> PersonalBests);
