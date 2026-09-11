@@ -244,6 +244,93 @@ button, input, select, textarea { font: inherit; }
 
 .empty-note { margin: 0; }
 
+.tournament-timeline {
+  display: grid;
+  gap: 16px;
+  position: relative;
+}
+
+.tournament-card {
+  position: relative;
+  border: 1px solid #dfe6f0;
+  border-radius: 18px;
+  padding: 22px;
+  background: #fbfcfe;
+}
+
+.tournament-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tournament-heading { min-width: 0; }
+
+.tournament-date,
+.tournament-key,
+.tournament-empty,
+.tournament-performance-meta {
+  margin: 0;
+  color: #6a7990;
+  line-height: 1.5;
+}
+
+.tournament-date {
+  margin-bottom: 4px;
+  font-size: .82rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.tournament-name {
+  margin: 0;
+  font-size: 1.16rem;
+  line-height: 1.35;
+}
+
+.tournament-key {
+  margin-top: 5px;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.tournament-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tournament-performance {
+  border: 1px solid #e3e9f2;
+  border-radius: 14px;
+  padding: 15px;
+  background: #fff;
+}
+
+.tournament-event {
+  margin: 0;
+  color: #41516b;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+
+.tournament-time {
+  display: block;
+  margin: 5px 0 7px;
+  font-size: 1.38rem;
+  letter-spacing: -.025em;
+}
+
+.tournament-performance-meta,
+.tournament-empty {
+  font-size: .86rem;
+}
+
 .information-note h2 { margin-bottom: 10px; }
 .information-note p + p { margin-top: 8px; }
 
@@ -256,7 +343,7 @@ button, input, select, textarea { font: inherit; }
   .brand-logo { width: 96px; }
   .profile-badge { font-size: .72rem; }
   .hero-card, .section-card, .information-note, .status-panel { padding: 22px; }
-  .stat-grid, .pb-grid { grid-template-columns: 1fr; }
+  .stat-grid, .pb-grid, .tournament-performance-grid { grid-template-columns: 1fr; }
   .stat-card { min-height: 108px; }
-  .section-heading { flex-direction: column; }
+  .section-heading, .tournament-header { flex-direction: column; }
 }
