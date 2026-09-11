@@ -44,15 +44,17 @@ for (const scenario of [
   'personal best uses best valid attempt plus applicable penalty',
   'scratch and malformed Cycle rows do not displace a valid PB',
   'faster active/private competition results cannot become public career PBs',
-  'private profile is indistinguishable from not found',
-  'public career contract excludes BirthDate',
-  'public career contract excludes Email',
-  'public career contract excludes Phone',
-  'public career contract excludes Gender',
-  'public career contract excludes WssaId'
+  'private profile is indistinguishable from not found'
 ]) {
   assert.ok(program.includes(scenario), `SP-3A integration scenario missing: ${scenario}`);
 }
+
+// The privacy assertions are intentionally generated from one forbidden-field loop.
+for (const forbidden of ['BirthDate', 'Email', 'Phone', 'Gender', 'WssaId']) {
+  assert.ok(program.includes(`"${forbidden}"`), `SP-3A forbidden public field guard missing: ${forbidden}`);
+}
+assert.match(program, /publicProperties\.Contains\(forbidden\)/);
+assert.match(program, /public career contract excludes \{forbidden\}/);
 
 const architecture = read(architecturePath);
 assert.match(architecture, /read-only/i);
