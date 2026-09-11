@@ -48,7 +48,7 @@ Evidence strength is intentionally different from merge authority:
 - name + country + club: Possible candidate;
 - name alone: Possible candidate discovery only.
 
-NADITrack must never auto-merge identities based on name alone. A Strong candidate is still not authoritative unless the NADITrack ID itself was explicitly supplied and resolved exactly.
+NADITrack must never auto-merge two identities based on name alone. A Strong candidate is still not authoritative unless the NADITrack ID itself was explicitly supplied and resolved exactly.
 
 An explicit NADITrack ID is fail-closed: malformed -> `InvalidNadiTrackId`; valid but unknown -> `NadiTrackIdNotFound`; one exact ID -> authoritative selection; duplicate stored permanent IDs -> integrity exception.
 
