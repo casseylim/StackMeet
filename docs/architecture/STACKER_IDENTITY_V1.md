@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-2 historical identity linking foundation
+Status: SP-3A career profile read model and personal best foundation
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The core distinction is:
 
 > A competition Stacker is an entry. A NADITrack Stacker is a person.
 
-SP-0A defined the permanent identity contract. SP-0B added deterministic candidate matching. SP-0C added the explicit resolution gate. SP-1 introduced durable permanent identities, competition-entry links, secure public-ID issuance, and transactional storage. SP-2 adds the safe historical-linking/backfill boundary for existing competition Stackers while preserving the existing public competition Stacker API.
+SP-0A defined the permanent identity contract. SP-0B added deterministic candidate matching. SP-0C added the explicit resolution gate. SP-1 introduced durable permanent identities, competition-entry links, secure public-ID issuance, and transactional storage. SP-2 added the safe historical-linking/backfill boundary. SP-3A adds the first privacy-safe, read-only career projection and finalized personal-best calculation while still stopping before HTTP/frontend publication.
 
 ## Identity authority
 
@@ -23,29 +23,19 @@ SP-0A defined the permanent identity contract. SP-0B added deterministic candida
 
 ## Public identifier format and issuance
 
-The v1 public format is:
+The v1 public format is `NDT-XXXXXXX`.
 
-`NDT-XXXXXXX`
-
-The seven-character body uses a restricted uppercase alphabet that excludes visually ambiguous `0`, `O`, `1`, `I`, and `L` characters.
-
-SP-1 issues identifiers with `CryptographicNadiTrackIdGenerator`, using cryptographically strong randomness. IDs are random rather than sequential/enumerable. The persistence service validates every generated value against `NadiTrackIdRules`, checks for a collision, retries up to 32 times, and relies on the database unique index as the final concurrency authority.
+The seven-character body uses a restricted uppercase alphabet that excludes visually ambiguous `0`, `O`, `1`, `I`, and `L` characters. SP-1 issues identifiers with cryptographically strong randomness. The persistence service validates generated values, retries collisions up to 32 times, and relies on the database unique index as the final concurrency authority.
 
 ## Domain and persistence boundary
 
-`SportStackerIdentity` represents the permanent person-level Sport Stacking identity and is persisted in `dbo.SportStackerIdentity`.
+`SportStackerIdentity` represents the permanent person-level Sport Stacking identity in `dbo.SportStackerIdentity`.
 
-`Stacker` remains the existing competition-scoped registration snapshot. It continues to own competition-specific data such as `StackerCode`, division, payment/check-in state, and the name/club/country values recorded for that competition. Permanent-profile work must not rewrite those historical snapshots.
+`Stacker` remains the competition-scoped registration snapshot. It continues to own competition-specific data such as `StackerCode`, division, payment/check-in state, and the name/club/country values recorded for that competition. Permanent-profile work must not rewrite historical snapshots.
 
-`StackerIdentityLink` is persisted in `dbo.StackerIdentityLink`. It associates one competition `Stacker` row with one permanent `SportStackerIdentity` and records provenance, resolution reason, review note, link time, and optional operator user ID.
+`StackerIdentityLink` associates one competition `Stacker` row with one permanent `SportStackerIdentity` and records provenance, resolution reason, review note, link time, and optional operator user ID.
 
-The persisted constraints enforce:
-
-- unique `SportStackerIdentity.NadiTrackId`;
-- at most one permanent identity link per competition `Stacker` row;
-- many competition `Stacker` rows may link to the same permanent identity;
-- restrictive foreign keys prevent silent cascade loss of identity history;
-- WSSA uniqueness remains intentionally deferred until legacy-data audit confirms it is safe.
+Persisted constraints enforce unique `NadiTrackId`, at most one permanent identity link per competition Stacker, many competition Stackers per permanent identity, and restrictive foreign keys. WSSA uniqueness remains intentionally deferred until legacy-data audit confirms it is safe.
 
 ## Matching policy — SP-0B
 
@@ -60,117 +50,80 @@ Evidence strength is intentionally different from merge authority:
 
 NADITrack must never auto-merge two identities based on name alone. A Strong candidate is still not authoritative unless the NADITrack ID itself was explicitly supplied and resolved exactly.
 
-An explicit NADITrack ID is handled fail-closed:
-
-- malformed ID -> `InvalidNadiTrackId`;
-- valid but unknown ID -> `NadiTrackIdNotFound`;
-- one exact ID -> `ExactNadiTrackIdMatch` and authoritative selection;
-- duplicate stored permanent IDs -> integrity exception.
+An explicit NADITrack ID is fail-closed: malformed -> `InvalidNadiTrackId`; valid but unknown -> `NadiTrackIdNotFound`; one exact ID -> authoritative selection; duplicate stored permanent IDs -> integrity exception.
 
 ## Resolution policy — SP-0C
 
-`StackerIdentityResolutionPolicy` is the pure safety gate between matching and persistence.
+`StackerIdentityResolutionPolicy` is the pure safety gate between matching and persistence. Only `Approved` decisions may persist.
 
-Only a decision with status `Approved` may be persisted. The rules remain:
-
-- an exact NADITrack ID match must resolve to `LinkExisting`;
-- malformed or unknown explicit IDs cannot silently fall through to `CreateNew`;
-- a selected existing identity must actually be present in the current match result;
-- Strong and Possible non-authoritative candidates require explicit `CandidateConfirmed` confirmation;
-- a Possible/manual match additionally requires a nonblank review note;
-- if no candidates exist, `CreateNew` may proceed normally;
-- if candidates exist, `CreateNew` requires the separate duplicate-override confirmation plus a nonblank reason;
-- confirmation of an existing candidate and permission to create a duplicate are intentionally separate flags.
+An exact NADITrack ID match must resolve to `LinkExisting`; malformed or unknown explicit IDs cannot fall through to `CreateNew`; selected identities must be current candidates; Strong/Possible candidates require explicit confirmation; Possible/manual matches also require an audit note; and CreateNew in the presence of candidates requires a separate duplicate-override confirmation plus reason.
 
 Approved provenance is recorded as `NADITRACK_ID`, `WSSA_ID`, `NAME_AND_BIRTH_DATE`, `EMAIL`, `PHONE`, `MANUAL`, or `CREATED_NEW` according to the reviewed decision.
 
 ## Transactional persistence — SP-1
 
-`StackerIdentityPersistenceService` accepts only an SP-0C `Approved` decision. It rejects blocked, confirmation-required, malformed, inconsistent, or unrecognized approval states before writing.
-
-Persistence runs inside a serializable database transaction. It loads the target competition Stacker, rejects a second link for an already-linked entry, revalidates the selected persisted identity for `LinkExisting`, and atomically creates the permanent identity plus link for `CreateNew`.
+`StackerIdentityPersistenceService` accepts only an SP-0C `Approved` decision. Persistence runs inside a serializable transaction. It rejects a second link for an already-linked competition Stacker, revalidates a selected persisted identity for `LinkExisting`, and atomically creates the permanent identity plus link for `CreateNew`.
 
 New permanent identities are seeded from the competition registration snapshot but start with `IsPublicProfile = false`. Creating or linking a permanent identity never rewrites the competition snapshot.
 
-The persisted link includes:
-
-- `MatchMethod`;
-- `ResolutionReasonCode`;
-- `ResolutionNote` when required;
-- `LinkedAt`;
-- optional `LinkedByUserId`.
-
-SP-1 recognizes only the reviewed SP-0C approval reason codes and therefore does not provide a second bypass around the resolution policy.
-
 ## Historical linking/backfill — SP-2
 
-SP-2 adds `StackerIdentityBackfillService` as a review/apply foundation for existing and historical competition Stackers.
+`StackerIdentityBackfillService` separates read-only discovery from one-entry-at-a-time apply.
 
-Historical backfill is intentionally split into two operations.
+Discovery inventories unlinked Stackers, recomputes candidates against current permanent identity data, and classifies each item only as `ReviewRequired` or `NoCandidates`. There is deliberately no `AutoLink` state. Even one unique Strong candidate remains review-required. Candidate summaries omit email and phone values.
 
-### Discovery is read-only
+Apply reloads current data and recomputes the match result before any write, so a stale discovery report is informational only. The recomputed result passes through SP-0C and only an approved resolution reaches SP-1. Already-linked Stackers are returned idempotently without rewrite.
 
-`DiscoverAsync` inventories unlinked Stackers and recomputes candidates against the current permanent identity data. It may be scoped to one competition or across competitions and is bounded to at most 500 returned items.
+Detailed SP-2 notes are in `docs/architecture/STACKER_IDENTITY_SP2.md`.
 
-Each unlinked Stacker is classified only as:
+## Career profile and personal best read model — SP-3A
 
-- `ReviewRequired` when one or more Strong/Possible candidates exist; or
-- `NoCandidates` when no current candidate exists.
+`SportStackerCareerProfileService` introduces a read-only public projection keyed by the permanent NADITrack ID.
 
-There is deliberately no `AutoLink` state. Even one unique Strong candidate remains review-required.
+The public projection is available only when `SportStackerIdentity.IsPublicProfile` is explicitly true. Malformed IDs, unknown IDs, and private identities all return no public profile so public callers cannot use this boundary as a private-profile existence oracle.
 
-Discovery does not create identities or links. Candidate summaries intentionally omit email and phone values even when those values contributed to matching evidence.
+Career appearances and PB candidates are restricted to publicly listed, finalized competitions: `IsPubliclyListed = true` and `Closed`, `Archived`, or already archived by timestamp. Active/provisional competitions do not silently become career records.
 
-### Apply is one entry at a time
+Career aggregation follows:
 
-`ApplyAsync` accepts one competition Stacker decision at a time. Before any write, it reloads current persisted data and recomputes the match result. A stale discovery report is therefore informational only and cannot be replayed as authority.
+`SportStackerIdentity -> StackerIdentityLink -> Stacker -> CompetitionResult`
 
-The recomputed result is passed through SP-0C. Only an approved resolution is passed to SP-1.
+Only `Individual` results contribute to individual PBs. Both Prelims and Finals may contribute. PB timing mirrors the existing `BestResultEngine.js`: the lowest valid attempt (`> 0` and `< 999`) plus an applicable penalty (`> 0` and `< 999`). Scratch-only, malformed, or unsupported result rows are ignored rather than breaking the profile.
 
-This means historical linking preserves all existing safeguards:
+The public contract includes NADITrack ID, display name, country, optional club/region, finalized public competition count/date range, and PB provenance. It deliberately excludes birth date, email, phone, gender, WSSA ID, payment/check-in data, and other registration-only information.
 
-- explicit valid existing NADITrack ID is authoritative;
-- unknown or malformed explicit NADITrack ID fails closed;
-- Strong/Possible candidates require confirmation;
-- Possible/manual links require a review note;
-- Create New despite candidates requires duplicate override plus note;
-- already-linked Stackers are surfaced as `AlreadyLinked` and are not rewritten;
-- no-candidate historical entries may deliberately create a new permanent identity only through the normal SP-0C/SP-1 path.
-
-Detailed SP-2 design notes are in `docs/architecture/STACKER_IDENTITY_SP2.md`.
+SP-3A is read-only and adds no schema migration. It deliberately exposes no public HTTP endpoint and no frontend profile route yet. Detailed design is in `docs/architecture/STACKER_IDENTITY_SP3A.md`.
 
 ## Historical snapshot rule
 
-Permanent-profile updates must not rewrite historical competition registration snapshots.
+Permanent-profile updates must not rewrite historical competition registration snapshots. If an athlete changes club later, the permanent profile may show the current club while an older competition continues to show the club registered for that event.
 
-Example: if an athlete changes club in 2028, the permanent profile may show the current club while a 2026 competition continues to show the club registered in 2026.
-
-Competition results continue to reference the competition-scoped participant identity exactly as they do today. Career aggregation will resolve those entries through the identity link in a later phase.
+Competition results continue to reference the competition-scoped participant identity exactly as they do today. SP-3A resolves career data through identity links without altering those historical rows.
 
 ## Privacy
 
-A public athlete profile is opt-in. The existence of `IsPublicProfile` does not make private attributes public.
+A public athlete profile is opt-in. `IsPublicProfile` never implies that private attributes are publishable.
 
-Birth date, email, phone, parent/guardian information, home address, and other sensitive registration details must never become public merely because a career profile is enabled. Permanent identities are private by default. Public/minor-profile policy remains deferred to the dedicated profile/privacy phase.
+Birth date, email, phone, parent/guardian information, home address, and other sensitive registration details must never become public merely because a career profile is enabled. Permanent identities are private by default. SP-3A additionally minimizes the public read model so those private fields are not present in its contract.
+
+Profile ownership, editing, minors/guardian consent, photos, and final publication UX remain deferred to separately reviewed phases.
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2 introduces no additional schema migration in this slice; it works through the existing SP-1 tables and constraints.
+SP-1 introduced the identity schema. SP-2 and SP-3A introduce no additional schema migrations.
 
-All migration/integration testing is performed only against isolated generated LocalDB databases in CI. No production migration is applied by SP-2 development or merge.
+All integration testing uses isolated generated LocalDB databases in CI. No production migration or deployment is part of these development phases.
 
-SP-2 deliberately does **not**:
+SP-3A deliberately does **not**:
 
-- add `NadiTrackId` to the existing `Stacker` DTO/controller contract;
-- expose a public or organizer backfill HTTP endpoint yet;
-- add a frontend bulk-backfill screen;
-- auto-link Strong candidates;
-- auto-create identities for every unmatched historical Stacker;
-- rewrite historical Stacker snapshots;
+- alter the existing `Stacker` HTTP contract;
+- expose a career-profile HTTP endpoint;
+- add a frontend profile page/route;
+- alter profile visibility flags;
+- rewrite historical Stackers/results;
+- aggregate Doubles/Relay career statistics;
 - introduce WSSA-ID uniqueness;
 - publish private athlete attributes;
-- aggregate career results;
-- change public results;
 - deploy anything to production.
 
 ## Phase sequence
@@ -179,6 +132,7 @@ SP-2 deliberately does **not**:
 - SP-0B: existing/new stacker search and duplicate-matching workflow — complete.
 - SP-0C: duplicate-resolution and identity-linking policy hardening — complete.
 - SP-1: persistent NADITrack ID issuance and storage — complete.
-- SP-2: historical competition Stacker discovery and explicit linking/backfill — current.
-- SP-3: public career profile and personal bests.
-- SP-4: tournament history, progress, and historical aggregation.
+- SP-2: historical competition Stacker discovery and explicit linking/backfill — complete.
+- SP-3A: privacy-safe public career read model and finalized personal bests — current.
+- SP-3B: reviewed public profile endpoint/route and presentation.
+- SP-4: tournament history, progress, and broader historical aggregation.
