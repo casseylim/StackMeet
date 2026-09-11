@@ -48,6 +48,7 @@ jobs:
           dotnet restore tests/StackerIdentityResolutionTests/StackerIdentityResolutionTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerIdentityPersistenceTests/StackerIdentityPersistenceTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerIdentityBackfillTests/StackerIdentityBackfillTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerCareerProfileTests/StackerCareerProfileTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -72,6 +73,9 @@ jobs:
 
       - name: Run SP-2 historical stacker identity backfill tests
         run: dotnet run --project tests/StackerIdentityBackfillTests/StackerIdentityBackfillTests.csproj -c Release --no-restore
+
+      - name: Run SP-3A public career profile tests
+        run: dotnet run --project tests/StackerCareerProfileTests/StackerCareerProfileTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
