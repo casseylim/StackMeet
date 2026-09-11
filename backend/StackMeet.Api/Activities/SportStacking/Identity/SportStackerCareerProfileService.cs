@@ -6,7 +6,7 @@ using StackMeet.Api.Services;
 namespace StackMeet.Api.Activities.SportStacking.Identity;
 
 /// <summary>
-/// SP-3A read-only public career projection for permanent Sport Stacking identities.
+/// Read-only public career projection for permanent Sport Stacking identities.
 /// Only explicitly public identities and finalized publicly-listed competitions contribute.
 /// </summary>
 public sealed class SportStackerCareerProfileService(StackMeetDbContext database)
@@ -60,6 +60,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
                     || competition.ArchivedAt != null)
                 && result.ParticipantType == "Individual"
             select new CareerResultRow(
+                competition.Id,
                 result.Id,
                 result.Stage,
                 result.EventCode,
@@ -97,6 +98,36 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
             .ToList();
 
+        var tournamentHistory = appearances
+            .OrderByDescending(item => item.StartDate)
+            .ThenByDescending(item => item.CompetitionId)
+            .Select(appearance =>
+            {
+                var performances = candidates
+                    .Where(item => item.CompetitionId == appearance.CompetitionId)
+                    .GroupBy(item => item.EventCode, StringComparer.Ordinal)
+                    .Select(group => group
+                        .OrderBy(item => item.OfficialTime)
+                        .ThenBy(item => item.ResultId)
+                        .First())
+                    .Select(item => new SportStackerTournamentPerformance(
+                        item.EventCode,
+                        item.OfficialTime,
+                        item.RawBestTime,
+                        item.AppliedPenalty,
+                        item.Stage))
+                    .OrderBy(item => EventSort(item.EventCode))
+                    .ThenBy(item => item.EventCode, StringComparer.Ordinal)
+                    .ToList();
+
+                return new SportStackerTournamentHistory(
+                    appearance.CompetitionKey,
+                    appearance.CompetitionName,
+                    appearance.StartDate,
+                    performances);
+            })
+            .ToList();
+
         var firstCompetitionDate = appearances.Count == 0
             ? (DateOnly?)null
             : appearances.Min(item => item.StartDate);
@@ -113,6 +144,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             appearances.Count,
             firstCompetitionDate,
             latestCompetitionDate,
+            tournamentHistory,
             personalBests);
     }
 
@@ -144,6 +176,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             : 0m;
 
         return new PersonalBestCandidate(
+            row.CompetitionId,
             row.ResultId,
             eventCode,
             rawBestTime + appliedPenalty,
@@ -171,6 +204,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
         DateOnly StartDate);
 
     private sealed record CareerResultRow(
+        int CompetitionId,
         long ResultId,
         string Stage,
         string EventCode,
@@ -181,6 +215,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
         DateOnly CompetitionDate);
 
     private sealed record PersonalBestCandidate(
+        int CompetitionId,
         long ResultId,
         string EventCode,
         decimal OfficialTime,
