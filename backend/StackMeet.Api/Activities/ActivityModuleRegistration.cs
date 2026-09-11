@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using StackMeet.Api.Activities.SportStacking.Identity;
 
 namespace StackMeet.Api.Activities;
 
@@ -18,6 +19,7 @@ public static class ActivityModuleRegistration
         services.AddSingleton<ActivityModuleRegistry>();
         services.AddSingleton<CompetitionActivityResolver>();
         services.AddSingleton<ActivityAssignmentPolicy>();
+        services.AddScoped<SportStackerCareerProfileService>();
         return services;
     }
 }

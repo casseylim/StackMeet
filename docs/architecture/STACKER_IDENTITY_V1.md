@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-3A career profile read model and personal best foundation
+Status: SP-3B public profile endpoint and presentation boundary
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The core distinction is:
 
 > A competition Stacker is an entry. A NADITrack Stacker is a person.
 
-SP-0A defined the permanent identity contract. SP-0B added deterministic candidate matching. SP-0C added the explicit resolution gate. SP-1 introduced durable permanent identities, competition-entry links, secure public-ID issuance, and transactional storage. SP-2 added the safe historical-linking/backfill boundary. SP-3A adds the first privacy-safe, read-only career projection and finalized personal-best calculation while still stopping before HTTP/frontend publication.
+SP-0A defined the permanent identity contract. SP-0B added deterministic candidate matching. SP-0C added the explicit resolution gate. SP-1 introduced durable permanent identities, competition-entry links, secure public-ID issuance, and transactional storage. SP-2 added the safe historical-linking/backfill boundary. SP-3A added the first privacy-safe, read-only career projection and finalized personal-best calculation. SP-3B now exposes that reviewed projection through a bounded public endpoint and stable presentation route without changing the underlying identity or result data.
 
 ## Identity authority
 
@@ -92,34 +92,52 @@ Only `Individual` results contribute to individual PBs. Both Prelims and Finals 
 
 The public contract includes NADITrack ID, display name, country, optional club/region, finalized public competition count/date range, and PB provenance. It deliberately excludes birth date, email, phone, gender, WSSA ID, payment/check-in data, and other registration-only information.
 
-SP-3A is read-only and adds no schema migration. It deliberately exposes no public HTTP endpoint and no frontend profile route yet. Detailed design is in `docs/architecture/STACKER_IDENTITY_SP3A.md`.
+SP-3A is read-only and adds no schema migration. It deliberately introduced no public HTTP endpoint and no frontend profile route. Detailed design is in `docs/architecture/STACKER_IDENTITY_SP3A.md`.
+
+## Public endpoint and presentation — SP-3B
+
+SP-3B exposes the reviewed SP-3A projection at:
+
+- `GET /api/public/stackers/{NadiTrackId}`;
+- `/Stackers/{NadiTrackId}`.
+
+The endpoint remains under the existing `/api/public` authentication exemption. It returns the SP-3A public contract unchanged and maps private, unknown, and malformed identities to the same not-found response.
+
+The profile page is isolated under `wwwroot/profile/`, sends no authentication credentials, and renders values using DOM `textContent` rather than HTML injection. The page and API are non-cacheable for this phase.
+
+The initial profile route also uses `noindex, nofollow`. The URL can therefore be reviewed and shared without enabling search-engine indexing before athlete ownership and minors/guardian consent governance are separately designed.
+
+Detailed SP-3B notes are in `docs/architecture/STACKER_IDENTITY_SP3B.md`.
 
 ## Historical snapshot rule
 
 Permanent-profile updates must not rewrite historical competition registration snapshots. If an athlete changes club later, the permanent profile may show the current club while an older competition continues to show the club registered for that event.
 
-Competition results continue to reference the competition-scoped participant identity exactly as they do today. SP-3A resolves career data through identity links without altering those historical rows.
+Competition results continue to reference the competition-scoped participant identity exactly as they do today. SP-3A/SP-3B resolve career data through identity links without altering those historical rows.
 
 ## Privacy
 
 A public athlete profile is opt-in. `IsPublicProfile` never implies that private attributes are publishable.
 
-Birth date, email, phone, parent/guardian information, home address, and other sensitive registration details must never become public merely because a career profile is enabled. Permanent identities are private by default. SP-3A additionally minimizes the public read model so those private fields are not present in its contract.
+Birth date, email, phone, parent/guardian information, home address, and other sensitive registration details must never become public merely because a career profile is enabled. Permanent identities are private by default. SP-3A minimizes the public read model and SP-3B consumes only that minimized contract.
 
-Profile ownership, editing, minors/guardian consent, photos, and final publication UX remain deferred to separately reviewed phases.
+Profile ownership, editing, minors/guardian consent, photos, athlete directory/search, and search-engine indexing remain deferred to separately reviewed phases.
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2 and SP-3A introduce no additional schema migrations.
+SP-1 introduced the identity schema. SP-2, SP-3A, and SP-3B introduce no additional schema migrations.
 
 All integration testing uses isolated generated LocalDB databases in CI. No production migration or deployment is part of these development phases.
 
-SP-3A deliberately does **not**:
+SP-3B deliberately does **not**:
 
-- alter the existing `Stacker` HTTP contract;
-- expose a career-profile HTTP endpoint;
-- add a frontend profile page/route;
+- alter the existing `Stacker` registration HTTP contract;
 - alter profile visibility flags;
+- add profile ownership or editing workflows;
+- add minors/guardian consent workflow;
+- add profile photos or media storage;
+- enable search-engine indexing;
+- create a public athlete directory/search;
 - rewrite historical Stackers/results;
 - aggregate Doubles/Relay career statistics;
 - introduce WSSA-ID uniqueness;
@@ -133,6 +151,6 @@ SP-3A deliberately does **not**:
 - SP-0C: duplicate-resolution and identity-linking policy hardening — complete.
 - SP-1: persistent NADITrack ID issuance and storage — complete.
 - SP-2: historical competition Stacker discovery and explicit linking/backfill — complete.
-- SP-3A: privacy-safe public career read model and finalized personal bests — current.
-- SP-3B: reviewed public profile endpoint/route and presentation.
+- SP-3A: privacy-safe public career read model and finalized personal bests — complete.
+- SP-3B: reviewed public profile endpoint/route and presentation — current.
 - SP-4: tournament history, progress, and broader historical aggregation.
