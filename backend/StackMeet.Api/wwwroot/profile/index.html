@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>NADITrack Stacker Profile</title>
+  <link rel="stylesheet" href="/profile/profile.css">
+</head>
+<body>
+  <main class="profile-shell" aria-live="polite">
+    <header class="brand-bar">
+      <a class="brand-link" href="/" aria-label="NADITrack home">
+        <img src="/NADITrack.png" alt="NADITrack" class="brand-logo">
+      </a>
+      <span class="profile-badge">Sport Stacker Profile</span>
+    </header>
+
+    <section id="statusPanel" class="status-panel">
+      <div class="status-spinner" aria-hidden="true"></div>
+      <div>
+        <h1 id="statusTitle">Loading profile…</h1>
+        <p id="statusMessage">Checking the public NADITrack career record.</p>
+      </div>
+    </section>
+
+    <article id="profilePanel" class="profile-panel" hidden>
+      <section class="hero-card">
+        <p class="eyebrow">Permanent NADITrack identity</p>
+        <h1 id="displayName"></h1>
+        <p id="nadiTrackId" class="identity-id"></p>
+        <p id="locationLine" class="location-line"></p>
+      </section>
+
+      <section class="stat-grid" aria-label="Career summary">
+        <div class="stat-card">
+          <span class="stat-label">Finalized public competitions</span>
+          <strong id="competitionCount" class="stat-value"></strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">First competition</span>
+          <strong id="firstCompetitionDate" class="stat-value"></strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Latest competition</span>
+          <strong id="latestCompetitionDate" class="stat-value"></strong>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Career bests</p>
+            <h2>Personal Bests</h2>
+          </div>
+          <span class="verified-note">Finalized results only</span>
+        </div>
+        <div id="personalBests" class="pb-grid"></div>
+        <p id="noPersonalBests" class="empty-note" hidden>No finalized individual personal bests are available yet.</p>
+      </section>
+
+      <section class="information-note">
+        <h2>About this profile</h2>
+        <p>This public view uses only competitions that are both publicly listed and finalized. Active or provisional results are excluded from career totals and personal bests.</p>
+        <p>Private registration information such as birth date, email, phone number, gender and external IDs is not included in this public profile.</p>
+      </section>
+    </article>
+  </main>
+
+  <script src="/profile/profile.js" defer></script>
+</body>
+</html>

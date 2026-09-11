@@ -64,10 +64,15 @@ assert.match(architecture, /no production deployment/i);
 assert.match(architecture, /Closed/);
 assert.match(architecture, /Archived/);
 
+// SP-3B is the reviewed publication phase. The SP-3A service may only be exposed
+// through the one privacy-preserving public controller; all other controller use is forbidden.
 const controllersDir = path.join(root, 'backend/StackMeet.Api/Controllers');
 for (const file of fs.readdirSync(controllersDir).filter(name => name.endsWith('.cs'))) {
   const controller = fs.readFileSync(path.join(controllersDir, file), 'utf8');
-  assert.ok(!controller.includes('SportStackerCareerProfileService'), `SP-3A must not expose career profile HTTP API yet: ${file}`);
+  if (!controller.includes('SportStackerCareerProfileService')) continue;
+  assert.strictEqual(file, 'PublicStackerProfilesController.cs', `Unexpected career profile controller exposure: ${file}`);
+  assert.match(controller, /Route\("api\/public\/stackers\/\{nadiTrackId\}"\)/);
+  assert.match(controller, /profile is null \? NotFound\(\) : Ok\(profile\)/);
 }
 
 console.log('SP-3A public career profile guards passed.');
