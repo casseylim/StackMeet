@@ -57,6 +57,35 @@ public sealed record SportStackerEventProgression(
     IReadOnlyList<SportStackerCareerProgressPoint> Points);
 
 /// <summary>
+/// One finalized public Finals-stage history point. Invalid, scratch and missing Finals
+/// are retained as appearances without publishing a fabricated time or placement.
+/// </summary>
+public sealed record SportStackerFinalsHistoryPoint(
+    string CompetitionKey,
+    string CompetitionName,
+    DateOnly CompetitionDate,
+    string Status,
+    decimal? OfficialTime,
+    decimal? RawBestTime,
+    decimal AppliedPenalty);
+
+/// <summary>
+/// Aggregated finalized Finals history for one supported Individual event.
+/// Placement, medals and award interpretation are intentionally excluded.
+/// </summary>
+public sealed record SportStackerEventFinalsSummary(
+    string EventCode,
+    int FinalsAppearanceCount,
+    int ValidFinalsCount,
+    DateOnly FirstFinalDate,
+    DateOnly LatestFinalDate,
+    decimal? BestFinalOfficialTime,
+    string? BestCompetitionKey,
+    string? BestCompetitionName,
+    DateOnly? BestCompetitionDate,
+    IReadOnlyList<SportStackerFinalsHistoryPoint> History);
+
+/// <summary>
 /// Privacy-safe public career projection keyed by the permanent NADITrack ID.
 /// Birth date, email, phone, gender and external IDs are deliberately not part of this contract.
 /// </summary>
@@ -71,4 +100,5 @@ public sealed record PublicSportStackerCareerProfile(
     DateOnly? LatestCompetitionDate,
     IReadOnlyList<SportStackerTournamentHistory> TournamentHistory,
     IReadOnlyList<SportStackerEventProgression> CareerProgression,
+    IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer,
     IReadOnlyList<SportStackerPersonalBest> PersonalBests);
