@@ -31,7 +31,12 @@ assert.match(service, /result\.ParticipantType == "Individual"/);
 assert.match(service, /value > 0m && value < 999m/);
 assert.match(service, /row\.Penalty > 0m && row\.Penalty < 999m/);
 assert.match(service, /AsNoTracking\(\)/);
-assert.ok(!/SaveChanges|Add\(|Remove\(/.test(service), 'SP-3A career service must remain read-only');
+
+// Read-only means no EF persistence operation. In-memory List<T>.Add is allowed.
+assert.ok(!/SaveChanges(?:Async)?\s*\(/.test(service), 'SP-3A career service must never call SaveChanges');
+assert.ok(!/database\.[A-Za-z0-9_]+\.(?:Add|AddRange|Remove|RemoveRange|Update|UpdateRange)\s*\(/.test(service), 'SP-3A career service must not mutate EF DbSets');
+assert.ok(!/database\.(?:Add|AddRange|Remove|RemoveRange|Update|UpdateRange)\s*\(/.test(service), 'SP-3A career service must not mutate DbContext');
+assert.ok(!/ExecuteSql(?:Raw|Interpolated)(?:Async)?\s*\(/.test(service), 'SP-3A career service must not execute SQL writes');
 
 const program = read(testProgram);
 for (const scenario of [
