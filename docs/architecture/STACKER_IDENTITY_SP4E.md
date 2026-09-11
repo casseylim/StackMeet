@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1 — SP-4E Finals Ranking Compatibility Contract
 
-Status: characterization candidate
+Status: complete
 
 ## Purpose
 
