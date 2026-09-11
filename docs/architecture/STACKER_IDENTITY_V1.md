@@ -27,7 +27,7 @@ The v1 public identifier format is `NDT-XXXXXXX`, using a restricted uppercase a
 
 `StackerIdentityLink` associates a competition Stacker with one permanent identity and preserves resolution provenance. Historical competition snapshots are never rewritten merely because permanent profile information changes later.
 
-SP-0B defines deterministic candidate matching. SP-0C defines the explicit resolution gate. Candidate strength is not merge authority: name-only matches are never auto-merged, and even Strong candidates require the reviewed decision boundary unless an explicit NADITrack ID resolved authoritatively.
+SP-0B defines deterministic candidate matching. SP-0C defines the explicit resolution gate. StackMeet must never auto-merge two identities based on name alone. Candidate strength is not merge authority: name-only matches are never auto-merged, and even Strong candidates require the reviewed decision boundary unless an explicit NADITrack ID resolved authoritatively.
 
 SP-1 persists approved decisions transactionally. New identities are private by default (`IsPublicProfile = false`). SP-2 provides review-required historical discovery/backfill with no automatic linking state.
 
