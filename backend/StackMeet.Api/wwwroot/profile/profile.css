@@ -244,6 +244,131 @@ button, input, select, textarea { font: inherit; }
 
 .empty-note { margin: 0; }
 
+.progress-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.progress-card {
+  border: 1px solid #dfe6f0;
+  border-radius: 18px;
+  background: #fbfcfe;
+  overflow: hidden;
+}
+
+.progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e3e9f2;
+  background: #fff;
+}
+
+.progress-event,
+.progress-count,
+.progress-date,
+.progress-key,
+.progress-meta {
+  margin: 0;
+}
+
+.progress-event {
+  color: #253652;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.progress-count,
+.progress-date,
+.progress-key,
+.progress-meta {
+  color: #6a7990;
+  font-size: .82rem;
+  line-height: 1.5;
+}
+
+.progress-points {
+  display: grid;
+}
+
+.progress-point {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 20px;
+  border-bottom: 1px solid #e9eef5;
+}
+
+.progress-point:last-child { border-bottom: 0; }
+
+.progress-marker {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #a9b8ce;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px #eef2f7;
+}
+
+.progress-point.is-pb .progress-marker {
+  border-color: #315aa6;
+  background: #315aa6;
+  box-shadow: 0 0 0 4px #e6edf9;
+}
+
+.progress-detail { min-width: 0; }
+
+.progress-date {
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.progress-competition {
+  margin: 3px 0 0;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.progress-key { margin-top: 3px; }
+.progress-meta { margin-top: 6px; }
+
+.progress-outcome {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 7px;
+  text-align: right;
+}
+
+.progress-time {
+  font-size: 1.3rem;
+  line-height: 1;
+  letter-spacing: -.025em;
+}
+
+.progress-badge {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid #d5deea;
+  color: #65758d;
+  background: #f8fafc;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+
+.progress-badge.is-pb {
+  border-color: #bfd0ed;
+  color: #315aa6;
+  background: #edf3fd;
+}
+
 .tournament-timeline {
   display: grid;
   gap: 16px;
@@ -345,5 +470,7 @@ button, input, select, textarea { font: inherit; }
   .hero-card, .section-card, .information-note, .status-panel { padding: 22px; }
   .stat-grid, .pb-grid, .tournament-performance-grid { grid-template-columns: 1fr; }
   .stat-card { min-height: 108px; }
-  .section-heading, .tournament-header { flex-direction: column; }
+  .section-heading, .tournament-header, .progress-heading { flex-direction: column; align-items: flex-start; }
+  .progress-point { grid-template-columns: 18px minmax(0, 1fr); }
+  .progress-outcome { grid-column: 2; align-items: flex-start; text-align: left; }
 }
