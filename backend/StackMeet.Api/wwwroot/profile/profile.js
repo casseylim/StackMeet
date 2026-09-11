@@ -189,6 +189,111 @@
     }
   }
 
+  function finalsTiming(point) {
+    if (point.status !== 'Valid') return 'No official Finals time';
+    const penalty = Number(point.appliedPenalty);
+    if (Number.isFinite(penalty) && penalty > 0) {
+      return `Raw ${formatTime(point.rawBestTime)} + ${penalty.toFixed(3)} s penalty`;
+    }
+    return `Raw ${formatTime(point.rawBestTime)}`;
+  }
+
+  function finalsStatusClass(status) {
+    const normalized = String(status || '').toLowerCase();
+    return ['valid', 'scratch', 'missing', 'invalid'].includes(normalized) ? normalized : 'unknown';
+  }
+
+  function renderFinalsCareer(finalsCareer) {
+    const container = byId('finalsCareer');
+    const empty = byId('noFinalsCareer');
+    container.replaceChildren();
+
+    if (!Array.isArray(finalsCareer) || finalsCareer.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    empty.hidden = true;
+    for (const summary of finalsCareer) {
+      const card = document.createElement('article');
+      card.className = 'finals-card';
+
+      const heading = document.createElement('div');
+      heading.className = 'finals-heading';
+      appendText(heading, 'finals-event', summary.eventCode || 'Event');
+      appendText(
+        heading,
+        'finals-count',
+        `${Number(summary.validFinalsCount) || 0} valid of ${Number(summary.finalsAppearanceCount) || 0} Finals appearance${Number(summary.finalsAppearanceCount) === 1 ? '' : 's'}`
+      );
+      card.appendChild(heading);
+
+      const facts = document.createElement('div');
+      facts.className = 'finals-facts';
+      const factValues = [
+        ['First Finals', formatDate(summary.firstFinalDate)],
+        ['Latest Finals', formatDate(summary.latestFinalDate)],
+        ['Best Finals', formatTime(summary.bestFinalOfficialTime)]
+      ];
+      for (const [label, value] of factValues) {
+        const fact = document.createElement('div');
+        fact.className = 'finals-fact';
+        appendText(fact, 'finals-fact-label', label);
+        const strong = document.createElement('strong');
+        strong.className = 'finals-fact-value';
+        strong.textContent = value;
+        fact.appendChild(strong);
+        facts.appendChild(fact);
+      }
+      card.appendChild(facts);
+
+      if (summary.bestCompetitionName || summary.bestCompetitionKey) {
+        appendText(
+          card,
+          'finals-best-source',
+          `Best Finals: ${[summary.bestCompetitionName || summary.bestCompetitionKey, formatDate(summary.bestCompetitionDate)].filter(Boolean).join(' · ')}`
+        );
+      }
+
+      const history = Array.isArray(summary.history) ? summary.history : [];
+      const list = document.createElement('div');
+      list.className = 'finals-history';
+
+      for (const point of history) {
+        const row = document.createElement('div');
+        row.className = 'finals-history-row';
+
+        const detail = document.createElement('div');
+        detail.className = 'finals-history-detail';
+        appendText(detail, 'finals-date', formatDate(point.competitionDate));
+        const competition = document.createElement('h3');
+        competition.className = 'finals-competition';
+        competition.textContent = point.competitionName || point.competitionKey || 'Finalized competition';
+        detail.appendChild(competition);
+        if (point.competitionKey) appendText(detail, 'finals-key', point.competitionKey);
+        appendText(detail, 'finals-meta', finalsTiming(point));
+        row.appendChild(detail);
+
+        const outcome = document.createElement('div');
+        outcome.className = 'finals-outcome';
+        const time = document.createElement('strong');
+        time.className = 'finals-time';
+        time.textContent = point.status === 'Valid' ? formatTime(point.officialTime) : '—';
+        outcome.appendChild(time);
+        const badge = document.createElement('span');
+        badge.className = `finals-status is-${finalsStatusClass(point.status)}`;
+        badge.textContent = point.status || 'Unknown';
+        outcome.appendChild(badge);
+        row.appendChild(outcome);
+
+        list.appendChild(row);
+      }
+
+      card.appendChild(list);
+      container.appendChild(card);
+    }
+  }
+
   function renderTournamentHistory(tournamentHistory) {
     const container = byId('tournamentHistory');
     const empty = byId('noTournamentHistory');
@@ -264,6 +369,7 @@
     byId('latestCompetitionDate').textContent = formatDate(profile.latestCompetitionDate);
     renderPersonalBests(profile.personalBests);
     renderCareerProgression(profile.careerProgression);
+    renderFinalsCareer(profile.finalsCareer);
     renderTournamentHistory(profile.tournamentHistory);
 
     document.title = `${profile.displayName || 'Stacker'} · NADITrack`;
