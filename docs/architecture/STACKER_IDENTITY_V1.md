@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4E Finals ranking compatibility characterization candidate
+Status: SP-4E Finals ranking compatibility characterization complete
 
 ## Purpose
 
@@ -171,4 +171,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4B: Tournament History public presentation and release-safety rule — complete.
 - SP-4C: Career Progress / PB progression — complete.
 - SP-4D: Finals Career aggregation and presentation — complete.
-- SP-4E: Finals Ranking compatibility characterization — implementation candidate.
+- SP-4E: Finals Ranking compatibility characterization — complete.
