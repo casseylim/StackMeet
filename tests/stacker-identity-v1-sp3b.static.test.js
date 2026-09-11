@@ -88,7 +88,7 @@ for (const scenario of [
 }
 
 const architecture = read(architecturePath);
-assert.match(architecture, /GET `\/api\/public\/stackers\/\{NadiTrackId\}`/);
+assert.match(architecture, /`GET \/api\/public\/stackers\/\{NadiTrackId\}`/);
 assert.match(architecture, /`\/Stackers\/\{NadiTrackId\}`/);
 assert.match(architecture, /private, unknown, and malformed/i);
 assert.match(architecture, /noindex/i);
