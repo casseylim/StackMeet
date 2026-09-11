@@ -52,6 +52,7 @@ jobs:
           dotnet restore tests/StackerPublicProfileTests/StackerPublicProfileTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerTournamentHistoryTests/StackerTournamentHistoryTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerCareerProgressTests/StackerCareerProgressTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -88,6 +89,9 @@ jobs:
 
       - name: Run SP-4C career progression tests
         run: dotnet run --project tests/StackerCareerProgressTests/StackerCareerProgressTests.csproj -c Release --no-restore
+
+      - name: Run SP-4D Finals career tests
+        run: dotnet run --project tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
