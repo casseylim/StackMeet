@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1 — SP-4D Finals Career Aggregation
 
-Status: implementation candidate
+Status: complete
 
 ## Purpose
 
