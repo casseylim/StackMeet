@@ -104,6 +104,91 @@
     }
   }
 
+  function progressMeta(point) {
+    const parts = [];
+    if (point.stage) parts.push(point.stage);
+    parts.push(`Career PB after: ${formatTime(point.personalBestAfter)}`);
+
+    const improvement = Number(point.improvementFromPreviousBest);
+    if (Number.isFinite(improvement) && improvement > 0) {
+      parts.push(`Improved by ${improvement.toFixed(3)} s`);
+    }
+
+    return parts.join(' · ');
+  }
+
+  function renderCareerProgression(careerProgression) {
+    const container = byId('careerProgression');
+    const empty = byId('noCareerProgression');
+    container.replaceChildren();
+
+    if (!Array.isArray(careerProgression) || careerProgression.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    empty.hidden = true;
+    for (const eventProgress of careerProgression) {
+      const card = document.createElement('article');
+      card.className = 'progress-card';
+
+      const heading = document.createElement('div');
+      heading.className = 'progress-heading';
+      appendText(heading, 'progress-event', eventProgress.eventCode || 'Event');
+
+      const points = Array.isArray(eventProgress.points) ? eventProgress.points : [];
+      appendText(heading, 'progress-count', `${points.length} finalized performance${points.length === 1 ? '' : 's'}`);
+      card.appendChild(heading);
+
+      const list = document.createElement('div');
+      list.className = 'progress-points';
+
+      for (const point of points) {
+        const row = document.createElement('div');
+        row.className = point.isNewPersonalBest ? 'progress-point is-pb' : 'progress-point';
+
+        const marker = document.createElement('div');
+        marker.className = 'progress-marker';
+        marker.setAttribute('aria-hidden', 'true');
+        row.appendChild(marker);
+
+        const detail = document.createElement('div');
+        detail.className = 'progress-detail';
+        appendText(detail, 'progress-date', formatDate(point.competitionDate));
+
+        const competition = document.createElement('h3');
+        competition.className = 'progress-competition';
+        competition.textContent = point.competitionName || point.competitionKey || 'Finalized competition';
+        detail.appendChild(competition);
+
+        if (point.competitionKey) {
+          appendText(detail, 'progress-key', point.competitionKey);
+        }
+        appendText(detail, 'progress-meta', progressMeta(point));
+        row.appendChild(detail);
+
+        const outcome = document.createElement('div');
+        outcome.className = 'progress-outcome';
+
+        const time = document.createElement('strong');
+        time.className = 'progress-time';
+        time.textContent = formatTime(point.officialTime);
+        outcome.appendChild(time);
+
+        const badge = document.createElement('span');
+        badge.className = point.isNewPersonalBest ? 'progress-badge is-pb' : 'progress-badge';
+        badge.textContent = point.isNewPersonalBest ? 'New PB' : 'PB held';
+        outcome.appendChild(badge);
+        row.appendChild(outcome);
+
+        list.appendChild(row);
+      }
+
+      card.appendChild(list);
+      container.appendChild(card);
+    }
+  }
+
   function renderTournamentHistory(tournamentHistory) {
     const container = byId('tournamentHistory');
     const empty = byId('noTournamentHistory');
@@ -178,6 +263,7 @@
     byId('firstCompetitionDate').textContent = formatDate(profile.firstCompetitionDate);
     byId('latestCompetitionDate').textContent = formatDate(profile.latestCompetitionDate);
     renderPersonalBests(profile.personalBests);
+    renderCareerProgression(profile.careerProgression);
     renderTournamentHistory(profile.tournamentHistory);
 
     document.title = `${profile.displayName || 'Stacker'} · NADITrack`;
