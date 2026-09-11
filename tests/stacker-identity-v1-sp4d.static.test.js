@@ -45,8 +45,11 @@ assert.match(models, /IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer
 const finalsContractStart = models.indexOf('record SportStackerFinalsHistoryPoint');
 const finalsContractEnd = models.indexOf('record PublicSportStackerCareerProfile');
 const finalsContracts = models.slice(finalsContractStart, finalsContractEnd);
-for (const forbidden of ['BirthDate', 'Email', 'Phone', 'Gender', 'WssaId', 'StackerId', 'CompetitionId', ' Rank,', ' Placement,', ' Medal,', ' Award,']) {
-  assert.ok(!finalsContracts.includes(forbidden), `SP-4D public Finals contract must exclude ${forbidden.trim()}`);
+// Check declarations rather than XML documentation prose. The comments intentionally say
+// placement/medals/awards are excluded, and that explanatory wording is not a public field.
+const finalsDeclarations = finalsContracts.replace(/^\s*\/\/\/.*$/gm, '');
+for (const forbidden of ['BirthDate', 'Email', 'Phone', 'Gender', 'WssaId', 'StackerId', 'CompetitionId', 'Rank', 'Placement', 'Medal', 'Award']) {
+  assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(finalsDeclarations), `SP-4D public Finals contract must exclude ${forbidden}`);
 }
 
 const service = read(servicePath);
