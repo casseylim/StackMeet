@@ -36,6 +36,27 @@ public sealed record SportStackerTournamentHistory(
     IReadOnlyList<SportStackerTournamentPerformance> Performances);
 
 /// <summary>
+/// One chronological finalized public performance point for a supported Individual event.
+/// PersonalBestAfter is the athlete's best finalized public time through this point in time.
+/// </summary>
+public sealed record SportStackerCareerProgressPoint(
+    string CompetitionKey,
+    string CompetitionName,
+    DateOnly CompetitionDate,
+    decimal OfficialTime,
+    string Stage,
+    bool IsNewPersonalBest,
+    decimal PersonalBestAfter,
+    decimal? ImprovementFromPreviousBest);
+
+/// <summary>
+/// Chronological public performance progression for one supported Sport Stacking event.
+/// </summary>
+public sealed record SportStackerEventProgression(
+    string EventCode,
+    IReadOnlyList<SportStackerCareerProgressPoint> Points);
+
+/// <summary>
 /// Privacy-safe public career projection keyed by the permanent NADITrack ID.
 /// Birth date, email, phone, gender and external IDs are deliberately not part of this contract.
 /// </summary>
@@ -49,4 +70,5 @@ public sealed record PublicSportStackerCareerProfile(
     DateOnly? FirstCompetitionDate,
     DateOnly? LatestCompetitionDate,
     IReadOnlyList<SportStackerTournamentHistory> TournamentHistory,
+    IReadOnlyList<SportStackerEventProgression> CareerProgression,
     IReadOnlyList<SportStackerPersonalBest> PersonalBests);
