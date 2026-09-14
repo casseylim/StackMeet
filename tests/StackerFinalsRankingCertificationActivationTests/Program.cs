@@ -72,9 +72,13 @@ try
     var certified = await service.CertifyGovernedV2SnapshotAsync(readyV2.Id, 2003);
     Assert(certified.HasSnapshot, "explicit SP-4J v2 certification captures immutable snapshot");
     Assert(certified.RuleVersion == FinalsRankingRuleVersions.GovernedFinalsV2, "certified snapshot preserves governed v2 rule");
+    Assert(certified.SnapshotSchemaVersion == FinalsRankingGovernanceService.GovernedV2SnapshotSchemaVersion,
+        "certified v2 snapshot uses versioned source schema");
     Assert(certified.SourceStateRevision == 3, "certified snapshot preserves state revision");
     Assert(certified.SourceResultsRevision == 2, "certified snapshot preserves results revision");
     Assert(certified.SnapshotCapturedByUserId == 2003, "certification actor provenance persisted");
+    Assert(certified.SnapshotJson?.Contains($"\"operatorContractVersion\":\"{FinalsRankingCertificationReadinessService.OperatorContractVersion}\"", StringComparison.Ordinal) == true,
+        "certified v2 snapshot freezes reviewed operator contract provenance");
     Assert(certified.SnapshotJson?.Contains("\"attemptsJson\":\"[5.1,5.2,5.3]\"", StringComparison.Ordinal) == true, "raw Finals attempts frozen");
     Assert(certified.SnapshotJson?.Contains("\"penalty\":0.2", StringComparison.Ordinal) == true, "result-level penalty frozen");
     var expectedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(certified.SnapshotJson!)));
@@ -154,6 +158,10 @@ try
     var legacyCaptured = await service.CaptureFinalizedSnapshotAsync(legacy.Id, 2052);
     Assert(legacyCaptured.HasSnapshot && legacyCaptured.RuleVersion == FinalsRankingRuleVersions.LegacyFinalsV1,
         "legacy snapshot capture remains on original generic path");
+    Assert(legacyCaptured.SnapshotSchemaVersion == FinalsRankingGovernanceService.LegacySnapshotSchemaVersion,
+        "legacy snapshot preserves v1 source schema");
+    Assert(legacyCaptured.SnapshotJson?.Contains("operatorContractVersion", StringComparison.Ordinal) == false,
+        "legacy snapshot payload remains byte-contract compatible without v2 operator provenance field");
 
     Console.WriteLine("SP-4J governed Finals v2 snapshot certification activation tests passed.");
 }
