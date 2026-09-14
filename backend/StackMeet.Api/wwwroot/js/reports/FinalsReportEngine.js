@@ -81,8 +81,15 @@
     return 0;
   }
   function stableDisplay(left, right) { return String(left.name || left.participant || "").localeCompare(String(right.name || right.participant || ""), undefined, { numeric: true, sensitivity: "base" }); }
-  function rankFinalRows(rows, ruleVersion = operatorFinalsRuleVersion()) {
-    const version = requireRuleVersion(ruleVersion);
+  function rankRuleVersion(rows, explicitRuleVersion) {
+    if (explicitRuleVersion !== undefined && explicitRuleVersion !== null) return requireRuleVersion(explicitRuleVersion);
+    const versions = [...new Set((Array.isArray(rows) ? rows : []).map(row => row?.ruleVersion).filter(Boolean))];
+    if (versions.length === 1) return requireRuleVersion(versions[0]);
+    if (versions.length > 1) throw new Error("Cannot rank rows prepared under different Finals ranking rule versions.");
+    return operatorFinalsRuleVersion();
+  }
+  function rankFinalRows(rows, ruleVersion) {
+    const version = rankRuleVersion(rows, ruleVersion);
     const sorted = [...rows].sort((left, right) => {
       const keyComparison = compareKeys(left.tieKey || finalTieKey(left.result, version), right.tieKey || finalTieKey(right.result, version));
       return keyComparison || stableDisplay(left, right);
