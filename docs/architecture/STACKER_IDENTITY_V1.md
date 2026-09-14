@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4G Persisted Finals ranking snapshot and activation boundary complete
+Status: SP-4H Operator Finals ranking version activation implementation candidate
 
 ## Purpose
 
@@ -147,7 +147,7 @@ Governed v2 treats a result-level `999` penalty as Scratch even when valid attem
 
 A permanent placement must carry an explicit participant type, competition-snapshot division, event, category and gender scope; a bare rank is forbidden. For legacy history, the competition-state participant division snapshot used by the operator competition is authoritative when available. If that historical snapshot is missing or ambiguous, permanent placement remains unpublished instead of being reconstructed from current permanent-identity data.
 
-SP-4F adds an isolated policy module and tests only. It does not wire v2 into `app.js` or `FinalsReportEngine.js`, add a schema field, or publish placement.
+SP-4F adds an isolated policy module and tests only. It does not wire v2 into `app.js` or add a schema field or publish placement.
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4F.md`.
 
@@ -159,11 +159,23 @@ A dedicated `FinalsRankingGovernance` persistence record stores an explicitly se
 
 The snapshot stores ranking **inputs**, not calculated ranks. Its canonical payload is protected by SHA-256 and, after capture, a database trigger blocks UPDATE and DELETE of the captured governance record.
 
-Historical unversioned competitions still resolve to and freeze as `legacy-finals-v1`. `governed-finals-v2` selection can be represented in the data layer, but SP-4G refuses to certify/capture a v2 finalized snapshot because the current operator Finals engine is not yet version-aware. This prevents NADITrack from claiming officials used a rule they did not actually use.
+Historical unversioned competitions still resolve to and freeze as `legacy-finals-v1`. `governed-finals-v2` selection can be represented in the data layer, but SP-4G refuses to certify/capture a v2 finalized snapshot because the operator Finals engine was not yet version-aware at that phase.
 
-SP-4G deliberately has no controller/UI/runtime activation wiring and does not publish placement. A later operator-engine phase must make Finals ranking explicitly version-aware before governed-v2 snapshot certification is enabled.
+SP-4G deliberately added no rule-selection UI/runtime activation and does not publish placement.
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4G.md`.
+
+## SP-4H — Operator Finals Ranking Version Activation
+
+SP-4H activates the persisted rule only for the operator's event-level Finals ranking path.
+
+The authenticated read-only rule projection exposes the effective version for accessible Sport Stacking competitions. The browser loads the reviewed `FinalsRankingPolicy.js` contract and `FinalsReportEngine` applies that persisted version to Finals classification, tie keys, event placement and organization-credit inputs.
+
+Unversioned competitions remain `legacy-finals-v1`. Missing/unknown selected-competition rule state fails closed rather than silently changing ranking semantics.
+
+SP-4H intentionally keeps Prelims on legacy-compatible behavior and keeps All-Around outside the activation scope. It adds no rule-selection endpoint, does not unblock governed-v2 historical snapshot certification, and does not publish permanent placement/podium/medal claims.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4H.md`.
 
 ## Historical snapshot rule
 
@@ -186,9 +198,11 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration, but this development phase does **not** apply it to production.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H adds no schema migration and only consumes that already-reviewed persistence boundary.
 
-Integration tests use isolated generated LocalDB databases where required. Characterization/governance phases execute or model existing production semantics without mutating production data. These development phases do not deploy production code or mutate production data.
+These development phases do **not** apply the SP-4G migration to production, deploy production code, or mutate production data.
+
+Integration tests use isolated generated LocalDB databases where required. Characterization/governance phases execute or model existing production semantics without mutating production data.
 
 **Hard production rule:** the existing production `web.config` must never be overwritten, replaced or regenerated by application deployment. Any later production release must back it up, record its hash, exclude it from the deployment payload, and verify the hash remains unchanged afterward.
 
@@ -208,3 +222,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4E: Finals Ranking compatibility characterization — complete.
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
+- SP-4H: Operator Finals Ranking version activation — implementation candidate.
