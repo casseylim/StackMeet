@@ -52,6 +52,7 @@ jobs:
           dotnet restore tests/StackerPublicProfileTests/StackerPublicProfileTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerTournamentHistoryTests/StackerTournamentHistoryTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerCareerProgressTests/StackerCareerProgressTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerPersonalRecordAchievementTests/StackerPersonalRecordAchievementTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingGovernancePersistenceTests/StackerFinalsRankingGovernancePersistenceTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj --configfile NuGet.Config
@@ -91,6 +92,9 @@ jobs:
 
       - name: Run SP-4C career progression tests
         run: dotnet run --project tests/StackerCareerProgressTests/StackerCareerProgressTests.csproj -c Release --no-restore
+
+      - name: Run SP-5A personal record achievement tests
+        run: dotnet run --project tests/StackerPersonalRecordAchievementTests/StackerPersonalRecordAchievementTests.csproj -c Release --no-restore
 
       - name: Run SP-4D Finals career tests
         run: dotnet run --project tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj -c Release --no-restore
