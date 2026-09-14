@@ -99,8 +99,8 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .ToList();
 
         // Reduce multiple Prelims/Finals rows to one best finalized Individual performance
-        // per competition/event. This shared reduction feeds both tournament history and
-        // career progression so the two public views cannot disagree about a tournament time.
+        // per competition/event. This shared reduction feeds tournament history, career
+        // progression and personal-record achievements so the public views cannot disagree.
         var tournamentBestCandidates = candidates
             .GroupBy(item => new { item.CompetitionId, item.EventCode })
             .Select(group => group
@@ -135,6 +135,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .ToList();
 
         var careerProgression = BuildCareerProgression(tournamentBestCandidates);
+        var personalRecords = BuildPersonalRecords(careerProgression);
         var finalsCareer = BuildFinalsCareer(resultRows);
 
         var firstCompetitionDate = appearances.Count == 0
@@ -156,6 +157,7 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             tournamentHistory,
             careerProgression,
             finalsCareer,
+            personalRecords,
             personalBests);
     }
 
@@ -201,6 +203,44 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             .OrderBy(item => EventSort(item.EventCode))
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static IReadOnlyList<SportStackerPersonalRecordAchievement> BuildPersonalRecords(
+        IReadOnlyList<SportStackerEventProgression> careerProgression)
+    {
+        var records = new List<SportStackerPersonalRecordAchievement>();
+
+        foreach (var progression in careerProgression)
+        {
+            if (progression.Points.Count == 0) continue;
+
+            var milestones = progression.Points
+                .Where(point => point.IsNewPersonalBest)
+                .ToList();
+            if (milestones.Count == 0) continue;
+
+            var first = milestones[0];
+            var current = milestones[^1];
+            var totalImprovement = first.PersonalBestAfter - current.PersonalBestAfter;
+
+            records.Add(new SportStackerPersonalRecordAchievement(
+                progression.EventCode,
+                first.PersonalBestAfter,
+                current.PersonalBestAfter,
+                totalImprovement,
+                milestones.Count,
+                progression.Points.Count,
+                first.CompetitionKey,
+                first.CompetitionName,
+                first.CompetitionDate,
+                first.Stage,
+                current.CompetitionKey,
+                current.CompetitionName,
+                current.CompetitionDate,
+                current.Stage));
+        }
+
+        return records;
     }
 
     private static IReadOnlyList<SportStackerEventFinalsSummary> BuildFinalsCareer(
