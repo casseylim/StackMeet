@@ -96,7 +96,7 @@ for (const scenario of [
 
 const architecture = read(architecturePath);
 assert.match(architecture, /browser formats and presents server-projected values only/i);
-assert.match(architecture, /does \*\*not\*\*:\n\n- generate certificates/i);
+assert.match(architecture, /does \*\*not\*\*:\r?\n\r?\n- generate certificates/i);
 assert.match(architecture, /no production deployment/i);
 assert.match(architecture, /production `web\.config` \*\*must never be overwritten\*\*/i);
 
