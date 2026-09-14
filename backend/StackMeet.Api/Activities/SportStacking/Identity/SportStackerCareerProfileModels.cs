@@ -15,6 +15,27 @@ public sealed record SportStackerPersonalBest(
     string Stage);
 
 /// <summary>
+/// Achievement summary for one supported Individual event. The server derives this from the same
+/// finalized public tournament-best progression that powers Career Progress so presentation code
+/// never needs to recalculate personal-record milestones.
+/// </summary>
+public sealed record SportStackerPersonalRecordAchievement(
+    string EventCode,
+    decimal FirstRecordedPersonalBest,
+    decimal CurrentPersonalBest,
+    decimal TotalImprovement,
+    int PersonalBestMilestoneCount,
+    int FinalizedPerformanceCount,
+    string FirstPersonalBestCompetitionKey,
+    string FirstPersonalBestCompetitionName,
+    DateOnly FirstPersonalBestDate,
+    string FirstPersonalBestStage,
+    string CurrentPersonalBestCompetitionKey,
+    string CurrentPersonalBestCompetitionName,
+    DateOnly CurrentPersonalBestDate,
+    string CurrentPersonalBestStage);
+
+/// <summary>
 /// One finalized public tournament performance for an individual event.
 /// This is competition-history data only; no private registration attributes are exposed.
 /// </summary>
@@ -101,4 +122,5 @@ public sealed record PublicSportStackerCareerProfile(
     IReadOnlyList<SportStackerTournamentHistory> TournamentHistory,
     IReadOnlyList<SportStackerEventProgression> CareerProgression,
     IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer,
+    IReadOnlyList<SportStackerPersonalRecordAchievement> PersonalRecords,
     IReadOnlyList<SportStackerPersonalBest> PersonalBests);

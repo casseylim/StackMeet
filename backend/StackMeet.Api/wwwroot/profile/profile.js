@@ -65,7 +65,7 @@
     return [performance.stage, timing].filter(Boolean).join(' · ');
   }
 
-  function renderPersonalBests(personalBests) {
+  function renderPersonalBests(personalBests, personalRecords) {
     const container = byId('personalBests');
     const empty = byId('noPersonalBests');
     container.replaceChildren();
@@ -73,6 +73,13 @@
     if (!Array.isArray(personalBests) || personalBests.length === 0) {
       empty.hidden = false;
       return;
+    }
+
+    const recordsByEvent = new Map();
+    if (Array.isArray(personalRecords)) {
+      for (const record of personalRecords) {
+        if (record && record.eventCode) recordsByEvent.set(record.eventCode, record);
+      }
     }
 
     empty.hidden = true;
@@ -98,7 +105,35 @@
         formatDate(pb.competitionDate),
         pb.stage
       ].filter(Boolean).join(' · ');
-      appendText(card, 'pb-source', source || 'Finalized public result');
+      appendText(card, 'pb-source', `Current PB: ${source || 'Finalized public result'}`);
+
+      const record = recordsByEvent.get(pb.eventCode);
+      if (record) {
+        const milestoneCount = Number(record.personalBestMilestoneCount) || 0;
+        const performanceCount = Number(record.finalizedPerformanceCount) || 0;
+        const totalImprovement = Number(record.totalImprovement);
+        const improvementText = Number.isFinite(totalImprovement)
+          ? `${totalImprovement.toFixed(3)} s`
+          : '—';
+
+        appendText(
+          card,
+          'pb-meta',
+          `First recorded PB ${formatTime(record.firstRecordedPersonalBest)} · Total improvement ${improvementText}`
+        );
+        appendText(
+          card,
+          'pb-meta',
+          `${milestoneCount} PB milestone${milestoneCount === 1 ? '' : 's'} across ${performanceCount} finalized performance${performanceCount === 1 ? '' : 's'}`
+        );
+
+        const firstSource = [
+          record.firstPersonalBestCompetitionName || record.firstPersonalBestCompetitionKey,
+          formatDate(record.firstPersonalBestDate),
+          record.firstPersonalBestStage
+        ].filter(Boolean).join(' · ');
+        appendText(card, 'pb-source', `First PB: ${firstSource || 'Finalized public result'}`);
+      }
 
       container.appendChild(card);
     }
@@ -367,7 +402,7 @@
     byId('competitionCount').textContent = String(profile.competitionCount ?? 0);
     byId('firstCompetitionDate').textContent = formatDate(profile.firstCompetitionDate);
     byId('latestCompetitionDate').textContent = formatDate(profile.latestCompetitionDate);
-    renderPersonalBests(profile.personalBests);
+    renderPersonalBests(profile.personalBests, profile.personalRecords);
     renderCareerProgression(profile.careerProgression);
     renderFinalsCareer(profile.finalsCareer);
     renderTournamentHistory(profile.tournamentHistory);

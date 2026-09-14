@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4I Governed Finals v2 certification readiness complete
+Status: SP-5A Personal Record achievement summary complete
 
 ## Purpose
 
@@ -185,11 +185,32 @@ The assessor verifies that the competition is finalized Sport Stacking, that `go
 
 The readiness result carries stable blocker codes plus the reviewed operator contract identifier `sp4h-event-finals-v1`, state revision, results revision and Finals result count. An empty Finals dataset may still be ready because the certified artifact is the source evidence, not fabricated placement.
 
-SP-4I does **not** remove the existing v2 capture block. A positive readiness result is advisory; the next activation phase must re-evaluate the same conditions inside the serializable snapshot transaction to avoid a time-of-check/time-of-use gap.
+SP-4I does **not** remove the existing v2 capture block. A positive readiness result is advisory; a later activation phase must re-evaluate the same conditions inside the serializable snapshot transaction to avoid a time-of-check/time-of-use gap.
 
 SP-4I adds no public/controller endpoint, no schema migration, no historical rank publication and no production deployment.
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4I.md`.
+
+## SP-5A — Personal Record Achievement Summary
+
+SP-5A deliberately returns development focus to athlete-facing Personal Records while certificate generation and governed-v2 snapshot certification are deferred for later work.
+
+The additive `PersonalRecords` projection summarizes each supported Individual event with:
+
+- first recorded finalized public PB;
+- current finalized public PB;
+- total improvement;
+- strict PB milestone count;
+- finalized tournament-best performance count;
+- first/current PB competition, date and stage provenance.
+
+The summary is derived on the server from the same `CareerProgression` projection introduced in SP-4C. The browser only presents those values; it does not calculate PB state, milestone counts or total improvement.
+
+The existing `PersonalBests` API property remains intact for backward compatibility, and the public profile presents the richer information under **Personal Records**.
+
+SP-5A does not generate certificates, resume Finals snapshot certification, publish placements/medals/awards, add a schema migration, or alter ranking semantics.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP5A.md`.
 
 ## Historical snapshot rule
 
@@ -199,6 +220,8 @@ Permanent-profile updates must not rewrite historical competition registration s
 
 The following remain outside Stacker Identity v1 phases completed to date unless separately reviewed:
 
+- governed Finals v2 snapshot certification activation;
+- certificate generation / achievement certificates;
 - profile ownership/editing;
 - minors/guardian consent workflow;
 - profile photos/media;
@@ -207,12 +230,12 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 - WSSA-ID uniqueness enforcement;
 - historical placement/medal/podium publication;
 - All-Around career standing;
-- record governance;
+- record-holder / official-record governance;
 - global or national ranking systems.
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H and SP-4I add no schema migration and only consume or assess that already-reviewed persistence boundary.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I and SP-5A add no schema migration and only consume or project already-reviewed data boundaries.
 
 These development phases do **not** apply the SP-4G migration to production, deploy production code, or mutate production data.
 
@@ -237,4 +260,5 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
-- SP-4I: Governed Finals v2 certification readiness — complete.
+- SP-4I: Governed Finals v2 certification readiness — complete; activation deferred.
+- SP-5A: Personal Record achievement summary — complete.
