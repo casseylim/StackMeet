@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4I Governed Finals v2 certification readiness complete
+Status: SP-4J Governed Finals v2 snapshot certification activation implementation candidate
 
 ## Purpose
 
@@ -191,6 +191,18 @@ SP-4I adds no public/controller endpoint, no schema migration, no historical ran
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4I.md`.
 
+## SP-4J — Governed Finals v2 Snapshot Certification Activation
+
+SP-4J adds an explicit certification seam for finalized competitions that persisted `governed-finals-v2` before finalization.
+
+The new certification path re-evaluates the SP-4I source-evidence rules after acquiring the existing serializable competition/governance/state locks and before writing the immutable source snapshot. The original generic snapshot method deliberately remains fail-closed for v2, so old callers cannot acquire certification behavior implicitly.
+
+A successful v2 certification persists the governing rule, exact state/results revisions, competition-time state/division provenance, durable SQL Finals rows with raw attempts and penalties, capture actor/time and the SHA-256 of the canonical immutable payload. The database immutability trigger remains authoritative after capture.
+
+SP-4J adds no controller/API, no automatic close/archive capture, no schema migration and no historical placement, podium, medal or award publication.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4J.md`.
+
 ## Historical snapshot rule
 
 Permanent-profile updates must not rewrite historical competition registration snapshots. Competition results continue to reference competition-scoped participant identities exactly as they do today. Career aggregation resolves those historical rows through explicit identity links.
@@ -212,7 +224,7 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H and SP-4I add no schema migration and only consume or assess that already-reviewed persistence boundary.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I and SP-4J add no schema migration and only consume, assess or certify that already-reviewed persistence boundary.
 
 These development phases do **not** apply the SP-4G migration to production, deploy production code, or mutate production data.
 
@@ -238,3 +250,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
 - SP-4I: Governed Finals v2 certification readiness — complete.
+- SP-4J: Governed Finals v2 snapshot certification activation — implementation candidate.
