@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using StackMeet.Api.Activities;
 using StackMeet.Api.Data;
 
 namespace StackMeet.Api.Activities.SportStacking.Ranking;
