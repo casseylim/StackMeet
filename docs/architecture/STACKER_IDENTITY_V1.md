@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4H Operator Finals ranking version activation implementation candidate
+Status: SP-4H Operator Finals ranking version activation complete
 
 ## Purpose
 
@@ -222,4 +222,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4E: Finals Ranking compatibility characterization — complete.
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
-- SP-4H: Operator Finals Ranking version activation — implementation candidate.
+- SP-4H: Operator Finals Ranking version activation — complete.
