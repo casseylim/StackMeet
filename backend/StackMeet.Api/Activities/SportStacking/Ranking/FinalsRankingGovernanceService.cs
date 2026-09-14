@@ -61,9 +61,9 @@ public sealed record FinalsRankingEffectiveRule(
 /// used by a finalized Sport Stacking competition.
 /// </summary>
 /// <remarks>
-/// SP-4G intentionally has no controller/UI wiring for rule selection or capture. SP-4H adds a
-/// read-only effective-rule projection through this service while keeping activity-specific
-/// eligibility inside the Sport Stacking ranking boundary.
+/// SP-4G established the durable immutable source snapshot. SP-4H made event-level operator
+/// Finals version-aware. SP-4J permits governed-finals-v2 certification only after re-evaluating
+/// the SP-4I evidence rules inside this same serializable capture transaction.
 /// </remarks>
 public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 {
@@ -164,20 +164,36 @@ WHERE [CompetitionId] = {competitionId}
             ? FinalsRankingRuleVersions.LegacyFinalsV1
             : FinalsRankingRuleVersions.ResolveStored(governance.RuleVersion);
 
+        var state = await LockCompetitionStateAsync(competition.CompetitionKey, ct);
+        var finalsResultEntities = await database.CompetitionResults
+            .AsNoTracking()
+            .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
+            .ToListAsync(ct);
+
         if (ruleVersion == FinalsRankingRuleVersions.GovernedFinalsV2)
         {
-            throw new InvalidOperationException(
-                "governed-finals-v2 snapshot capture is blocked until a later phase makes the operator Finals engine version-aware and proves v2 was actually applied.");
+            if (governance is null)
+                throw new InvalidOperationException("governed-finals-v2 snapshot certification requires an explicit persisted rule selection.");
+
+            var certificationBlockers = FinalsRankingCertificationEvidenceValidator.Validate(
+                state,
+                competition.ResultsRevision,
+                finalsResultEntities
+                    .Select(item => new FinalsRankingCertificationResultEvidence(item.Revision, item.AttemptsJson))
+                    .ToArray());
+
+            if (certificationBlockers.Count != 0)
+            {
+                throw new InvalidOperationException(
+                    $"governed-finals-v2 snapshot certification blocked: {string.Join(",", certificationBlockers)}.");
+            }
         }
 
-        var state = await LockCompetitionStateAsync(competition.CompetitionKey, ct)
-            ?? throw new InvalidOperationException("CompetitionState is required to preserve the authoritative competition-time division snapshot.");
+        state ??= throw new InvalidOperationException(
+            "CompetitionState is required to preserve the authoritative competition-time division snapshot.");
         var stateRoot = ParseStateObject(state.JsonData);
 
-        var finalsResults = (await database.CompetitionResults
-                .AsNoTracking()
-                .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
-                .ToListAsync(ct))
+        var finalsResults = finalsResultEntities
             .OrderBy(item => item.ParticipantType, StringComparer.Ordinal)
             .ThenBy(item => item.ParticipantCode, StringComparer.Ordinal)
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
