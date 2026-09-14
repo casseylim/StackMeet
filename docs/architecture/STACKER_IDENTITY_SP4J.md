@@ -6,7 +6,7 @@ Status: implementation candidate
 
 SP-4J activates one narrow capability: a finalized Sport Stacking competition that explicitly selected `governed-finals-v2` may certify an immutable Finals ranking source snapshot **only when the SP-4I evidence rules pass inside the same serializable capture transaction**.
 
-SP-4J still performs no historical placement calculation or publication. The certified artifact remains source evidence: governing rule version, competition-time state/division provenance, durable SQL Finals rows, exact revisions, raw attempts/penalties, capture actor/time, and SHA-256 integrity.
+SP-4J still performs no historical placement calculation or publication. The certified artifact remains source evidence: governing rule version, reviewed operator-contract provenance, competition-time state/division provenance, durable SQL Finals rows, exact revisions, raw attempts/penalties, capture actor/time, and SHA-256 integrity.
 
 ## Explicit certification seam
 
@@ -41,6 +41,19 @@ Inside that transaction SP-4J:
 13. commits only after the captured record can be re-read.
 
 The database trigger introduced by SP-4G still blocks UPDATE and DELETE after capture.
+
+## Versioned source-evidence provenance
+
+SP-4J keeps the legacy evidence payload frozen as `finals-ranking-source-v1` and introduces `finals-ranking-source-v2` only for explicit governed-v2 certification.
+
+The v2 envelope additionally persists:
+
+- `ruleVersion = governed-finals-v2`; and
+- `operatorContractVersion = sp4h-event-finals-v1`.
+
+This matters because a future historical-placement projector must know not only which policy identifier was selected, but which reviewed operator implementation contract the certification attests was active. The operator-contract value is inside the canonical JSON payload and therefore covered by the stored SHA-256 hash.
+
+Legacy v1 snapshots retain their original payload shape and do not gain an operator-contract field.
 
 ## Shared evidence validator
 
@@ -101,6 +114,8 @@ The operator Finals path remains the SP-4H version-aware event-level implementat
 - SP-4I readiness is positive before a valid v2 certification;
 - the original generic v2 capture path remains blocked;
 - the explicit SP-4J method captures a valid governed-v2 snapshot;
+- v2 uses `finals-ranking-source-v2` and freezes `sp4h-event-finals-v1` operator-contract provenance;
+- legacy capture retains `finals-ranking-source-v1` without the v2 provenance field;
 - rule version, source revisions and capture actor are persisted;
 - raw attempts and penalties are frozen;
 - SHA-256 matches the exact immutable payload;
@@ -119,7 +134,7 @@ A static guard keeps the explicit method internal to the data/service layer and 
 
 After SP-4J is proven and merged, the next safe ranking-governance phase is **SP-4K — Immutable Historical Finals Placement Projection**.
 
-SP-4K should project placement server-side from the certified immutable snapshot and its stored rule version. It should not trust browser-calculated ranks and should not publish placement publicly until the projection has its own compatibility/integrity tests.
+SP-4K should project placement server-side from the certified immutable snapshot and its stored rule version plus operator-contract provenance. It should not trust browser-calculated ranks and should not publish placement publicly until the projection has its own compatibility/integrity tests.
 
 Medal/award publication remains later because award configuration and award-governance provenance require their own reviewed boundary.
 
