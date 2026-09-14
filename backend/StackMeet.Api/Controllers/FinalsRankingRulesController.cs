@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StackMeet.Api.Activities;
 using StackMeet.Api.Activities.SportStacking.Ranking;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
@@ -14,10 +13,7 @@ public sealed class FinalsRankingRulesController(StackMeetDbContext database) : 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CompetitionFinalsRankingRuleResponse>>> List(CancellationToken ct)
     {
-        var query = database.Competitions
-            .AsNoTracking()
-            .Where(item => string.IsNullOrWhiteSpace(item.ActivityModuleCode)
-                || item.ActivityModuleCode == SportStackingActivityModule.ModuleCode);
+        var query = database.Competitions.AsNoTracking();
 
         if (HttpContext.Items["StackMeetSession"] is SessionToken session)
         {
@@ -43,11 +39,13 @@ public sealed class FinalsRankingRulesController(StackMeetDbContext database) : 
         var rules = new List<CompetitionFinalsRankingRuleResponse>(competitionIds.Count);
         foreach (var competitionId in competitionIds)
         {
-            var record = await governance.GetAsync(competitionId, ct);
+            var effective = await governance.TryGetEffectiveRuleAsync(competitionId, ct);
+            if (effective is null) continue;
+
             rules.Add(new CompetitionFinalsRankingRuleResponse(
-                competitionId,
-                FinalsRankingRuleVersions.ResolveStored(record?.RuleVersion),
-                record is not null));
+                effective.CompetitionId,
+                effective.RuleVersion,
+                effective.ExplicitSelection));
         }
 
         Response.Headers.CacheControl = "no-store";
