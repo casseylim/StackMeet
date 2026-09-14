@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4I Governed Finals v2 certification readiness implementation candidate
+Status: SP-4I Governed Finals v2 certification readiness complete
 
 ## Purpose
 
@@ -237,4 +237,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
-- SP-4I: Governed Finals v2 certification readiness — implementation candidate.
+- SP-4I: Governed Finals v2 certification readiness — complete.
