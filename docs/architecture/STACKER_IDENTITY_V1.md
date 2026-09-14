@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-5A Personal Record achievement summary implementation candidate
+Status: SP-5A Personal Record achievement summary complete
 
 ## Purpose
 
@@ -261,4 +261,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
 - SP-4I: Governed Finals v2 certification readiness — complete; activation deferred.
-- SP-5A: Personal Record achievement summary — implementation candidate.
+- SP-5A: Personal Record achievement summary — complete.
