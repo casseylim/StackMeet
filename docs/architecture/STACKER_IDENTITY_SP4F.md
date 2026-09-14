@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1 — SP-4F Versioned Finals Ranking Governance
 
-Status: implementation candidate
+Status: complete
 
 ## Purpose
 
@@ -179,7 +179,7 @@ The module is not loaded by the current operator application. Existing `BestResu
 - permanent placement scope must explicitly include participant type, division, event, category and gender;
 - the new policy is not wired into current `app.js` or `FinalsReportEngine.js`.
 
-The existing complete JavaScript regression suite automatically executes the test; CI configuration does not need to change.
+Required `Build and test` passed on the SP-4F pull-request head, including all existing Stacker Identity integration suites and the complete JavaScript regression suite containing this governance test.
 
 ## Deployment safety
 

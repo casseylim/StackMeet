@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4F Versioned Finals ranking governance candidate
+Status: SP-4F Versioned Finals ranking governance complete
 
 ## Purpose
 
@@ -192,4 +192,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4C: Career Progress / PB progression — complete.
 - SP-4D: Finals Career aggregation and presentation — complete.
 - SP-4E: Finals Ranking compatibility characterization — complete.
-- SP-4F: Versioned Finals Ranking governance foundation — implementation candidate.
+- SP-4F: Versioned Finals Ranking governance foundation — complete.
