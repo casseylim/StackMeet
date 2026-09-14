@@ -62,8 +62,8 @@ public sealed record FinalsRankingEffectiveRule(
 /// </summary>
 /// <remarks>
 /// SP-4G established the durable immutable source snapshot. SP-4H made event-level operator
-/// Finals version-aware. SP-4J permits governed-finals-v2 certification only after re-evaluating
-/// the SP-4I evidence rules inside this same serializable capture transaction.
+/// Finals version-aware. SP-4J adds an explicit governed-v2 certification method while keeping
+/// the original generic capture method fail-closed for v2 compatibility.
 /// </remarks>
 public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 {
@@ -144,10 +144,28 @@ WHERE [CompetitionId] = {competitionId}
         return selected;
     }
 
-    public async Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotAsync(
+    public Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotAsync(
         int competitionId,
         int? actorUserId,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        CaptureFinalizedSnapshotCoreAsync(competitionId, actorUserId, certifyGovernedV2: false, ct);
+
+    /// <summary>
+    /// SP-4J explicit certification boundary for governed-finals-v2. The SP-4I source-evidence
+    /// rules are re-evaluated after the competition/governance/state locks are acquired and before
+    /// the immutable snapshot is written in the same serializable transaction.
+    /// </summary>
+    public Task<FinalsRankingGovernanceRecord> CertifyGovernedV2SnapshotAsync(
+        int competitionId,
+        int? actorUserId,
+        CancellationToken ct = default) =>
+        CaptureFinalizedSnapshotCoreAsync(competitionId, actorUserId, certifyGovernedV2: true, ct);
+
+    async Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotCoreAsync(
+        int competitionId,
+        int? actorUserId,
+        bool certifyGovernedV2,
+        CancellationToken ct)
     {
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var competition = await LockCompetitionAsync(competitionId, ct)
@@ -164,17 +182,29 @@ WHERE [CompetitionId] = {competitionId}
             ? FinalsRankingRuleVersions.LegacyFinalsV1
             : FinalsRankingRuleVersions.ResolveStored(governance.RuleVersion);
 
+        if (certifyGovernedV2)
+        {
+            if (governance is null
+                || !string.Equals(ruleVersion, FinalsRankingRuleVersions.GovernedFinalsV2, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "governed-finals-v2 snapshot certification requires an explicit persisted governed-finals-v2 rule selection.");
+            }
+        }
+        else if (ruleVersion == FinalsRankingRuleVersions.GovernedFinalsV2)
+        {
+            throw new InvalidOperationException(
+                "governed-finals-v2 snapshot capture is blocked until a later phase makes the operator Finals engine version-aware and proves v2 was actually applied.");
+        }
+
         var state = await LockCompetitionStateAsync(competition.CompetitionKey, ct);
         var finalsResultEntities = await database.CompetitionResults
             .AsNoTracking()
             .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
             .ToListAsync(ct);
 
-        if (ruleVersion == FinalsRankingRuleVersions.GovernedFinalsV2)
+        if (certifyGovernedV2)
         {
-            if (governance is null)
-                throw new InvalidOperationException("governed-finals-v2 snapshot certification requires an explicit persisted rule selection.");
-
             var certificationBlockers = FinalsRankingCertificationEvidenceValidator.Validate(
                 state,
                 competition.ResultsRevision,
@@ -189,8 +219,8 @@ WHERE [CompetitionId] = {competitionId}
             }
         }
 
-        state ??= throw new InvalidOperationException(
-            "CompetitionState is required to preserve the authoritative competition-time division snapshot.");
+        if (state is null)
+            throw new InvalidOperationException("CompetitionState is required to preserve the authoritative competition-time division snapshot.");
         var stateRoot = ParseStateObject(state.JsonData);
 
         var finalsResults = finalsResultEntities
