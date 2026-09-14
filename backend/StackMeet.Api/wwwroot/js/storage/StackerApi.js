@@ -1,6 +1,23 @@
 /** Same-origin client for SQL-native Competition and Individual Stacker records. */
 class StackerApi {
-  async listCompetitions() { return this.#request("/api/competitions"); }
+  async listCompetitions() {
+    const [competitions, rankingRules] = await Promise.all([
+      this.#request("/api/competitions"),
+      this.#request("/api/competitions/finals-ranking-rules")
+    ]);
+
+    if (typeof window !== "undefined") {
+      const registry = Object.create(null);
+      (Array.isArray(rankingRules) ? rankingRules : []).forEach(item => {
+        const competitionId = Number(item?.competitionId);
+        if (!Number.isInteger(competitionId) || competitionId <= 0) return;
+        registry[String(competitionId)] = item?.ruleVersion;
+      });
+      window.StackMeetFinalsRankingRules = Object.freeze(registry);
+    }
+
+    return competitions;
+  }
   async createCompetition(competition) { return this.#request("/api/competitions", { method: "POST", body: competition }); }
   async list(competitionId) { return this.#request(this.#stackersUrl(competitionId)); }
   async get(competitionId, id) { return this.#request(`${this.#stackersUrl(competitionId)}/${encodeURIComponent(id)}`); }
