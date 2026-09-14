@@ -67,7 +67,9 @@ public sealed record FinalsRankingEffectiveRule(
 /// </remarks>
 public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 {
-    public const string SnapshotSchemaVersion = "finals-ranking-source-v1";
+    public const string LegacySnapshotSchemaVersion = "finals-ranking-source-v1";
+    public const string SnapshotSchemaVersion = LegacySnapshotSchemaVersion;
+    public const string GovernedV2SnapshotSchemaVersion = "finals-ranking-source-v2";
 
     static readonly JsonSerializerOptions SnapshotJsonOptions = new()
     {
@@ -238,24 +240,41 @@ WHERE [CompetitionId] = {competitionId}
                 item.Revision))
             .ToArray();
 
-        var envelope = new FinalsRankingSourceSnapshot(
-            SnapshotSchemaVersion,
-            ruleVersion,
-            new FinalsSnapshotCompetition(
-                competition.CompetitionCode,
-                competition.CompetitionKey,
-                string.IsNullOrWhiteSpace(competition.ActivityModuleCode)
-                    ? SportStackingActivityModule.ModuleCode
-                    : competition.ActivityModuleCode.Trim(),
-                competition.Status,
-                competition.StartDate,
-                competition.EndDate,
-                state.StateRevision,
-                competition.ResultsRevision),
-            stateRoot,
-            finalsResults);
+        var competitionSnapshot = new FinalsSnapshotCompetition(
+            competition.CompetitionCode,
+            competition.CompetitionKey,
+            string.IsNullOrWhiteSpace(competition.ActivityModuleCode)
+                ? SportStackingActivityModule.ModuleCode
+                : competition.ActivityModuleCode.Trim(),
+            competition.Status,
+            competition.StartDate,
+            competition.EndDate,
+            state.StateRevision,
+            competition.ResultsRevision);
 
-        var snapshotJson = JsonSerializer.Serialize(envelope, SnapshotJsonOptions);
+        var snapshotSchemaVersion = certifyGovernedV2
+            ? GovernedV2SnapshotSchemaVersion
+            : LegacySnapshotSchemaVersion;
+
+        var snapshotJson = certifyGovernedV2
+            ? JsonSerializer.Serialize(
+                new GovernedV2FinalsRankingSourceSnapshot(
+                    GovernedV2SnapshotSchemaVersion,
+                    ruleVersion,
+                    FinalsRankingCertificationReadinessService.OperatorContractVersion,
+                    competitionSnapshot,
+                    stateRoot,
+                    finalsResults),
+                SnapshotJsonOptions)
+            : JsonSerializer.Serialize(
+                new FinalsRankingSourceSnapshot(
+                    LegacySnapshotSchemaVersion,
+                    ruleVersion,
+                    competitionSnapshot,
+                    stateRoot,
+                    finalsResults),
+                SnapshotJsonOptions);
+
         var snapshotHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(snapshotJson)));
         var capturedAt = DateTime.UtcNow;
 
@@ -268,14 +287,14 @@ INSERT INTO [dbo].[FinalsRankingGovernance]
      [SnapshotJson], [SnapshotSha256], [SnapshotCapturedAt], [SnapshotCapturedByUserId])
 VALUES
     ({competitionId}, {ruleVersion}, {capturedAt}, {actorUserId},
-     {SnapshotSchemaVersion}, {state.StateRevision}, {competition.ResultsRevision},
+     {snapshotSchemaVersion}, {state.StateRevision}, {competition.ResultsRevision},
      {snapshotJson}, {snapshotHash}, {capturedAt}, {actorUserId});", ct);
         }
         else
         {
             var affected = await database.Database.ExecuteSqlInterpolatedAsync($@"
 UPDATE [dbo].[FinalsRankingGovernance]
-SET [SnapshotSchemaVersion] = {SnapshotSchemaVersion},
+SET [SnapshotSchemaVersion] = {snapshotSchemaVersion},
     [SourceStateRevision] = {state.StateRevision},
     [SourceResultsRevision] = {competition.ResultsRevision},
     [SnapshotJson] = {snapshotJson},
@@ -387,6 +406,14 @@ WHERE [CompetitionId] = @competitionId;";
     sealed record FinalsRankingSourceSnapshot(
         string SchemaVersion,
         string RuleVersion,
+        FinalsSnapshotCompetition Competition,
+        JsonElement CompetitionState,
+        IReadOnlyList<FinalsSnapshotResult> FinalsResults);
+
+    sealed record GovernedV2FinalsRankingSourceSnapshot(
+        string SchemaVersion,
+        string RuleVersion,
+        string OperatorContractVersion,
         FinalsSnapshotCompetition Competition,
         JsonElement CompetitionState,
         IReadOnlyList<FinalsSnapshotResult> FinalsResults);
