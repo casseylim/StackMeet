@@ -27,6 +27,14 @@ assert.match(governance, /FinalsRankingCertificationEvidenceValidator\.Validate/
   "SP-4I evidence rules are re-evaluated inside the capture transaction");
 assert.match(governance, /governed-finals-v2 snapshot certification blocked:/,
   "failed certification reports stable readiness blockers");
+assert.match(governance, /LegacySnapshotSchemaVersion\s*=\s*"finals-ranking-source-v1"/,
+  "legacy snapshot schema remains frozen");
+assert.match(governance, /GovernedV2SnapshotSchemaVersion\s*=\s*"finals-ranking-source-v2"/,
+  "v2 certification uses a distinct versioned evidence schema");
+assert.match(governance, /FinalsRankingCertificationReadinessService\.OperatorContractVersion/,
+  "v2 certified evidence freezes the reviewed operator contract version");
+assert.match(governance, /GovernedV2FinalsRankingSourceSnapshot/,
+  "v2 uses a provenance-aware source envelope rather than changing legacy payload shape");
 assert.match(governance, /SHA256\.HashData/,
   "certified v2 source evidence remains hash-protected");
 
