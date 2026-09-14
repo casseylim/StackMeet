@@ -38,7 +38,7 @@ assert.ok(!finalsEngine.includes('FinalsRankingGovernance'), 'current operator F
 
 assert.match(architecture, /no production deployment/i, 'architecture explicitly prohibits SP-4G production deployment');
 assert.match(architecture, /web\.config[^\n]*must never be overwritten/i, 'architecture preserves protected production web.config rule');
-assert.match(architecture, /does not publish placement/i, 'SP-4G does not publish historical placement');
+assert.match(architecture, /without publishing historical placement/i, 'SP-4G does not publish historical placement');
 assert.match(architecture, /migration-managed/i, 'architecture documents intentionally non-EF-tracked evidence table');
 assert.match(architecture, /governed-finals-v2[^\n]*blocked/i, 'architecture documents v2 certification block');
 
