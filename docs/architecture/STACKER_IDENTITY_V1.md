@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4J Governed Finals v2 snapshot certification activation implementation candidate
+Status: SP-4J Governed Finals v2 snapshot certification activation complete
 
 ## Purpose
 
@@ -250,4 +250,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
 - SP-4I: Governed Finals v2 certification readiness — complete.
-- SP-4J: Governed Finals v2 snapshot certification activation — implementation candidate.
+- SP-4J: Governed Finals v2 snapshot certification activation — complete.
