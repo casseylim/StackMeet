@@ -4,6 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!--
+      EF1002 is suppressed only in this isolated LocalDB harness. Its four ExecuteSqlRawAsync
+      statements interpolate generated integer primary keys into fixed test SQL so the harness
+      can deliberately exercise database CHECK/trigger failures; no user-controlled text is used.
+    -->
+    <NoWarn>$(NoWarn);EF1002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../backend/StackMeet.Api/StackMeet.Api.csproj" />
