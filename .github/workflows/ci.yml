@@ -54,6 +54,7 @@ jobs:
           dotnet restore tests/StackerCareerProgressTests/StackerCareerProgressTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingGovernancePersistenceTests/StackerFinalsRankingGovernancePersistenceTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -96,6 +97,9 @@ jobs:
 
       - name: Run SP-4G Finals ranking governance persistence tests
         run: dotnet run --project tests/StackerFinalsRankingGovernancePersistenceTests/StackerFinalsRankingGovernancePersistenceTests.csproj -c Release --no-restore
+
+      - name: Run SP-4I governed Finals v2 certification readiness tests
+        run: dotnet run --project tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
