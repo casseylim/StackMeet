@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4F Versioned Finals ranking governance complete
+Status: SP-4G Persisted Finals ranking snapshot and activation boundary complete
 
 ## Purpose
 
@@ -151,6 +151,20 @@ SP-4F adds an isolated policy module and tests only. It does not wire v2 into `a
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4F.md`.
 
+## SP-4G — Persisted Finals Ranking Snapshot & Activation Boundary
+
+SP-4G adds the durable evidence boundary required before historical placement can ever be certified.
+
+A dedicated `FinalsRankingGovernance` persistence record stores an explicitly selected ranking rule version and, after finalization, one immutable source snapshot containing the competition-time state/division evidence plus durable SQL Finals results and exact state/results revisions.
+
+The snapshot stores ranking **inputs**, not calculated ranks. Its canonical payload is protected by SHA-256 and, after capture, a database trigger blocks UPDATE and DELETE of the captured governance record.
+
+Historical unversioned competitions still resolve to and freeze as `legacy-finals-v1`. `governed-finals-v2` selection can be represented in the data layer, but SP-4G refuses to certify/capture a v2 finalized snapshot because the current operator Finals engine is not yet version-aware. This prevents NADITrack from claiming officials used a rule they did not actually use.
+
+SP-4G deliberately has no controller/UI/runtime activation wiring and does not publish placement. A later operator-engine phase must make Finals ranking explicitly version-aware before governed-v2 snapshot certification is enabled.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4G.md`.
+
 ## Historical snapshot rule
 
 Permanent-profile updates must not rewrite historical competition registration snapshots. Competition results continue to reference competition-scoped participant identities exactly as they do today. Career aggregation resolves those historical rows through explicit identity links.
@@ -172,7 +186,7 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration, but this development phase does **not** apply it to production.
 
 Integration tests use isolated generated LocalDB databases where required. Characterization/governance phases execute or model existing production semantics without mutating production data. These development phases do not deploy production code or mutate production data.
 
@@ -193,3 +207,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4D: Finals Career aggregation and presentation — complete.
 - SP-4E: Finals Ranking compatibility characterization — complete.
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
+- SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
