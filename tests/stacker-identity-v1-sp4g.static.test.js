@@ -31,10 +31,12 @@ assert.match(migration, /TR_FinalsRankingGovernance_ImmutableSnapshot/, 'databas
 assert.match(migration, /THROW 51041/, 'captured snapshot mutation fails explicitly');
 assert.match(migration, /onDelete: ReferentialAction\.Restrict/, 'captured governance evidence is not cascaded away with competition deletion');
 
-assert.ok(!admin.includes('FinalsRankingGovernanceService'), 'SP-4G does not wire governance into current admin status flow');
-assert.ok(!program.includes('FinalsRankingGovernanceService'), 'SP-4G does not activate governance through application DI/runtime');
-assert.ok(!finalsEngine.includes('governed-finals-v2'), 'current operator Finals engine is not silently switched to v2');
-assert.ok(!finalsEngine.includes('FinalsRankingGovernance'), 'current operator Finals engine does not read persisted governance yet');
+// Later phases may expose a read-only runtime projection, but SP-4G's write/certification boundary
+// must remain detached from ordinary admin status transitions and automatic application startup.
+assert.ok(!admin.includes('FinalsRankingGovernanceService'), 'admin competition status flow still does not auto-select/capture governance');
+assert.ok(!program.includes('FinalsRankingGovernanceService'), 'governance service is still not globally activated through DI/startup');
+assert.ok(!finalsEngine.includes('FinalsRankingGovernanceService'), 'browser engine never depends on the server persistence implementation');
+assert.ok(!finalsEngine.includes('CaptureFinalizedSnapshotAsync'), 'browser engine cannot certify historical snapshots');
 
 assert.match(architecture, /no production deployment/i, 'architecture explicitly prohibits SP-4G production deployment');
 assert.match(architecture, /web\.config[^\n]*must never be overwritten/i, 'architecture preserves protected production web.config rule');
