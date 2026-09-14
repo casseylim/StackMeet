@@ -2,6 +2,8 @@
   "use strict";
 
   const requiredAllAroundEvents = ["3-3-3", "3-6-3", "cycle"];
+  const sqlCompetitionSessionKey = "stackmeet-sql-competition-id";
+  const legacyFinalsV1 = "legacy-finals-v1";
   const ResultEngine = global.StackMeetBestResult || (() => {
     const statusOrder = { valid: 0, scratch: 1, invalid: 2, missing: 3 };
     const numericAttempts = attempts => (Array.isArray(attempts) ? attempts : [])
@@ -23,13 +25,50 @@
   })();
   const statusOrder = ResultEngine.statusOrder;
 
+  function rankingPolicy() { return global.StackMeetFinalsRankingPolicy || null; }
+  function selectedSqlCompetitionId() {
+    try {
+      const value = global.sessionStorage?.getItem?.(sqlCompetitionSessionKey);
+      const numeric = Number(value);
+      return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function requireRuleVersion(value) {
+    const policy = rankingPolicy();
+    if (policy?.requireRuleVersion) return policy.requireRuleVersion(value);
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized || normalized === legacyFinalsV1) return legacyFinalsV1;
+    throw new Error("Finals ranking policy module is required for an explicitly versioned operator ranking.");
+  }
+  function operatorFinalsRuleVersion() {
+    const competitionId = selectedSqlCompetitionId();
+    if (!competitionId) return legacyFinalsV1;
+    const registry = global.StackMeetFinalsRankingRules;
+    if (!registry || !Object.prototype.hasOwnProperty.call(registry, String(competitionId))) {
+      throw new Error("Finals ranking rule is unavailable for the selected competition. Refresh before producing Finals rankings.");
+    }
+    return requireRuleVersion(registry[String(competitionId)]);
+  }
+  function ruleVersionForStage(stage) {
+    return String(stage || "").toLowerCase() === "finals" ? operatorFinalsRuleVersion() : legacyFinalsV1;
+  }
+
   function normalizedEvent(event) { return String(event || "").toLowerCase() === "cycle" ? "cycle" : String(event || ""); }
   function finiteAttempts(result) { return ResultEngine.finiteAttempts(result?.attempts || []); }
-  function classifyResult(result) {
+  function classifyResult(result, ruleVersion = operatorFinalsRuleVersion()) {
+    const version = requireRuleVersion(ruleVersion);
+    const policy = rankingPolicy();
+    if (policy?.classificationFor) return policy.classificationFor(result, version);
+    if (version !== legacyFinalsV1) throw new Error("Finals ranking policy module is unavailable for governed ranking.");
     return ResultEngine.calculateBestResult(result);
   }
-  function finalTieKey(result) {
-    const classification = classifyResult(result);
+  function finalTieKey(result, ruleVersion = operatorFinalsRuleVersion()) {
+    const version = requireRuleVersion(ruleVersion);
+    const policy = rankingPolicy();
+    if (policy?.tieKeyFor) return policy.tieKeyFor(result, version);
+    const classification = classifyResult(result, version);
     if (!classification.eligibleForRanking) return [Infinity, Infinity, Infinity];
     const times = ResultEngine.validAttempts(result?.attempts || []).sort((a, b) => a - b);
     return [times[0] ?? Infinity, times[1] ?? Infinity, times[2] ?? Infinity];
@@ -42,17 +81,18 @@
     return 0;
   }
   function stableDisplay(left, right) { return String(left.name || left.participant || "").localeCompare(String(right.name || right.participant || ""), undefined, { numeric: true, sensitivity: "base" }); }
-  function rankFinalRows(rows) {
+  function rankFinalRows(rows, ruleVersion = operatorFinalsRuleVersion()) {
+    const version = requireRuleVersion(ruleVersion);
     const sorted = [...rows].sort((left, right) => {
-      const keyComparison = compareKeys(left.tieKey || finalTieKey(left.result), right.tieKey || finalTieKey(right.result));
+      const keyComparison = compareKeys(left.tieKey || finalTieKey(left.result, version), right.tieKey || finalTieKey(right.result, version));
       return keyComparison || stableDisplay(left, right);
     });
     let rank = 0, previous = null;
     return sorted.map((row, index) => {
-      const key = row.tieKey || finalTieKey(row.result);
+      const key = row.tieKey || finalTieKey(row.result, version);
       if (!previous || compareKeys(key, previous) !== 0) rank = index + 1;
       previous = key;
-      return { ...row, rank, tie: index > 0 && compareKeys(key, sorted[index - 1].tieKey || finalTieKey(sorted[index - 1].result)) === 0 };
+      return { ...row, rank, tie: index > 0 && compareKeys(key, sorted[index - 1].tieKey || finalTieKey(sorted[index - 1].result, version)) === 0, ruleVersion: version };
     });
   }
   function participantMeta(state, type, participant) {
@@ -79,37 +119,41 @@
   function finalResultRows(state, filters = {}) {
     return stageResultRows(state, "Finals", filters);
   }
-  // The Finals DTO is deliberately stage-aware so Preliminary reports use the
-  // same classification, participant metadata, filters and tie handling.
+  // Preliminary reporting is intentionally kept on legacy classification/tie semantics in SP-4H.
+  // Only the Finals stage consumes the persisted operator Finals ranking rule.
   function stageResultRows(state, stage, filters = {}) {
+    const ruleVersion = ruleVersionForStage(stage);
     return state.results.filter(result => String(result.stage || "").toLowerCase() === String(stage || "").toLowerCase()).map(result => {
       const meta = participantMeta(state, result.type, result.participant);
-      const classification = classifyResult(result);
-      return { ...meta, result, event: result.event, ...classification, tieKey: finalTieKey(result), attempts: finiteAttempts(result), resultStatus: classification.status };
+      const classification = classifyResult(result, ruleVersion);
+      return { ...meta, result, event: result.event, ...classification, tieKey: finalTieKey(result, ruleVersion), attempts: finiteAttempts(result), resultStatus: classification.status, ruleVersion };
     }).filter(row => appliesFilters(row, filters));
   }
   function allAroundRows(state, filters = {}) {
     return stageAllAroundRows(state, "Finals", filters);
   }
   function stageAllAroundRows(state, stage, filters = {}) {
+    // All-Around governance remains a separate contract; SP-4H must not silently change it.
+    const allAroundRuleVersion = legacyFinalsV1;
     const byParticipant = new Map();
     state.results.filter(result => String(result.stage || "").toLowerCase() === String(stage || "").toLowerCase() && result.type === "Individual" && requiredAllAroundEvents.includes(normalizedEvent(result.event))).forEach(result => {
       const key = result.participant;
       if (!byParticipant.has(key)) byParticipant.set(key, {});
-      const event = normalizedEvent(result.event), classification = classifyResult(result), old = byParticipant.get(key)[event];
+      const event = normalizedEvent(result.event), classification = classifyResult(result, allAroundRuleVersion), old = byParticipant.get(key)[event];
       if (!old || (classification.status === "valid" && classification.bestValidTime < old.bestValidTime)) byParticipant.get(key)[event] = classification;
     });
     return state.stackers.map(stacker => [stacker.id, byParticipant.get(stacker.id) || {}]).map(([participant, events]) => {
       const meta = participantMeta(state, "Individual", participant);
       const eligible = requiredAllAroundEvents.every(event => events[event]?.status === "valid");
       const total = eligible ? requiredAllAroundEvents.reduce((sum, event) => sum + events[event].bestValidTime, 0) : null;
-      return { ...meta, event: "All-Around", events, resultStatus: eligible ? "valid" : "ineligible", bestValidTime: total, tieKey: [total ?? Infinity, Infinity, Infinity], type: "Individual" };
+      return { ...meta, event: "All-Around", events, resultStatus: eligible ? "valid" : "ineligible", bestValidTime: total, tieKey: [total ?? Infinity, Infinity, Infinity], type: "Individual", ruleVersion: allAroundRuleVersion };
     }).filter(row => appliesFilters(row, { ...filters, participantType: "Individual" }));
   }
   function placementRows(state, filters = {}) {
     return stagePlacementRows(state, "Finals", filters);
   }
   function stagePlacementRows(state, stage, filters = {}) {
+    const ruleVersion = ruleVersionForStage(stage);
     const groups = new Map();
     stageResultRows(state, stage, filters).forEach(row => {
       const key = [row.type, row.division, normalizedEvent(row.event)].join("|");
@@ -118,8 +162,8 @@
     });
     return [...groups.values()].flatMap(group => {
       const valid = group.filter(row => row.resultStatus === "valid");
-      const ranks = new Map(rankFinalRows(valid).map(row => [row.participant, row]));
-      return group.map(row => ({ ...row, ...(ranks.get(row.participant) || { rank: null, tie: false }) }));
+      const ranks = new Map(rankFinalRows(valid, ruleVersion).map(row => [row.participant, row]));
+      return group.map(row => ({ ...row, ...(ranks.get(row.participant) || { rank: null, tie: false, ruleVersion }) }));
     });
   }
   function organizationCredits(state, filters = {}) {
@@ -163,5 +207,5 @@
     const selected = cutTie ? [] : ranked.slice(0, limit);
     return { id: options.id, competitionKey: options.competitionKey || "local", participantType: sheet.type, division: sheet.division, event: sheet.event, ruleVersion: "final-qualification-v1", sourcePreliminaryResults: ranked.map(row => ({ resultId: row.result?.id || "", participantId: row.participant, bestValidTime: row.prelimTime })), selectedQualifiers: selected.map((row, index) => ({ participantId: row.participant, preliminaryRank: row.preliminaryRank, finalSeed: index + 1, finalSheetId: sheet.id, heat: "" })), tieException: cutTie ? { required: true, decision: "", rationale: "Equal preliminary time crosses the configured qualification cutoff. An explicit approved exception is required." } : { required: false, decision: "configured-limit", rationale: "Configured qualification limit applied without a cutoff tie." }, generatedAtUtc: new Date().toISOString(), generatedBy: options.generatedBy || "", approvedAtUtc: "", approvedBy: "", status: "Draft", reconstructed: false };
   }
-  global.StackMeetFinalsReports = { requiredAllAroundEvents, normalizedEvent, classifyResult, finalTieKey, compareKeys, rankFinalRows, participantMeta, appliesFilters, finalResultRows, stageResultRows, allAroundRows, stageAllAroundRows, placementRows, stagePlacementRows, organizationCredits, qualificationSnapshot, statusOrder };
+  global.StackMeetFinalsReports = { requiredAllAroundEvents, normalizedEvent, operatorFinalsRuleVersion, ruleVersionForStage, classifyResult, finalTieKey, compareKeys, rankFinalRows, participantMeta, appliesFilters, finalResultRows, stageResultRows, allAroundRows, stageAllAroundRows, placementRows, stagePlacementRows, organizationCredits, qualificationSnapshot, statusOrder };
 })(window);
