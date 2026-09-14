@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StackMeet.Api.Activities.SportStacking;
+using StackMeet.Api.Activities;
 using StackMeet.Api.Activities.SportStacking.Ranking;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
