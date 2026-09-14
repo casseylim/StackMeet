@@ -34,7 +34,7 @@ assert.strictEqual(policy.policyFor(policy.LEGACY_FINALS_V1).status, "frozen");
 assert.strictEqual(policy.policyFor(policy.GOVERNED_FINALS_V2).status, "defined-not-activated");
 assert.strictEqual(policy.policyFor(policy.GOVERNED_FINALS_V2).implicitWhenUnversioned, false);
 
-// Legacy v1 must remain byte-for-behavior compatible with the existing Finals report tie semantics.
+// Legacy v1 must remain byte-for-behavior compatible with the original Finals report tie semantics.
 {
   const result = { attempts: [5.4, 5.1, 5.3], penalty: 0.5 };
   same(policy.legacyTieKey(result), plain(finals.finalTieKey(result)), "legacy policy must preserve current raw-attempt tie key");
@@ -115,12 +115,12 @@ assert.strictEqual(policy.policyFor(policy.GOVERNED_FINALS_V2).implicitWhenUnver
   assert.strictEqual(policy.publicationScope({ participantType: "Individual", division: "12U", event: "Cycle", category: "mixed", gender: "" }).valid, false);
 }
 
-// SP-4F defines governance only. It must not activate the policy module in the current operator application.
+// SP-4F owns the versioned contract. Later phases may consume it, but app.js must not hard-code
+// governed-v2 or create a second browser-side policy implementation.
 {
   const app = fs.readFileSync(path.join(root, "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
-  const finalsEngine = fs.readFileSync(path.join(root, "backend", "StackMeet.Api", "wwwroot", "js", "reports", "FinalsReportEngine.js"), "utf8");
-  assert.ok(!app.includes("StackMeetFinalsRankingPolicy"), "SP-4F must not wire governed v2 into the operator app");
-  assert.ok(!finalsEngine.includes("StackMeetFinalsRankingPolicy"), "SP-4F must not rewrite current Finals report ranking");
+  assert.ok(!app.includes("governed-finals-v2"), "operator app must not hard-code governed v2 semantics");
+  assert.ok(!app.includes("StackMeetFinalsRankingPolicy"), "app.js remains policy-agnostic; the report engine owns policy consumption");
 }
 
 const architecture = fs.readFileSync(path.join(root, "docs", "architecture", "STACKER_IDENTITY_SP4F.md"), "utf8");

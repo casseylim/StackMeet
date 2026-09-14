@@ -51,14 +51,19 @@ public sealed record FinalsRankingGovernanceRecord(
     public bool HasSnapshot => SnapshotCapturedAt is not null;
 }
 
+public sealed record FinalsRankingEffectiveRule(
+    int CompetitionId,
+    string RuleVersion,
+    bool ExplicitSelection);
+
 /// <summary>
 /// Data-layer boundary for selecting a Finals ranking policy and freezing the source evidence
 /// used by a finalized Sport Stacking competition.
 /// </summary>
 /// <remarks>
-/// SP-4G intentionally has no controller/UI wiring. Selecting governed-finals-v2 here does not
-/// make the current operator Finals screen use v2. Snapshot capture therefore remains blocked for
-/// v2 until a later phase proves that the operator engine applied the same rule during competition.
+/// SP-4G intentionally has no controller/UI wiring for rule selection or capture. SP-4H adds a
+/// read-only effective-rule projection through this service while keeping activity-specific
+/// eligibility inside the Sport Stacking ranking boundary.
 /// </remarks>
 public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 {
@@ -72,6 +77,26 @@ public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 
     public Task<FinalsRankingGovernanceRecord?> GetAsync(int competitionId, CancellationToken ct = default) =>
         ReadGovernanceAsync(competitionId, forUpdate: false, ct);
+
+    public async Task<FinalsRankingEffectiveRule?> TryGetEffectiveRuleAsync(
+        int competitionId,
+        CancellationToken ct = default)
+    {
+        var competition = await database.Competitions
+            .AsNoTracking()
+            .Where(item => item.Id == competitionId)
+            .Select(item => new { item.Id, item.ActivityModuleCode })
+            .SingleOrDefaultAsync(ct);
+
+        if (competition is null || !IsSportStackingCompetition(competition.ActivityModuleCode))
+            return null;
+
+        var governance = await ReadGovernanceAsync(competitionId, forUpdate: false, ct);
+        return new FinalsRankingEffectiveRule(
+            competition.Id,
+            FinalsRankingRuleVersions.ResolveStored(governance?.RuleVersion),
+            governance is not null);
+    }
 
     public async Task<FinalsRankingGovernanceRecord> SelectRuleVersionAsync(
         int competitionId,
@@ -254,10 +279,13 @@ WHERE [CompetitionId] = {competitionId}
     static bool IsFinalized(Competition competition) =>
         competition.ArchivedAt is not null || competition.Status is "Closed" or "Archived";
 
+    static bool IsSportStackingCompetition(string? activityModuleCode) =>
+        string.IsNullOrWhiteSpace(activityModuleCode)
+        || activityModuleCode.Equals(SportStackingActivityModule.ModuleCode, StringComparison.OrdinalIgnoreCase);
+
     static void EnsureSportStackingCompetition(Competition competition)
     {
-        if (!string.IsNullOrWhiteSpace(competition.ActivityModuleCode)
-            && !competition.ActivityModuleCode.Equals(SportStackingActivityModule.ModuleCode, StringComparison.OrdinalIgnoreCase))
+        if (!IsSportStackingCompetition(competition.ActivityModuleCode))
         {
             throw new InvalidOperationException("Finals ranking governance currently applies only to the Sport Stacking activity module.");
         }

@@ -1,6 +1,24 @@
 /** Same-origin client for SQL-native Competition and Individual Stacker records. */
 class StackerApi {
-  async listCompetitions() { return this.#request("/api/competitions"); }
+  async listCompetitions() {
+    const [competitions, rankingRules] = await Promise.all([
+      this.#request("/api/competitions"),
+      this.#request("/api/competitions/finals-ranking-rules"),
+      this.#ensureFinalsRankingPolicy()
+    ]);
+
+    if (typeof window !== "undefined") {
+      const registry = Object.create(null);
+      (Array.isArray(rankingRules) ? rankingRules : []).forEach(item => {
+        const competitionId = Number(item?.competitionId);
+        if (!Number.isInteger(competitionId) || competitionId <= 0) return;
+        registry[String(competitionId)] = item?.ruleVersion;
+      });
+      window.StackMeetFinalsRankingRules = Object.freeze(registry);
+    }
+
+    return competitions;
+  }
   async createCompetition(competition) { return this.#request("/api/competitions", { method: "POST", body: competition }); }
   async list(competitionId) { return this.#request(this.#stackersUrl(competitionId)); }
   async get(competitionId, id) { return this.#request(`${this.#stackersUrl(competitionId)}/${encodeURIComponent(id)}`); }
@@ -11,6 +29,27 @@ class StackerApi {
   #stackersUrl(competitionId) {
     if (!Number.isInteger(Number(competitionId)) || Number(competitionId) <= 0) throw new TypeError("A SQL-native competition id is required.");
     return `/api/competitions/${encodeURIComponent(competitionId)}/stackers`;
+  }
+
+  async #ensureFinalsRankingPolicy() {
+    if (typeof window === "undefined" || window.StackMeetFinalsRankingPolicy) return;
+    if (typeof document === "undefined") throw new Error("Finals ranking policy module is unavailable.");
+    if (window.StackMeetFinalsRankingPolicyLoad) return window.StackMeetFinalsRankingPolicyLoad;
+
+    window.StackMeetFinalsRankingPolicyLoad = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "/js/reports/FinalsRankingPolicy.js?v=stacker-identity-v1-sp4h";
+      script.async = true;
+      script.dataset.stackMeetFinalsRankingPolicy = "sp4h";
+      script.addEventListener("load", () => {
+        if (window.StackMeetFinalsRankingPolicy) resolve();
+        else reject(new Error("Finals ranking policy module loaded without registering its contract."));
+      }, { once: true });
+      script.addEventListener("error", () => reject(new Error("Unable to load Finals ranking policy module.")), { once: true });
+      document.head.appendChild(script);
+    });
+
+    return window.StackMeetFinalsRankingPolicyLoad;
   }
 
   async #request(url, options = {}) {
