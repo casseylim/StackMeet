@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4G Persisted Finals ranking snapshot and activation boundary candidate
+Status: SP-4G Persisted Finals ranking snapshot and activation boundary complete
 
 ## Purpose
 
@@ -207,4 +207,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4D: Finals Career aggregation and presentation — complete.
 - SP-4E: Finals Ranking compatibility characterization — complete.
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
-- SP-4G: Persisted Finals Ranking snapshot and activation boundary — implementation candidate.
+- SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
