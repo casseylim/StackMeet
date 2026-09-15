@@ -294,6 +294,83 @@
     }
   }
 
+  function renderFinalsPlacements(publication) {
+    const container = byId('finalsPlacements');
+    const empty = byId('noFinalsPlacements');
+    const policy = byId('finalsPlacementPolicy');
+    container.replaceChildren();
+
+    const history = publication && Array.isArray(publication.history)
+      ? publication.history
+      : [];
+
+    if (publication && typeof publication.cohortPolicy === 'string' && publication.cohortPolicy.trim()) {
+      policy.textContent = publication.cohortPolicy;
+      policy.hidden = false;
+    } else {
+      policy.textContent = '';
+      policy.hidden = true;
+    }
+
+    if (history.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    empty.hidden = true;
+    for (const point of history) {
+      const card = document.createElement('article');
+      card.className = 'finals-card';
+
+      const heading = document.createElement('div');
+      heading.className = 'finals-heading';
+      appendText(heading, 'finals-event', point.eventCode || 'Event');
+      appendText(heading, 'finals-count', formatDate(point.competitionDate));
+      card.appendChild(heading);
+
+      const competition = document.createElement('h3');
+      competition.className = 'finals-competition';
+      competition.textContent = point.competitionName || point.competitionKey || 'Certified competition';
+      card.appendChild(competition);
+      if (point.competitionKey) appendText(card, 'finals-key', point.competitionKey);
+
+      const placement = Number(point.placement);
+      const hasPlacement = Number.isInteger(placement) && placement > 0;
+      const placementText = hasPlacement
+        ? `${point.sharesPlacement ? 'Shared placement' : 'Placement'} in competition-time division: #${placement}`
+        : 'No certified placement';
+      appendText(card, 'finals-best-source', placementText);
+
+      const list = document.createElement('div');
+      list.className = 'finals-history';
+      const row = document.createElement('div');
+      row.className = 'finals-history-row';
+
+      const detail = document.createElement('div');
+      detail.className = 'finals-history-detail';
+      appendText(
+        detail,
+        'finals-meta',
+        point.resultStatus === 'Valid' && point.officialBestTime != null
+          ? `Certified official Finals time: ${formatTime(point.officialBestTime)}`
+          : 'No official Finals time published for this result status'
+      );
+      row.appendChild(detail);
+
+      const outcome = document.createElement('div');
+      outcome.className = 'finals-outcome';
+      const badge = document.createElement('span');
+      badge.className = `finals-status is-${finalsStatusClass(point.resultStatus)}`;
+      badge.textContent = point.resultStatus || 'Unknown';
+      outcome.appendChild(badge);
+      row.appendChild(outcome);
+
+      list.appendChild(row);
+      card.appendChild(list);
+      container.appendChild(card);
+    }
+  }
+
   function renderTournamentHistory(tournamentHistory) {
     const container = byId('tournamentHistory');
     const empty = byId('noTournamentHistory');
@@ -370,6 +447,7 @@
     renderPersonalBests(profile.personalBests);
     renderCareerProgression(profile.careerProgression);
     renderFinalsCareer(profile.finalsCareer);
+    renderFinalsPlacements(profile.finalsPlacements);
     renderTournamentHistory(profile.tournamentHistory);
 
     document.title = `${profile.displayName || 'Stacker'} · NADITrack`;
