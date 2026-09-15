@@ -7,15 +7,43 @@ namespace StackMeet.Api.Controllers;
 [ApiController]
 [Route("api/public/stackers/{nadiTrackId}")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class PublicStackerProfilesController(SportStackerCareerProfileService profiles) : ControllerBase
+public sealed class PublicStackerProfilesController : ControllerBase
 {
+    private readonly SportStackerCareerProfileService profiles;
+    private readonly PublicFinalsPlacementCareerIntegrationService? finalsPlacements;
+
+    // Retain the original constructor for isolated compatibility tests and non-DI callers.
+    public PublicStackerProfilesController(SportStackerCareerProfileService profiles)
+        : this(profiles, null)
+    {
+    }
+
+    public PublicStackerProfilesController(
+        SportStackerCareerProfileService profiles,
+        PublicFinalsPlacementCareerIntegrationService? finalsPlacements)
+    {
+        this.profiles = profiles;
+        this.finalsPlacements = finalsPlacements;
+    }
+
     [HttpGet]
     public async Task<ActionResult<PublicSportStackerCareerProfile>> Get(
         string nadiTrackId,
         CancellationToken ct)
     {
         var profile = await profiles.GetPublicAsync(nadiTrackId, ct);
-        return profile is null ? NotFound() : Ok(profile);
+        if (profile is null) return NotFound();
+
+        if (finalsPlacements is not null)
+        {
+            var publication = await finalsPlacements.GetPublicEligibleAsync(nadiTrackId, ct);
+            if (publication is not null)
+            {
+                profile = profile with { FinalsPlacements = publication };
+            }
+        }
+
+        return Ok(profile);
     }
 }
 
