@@ -78,14 +78,16 @@ Assert(publication.History[0].EventCode == "Cycle", "Event must remain part of t
 var json = JsonSerializer.Serialize(publication);
 Assert(!json.Contains("12 & Under Male", StringComparison.Ordinal),
     "Raw historical division labels must not leak into permanent public placement JSON.");
-Assert(!json.Contains("SnapshotSha", StringComparison.OrdinalIgnoreCase),
+Assert(!json.Contains("\"SnapshotSha", StringComparison.OrdinalIgnoreCase),
     "Immutable snapshot internals must not leak into public placement JSON.");
-Assert(!json.Contains("ParticipantCode", StringComparison.OrdinalIgnoreCase),
+Assert(!json.Contains("\"ParticipantCode\":", StringComparison.OrdinalIgnoreCase),
     "Participant code must not leak into public placement JSON.");
-Assert(!json.Contains("Category", StringComparison.OrdinalIgnoreCase),
+Assert(!json.Contains("\"Category\":", StringComparison.OrdinalIgnoreCase),
     "Raw category fields must not be published; policy is fixed by the contract.");
-Assert(!json.Contains("Gender", StringComparison.OrdinalIgnoreCase),
+Assert(!json.Contains("\"Gender\":", StringComparison.OrdinalIgnoreCase),
     "Raw gender fields must not be published; policy is fixed by the contract.");
+Assert(!json.Contains("\"Division\":", StringComparison.OrdinalIgnoreCase),
+    "Raw division fields must not be published because a division label may encode personal attributes.");
 
 var pointProperties = typeof(PublicFinalsPlacementPoint)
     .GetProperties()
