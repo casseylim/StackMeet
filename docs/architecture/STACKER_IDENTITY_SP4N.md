@@ -1,8 +1,17 @@
 # NADITrack Stacker Identity v1 — SP-4N Public Finals Placement Integration
 
-Status: implementation candidate
+Status: complete
 
 Base protected master: `d843cf043e06bc5bb8fb2506d813851ef6b52d35`
+
+Proven implementation head: `d251343f5780d5963423f9273543c00e983afc81`
+
+Implementation-head CI:
+
+- push run `34963217249` — `Build and test` SUCCESS;
+- PR run `34963223267` — `Build and test` SUCCESS.
+
+Both runs passed SP-4N, CoreIntegrity, Phase 4C and the complete JavaScript regression suite before this documentation-only completion commit.
 
 ## Purpose
 
@@ -29,6 +38,30 @@ For each reviewed permanent identity link and finalized/public competition it:
 9. delegates privacy shaping to the SP-4M publication contract.
 
 The selector does **not** use current Stacker gender, Special status, custom division, name, or current `CompetitionResult` rows to discover or calculate permanent placement.
+
+## Module-owned composition boundary
+
+During implementation, the Modular Platform Foundation Phase 2 guard correctly rejected registration of the SP-4N Finals integration service inside Shared Core `ActivityModuleRegistration`.
+
+The corrected composition is:
+
+- Shared Core `AddNadiTrackActivityModules()` remains free of Sport Stacking Finals-specific services;
+- Sport Stacking owns `AddSportStackingIdentityProfileServices()` in its Identity namespace;
+- application startup explicitly activates that module-owned seam from `Program.cs` after the shared activity-module registration.
+
+The SP-4N static guard now enforces all three parts of that boundary. This preserves modular architecture while ensuring the live controller can resolve the SP-4N integration service.
+
+## Static-guard handoff
+
+SP-4N deliberately enriches an established public profile rather than replacing earlier contracts. Historical SP-3A, SP-3B and SP-4D guards were narrowed from obsolete implementation-shape assertions to their original invariants:
+
+- the canonical public-profile lookup and indistinguishable private/not-found boundary happen before any placement enrichment;
+- the existing public endpoint, no-store behavior and credential-free browser contract remain unchanged;
+- the original SP-4D Finals Career records and renderer remain placement/rank/medal-free;
+- certified placement is rendered only by SP-4N's separate governed placement surface;
+- placement never implies a medal, award, podium classification or record.
+
+No privacy or architectural guard was removed to make CI pass; ownership of the new governed placement behavior moved to the SP-4N tests.
 
 ## Fail-closed compatibility
 
@@ -104,7 +137,7 @@ It covers:
 - current registration/result mutation immunity;
 - private and malformed identity not-found boundaries.
 
-The SP-4N JavaScript static guard additionally proves the immutable selector does not read current `CompetitionResult` rows or current demographic/division attributes, and that browser rendering remains `textContent`/DOM based, credential-free and no-store.
+The SP-4N JavaScript static guard additionally proves the immutable selector does not read current `CompetitionResult` rows or current demographic/division attributes, Shared Core remains free of Sport Stacking Finals registration, application startup activates the Sport Stacking-owned DI seam, and browser rendering remains `textContent`/DOM based, credential-free and no-store.
 
 ## Deliberately unchanged
 
@@ -130,6 +163,6 @@ The production hard rule remains binding: the existing production `web.config` m
 
 ## Next boundary
 
-After SP-4N is proven and merged, the next phase should review **permanent placement presentation governance and release readiness** rather than adding medal/award claims implicitly.
+After SP-4N is merged and post-merge master CI is green, the next phase should review **permanent placement presentation governance and release readiness** rather than adding medal/award claims implicitly.
 
 Any medal, podium, award, record-holder or cross-competition ranking claim must remain a separately governed contract with its own immutable authority and tests.
