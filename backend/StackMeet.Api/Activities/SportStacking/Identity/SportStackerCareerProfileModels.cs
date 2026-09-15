@@ -71,7 +71,8 @@ public sealed record SportStackerFinalsHistoryPoint(
 
 /// <summary>
 /// Aggregated finalized Finals history for one supported Individual event.
-/// Placement, medals and award interpretation are intentionally excluded.
+/// Placement, medals and award interpretation are intentionally excluded from this legacy-compatible summary.
+/// Certified placement is exposed separately through the SP-4M/SP-4N publication contract.
 /// </summary>
 public sealed record SportStackerEventFinalsSummary(
     string EventCode,
@@ -101,4 +102,11 @@ public sealed record PublicSportStackerCareerProfile(
     IReadOnlyList<SportStackerTournamentHistory> TournamentHistory,
     IReadOnlyList<SportStackerEventProgression> CareerProgression,
     IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer,
-    IReadOnlyList<SportStackerPersonalBest> PersonalBests);
+    IReadOnlyList<SportStackerPersonalBest> PersonalBests)
+{
+    /// <summary>
+    /// SP-4N additive permanent-placement publication. Null is retained only for compatibility with
+    /// manually constructed legacy objects; the public profile service populates this for every public profile.
+    /// </summary>
+    public PublicFinalsPlacementCareerPublication? FinalsPlacements { get; init; }
+}

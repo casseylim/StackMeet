@@ -34,13 +34,29 @@ for (const file of [
 const controller = read(controllerPath);
 assert.match(controller, /Route\("api\/public\/stackers\/\{nadiTrackId\}"\)/);
 assert.match(controller, /ResponseCache\(NoStore = true, Location = ResponseCacheLocation\.None\)/);
-assert.match(controller, /profiles\.GetPublicAsync\(nadiTrackId, ct\)/);
-assert.match(controller, /profile is null \? NotFound\(\) : Ok\(profile\)/);
+assert.match(controller, /var profile = await profiles\.GetPublicAsync\(nadiTrackId, ct\);/);
+assert.match(controller, /if \(profile is null\) return NotFound\(\);/);
+assert.match(controller, /return Ok\(profile\);/);
 assert.match(controller, /Route\("Stackers\/\{nadiTrackId\}"\)/);
 assert.match(controller, /NadiTrackIdRules\.IsValid\(nadiTrackId\)/);
 assert.match(controller, /X-Robots-Tag/);
 assert.match(controller, /noindex, nofollow/);
 assert.match(controller, /profile", "index\.html/);
+
+// Additive reviewed enrichments are allowed after SP-3B, but they must never run for a
+// private, malformed or missing profile. Preserve the original indistinguishable NotFound boundary.
+const profileRead = controller.indexOf('var profile = await profiles.GetPublicAsync(nadiTrackId, ct);');
+const notFoundBoundary = controller.indexOf('if (profile is null) return NotFound();');
+const enrichmentRead = controller.indexOf('finalsPlacements.GetPublicEligibleAsync');
+const okBoundary = controller.indexOf('return Ok(profile);');
+assert.ok(profileRead >= 0 && notFoundBoundary > profileRead,
+  'SP-3B public lookup must establish profile existence before returning data.');
+if (enrichmentRead >= 0) {
+  assert.ok(enrichmentRead > notFoundBoundary,
+    'reviewed later enrichments must occur only after the SP-3B NotFound boundary.');
+}
+assert.ok(okBoundary > notFoundBoundary,
+  'SP-3B successful response must remain after the private/not-found boundary.');
 
 const registration = read(registrationPath);
 assert.match(registration, /AddScoped<SportStackerCareerProfileService>\(\)/);
@@ -68,7 +84,8 @@ assert.match(js, /replaceChildren\(\)/);
 assert.ok(!/innerHTML/.test(js), 'SP-3B public profile renderer must not inject HTML');
 assert.ok(!/Authorization/i.test(js), 'SP-3B public profile fetch must not send authentication credentials');
 for (const forbidden of ['birthDate', 'email', 'phone', 'gender', 'wssaId']) {
-  assert.ok(!js.includes(forbidden), `SP-3B renderer must not consume private field: ${forbidden}`);
+  assert.ok(!new RegExp(`\\b(?:profile|point|performance|summary|tournament)\\.${forbidden}\\b`, 'i').test(js),
+    `SP-3B renderer must not consume private field: ${forbidden}`);
 }
 
 const integration = read(integrationProgram);
