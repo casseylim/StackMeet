@@ -20,6 +20,7 @@ public static class ActivityModuleRegistration
         services.AddSingleton<CompetitionActivityResolver>();
         services.AddSingleton<ActivityAssignmentPolicy>();
         services.AddScoped<SportStackerCareerProfileService>();
+        services.AddScoped<PublicFinalsPlacementCareerIntegrationService>();
         return services;
     }
 }
