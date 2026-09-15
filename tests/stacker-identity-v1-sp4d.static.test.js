@@ -72,7 +72,10 @@ assert.match(html, /id="finalsCareerTitle"/);
 assert.match(html, /id="finalsCareer"/);
 assert.match(html, /id="noFinalsCareer"/);
 assert.match(html, /Finals Career/);
-assert.match(html, /Placement, medals, awards and records are not inferred/i);
+// SP-4N may add a separately governed certified placement section. Preserve SP-4D's original
+// semantic boundary that a Finals appearance/result does not fabricate awards or records.
+assert.match(html, /Placement does not imply a medal, award, podium classification or record/i);
+assert.match(html, /Those claims are not inferred by this profile/i);
 assert.match(html, /meta name="robots" content="noindex,nofollow"/);
 
 const js = read(profileJsPath);
