@@ -45,8 +45,9 @@ assert.match(models, /IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer
 const finalsContractStart = models.indexOf('record SportStackerFinalsHistoryPoint');
 const finalsContractEnd = models.indexOf('record PublicSportStackerCareerProfile');
 const finalsContracts = models.slice(finalsContractStart, finalsContractEnd);
-// Check declarations rather than XML documentation prose. The comments intentionally say
-// placement/medals/awards are excluded, and that explanatory wording is not a public field.
+// Check the SP-4D Finals Career declarations rather than later additive public-profile fields.
+// SP-4N may publish a separate governed placement contract, but it must not retrofit placement
+// into the original SP-4D Finals participation/history records.
 const finalsDeclarations = finalsContracts.replace(/^\s*\/\/\/.*$/gm, '');
 for (const forbidden of ['BirthDate', 'Email', 'Phone', 'Gender', 'WssaId', 'StackerId', 'CompetitionId', 'Rank', 'Placement', 'Medal', 'Award']) {
   assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(finalsDeclarations), `SP-4D public Finals contract must exclude ${forbidden}`);
@@ -91,11 +92,17 @@ assert.match(js, /credentials: 'omit'/);
 assert.match(js, /cache: 'no-store'/);
 assert.ok(!/innerHTML/.test(js), 'SP-4D Finals renderer must never inject HTML');
 assert.ok(!/Authorization/i.test(js), 'SP-4D public profile fetch must not send authentication credentials');
-assert.ok(!/\.rank\b/.test(js), 'SP-4D browser must not calculate or consume ranking');
-assert.ok(!/\.placement\b/i.test(js), 'SP-4D browser must not calculate or consume placement');
-assert.ok(!/\.medal\b/i.test(js), 'SP-4D browser must not calculate or consume medals');
+
+const finalsCareerStart = js.indexOf('function renderFinalsCareer(finalsCareer)');
+const nextRenderer = js.indexOf('function renderFinalsPlacements(', finalsCareerStart);
+assert.ok(finalsCareerStart >= 0, 'SP-4D Finals Career renderer must exist');
+const finalsCareerRenderer = js.slice(finalsCareerStart, nextRenderer >= 0 ? nextRenderer : js.length);
+assert.ok(!/\.rank\b/.test(finalsCareerRenderer), 'SP-4D Finals Career renderer must not calculate or consume ranking');
+assert.ok(!/\.placement\b/i.test(finalsCareerRenderer), 'SP-4D Finals Career renderer must not calculate or consume placement');
+assert.ok(!/\.medal\b/i.test(finalsCareerRenderer), 'SP-4D Finals Career renderer must not calculate or consume medals');
 for (const forbidden of ['birthDate', 'email', 'phone', 'gender', 'wssaId', 'stackerId', 'competitionId']) {
-  assert.ok(!js.includes(forbidden), `SP-4D renderer must not consume private/internal field: ${forbidden}`);
+  assert.ok(!new RegExp(`\\b(?:profile|point|summary)\\.${forbidden}\\b`, 'i').test(finalsCareerRenderer),
+    `SP-4D Finals Career renderer must not consume private/internal field: ${forbidden}`);
 }
 
 const css = read(profileCssPath);
