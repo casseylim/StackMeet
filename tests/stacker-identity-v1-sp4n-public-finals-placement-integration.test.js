@@ -16,7 +16,9 @@ const integration = read('backend/StackMeet.Api/Activities/SportStacking/Identit
 const contract = read('backend/StackMeet.Api/Activities/SportStacking/Identity/PublicFinalsPlacementPublicationContract.cs');
 const models = read('backend/StackMeet.Api/Activities/SportStacking/Identity/SportStackerCareerProfileModels.cs');
 const controller = read('backend/StackMeet.Api/Controllers/PublicStackerProfilesController.cs');
-const registration = read('backend/StackMeet.Api/Activities/ActivityModuleRegistration.cs');
+const sharedRegistration = read('backend/StackMeet.Api/Activities/ActivityModuleRegistration.cs');
+const sportStackingRegistration = read('backend/StackMeet.Api/Activities/SportStacking/Identity/SportStackingIdentityRegistration.cs');
+const program = read('backend/StackMeet.Api/Program.cs');
 const profileJs = read('backend/StackMeet.Api/wwwroot/profile/profile.js');
 const profileHtml = read('backend/StackMeet.Api/wwwroot/profile/index.html');
 
@@ -60,8 +62,12 @@ assert.match(models, /PublicFinalsPlacementCareerPublication\? FinalsPlacements 
   'public profile contract must add placement as an additive SP-4N member.');
 assert.match(controller, /FinalsPlacements = publication/,
   'existing public profile endpoint must attach the privacy-safe publication.');
-assert.match(registration, /AddScoped<PublicFinalsPlacementCareerIntegrationService>/,
-  'SP-4N integration service must be registered through the activity-module DI seam.');
+assert.doesNotMatch(sharedRegistration, /PublicFinalsPlacementCareerIntegrationService|\bFinals\b/,
+  'Shared Core activity-module registration must remain free of Sport Stacking Finals services.');
+assert.match(sportStackingRegistration, /AddScoped<SportStacking\.Identity\.PublicFinalsPlacementCareerIntegrationService>/,
+  'SP-4N integration service must be registered through a Sport-Stacking-owned DI seam.');
+assert.match(program, /AddSportStackingIdentityProfileServices\(\)/,
+  'application composition root must activate the Sport Stacking identity/profile service seam.');
 
 assert.match(profileHtml, /id="finalsPlacements"/);
 assert.match(profileHtml, /Immutable certified evidence only/);
