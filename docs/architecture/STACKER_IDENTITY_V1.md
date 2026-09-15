@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1
 
-Status: SP-4J Governed Finals v2 snapshot certification activation complete
+Status: SP-4K Immutable Historical Finals placement projection complete
 
 ## Purpose
 
@@ -203,6 +203,20 @@ SP-4J adds no controller/API, no automatic close/archive capture, no schema migr
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4J.md`.
 
+## SP-4K — Immutable Historical Finals Placement Projection
+
+SP-4K adds a server-side, read-only historical Finals placement projector for certified `governed-finals-v2` evidence.
+
+The projector accepts only `finals-ranking-source-v2` snapshots whose SHA-256, rule version, source revisions and embedded `sp4h-event-finals-v1` operator-contract provenance are intact. It derives placement from the immutable snapshot only and deliberately does not read current `CompetitionState`, `CompetitionResult`, `Stacker` or permanent-identity data.
+
+Every projected rank is bound to one explicit cohort: Individual participant type, competition-snapshot division, event, category and gender. Category/gender filters are applied before ranking, matching the reviewed operator contract. Governed-v2 classification and tie rules remain server-owned, including finite-penalty official-best ordering, penalty-999 Scratch precedence and competition ranking gaps such as `1, 1, 3`.
+
+If competition-time participant metadata is insufficient to prove cohort membership, SP-4K fails closed instead of reconstructing history from current data. Legacy `finals-ranking-source-v1` evidence also fails closed because it does not contain the SP-4J operator-contract provenance required by this projector.
+
+SP-4K does **not** expose the projection through a controller or public profile, does not persist calculated placement, and does not publish podium, medal, award or record-holder claims. Public historical placement remains deferred until the identity-linked career read-model boundary is separately reviewed.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4K.md`.
+
 ## Historical snapshot rule
 
 Permanent-profile updates must not rewrite historical competition registration snapshots. Competition results continue to reference competition-scoped participant identities exactly as they do today. Career aggregation resolves those historical rows through explicit identity links.
@@ -217,14 +231,14 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 - athlete directory/search and search-engine indexing;
 - Doubles/Relay permanent career statistics;
 - WSSA-ID uniqueness enforcement;
-- historical placement/medal/podium publication;
+- public historical placement/medal/podium publication;
 - All-Around career standing;
 - record governance;
 - global or national ranking systems.
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I and SP-4J add no schema migration and only consume, assess or certify that already-reviewed persistence boundary.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I, SP-4J and SP-4K add no schema migration and only consume, assess, certify or project from that already-reviewed persistence boundary.
 
 These development phases do **not** apply the SP-4G migration to production, deploy production code, or mutate production data.
 
@@ -251,3 +265,4 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4H: Operator Finals Ranking version activation — complete.
 - SP-4I: Governed Finals v2 certification readiness — complete.
 - SP-4J: Governed Finals v2 snapshot certification activation — complete.
+- SP-4K: Immutable Historical Finals placement projection — complete.
