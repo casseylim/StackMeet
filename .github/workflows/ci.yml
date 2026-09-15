@@ -56,6 +56,7 @@ jobs:
           dotnet restore tests/StackerFinalsRankingGovernancePersistenceTests/StackerFinalsRankingGovernancePersistenceTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingCertificationActivationTests/StackerFinalsRankingCertificationActivationTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsHistoricalPlacementProjectionTests/StackerFinalsHistoricalPlacementProjectionTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -104,6 +105,9 @@ jobs:
 
       - name: Run SP-4J governed Finals v2 snapshot certification activation tests
         run: dotnet run --project tests/StackerFinalsRankingCertificationActivationTests/StackerFinalsRankingCertificationActivationTests.csproj -c Release --no-restore
+
+      - name: Run SP-4K immutable historical Finals placement projection tests
+        run: dotnet run --project tests/StackerFinalsHistoricalPlacementProjectionTests/StackerFinalsHistoricalPlacementProjectionTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore
