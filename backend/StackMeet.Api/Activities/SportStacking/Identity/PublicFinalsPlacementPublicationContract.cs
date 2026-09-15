@@ -121,17 +121,20 @@ public static class PublicFinalsPlacementPublicationContract
                 evidence.SnapshotSchemaVersion,
                 FinalsRankingGovernanceService.GovernedV2SnapshotSchemaVersion,
                 StringComparison.Ordinal)
-            && !string.IsNullOrWhiteSpace(evidence.OperatorContractVersion)
-            && !string.IsNullOrWhiteSpace(evidence.SnapshotSha256)
-            && evidence.SourceStateRevision >= 0
-            && evidence.SourceResultsRevision >= 0
+            && string.Equals(
+                evidence.OperatorContractVersion,
+                FinalsRankingCertificationReadinessService.OperatorContractVersion,
+                StringComparison.Ordinal)
+            && IsSha256(evidence.SnapshotSha256)
+            && evidence.SourceStateRevision > 0
+            && evidence.SourceResultsRevision > 0
             && evidence.SnapshotCapturedAt != default;
 
         if (!provenanceValid)
         {
             throw Blocked(
                 PublicFinalsPlacementPublicationBlockers.EvidenceNotPublicationSafe,
-                "Public Finals placement requires complete governed-v2 immutable SP-4K provenance.");
+                "Public Finals placement requires complete governed-v2 immutable SP-4K provenance from the reviewed operator contract.");
         }
 
         var statusValid = point.ResultStatus is "Valid" or "Scratch" or "Missing" or "Invalid";
@@ -146,6 +149,13 @@ public static class PublicFinalsPlacementPublicationContract
                 "Placement/status semantics are inconsistent with immutable SP-4K Finals evidence.");
         }
     }
+
+    private static bool IsSha256(string? value) =>
+        value is { Length: 64 }
+        && value.All(character =>
+            character is >= '0' and <= '9'
+            or >= 'A' and <= 'F'
+            or >= 'a' and <= 'f');
 
     private static InvalidOperationException Blocked(string code, string detail) =>
         new($"{code}: {detail}");
