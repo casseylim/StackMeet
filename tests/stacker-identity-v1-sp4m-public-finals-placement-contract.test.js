@@ -25,6 +25,8 @@ assert.match(contract, /no additional gender filter/);
 assert.match(contract, /FinalsHistoricalPlacementProjectionService\.ProjectionVersion/);
 assert.match(contract, /FinalsRankingRuleVersions\.GovernedFinalsV2/);
 assert.match(contract, /FinalsRankingGovernanceService\.GovernedV2SnapshotSchemaVersion/);
+assert.match(contract, /FinalsRankingCertificationReadinessService\.OperatorContractVersion/);
+assert.match(contract, /IsSha256\(evidence\.SnapshotSha256\)/);
 
 const publicPoint = recordBody(contract, 'PublicFinalsPlacementPoint');
 for (const forbidden of [
