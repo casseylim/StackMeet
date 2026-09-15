@@ -1,6 +1,6 @@
 # NADITrack Stacker Identity v1 — SP-4M Public Finals Placement Publication Contract
 
-Status: implementation candidate
+Status: complete
 
 ## Purpose
 
@@ -91,13 +91,13 @@ The public placement point intentionally excludes:
 
 SP-4M accepts only SP-4L points carrying complete immutable governed-v2 provenance:
 
-- SP-4K projection version;
+- the exact SP-4K projection version;
 - `governed-finals-v2` ranking rule;
 - `finals-ranking-source-v2` snapshot schema;
-- non-empty operator-contract version;
-- non-empty immutable snapshot SHA-256;
-- source state/results revisions;
-- snapshot capture time.
+- the exact reviewed operator contract `sp4h-event-finals-v1`;
+- an immutable snapshot SHA-256 consisting of exactly 64 hexadecimal characters;
+- positive source state and source results revisions;
+- a non-default snapshot capture time.
 
 The provenance is validated but is **not copied** into the public payload.
 
@@ -139,7 +139,9 @@ SP-4M uses stable blocker prefixes:
 - male/female-specific scope fails closed;
 - normal/special-specific scope fails closed;
 - `division=all` fails closed;
-- wrong/non-SP-4K immutable provenance fails closed;
+- wrong/non-SP-4K projection provenance fails closed;
+- an unreviewed operator-contract version fails closed;
+- a malformed snapshot SHA-256 fails closed;
 - Scratch cannot carry fabricated placement;
 - Valid evidence cannot omit placement;
 - non-valid Finals may remain factual, unplaced history.
@@ -147,6 +149,7 @@ SP-4M uses stable blocker prefixes:
 A JavaScript static guard additionally proves that:
 
 - the contract is fixed to mixed category + no additional gender filter;
+- exact governed-v2/SP-4K/operator-contract/SHA provenance checks remain present;
 - the public point contains no raw division/category/gender/sensitive/award fields;
 - the contract has no mutable SQL ranking-source read path;
 - the public profile controller, application startup, browser profile and existing public profile DTO do not activate SP-4M yet.
