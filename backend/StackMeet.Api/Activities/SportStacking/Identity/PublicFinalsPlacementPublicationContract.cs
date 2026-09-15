@@ -26,7 +26,6 @@ public sealed record PublicFinalsPlacementPoint(
 
 /// <summary>
 /// SP-4M privacy-safe publication contract for identity-linked immutable Finals placement facts.
-/// This type is deliberately not wired to a controller or browser surface in SP-4M.
 /// </summary>
 public sealed record PublicFinalsPlacementCareerPublication(
     string PublicationVersion,
@@ -36,7 +35,7 @@ public sealed record PublicFinalsPlacementCareerPublication(
 
 /// <summary>
 /// Converts an SP-4L server-owned placement career read model into the only placement shape that
-/// may be considered for later public-profile integration.
+/// may be considered for public-profile integration.
 /// </summary>
 /// <remarks>
 /// Publication is intentionally restricted to mixed-category projections with no additional gender
@@ -69,14 +68,14 @@ public static class PublicFinalsPlacementPublicationContract
         foreach (var point in source.History)
         {
             EnsurePublicationSafeScope(point.Scope);
-            EnsurePublicationSafeEvidence(point);
+            var resultStatus = EnsurePublicationSafeEvidence(point);
 
             history.Add(new PublicFinalsPlacementPoint(
                 point.CompetitionKey,
                 point.CompetitionName,
                 point.CompetitionDate,
                 point.Scope.EventCode,
-                point.ResultStatus,
+                resultStatus,
                 point.OfficialBestTime,
                 point.Placement,
                 point.SharesPlacement));
@@ -106,7 +105,7 @@ public static class PublicFinalsPlacementPublicationContract
         }
     }
 
-    private static void EnsurePublicationSafeEvidence(IdentityLinkedFinalsPlacementCareerPoint point)
+    private static string EnsurePublicationSafeEvidence(IdentityLinkedFinalsPlacementCareerPoint point)
     {
         var evidence = point.Evidence;
         var provenanceValid = string.Equals(
@@ -137,18 +136,33 @@ public static class PublicFinalsPlacementPublicationContract
                 "Public Finals placement requires complete governed-v2 immutable SP-4K provenance from the reviewed operator contract.");
         }
 
-        var statusValid = point.ResultStatus is "Valid" or "Scratch" or "Missing" or "Invalid";
-        var resultSemanticsValid = point.ResultStatus == "Valid"
+        var resultStatus = NormalizeResultStatus(point.ResultStatus);
+        var resultSemanticsValid = resultStatus == "Valid"
             ? point.Placement is > 0 && point.OfficialBestTime is > 0m
-            : point.Placement is null && point.OfficialBestTime is null && !point.SharesPlacement;
+            : resultStatus is not null
+                && point.Placement is null
+                && point.OfficialBestTime is null
+                && !point.SharesPlacement;
 
-        if (!statusValid || !resultSemanticsValid)
+        if (resultStatus is null || !resultSemanticsValid)
         {
             throw Blocked(
                 PublicFinalsPlacementPublicationBlockers.EvidenceNotPublicationSafe,
                 "Placement/status semantics are inconsistent with immutable SP-4K Finals evidence.");
         }
+
+        return resultStatus;
     }
+
+    private static string? NormalizeResultStatus(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "valid" => "Valid",
+            "scratch" => "Scratch",
+            "missing" => "Missing",
+            "invalid" => "Invalid",
+            _ => null
+        };
 
     private static bool IsSha256(string? value) =>
         value is { Length: 64 }
