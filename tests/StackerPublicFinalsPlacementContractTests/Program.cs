@@ -26,13 +26,15 @@ void ExpectBlocked(Action action, string blocker, string message)
 IdentityLinkedFinalsPlacementEvidence Evidence(
     string projectionVersion = FinalsHistoricalPlacementProjectionService.ProjectionVersion,
     string ruleVersion = FinalsRankingRuleVersions.GovernedFinalsV2,
-    string snapshotSchemaVersion = FinalsRankingGovernanceService.GovernedV2SnapshotSchemaVersion) =>
+    string snapshotSchemaVersion = FinalsRankingGovernanceService.GovernedV2SnapshotSchemaVersion,
+    string operatorContractVersion = FinalsRankingCertificationReadinessService.OperatorContractVersion,
+    string? snapshotSha256 = null) =>
     new(
         projectionVersion,
         ruleVersion,
         snapshotSchemaVersion,
-        "sp4h-event-finals-v1",
-        new string('A', 64),
+        operatorContractVersion,
+        snapshotSha256 ?? new string('A', 64),
         10,
         20,
         new DateTime(2026, 8, 31, 12, 0, 0, DateTimeKind.Utc));
@@ -124,6 +126,20 @@ ExpectBlocked(
         evidence: Evidence(projectionVersion: "wrong-projection")))),
     PublicFinalsPlacementPublicationBlockers.EvidenceNotPublicationSafe,
     "Non-SP-4K provenance must fail closed.");
+
+ExpectBlocked(
+    () => PublicFinalsPlacementPublicationContract.Create(Model(Point(
+        safeScope,
+        evidence: Evidence(operatorContractVersion: "unreviewed-operator")))),
+    PublicFinalsPlacementPublicationBlockers.EvidenceNotPublicationSafe,
+    "Unreviewed operator-contract provenance must fail closed.");
+
+ExpectBlocked(
+    () => PublicFinalsPlacementPublicationContract.Create(Model(Point(
+        safeScope,
+        evidence: Evidence(snapshotSha256: "NOT-A-SHA256")))),
+    PublicFinalsPlacementPublicationBlockers.EvidenceNotPublicationSafe,
+    "Malformed immutable snapshot hash must fail closed.");
 
 ExpectBlocked(
     () => PublicFinalsPlacementPublicationContract.Create(Model(Point(
