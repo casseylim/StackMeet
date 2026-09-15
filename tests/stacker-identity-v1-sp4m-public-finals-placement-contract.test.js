@@ -6,6 +6,11 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
+const recordBody = (source, name) => {
+  const match = source.match(new RegExp(`public sealed record ${name}\\(([\\s\\S]*?)\\);`));
+  assert.ok(match, `${name} contract must exist.`);
+  return match[1];
+};
 
 const contract = read('backend/StackMeet.Api/Activities/SportStacking/Identity/PublicFinalsPlacementPublicationContract.cs');
 const controller = read('backend/StackMeet.Api/Controllers/PublicStackerProfilesController.cs');
@@ -21,9 +26,7 @@ assert.match(contract, /FinalsHistoricalPlacementProjectionService\.ProjectionVe
 assert.match(contract, /FinalsRankingRuleVersions\.GovernedFinalsV2/);
 assert.match(contract, /FinalsRankingGovernanceService\.GovernedV2SnapshotSchemaVersion/);
 
-const publicPointMatch = contract.match(/public sealed record PublicFinalsPlacementPoint\(([\s\S]*?)\);/);
-assert.ok(publicPointMatch, 'PublicFinalsPlacementPoint contract must exist.');
-const publicPoint = publicPointMatch[1];
+const publicPoint = recordBody(contract, 'PublicFinalsPlacementPoint');
 for (const forbidden of [
   'Division', 'Category', 'Gender', 'Scope', 'Evidence', 'ParticipantCode', 'ParticipantName',
   'CompetitionId', 'StackerId', 'ResultPublicId', 'BirthDate', 'Email', 'Phone', 'WssaId',
@@ -46,7 +49,12 @@ for (const [name, source] of [
     `SP-4M must not activate placement through ${name}.`);
 }
 
-assert.doesNotMatch(publicModels, /\bPlacement\b|\bSharesPlacement\b/,
-  'Existing public career profile contract must remain placement-free during SP-4M.');
+const existingFinalsPoint = recordBody(publicModels, 'SportStackerFinalsHistoryPoint');
+const existingFinalsSummary = recordBody(publicModels, 'SportStackerEventFinalsSummary');
+const existingPublicProfile = recordBody(publicModels, 'PublicSportStackerCareerProfile');
+for (const signature of [existingFinalsPoint, existingFinalsSummary, existingPublicProfile]) {
+  assert.doesNotMatch(signature, /\bPlacement\b|\bSharesPlacement\b/,
+    'Existing public career profile signatures must remain placement-free during SP-4M.');
+}
 
 console.log('SP-4M public Finals placement contract static guards passed.');
