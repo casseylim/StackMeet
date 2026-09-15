@@ -39,16 +39,17 @@ public sealed record PublicFinalsPlacementCareerPublication(
 /// may be considered for later public-profile integration.
 /// </summary>
 /// <remarks>
-/// Publication is intentionally restricted to mixed-category, all-genders projections. This avoids
-/// disclosing an athlete's gender or Special status through the permanent profile. The exact division
-/// remains immutable internal ranking authority but is not copied to the public contract because some
-/// historical division labels contain gendered text. Placement is still contextualized as belonging to
-/// the athlete's competition-time division, mixed category, and all-genders cohort.
+/// Publication is intentionally restricted to mixed-category projections with no additional gender
+/// filter. This avoids disclosing an athlete's gender or Special status through the permanent profile.
+/// The exact division remains immutable internal ranking authority but is not copied to the public
+/// contract because some historical division labels contain gendered text. The public claim therefore
+/// remains explicitly contextualized as placement within the athlete's competition-time division,
+/// under the mixed category, with no additional gender filter applied by the ranking projection.
 /// </remarks>
 public static class PublicFinalsPlacementPublicationContract
 {
     public const string PublicationVersion = "sp4m-public-finals-placement-v1";
-    public const string CohortPolicy = "Competition-time division · mixed category · all genders";
+    public const string CohortPolicy = "Competition-time division · mixed category · no additional gender filter";
     public const string RequiredCategory = "mixed";
     public const string RequiredGender = "all";
 
@@ -101,7 +102,7 @@ public static class PublicFinalsPlacementPublicationContract
         {
             throw Blocked(
                 PublicFinalsPlacementPublicationBlockers.ScopeNotPublicationSafe,
-                "Public Finals placement requires Individual + explicit competition-time division + supported event + mixed category + all genders.");
+                "Public Finals placement requires Individual + explicit competition-time division + supported event + mixed category + no additional gender filter.");
         }
     }
 
