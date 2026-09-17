@@ -7,6 +7,7 @@
   const statusTitle = byId('statusTitle');
   const statusMessage = byId('statusMessage');
   const profilePanel = byId('profilePanel');
+  const finalsPlacementPresentation = window.NadiTrackFinalsPlacementPresentation;
 
   function profileIdFromPath() {
     const parts = window.location.pathname.split('/').filter(Boolean);
@@ -294,18 +295,20 @@
     }
   }
 
-  function renderFinalsPlacements(publication) {
+  function renderFinalsPlacements(publication, expectedNadiTrackId) {
     const container = byId('finalsPlacements');
     const empty = byId('noFinalsPlacements');
     const policy = byId('finalsPlacementPolicy');
     container.replaceChildren();
 
-    const history = publication && Array.isArray(publication.history)
-      ? publication.history
-      : [];
+    const safePublication = finalsPlacementPresentation
+      && typeof finalsPlacementPresentation.validatePublication === 'function'
+      ? finalsPlacementPresentation.validatePublication(publication, expectedNadiTrackId)
+      : null;
+    const history = safePublication ? safePublication.history : [];
 
-    if (publication && typeof publication.cohortPolicy === 'string' && publication.cohortPolicy.trim()) {
-      policy.textContent = publication.cohortPolicy;
+    if (safePublication) {
+      policy.textContent = safePublication.cohortPolicy;
       policy.hidden = false;
     } else {
       policy.textContent = '';
@@ -324,22 +327,21 @@
 
       const heading = document.createElement('div');
       heading.className = 'finals-heading';
-      appendText(heading, 'finals-event', point.eventCode || 'Event');
+      appendText(heading, 'finals-event', point.eventCode);
       appendText(heading, 'finals-count', formatDate(point.competitionDate));
       card.appendChild(heading);
 
       const competition = document.createElement('h3');
       competition.className = 'finals-competition';
-      competition.textContent = point.competitionName || point.competitionKey || 'Certified competition';
+      competition.textContent = point.competitionName;
       card.appendChild(competition);
-      if (point.competitionKey) appendText(card, 'finals-key', point.competitionKey);
+      appendText(card, 'finals-key', point.competitionKey);
 
-      const placement = Number(point.placement);
-      const hasPlacement = Number.isInteger(placement) && placement > 0;
-      const placementText = hasPlacement
-        ? `${point.sharesPlacement ? 'Shared placement' : 'Placement'} in competition-time division: #${placement}`
-        : 'No certified placement';
-      appendText(card, 'finals-best-source', placementText);
+      appendText(
+        card,
+        'finals-best-source',
+        finalsPlacementPresentation.placementText(point)
+      );
 
       const list = document.createElement('div');
       list.className = 'finals-history';
@@ -351,7 +353,7 @@
       appendText(
         detail,
         'finals-meta',
-        point.resultStatus === 'Valid' && point.officialBestTime != null
+        point.resultStatus === 'Valid'
           ? `Certified official Finals time: ${formatTime(point.officialBestTime)}`
           : 'No official Finals time published for this result status'
       );
@@ -361,7 +363,7 @@
       outcome.className = 'finals-outcome';
       const badge = document.createElement('span');
       badge.className = `finals-status is-${finalsStatusClass(point.resultStatus)}`;
-      badge.textContent = point.resultStatus || 'Unknown';
+      badge.textContent = point.resultStatus;
       outcome.appendChild(badge);
       row.appendChild(outcome);
 
@@ -447,7 +449,7 @@
     renderPersonalBests(profile.personalBests);
     renderCareerProgression(profile.careerProgression);
     renderFinalsCareer(profile.finalsCareer);
-    renderFinalsPlacements(profile.finalsPlacements);
+    renderFinalsPlacements(profile.finalsPlacements, profile.nadiTrackId);
     renderTournamentHistory(profile.tournamentHistory);
 
     document.title = `${profile.displayName || 'Stacker'} · NADITrack`;
