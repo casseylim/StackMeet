@@ -1,6 +1,14 @@
 # NADITrack Stacker Identity v1 — SP-4O Public Results → Career Profile Linking
 
-Status: implementation candidate
+Status: complete
+
+## Implementation record
+
+- Base protected master: `8a3fc0a1f5b77f70a625fa3e6ce366e0775e5909`
+- Proven implementation head: `83621a0ba3025cbd626b8c9a9aef352be743d2ac`
+- Push CI run: `35167275721` — `Build and test` SUCCESS
+- Pull-request CI run: `35167652716` — `Build and test` SUCCESS
+- Both exact-head runs completed the Release build, identity/profile integration gates, SP-4N regression coverage, CoreIntegrity checks, and complete JavaScript regression suite successfully.
 
 ## Purpose
 
