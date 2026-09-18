@@ -502,7 +502,7 @@ function normalizeAwardItem(value) {
 
 function normalizeDoubles(doubles) {
   return doubles.map(team => {
-    const type = team.type || (String(team.division || "").toLowerCase().includes("parent") ? "child_parent" : "normal");
+    const type = team.type || (team.parentName || team.partnerName || String(team.division || "").toLowerCase().includes("parent") ? "child_parent" : "normal");
     const one = team.one || team.stackerOneId || team.childStackerId || "";
     const two = team.two || team.stackerTwoId || team.parentStackerId || "";
     const status = team.status || (two || team.parentName || type === "child_parent" ? "complete" : "pending");
