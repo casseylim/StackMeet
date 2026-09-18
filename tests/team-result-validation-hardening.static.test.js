@@ -24,7 +24,7 @@ assert.doesNotMatch(results, /ValidateResultUpsertsAsync\([^)]*request\.Deletes/
 
 assert.match(state, /CompetitionTeamResultIntegrityService teamResults/);
 assert.match(state, /TryReadReadyTeams\(jsonData/);
-assert.match(state, /WITH \(UPDLOCK, HOLDLOCK\).*\[Competition\]/s);
+assert.match(state, /\[Competition\].*WITH \(UPDLOCK, HOLDLOCK\)/s);
 assert.match(state, /ValidateStateAgainstExistingResultsAsync/);
 assert.ok(
   state.indexOf('WITH (UPDLOCK, HOLDLOCK)') < state.indexOf('ValidateStateAgainstExistingResultsAsync'),
