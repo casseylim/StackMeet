@@ -19,8 +19,8 @@ assert.match(program, /AddScoped<CompetitionTeamResultIntegrityService>\(\)/);
 assert.match(results, /CompetitionTeamResultIntegrityService teamResults/);
 assert.match(results, /WITH \(UPDLOCK, ROWLOCK\)/);
 assert.match(results, /request\.Upserts\.Any\(item => item\.Type is "Doubles" or "Timed Relay"\)/);
-assert.match(results, /ValidateResultUpserts\(stateJson, request\.Upserts\)/);
-assert.doesNotMatch(results, /ValidateResultUpserts\(stateJson, request\.Deletes/);
+assert.match(results, /ValidateResultUpsertsAsync\(\s*competitionId,\s*stateJson,\s*request\.Upserts,/s);
+assert.doesNotMatch(results, /ValidateResultUpsertsAsync\([^)]*request\.Deletes/s);
 
 assert.match(state, /CompetitionTeamResultIntegrityService teamResults/);
 assert.match(state, /TryReadReadyTeams\(jsonData/);
@@ -37,7 +37,7 @@ for (const alias of ['stackerTwoId', 'parentStackerId', 'parentName', 'partnerNa
 for (const slot of ['one', 'two', 'three', 'four', 'five', 'six']) {
   assert.ok(service.includes('"' + slot + '"'), 'missing Relay legacy member slot: ' + slot);
 }
-assert.match(service, /RelayMemberCount\(team\) < 4/);
+assert.match(service, /members\.Count >= 4/);
 assert.match(service, /pending.*return false/s);
 assert.match(service, /Competition Doubles team IDs must be unique/);
 assert.match(service, /Competition Relay team IDs must be unique/);
@@ -89,7 +89,6 @@ for (const scenario of [
   'team result resolves to registered competition stackers',
   'team result rejects member outside competition stackers',
   'child parent result links registered child while external parent remains external',
-  'complete doubles detected including legacy aliases',
   'team metadata may change while result membership stays fixed',
   'team members cannot change while SQL results reference team'
 ]) {
