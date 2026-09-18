@@ -12,7 +12,8 @@ namespace StackMeet.Api.Services;
 /// <remarks>
 /// The browser only offers competition-ready teams for result entry. This service mirrors
 /// those readiness rules so an authorized API client cannot create an orphan team result,
-/// and a later state save cannot remove/invalidate a team while SQL results still reference it.
+/// and a later state save cannot remove, invalidate or silently reassign a team while SQL
+/// results still reference it.
 /// </remarks>
 public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext database)
 {
@@ -27,7 +28,7 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
 
         if (teamUpserts.Length == 0) return null;
 
-        if (!TryReadReadyTeams(stateJson, out var teams, out var stateError))
+        if (!TryReadState(stateJson, out var state, out var stateError))
         {
             return stateError ?? "Competition team state could not be validated.";
         }
@@ -37,10 +38,10 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             if (string.IsNullOrWhiteSpace(item.Participant))
                 return "Team result participant is required.";
 
-            if (item.Type == "Doubles" && !teams.Doubles.Contains(item.Participant))
+            if (item.Type == "Doubles" && !state.ReadyDoubles.Contains(item.Participant))
                 return "Doubles result participant must reference a complete Doubles team in this competition.";
 
-            if (item.Type == "Timed Relay" && !teams.TimedRelays.Contains(item.Participant))
+            if (item.Type == "Timed Relay" && !state.ReadyRelays.Contains(item.Participant))
                 return "Timed Relay result participant must reference a ready relay team with at least four registered members in this competition.";
         }
 
@@ -49,12 +50,13 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
 
     public async Task<string?> ValidateStateAgainstExistingResultsAsync(
         int competitionId,
+        string? currentStateJson,
         string? proposedStateJson,
         CancellationToken cancellationToken = default)
     {
-        if (!TryReadReadyTeams(proposedStateJson, out var teams, out var stateError))
+        if (!TryReadState(proposedStateJson, out var proposed, out var proposedError))
         {
-            return stateError ?? "Competition team state could not be validated.";
+            return proposedError ?? "Competition team state could not be validated.";
         }
 
         var references = await database.CompetitionResults
@@ -66,17 +68,48 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             .Select(item => new { item.ParticipantType, item.ParticipantCode })
             .ToListAsync(cancellationToken);
 
+        if (references.Count == 0) return null;
+
+        if (!TryReadState(currentStateJson, out var current, out _))
+        {
+            return "Current competition team state cannot be validated while SQL team results exist.";
+        }
+
         foreach (var item in references)
         {
             var type = CompetitionResultRules.NormalizeParticipantType(item.ParticipantType);
             var participant = item.ParticipantCode?.Trim();
             if (string.IsNullOrWhiteSpace(participant)) continue;
 
-            if (type == "Doubles" && !teams.Doubles.Contains(participant))
-                return "Competition state cannot remove or invalidate a Doubles team while SQL results reference it.";
+            if (type == "Doubles")
+            {
+                if (!proposed.ReadyDoubles.Contains(participant))
+                    return "Competition state cannot remove or invalidate a Doubles team while SQL results reference it.";
 
-            if (type == "Timed Relay" && !teams.TimedRelays.Contains(participant))
-                return "Competition state cannot remove or invalidate a Timed Relay team while SQL results reference it.";
+                if (!current.DoublesComposition.TryGetValue(participant, out var before)
+                    || !proposed.DoublesComposition.TryGetValue(participant, out var after))
+                {
+                    return "Existing Doubles result references a team that cannot be resolved safely in competition state.";
+                }
+
+                if (!string.Equals(before, after, StringComparison.Ordinal))
+                    return "Competition state cannot change Doubles team members while SQL results reference it.";
+            }
+
+            if (type == "Timed Relay")
+            {
+                if (!proposed.ReadyRelays.Contains(participant))
+                    return "Competition state cannot remove or invalidate a Timed Relay team while SQL results reference it.";
+
+                if (!current.RelaysComposition.TryGetValue(participant, out var before)
+                    || !proposed.RelaysComposition.TryGetValue(participant, out var after))
+                {
+                    return "Existing Timed Relay result references a team that cannot be resolved safely in competition state.";
+                }
+
+                if (!string.Equals(before, after, StringComparison.Ordinal))
+                    return "Competition state cannot change Timed Relay team members while SQL results reference it.";
+            }
         }
 
         return null;
@@ -87,7 +120,22 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
         out CompetitionReadyTeamIds teams,
         out string? error)
     {
-        teams = CompetitionReadyTeamIds.Empty;
+        if (!TryReadState(stateJson, out var state, out error))
+        {
+            teams = CompetitionReadyTeamIds.Empty;
+            return false;
+        }
+
+        teams = new CompetitionReadyTeamIds(state.ReadyDoubles, state.ReadyRelays);
+        return true;
+    }
+
+    bool TryReadState(
+        string? stateJson,
+        out CompetitionTeamStateSnapshot state,
+        out string? error)
+    {
+        state = CompetitionTeamStateSnapshot.Empty;
         error = null;
 
         if (string.IsNullOrWhiteSpace(stateJson))
@@ -107,15 +155,17 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
 
             var doubles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var relays = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var doublesComposition = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var relaysComposition = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            if (!ReadDoubles(document.RootElement, doubles, out error)
-                || !ReadRelays(document.RootElement, relays, out error))
+            if (!ReadDoubles(document.RootElement, doubles, doublesComposition, out error)
+                || !ReadRelays(document.RootElement, relays, relaysComposition, out error))
             {
-                teams = CompetitionReadyTeamIds.Empty;
+                state = CompetitionTeamStateSnapshot.Empty;
                 return false;
             }
 
-            teams = new CompetitionReadyTeamIds(doubles, relays);
+            state = new CompetitionTeamStateSnapshot(doubles, relays, doublesComposition, relaysComposition);
             return true;
         }
         catch (JsonException)
@@ -125,7 +175,11 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
         }
     }
 
-    static bool ReadDoubles(JsonElement root, HashSet<string> ready, out string? error)
+    static bool ReadDoubles(
+        JsonElement root,
+        HashSet<string> ready,
+        Dictionary<string, string> composition,
+        out string? error)
     {
         error = null;
         if (!root.TryGetProperty("doubles", out var collection)) return true;
@@ -135,7 +189,6 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             return false;
         }
 
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var team in collection.EnumerateArray())
         {
             if (team.ValueKind != JsonValueKind.Object)
@@ -145,20 +198,26 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             }
 
             var id = ReadIdentifier(team, "id");
-            if (!string.IsNullOrWhiteSpace(id) && !ids.Add(id))
+            if (!string.IsNullOrWhiteSpace(id))
             {
-                error = "Competition Doubles team IDs must be unique.";
-                return false;
-            }
+                if (!composition.TryAdd(id, DoublesComposition(team)))
+                {
+                    error = "Competition Doubles team IDs must be unique.";
+                    return false;
+                }
 
-            if (string.IsNullOrWhiteSpace(id) || !DoublesCanCompete(team)) continue;
-            ready.Add(id);
+                if (DoublesCanCompete(team)) ready.Add(id);
+            }
         }
 
         return true;
     }
 
-    static bool ReadRelays(JsonElement root, HashSet<string> ready, out string? error)
+    static bool ReadRelays(
+        JsonElement root,
+        HashSet<string> ready,
+        Dictionary<string, string> composition,
+        out string? error)
     {
         error = null;
         if (!root.TryGetProperty("relays", out var collection)) return true;
@@ -168,7 +227,6 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             return false;
         }
 
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var team in collection.EnumerateArray())
         {
             if (team.ValueKind != JsonValueKind.Object)
@@ -178,14 +236,17 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             }
 
             var id = ReadIdentifier(team, "id");
-            if (!string.IsNullOrWhiteSpace(id) && !ids.Add(id))
+            if (!string.IsNullOrWhiteSpace(id))
             {
-                error = "Competition Relay team IDs must be unique.";
-                return false;
-            }
+                var members = RelayMemberIds(team);
+                if (!composition.TryAdd(id, string.Join("\u001f", members.Select(NormalizeComponent))))
+                {
+                    error = "Competition Relay team IDs must be unique.";
+                    return false;
+                }
 
-            if (string.IsNullOrWhiteSpace(id) || RelayMemberCount(team) < 4) continue;
-            ready.Add(id);
+                if (members.Count >= 4) ready.Add(id);
+            }
         }
 
         return true;
@@ -205,10 +266,7 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
                 ? "child_parent"
                 : "normal";
 
-        var secondMember =
-            ReadIdentifier(team, "two")
-            ?? ReadIdentifier(team, "stackerTwoId")
-            ?? ReadIdentifier(team, "parentStackerId");
+        var secondMember = DoublesSecondMember(team);
         var parentName = ReadString(team, "parentName") ?? ReadString(team, "partnerName");
 
         // Mirrors normalizeDoubles()/completedDoubles() in app.js:
@@ -218,39 +276,61 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             || type.Equals("child_parent", StringComparison.OrdinalIgnoreCase);
     }
 
-    static int RelayMemberCount(JsonElement team)
+    static string DoublesComposition(JsonElement team)
+    {
+        var one =
+            ReadIdentifier(team, "one")
+            ?? ReadIdentifier(team, "stackerOneId")
+            ?? ReadIdentifier(team, "childStackerId");
+        var two = DoublesSecondMember(team);
+        var parentName = ReadString(team, "parentName") ?? ReadString(team, "partnerName");
+
+        return string.Join(
+            "\u001f",
+            NormalizeComponent(one),
+            NormalizeComponent(two),
+            NormalizeComponent(parentName));
+    }
+
+    static string? DoublesSecondMember(JsonElement team) =>
+        ReadIdentifier(team, "two")
+        ?? ReadIdentifier(team, "stackerTwoId")
+        ?? ReadIdentifier(team, "parentStackerId");
+
+    static IReadOnlyList<string> RelayMemberIds(JsonElement team)
     {
         if (team.TryGetProperty("members", out var members) && members.ValueKind == JsonValueKind.Array)
         {
-            return members.EnumerateArray().Count(IsNonBlankIdentifier);
+            return members
+                .EnumerateArray()
+                .Select(ReadIdentifier)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .ToArray();
         }
 
-        var count = 0;
+        var result = new List<string>(6);
         foreach (var propertyName in new[] { "one", "two", "three", "four", "five", "six" })
         {
-            if (!string.IsNullOrWhiteSpace(ReadIdentifier(team, propertyName))) count++;
+            var value = ReadIdentifier(team, propertyName);
+            if (!string.IsNullOrWhiteSpace(value)) result.Add(value);
         }
 
-        return count;
+        return result;
     }
 
-    static bool IsNonBlankIdentifier(JsonElement element) =>
+    static string? ReadIdentifier(JsonElement element) =>
         element.ValueKind switch
         {
-            JsonValueKind.String => !string.IsNullOrWhiteSpace(element.GetString()),
-            JsonValueKind.Number => !string.IsNullOrWhiteSpace(element.GetRawText()),
-            _ => false
+            JsonValueKind.String => element.GetString()?.Trim(),
+            JsonValueKind.Number => element.GetRawText().Trim(),
+            _ => null
         };
 
     static string? ReadIdentifier(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var property)) return null;
-        return property.ValueKind switch
-        {
-            JsonValueKind.String => property.GetString()?.Trim(),
-            JsonValueKind.Number => property.GetRawText().Trim(),
-            _ => null
-        };
+        return ReadIdentifier(property);
     }
 
     static string? ReadString(JsonElement element, string propertyName) =>
@@ -259,7 +339,26 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
             ? property.GetString()?.Trim()
             : null;
 
+    static string NormalizeComponent(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToUpperInvariant();
+
     sealed record TeamResultReference(string? Type, string? Participant);
+
+    sealed record CompetitionTeamStateSnapshot(
+        IReadOnlySet<string> ReadyDoubles,
+        IReadOnlySet<string> ReadyRelays,
+        IReadOnlyDictionary<string, string> DoublesComposition,
+        IReadOnlyDictionary<string, string> RelaysComposition)
+    {
+        public static CompetitionTeamStateSnapshot Empty { get; } =
+            new(
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+    }
 }
 
 public sealed record CompetitionReadyTeamIds(
