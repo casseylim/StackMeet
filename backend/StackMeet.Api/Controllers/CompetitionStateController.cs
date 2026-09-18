@@ -98,15 +98,16 @@ public sealed class CompetitionStateController(
                 .SingleOrDefaultAsync(cancellationToken);
             if (lockedCompetition is null) return NotFound();
 
-            var resultReferenceError = await teamResults.ValidateStateAgainstExistingResultsAsync(
-                lockedCompetition.Id,
-                jsonData,
-                cancellationToken);
-            if (resultReferenceError is not null) return Conflict(new { error = resultReferenceError });
-
             var state = await database.CompetitionStates
                 .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
                 .SingleOrDefaultAsync(cancellationToken);
+
+            var resultReferenceError = await teamResults.ValidateStateAgainstExistingResultsAsync(
+                lockedCompetition.Id,
+                state?.JsonData,
+                jsonData,
+                cancellationToken);
+            if (resultReferenceError is not null) return Conflict(new { error = resultReferenceError });
 
             if (state is null)
             {
