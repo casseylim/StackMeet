@@ -52,6 +52,8 @@ assert.match(service, /cannot change Timed Relay team members while SQL results 
 assert.match(service, /database\.Stackers/);
 assert.match(service, /item\.CompetitionId == competitionId/);
 assert.match(service, /DoublesMembers/);
+assert.match(service, /parentName.*partnerName/s);
+assert.match(app, /team\.parentName \|\| team\.partnerName/);
 assert.match(service, /RelaysMembers/);
 
 assert.match(app, /async function deleteTeamSqlResults\(type, id\)/);
@@ -79,6 +81,7 @@ for (const scenario of [
   'team result resolves to registered competition stackers',
   'team result rejects member outside competition stackers',
   'child parent result links registered child while external parent remains external',
+  'complete doubles detected including legacy aliases',
   'team metadata may change while result membership stays fixed',
   'team members cannot change while SQL results reference team'
 ]) {
