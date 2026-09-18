@@ -1,0 +1,72 @@
+{
+  "releaseVersion": "production-release-v2-2026-09-18",
+  "approvedLiveSourceSha": "ba80538a912a3dd0f708fdd65a8823ed7988dbd6",
+  "databaseMigrations": [
+    "20260906033000_AddCompetitionActivityModuleCode",
+    "20260910103000_StackerIdentityPersistenceV1",
+    "20260914093000_FinalsRankingGovernanceSp4g"
+  ],
+  "modelSnapshot": "backend/StackMeet.Api/Migrations/StackMeetDbContextModelSnapshot.cs",
+  "applicationFiles": [
+    {
+      "source": "backend/StackMeet.Api/wwwroot/js/reports/FinalsRankingPolicy.js",
+      "remote": "/wwwroot/js/reports/FinalsRankingPolicy.js",
+      "expectedLiveState": "absent",
+      "deployOrder": 10
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/profile/index.html",
+      "remote": "/wwwroot/profile/index.html",
+      "expectedLiveState": "absent",
+      "deployOrder": 20
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/profile/profile.css",
+      "remote": "/wwwroot/profile/profile.css",
+      "expectedLiveState": "absent",
+      "deployOrder": 30
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/profile/profile.js",
+      "remote": "/wwwroot/profile/profile.js",
+      "expectedLiveState": "absent",
+      "deployOrder": 40
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/results/profile-links.js",
+      "remote": "/wwwroot/results/profile-links.js",
+      "expectedLiveState": "absent",
+      "deployOrder": 50
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js",
+      "remote": "/wwwroot/js/auth/AuthSession.js",
+      "expectedLiveState": "present",
+      "deployOrder": 60
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/js/reports/FinalsReportEngine.js",
+      "remote": "/wwwroot/js/reports/FinalsReportEngine.js",
+      "expectedLiveState": "present",
+      "deployOrder": 70
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/js/storage/StackerApi.js",
+      "remote": "/wwwroot/js/storage/StackerApi.js",
+      "expectedLiveState": "present",
+      "deployOrder": 80
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/results/index.html",
+      "remote": "/wwwroot/results/index.html",
+      "expectedLiveState": "present",
+      "deployOrder": 90
+    },
+    {
+      "source": "backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll",
+      "remote": "/StackMeet.Api.dll",
+      "expectedLiveState": "present",
+      "deployOrder": 100
+    }
+  ]
+}
