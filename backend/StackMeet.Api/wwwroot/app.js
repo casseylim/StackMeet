@@ -5607,6 +5607,43 @@ async function deleteStacker(id) {
   setSaveStatus("Saved", "saved");
 }
 
+function teamHasSavedResults(type, teamId) {
+  if (!teamId) return false;
+  return state.results.some(result => {
+    const resultType = result.type === "Relay" ? "Timed Relay" : result.type;
+    return resultType === type && result.participant === teamId;
+  });
+}
+
+function doublesMembershipSignature(team) {
+  if (!team) return "";
+  return [
+    team.one || team.stackerOneId || team.childStackerId || "",
+    team.two || team.stackerTwoId || team.parentStackerId || "",
+    team.parentName || team.partnerName || ""
+  ].map(value => String(value || "").trim().toUpperCase()).join("\u001f");
+}
+
+function relayMembershipSignature(team) {
+  return relayMemberIds(team || {})
+    .map(value => String(value || "").trim().toUpperCase())
+    .join("\u001f");
+}
+
+function lockedDoublesConflict(stackerIds, exceptTeamId = "") {
+  return state.doubles.find(team =>
+    team.id !== exceptTeamId
+    && teamHasSavedResults("Doubles", team.id)
+    && registeredDoubleMemberIds(team).some(id => stackerIds.includes(id)));
+}
+
+function lockedRelayConflict(stackerIds, exceptTeamId = "") {
+  return state.relays.find(team =>
+    team.id !== exceptTeamId
+    && teamHasSavedResults("Timed Relay", team.id)
+    && relayMemberIds(team).some(id => stackerIds.includes(id)));
+}
+
 function saveStackerDoubleAssignment() {
   if (!editingStackerId) return;
   const currentTeam = doublesForStacker(editingStackerId)[0];
@@ -5622,7 +5659,13 @@ function saveStackerDoubleAssignment() {
     renderStackers();
     return;
   }
-  const displaced = removeConflictingDoubles([editingStackerId, partnerId].filter(Boolean), currentTeam?.id || "");
+  const proposedMembers = [editingStackerId, partnerId].filter(Boolean);
+  const lockedConflict = lockedDoublesConflict(proposedMembers, currentTeam?.id || "");
+  if (lockedConflict) {
+    flashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    renderStackers();
+    return;
+  }
   const first = state.stackers.find(stacker => stacker.id === editingStackerId) || {};
   const second = state.stackers.find(stacker => stacker.id === partnerId) || {};
   const team = {
@@ -5636,6 +5679,14 @@ function saveStackerDoubleAssignment() {
     division: customDivision || generatedDoublesDivision(type, editingStackerId, partnerId),
     country: first.country || second.country || "Malaysia"
   };
+  if (currentTeam
+      && teamHasSavedResults("Doubles", currentTeam.id)
+      && doublesMembershipSignature(currentTeam) !== doublesMembershipSignature(team)) {
+    flashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: currentTeam.id }) };
+    renderStackers();
+    return;
+  }
+  const displaced = removeConflictingDoubles(proposedMembers, currentTeam?.id || "");
   if (currentTeam) {
     state.doubles = state.doubles.map(existing => existing.id === currentTeam.id ? team : existing);
   } else {
@@ -5672,10 +5723,16 @@ function addDouble() {
     return;
   }
 
+  const proposedMembers = [one, two].filter(Boolean);
+  const lockedConflict = lockedDoublesConflict(proposedMembers, editingDoubleId);
+  if (lockedConflict) {
+    doubleFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    return;
+  }
   const first = state.stackers.find(stacker => stacker.id === one) || {};
   const second = state.stackers.find(stacker => stacker.id === two) || {};
-  const displaced = removeConflictingDoubles([one, two].filter(Boolean), editingDoubleId);
-  const before = auditSnapshot(editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null);
+  const beforeTeam = editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null;
+  const before = auditSnapshot(beforeTeam);
   const team = {
     id: editingDoubleId || nextTeamCode("2"),
     type,
@@ -5687,6 +5744,13 @@ function addDouble() {
     division: customDivision || generatedDoublesDivision(type, one, two),
     country: first.country || second.country || "Malaysia"
   };
+  if (beforeTeam
+      && teamHasSavedResults("Doubles", beforeTeam.id)
+      && doublesMembershipSignature(beforeTeam) !== doublesMembershipSignature(team)) {
+    doubleFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: beforeTeam.id }) };
+    return;
+  }
+  const displaced = removeConflictingDoubles(proposedMembers, editingDoubleId);
   if (editingDoubleId) {
     state.doubles = state.doubles.map(existing => existing.id === editingDoubleId ? team : existing);
   } else {
@@ -5811,8 +5875,13 @@ function addRelay() {
     return;
   }
   const members = [...new Set(selectedMembers)];
-  const displaced = removeConflictingRelays(members, editingRelayId);
-  const before = auditSnapshot(editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null);
+  const lockedConflict = lockedRelayConflict(members, editingRelayId);
+  if (lockedConflict) {
+    relayFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    return;
+  }
+  const beforeTeam = editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null;
+  const before = auditSnapshot(beforeTeam);
   const team = {
     id: editingRelayId || nextTeamCode("3"),
     name: relayName,
@@ -5827,6 +5896,13 @@ function addRelay() {
     region: val("relayRegion").trim() || relayRegionForMembers(members),
     members
   };
+  if (beforeTeam
+      && teamHasSavedResults("Timed Relay", beforeTeam.id)
+      && relayMembershipSignature(beforeTeam) !== relayMembershipSignature(team)) {
+    relayFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: beforeTeam.id }) };
+    return;
+  }
+  const displaced = removeConflictingRelays(members, editingRelayId);
   if (editingRelayId) {
     state.relays = state.relays.map(existing => existing.id === editingRelayId ? team : existing);
   } else {
