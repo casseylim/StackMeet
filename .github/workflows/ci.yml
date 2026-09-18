@@ -61,6 +61,43 @@ jobs:
           dotnet restore tests/StackerPublicFinalsPlacementContractTests/StackerPublicFinalsPlacementContractTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerPublicFinalsPlacementIntegrationTests/StackerPublicFinalsPlacementIntegrationTests.csproj --configfile NuGet.Config
 
+      - name: Pre-production NuGet vulnerability audit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $raw = & dotnet list backend/StackMeet.Api/StackMeet.Api.csproj package --vulnerable --include-transitive --format json --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "dotnet package vulnerability audit failed with exit code $LASTEXITCODE" }
+          $raw | Write-Host
+          $report = ($raw -join [Environment]::NewLine) | ConvertFrom-Json
+          $found = @()
+          foreach ($project in @($report.projects)) {
+            foreach ($framework in @($project.frameworks)) {
+              foreach ($package in @($framework.topLevelPackages) + @($framework.transitivePackages)) {
+                foreach ($vulnerability in @($package.vulnerabilities)) {
+                  if ($null -ne $vulnerability) {
+                    $found += [pscustomobject]@{
+                      Package = $package.id
+                      Version = $package.resolvedVersion
+                      Severity = $vulnerability.severity
+                      Advisory = $vulnerability.advisoryurl
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if ($found.Count -gt 0) {
+            $found | Format-Table -AutoSize | Out-String | Write-Host
+            throw "Known NuGet vulnerabilities detected: $($found.Count)"
+          }
+          'NUGET_VULNERABILITY_AUDIT=PASS'
+
+      - name: Report dependency freshness
+        shell: pwsh
+        run: |
+          dotnet --info
+          dotnet list backend/StackMeet.Api/StackMeet.Api.csproj package --outdated --include-transitive --no-restore
+
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
 
