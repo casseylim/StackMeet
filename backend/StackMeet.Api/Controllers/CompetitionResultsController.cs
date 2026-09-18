@@ -49,7 +49,11 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
                 .Where(item => item.CompetitionKey == competition.CompetitionKey)
                 .Select(item => item.JsonData)
                 .SingleOrDefaultAsync(ct);
-            var teamValidationError = teamResults.ValidateResultUpserts(stateJson, request.Upserts);
+            var teamValidationError = await teamResults.ValidateResultUpsertsAsync(
+                competitionId,
+                stateJson,
+                request.Upserts,
+                ct);
             if (teamValidationError is not null) return BadRequest(new { error = teamValidationError });
         }
 
