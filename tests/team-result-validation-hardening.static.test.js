@@ -11,6 +11,7 @@ const service = read('backend/StackMeet.Api/Services/CompetitionTeamResultIntegr
 const results = read('backend/StackMeet.Api/Controllers/CompetitionResultsController.cs');
 const state = read('backend/StackMeet.Api/Controllers/CompetitionStateController.cs');
 const program = read('backend/StackMeet.Api/Program.cs');
+const app = read('backend/StackMeet.Api/wwwroot/app.js');
 const integration = read('tests/CoreIntegrityIntegrationTests/Program.cs');
 
 assert.match(program, /AddScoped<CompetitionTeamResultIntegrityService>\(\)/);
@@ -45,6 +46,19 @@ assert.match(service, /Doubles result participant must reference a complete Doub
 assert.match(service, /Timed Relay result participant must reference a ready relay team/);
 assert.match(service, /cannot remove or invalidate a Doubles team while SQL results reference it/);
 assert.match(service, /cannot remove or invalidate a Timed Relay team while SQL results reference it/);
+
+assert.match(app, /async function deleteTeamSqlResults\(type, id\)/);
+assert.match(app, /await saveSqlResults\(\[\], deletes\)/);
+assert.match(app, /shouldSave = await deleteDouble\(target\.dataset\.id\)/);
+assert.match(app, /shouldSave = await deleteRelay\(target\.dataset\.id\)/);
+assert.ok(
+  app.indexOf('await deleteTeamSqlResults("Doubles", id)') < app.indexOf('state.doubles = state.doubles.filter'),
+  'Doubles SQL results must be removed before team state'
+);
+assert.ok(
+  app.indexOf('await deleteTeamSqlResults("Timed Relay", id)') < app.indexOf('state.relays = state.relays.filter'),
+  'Relay SQL results must be removed before team state'
+);
 
 for (const scenario of [
   'complete doubles detected including legacy aliases',
