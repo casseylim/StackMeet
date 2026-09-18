@@ -56,6 +56,14 @@ assert.match(service, /parentName.*partnerName/s);
 assert.match(app, /team\.parentName \|\| team\.partnerName/);
 assert.match(service, /RelaysMembers/);
 
+assert.match(app, /function teamHasSavedResults\(type, teamId\)/);
+assert.match(app, /function doublesMembershipSignature\(team\)/);
+assert.match(app, /function relayMembershipSignature\(team\)/);
+assert.match(app, /function lockedDoublesConflict\(stackerIds, exceptTeamId = ""\)/);
+assert.match(app, /function lockedRelayConflict\(stackerIds, exceptTeamId = ""\)/);
+assert.match(app, /Delete those results before changing its members/);
+assert.match(app, /Delete those results before moving its Stackers/);
+
 assert.match(app, /async function deleteTeamSqlResults\(type, id\)/);
 assert.match(app, /await saveSqlResults\(\[\], deletes\)/);
 assert.match(app, /shouldSave = await deleteDouble\(target\.dataset\.id\)/);
