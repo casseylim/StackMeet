@@ -347,13 +347,13 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
 
         var explicitType = ReadString(team, "type");
         var division = ReadString(team, "division");
+        var parentName = ReadString(team, "parentName") ?? ReadString(team, "partnerName");
         var type = !string.IsNullOrWhiteSpace(explicitType)
             ? explicitType
-            : division?.Contains("parent", StringComparison.OrdinalIgnoreCase) == true
-                ? "child_parent"
-                : "normal";
-
-        var parentName = ReadString(team, "parentName") ?? ReadString(team, "partnerName");
+            : !string.IsNullOrWhiteSpace(parentName)
+                || division?.Contains("parent", StringComparison.OrdinalIgnoreCase) == true
+                    ? "child_parent"
+                    : "normal";
         if (members.Count == 0) return false;
 
         if (type.Equals("child_parent", StringComparison.OrdinalIgnoreCase))
