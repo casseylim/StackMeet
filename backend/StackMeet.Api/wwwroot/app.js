@@ -4811,12 +4811,12 @@ document.addEventListener("click", async (event) => {
   if (action === "add-double") addDouble();
   if (action === "edit-double") { loadDoubleForEdit(target.dataset.id); shouldRender = false; }
   if (action === "cancel-double-edit") { clearDoubleForm(); shouldRender = false; }
-  if (action === "delete-double") deleteDouble(target.dataset.id);
+  if (action === "delete-double") { shouldSave = await deleteDouble(target.dataset.id); }
   if (action === "switch-doubles-tab") { doublesTab = target.dataset.doublesTab || "completed"; shouldRender = false; renderDoubles(); }
   if (action === "add-relay") addRelay();
   if (action === "edit-relay") { loadRelayForEdit(target.dataset.id); shouldRender = false; }
   if (action === "cancel-relay-edit") { clearRelayForm(); shouldRender = false; }
-  if (action === "delete-relay") deleteRelay(target.dataset.id);
+  if (action === "delete-relay") { shouldSave = await deleteRelay(target.dataset.id); }
   if (action === "switch-relay-tab") { relayTab = target.dataset.relayTab || "ready"; shouldRender = false; renderRelay(); }
   if (action === "save-awards") {
     const beforeAwards = auditSnapshot(state.awards);
@@ -5756,11 +5756,39 @@ function removeConflictingDoubles(stackerIds, exceptTeamId = "") {
   return displaced;
 }
 
-function deleteDouble(id) {
+async function deleteTeamSqlResults(type, id) {
+  if (!selectedSqlCompetitionId) return true;
+  const matches = state.results.filter(result => {
+    const resultType = result.type === "Relay" ? "Timed Relay" : result.type;
+    return resultType === type && result.participant === id;
+  });
+  if (!matches.length) return true;
+
+  const deletes = matches.map(result => ({
+    stage: result.stage,
+    type: result.type === "Relay" ? "Timed Relay" : result.type,
+    participant: result.participant,
+    event: result.event,
+    expectedRevision: result.revision ?? null
+  }));
+
+  try {
+    await saveSqlResults([], deletes);
+    return true;
+  } catch (error) {
+    console.error(`Unable to delete SQL results for ${type} team ${id}.`, error);
+    alert(tf("Unable to delete {type} team {id} because its saved results could not be removed. Refresh and try again.", { type, id }));
+    return false;
+  }
+}
+
+async function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
-  if (!team) return;
+  if (!team) return false;
   const teamName = participantName("Doubles", id);
-  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return false;
+  if (!await deleteTeamSqlResults("Doubles", id)) return false;
+  state.results = state.results.filter(result => !(result.type === "Doubles" && result.participant === id));
   state.doubles = state.doubles.filter(d => d.id !== id);
   recordDeletedStateRecord("doubles", id);
   appendCompetitionAuditLog({
@@ -5771,6 +5799,7 @@ function deleteDouble(id) {
     before: team,
     after: null
   });
+  return true;
 }
 
 function addRelay() {
@@ -5867,11 +5896,12 @@ function clearRelayForm(renderNow = true) {
   if (renderNow) renderRelay();
 }
 
-function deleteRelay(id) {
+async function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
-  if (!team) return;
+  if (!team) return false;
   const teamName = participantName("Timed Relay", id);
-  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return false;
+  if (!await deleteTeamSqlResults("Timed Relay", id)) return false;
   state.relays = state.relays.filter(relay => relay.id !== id);
   recordDeletedStateRecord("relays", id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
@@ -5883,6 +5913,7 @@ function deleteRelay(id) {
     before: team,
     after: null
   });
+  return true;
 }
 
 function relayForStacker(stackerId) {
