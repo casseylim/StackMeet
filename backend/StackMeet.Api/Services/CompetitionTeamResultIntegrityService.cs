@@ -17,6 +17,37 @@ namespace StackMeet.Api.Services;
 /// </remarks>
 public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext database)
 {
+    public string? ValidateResultUpserts(string? stateJson, IReadOnlyList<ResultUpsertRequest> upserts)
+    {
+        var teamUpserts = upserts
+            .Select(item => new TeamResultReference(
+                CompetitionResultRules.NormalizeParticipantType(item.Type),
+                item.Participant?.Trim()))
+            .Where(item => item.Type is "Doubles" or "Timed Relay")
+            .ToArray();
+
+        if (teamUpserts.Length == 0) return null;
+
+        if (!TryReadState(stateJson, out var state, out var stateError))
+        {
+            return stateError ?? "Competition team state could not be validated.";
+        }
+
+        foreach (var item in teamUpserts)
+        {
+            if (string.IsNullOrWhiteSpace(item.Participant))
+                return "Team result participant is required.";
+
+            if (item.Type == "Doubles" && !state.ReadyDoubles.Contains(item.Participant))
+                return "Doubles result participant must reference a complete Doubles team in this competition.";
+
+            if (item.Type == "Timed Relay" && !state.ReadyRelays.Contains(item.Participant))
+                return "Timed Relay result participant must reference a ready relay team with at least four registered members in this competition.";
+        }
+
+        return null;
+    }
+
     public async Task<string?> ValidateResultUpsertsAsync(
         int competitionId,
         string? stateJson,
