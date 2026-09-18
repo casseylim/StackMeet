@@ -38,7 +38,7 @@ for (const slot of ['one', 'two', 'three', 'four', 'five', 'six']) {
   assert.ok(service.includes('"' + slot + '"'), 'missing Relay legacy member slot: ' + slot);
 }
 assert.match(service, /RelayMemberCount\(team\) < 4/);
-assert.match(service, /status.*pending/s);
+assert.match(service, /pending.*return false/s);
 assert.match(service, /Competition Doubles team IDs must be unique/);
 assert.match(service, /Competition Relay team IDs must be unique/);
 assert.match(service, /StringComparer\.OrdinalIgnoreCase/);
@@ -46,6 +46,13 @@ assert.match(service, /Doubles result participant must reference a complete Doub
 assert.match(service, /Timed Relay result participant must reference a ready relay team/);
 assert.match(service, /cannot remove or invalidate a Doubles team while SQL results reference it/);
 assert.match(service, /cannot remove or invalidate a Timed Relay team while SQL results reference it/);
+assert.match(service, /Team result members must belong to this competition's registered Stackers/);
+assert.match(service, /cannot change Doubles team members while SQL results reference it/);
+assert.match(service, /cannot change Timed Relay team members while SQL results reference it/);
+assert.match(service, /database\.Stackers/);
+assert.match(service, /item\.CompetitionId == competitionId/);
+assert.match(service, /DoublesMembers/);
+assert.match(service, /RelaysMembers/);
 
 assert.match(app, /async function deleteTeamSqlResults\(type, id\)/);
 assert.match(app, /await saveSqlResults\(\[\], deletes\)/);
@@ -68,7 +75,12 @@ for (const scenario of [
   'duplicate team IDs fail closed',
   'malformed team state fails closed',
   'HTTP state cannot orphan existing doubles result',
-  'HTTP rejected team removal leaves state unchanged'
+  'HTTP rejected team removal leaves state unchanged',
+  'team result resolves to registered competition stackers',
+  'team result rejects member outside competition stackers',
+  'child parent result links registered child while external parent remains external',
+  'team metadata may change while result membership stays fixed',
+  'team members cannot change while SQL results reference team'
 ]) {
   assert.ok(integration.includes(scenario), 'missing integration scenario: ' + scenario);
 }
