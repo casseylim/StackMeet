@@ -119,6 +119,19 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
     await db.SaveChangesAsync();
     db.Stackers.AddRange(new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A1", FirstName = "A", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A2", FirstName = "A", LastName = "Two", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A3", FirstName = "A", LastName = "Three", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A4", FirstName = "A", LastName = "Four", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
     db.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState { CompetitionKey = key, JsonData = "{\"seed\":true}", SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now });
+    const string accountPassword = "CoreIntegrity-Result-123!";
+    db.AppUsers.Add(new StackMeet.Api.Models.AppUser
+    {
+        Email = "core-integrity@example.test",
+        NormalizedEmail = "CORE-INTEGRITY@EXAMPLE.TEST",
+        PasswordHash = new PasswordHashService().Hash(accountPassword),
+        DisplayName = "Core Integrity Admin",
+        IsActive = true,
+        EmailConfirmed = true,
+        IsSystemAdmin = true,
+        CreatedAt = now,
+        SessionVersion = 1
+    });
     await db.SaveChangesAsync();
 
     var port = Random.Shared.Next(49152, 59999);
@@ -127,6 +140,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
     using var process = new Process { StartInfo = startInfo };
     process.StartInfo.Environment["ConnectionStrings__StackMeet"] = connectionString;
     process.StartInfo.Environment["Security__ApiKey"] = "phase-e-http-test-key";
+    process.StartInfo.Environment["Security__SessionSigningKey"] = "phase-e-http-session-signing-key-20260918";
     process.StartInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
     process.StartInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
     process.Start();
@@ -148,28 +162,42 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
         var invalid = await PostState(client, key, newEtag, "{\"doubles\":[{\"participantCode\":\"MISSING\",\"two\":\"A2\"}]}"); var invalidBody = await invalid.Content.ReadAsStringAsync(); Assert(invalid.StatusCode == HttpStatusCode.BadRequest, $"HTTP missing participant rejected ({(int)invalid.StatusCode}: {invalidBody})"); var unchanged = await client.GetAsync($"/api/state/{key}"); Assert(await unchanged.Content.ReadAsStringAsync() == valid && unchanged.Headers.ETag?.Tag == newEtag, "HTTP rejected state unchanged");
         var wrongCompetition = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"B1\",\"two\":\"A2\"}]}"); Assert(wrongCompetition.StatusCode == HttpStatusCode.BadRequest, "HTTP wrong-competition participant rejected");
 
-        var referencedTeamResult = new StackMeet.Api.Models.CompetitionResult
+        using var accountClient = new HttpClient { BaseAddress = client.BaseAddress, Timeout = TimeSpan.FromSeconds(10) };
+        var login = await accountClient.PostAsJsonAsync("/api/auth/login", new { email = "core-integrity@example.test", password = accountPassword });
+        var loginBody = await login.Content.ReadAsStringAsync();
+        Assert(login.StatusCode == HttpStatusCode.OK, $"HTTP account login for result validation ({(int)login.StatusCode}: {loginBody})");
+        using var loginJson = System.Text.Json.JsonDocument.Parse(loginBody);
+        var token = loginJson.RootElement.GetProperty("token").GetString() ?? throw new InvalidOperationException("Login token missing.");
+        accountClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var invalidTeamResult = await PostResultBatch(accountClient, competition.Id, new
         {
-            CompetitionId = competition.Id,
-            PublicId = Guid.NewGuid(),
-            Stage = "Finals",
-            ParticipantType = "Doubles",
-            ParticipantCode = "2.1",
-            EventCode = "Cycle",
-            AttemptsJson = "[8.123]",
-            Penalty = 0,
-            Revision = 1,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-        db.CompetitionResults.Add(referencedTeamResult);
-        await db.SaveChangesAsync();
+            upserts = new[] { new { stage = "Finals", type = "Doubles", participant = "2.99", @event = "Cycle", attempts = new[] { 8.999m }, penalty = 0m, expectedRevision = (long?)null } },
+            deletes = Array.Empty<object>()
+        });
+        Assert(invalidTeamResult.StatusCode == HttpStatusCode.BadRequest, "HTTP unknown Doubles team result rejected");
+
+        var validTeamResult = await PostResultBatch(accountClient, competition.Id, new
+        {
+            upserts = new[] { new { stage = "Finals", type = "Doubles", participant = "2.1", @event = "Cycle", attempts = new[] { 8.123m }, penalty = 0m, expectedRevision = (long?)null } },
+            deletes = Array.Empty<object>()
+        });
+        var validTeamResultBody = await validTeamResult.Content.ReadAsStringAsync();
+        Assert(validTeamResult.StatusCode == HttpStatusCode.OK, $"HTTP valid Doubles team result accepted ({(int)validTeamResult.StatusCode}: {validTeamResultBody})");
+        using var resultJson = System.Text.Json.JsonDocument.Parse(validTeamResultBody);
+        var resultRevision = resultJson.RootElement.GetProperty("results")[0].GetProperty("revision").GetInt64();
+
         var removeReferencedTeam = await PostState(client, key, newEtag, "{\"doubles\":[],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}]}");
         Assert(removeReferencedTeam.StatusCode == HttpStatusCode.Conflict, "HTTP state cannot orphan existing doubles result");
         var afterRejectedTeamRemoval = await client.GetAsync($"/api/state/{key}");
         Assert(await afterRejectedTeamRemoval.Content.ReadAsStringAsync() == valid && afterRejectedTeamRemoval.Headers.ETag?.Tag == newEtag, "HTTP rejected team removal leaves state unchanged");
-        db.CompetitionResults.Remove(referencedTeamResult);
-        await db.SaveChangesAsync();
+
+        var deleteTeamResult = await PostResultBatch(accountClient, competition.Id, new
+        {
+            upserts = Array.Empty<object>(),
+            deletes = new[] { new { stage = "Finals", type = "Doubles", participant = "2.1", @event = "Cycle", expectedRevision = (long?)resultRevision } }
+        });
+        Assert(deleteTeamResult.StatusCode == HttpStatusCode.OK, "HTTP referenced team result can be deleted before team removal");
         var externalOnly = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"A1\",\"parentName\":\"External Parent\"}]}"); Assert(externalOnly.StatusCode == HttpStatusCode.NoContent, "HTTP external parent name ignored"); var currentEtag = (await client.GetAsync($"/api/state/{key}")).Headers.ETag!.Tag!;
         var stale = await PostState(client, key, newEtag, "{\"seed\":\"stale\"}"); Assert(stale.StatusCode == HttpStatusCode.Conflict && stale.Headers.ETag?.Tag == currentEtag, "HTTP OCC conflict preserved");
         var malformed = await PostState(client, key, currentEtag, "{malformed"); Assert(malformed.StatusCode == HttpStatusCode.BadRequest, "HTTP malformed JSON rejected");
@@ -183,3 +211,6 @@ static async Task<HttpResponseMessage> PostState(HttpClient client, string key, 
     request.Headers.TryAddWithoutValidation("If-Match", etag);
     return await client.SendAsync(request);
 }
+
+static Task<HttpResponseMessage> PostResultBatch(HttpClient client, int competitionId, object payload) =>
+    client.PostAsJsonAsync($"/api/competitions/{competitionId}/results/batch", payload);
