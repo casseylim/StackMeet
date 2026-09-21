@@ -210,7 +210,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
         TeamResultRow row)
     {
         var participantType = CompetitionResultRules.NormalizeParticipantType(row.ParticipantType);
-        if (participantType is not ("Doubles" or "Timed Relay")) return null;
+        if (participantType != "Doubles" && participantType != "Timed Relay") return null;
 
         var stage = CompetitionResultRules.NormalizeStage(row.Stage);
         var eventCode = CompetitionResultRules.NormalizeEvent(row.EventCode);
