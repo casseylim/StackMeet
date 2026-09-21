@@ -59,7 +59,7 @@ Each career point contains only:
 - registered-member count;
 - external-partner boolean;
 - state/results/result revisions;
-- a SHA-256 membership fingerprint.
+- a SHA-256 registered-membership fingerprint.
 
 The membership SHA binds the career fact to the validated competition-time team composition without exposing teammate identifiers.
 
@@ -117,7 +117,7 @@ Coverage includes:
 - finalized/public filtering;
 - unrelated team exclusion;
 - external-name non-linkage;
-- membership fingerprint provenance;
+- registered-membership fingerprint provenance;
 - metadata/profile mutation immunity;
 - server rejection of team membership drift while results exist;
 - ambiguous identity-link fail-closed behavior.
