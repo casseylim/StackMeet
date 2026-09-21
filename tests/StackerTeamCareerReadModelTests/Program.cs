@@ -177,7 +177,7 @@ try
     Assert(d1.Evidence.CompetitionStateRevision == 11
         && d1.Evidence.CompetitionResultsRevision == 8
         && d1.Evidence.ResultRevision == 1
-        && d1.Evidence.MembershipSha256.Length == 64,
+        && d1.Evidence.RegisteredMembershipSha256.Length == 64,
         "SP-4Q retains revision and membership-fingerprint provenance");
 
     var externalNameCareer = await service.GetPublicEligibleAsync(externalNameIdentity.NadiTrackId)
@@ -222,7 +222,7 @@ try
     Assert(await integrity.ValidateStateAgainstExistingResultsAsync(c1.Id, c1StateJson, metadataOnlyJson) is null,
         "non-membership team metadata may change without rewriting team composition");
 
-    var beforeFingerprint = d1.Evidence.MembershipSha256;
+    var beforeFingerprint = d1.Evidence.RegisteredMembershipSha256;
     c1State.JsonData = metadataOnlyJson;
     c1State.StateRevision++;
     c1State.UpdatedAt = DateTime.UtcNow;
@@ -234,7 +234,7 @@ try
     var afterMetadataMutation = await service.GetPublicEligibleAsync(athlete.NadiTrackId)
         ?? throw new InvalidOperationException("Expected SP-4Q career after metadata mutation.");
     var afterD1 = Point(afterMetadataMutation, "SP4Q-1", "Doubles", "D1");
-    Assert(afterD1.Evidence.MembershipSha256 == beforeFingerprint
+    Assert(afterD1.Evidence.RegisteredMembershipSha256 == beforeFingerprint
         && afterD1.Evidence.CompetitionStateRevision == 12
         && afterD1.OfficialBestTime == 8.500m,
         "profile/metadata changes cannot alter protected team membership or factual team performance");
