@@ -74,7 +74,7 @@ const deleteDoubleBody = app.slice(
 );
 const deleteRelayBody = app.slice(
   app.indexOf('async function deleteRelay(id)'),
-  app.indexOf('function loadRelayForEdit')
+  app.indexOf('function relayForStacker')
 );
 assert.ok(
   deleteDoubleBody.indexOf('await deleteTeamSqlResults("Doubles", id)') <
