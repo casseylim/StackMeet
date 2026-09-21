@@ -49,7 +49,7 @@ try
     var now = DateTime.UtcNow;
     var athlete = NewIdentity("NDT-ABCDEFG", "Career", "Athlete", true, now);
     var privateIdentity = NewIdentity("NDT-BCDEFGH", "Private", "Athlete", false, now);
-    var externalNameIdentity = NewIdentity("NDT-CDEFGHI", "External", "Parent", true, now);
+    var externalNameIdentity = NewIdentity("NDT-CDEFGHJ", "External", "Parent", true, now);
     db.SportStackerIdentities.AddRange(athlete, privateIdentity, externalNameIdentity);
 
     var c1 = NewCompetition("SP4Q-1", "Team Career One", new DateOnly(2026, 1, 10), "Closed", true, 8, now);
