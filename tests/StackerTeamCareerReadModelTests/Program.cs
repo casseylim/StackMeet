@@ -246,7 +246,10 @@ try
     await db.SaveChangesAsync();
 
     await AssertThrowsContainsAsync(
-        async () => await service.GetPublicEligibleAsync(athlete.NadiTrackId),
+        async () =>
+        {
+            await service.GetPublicEligibleAsync(athlete.NadiTrackId);
+        },
         IdentityLinkedTeamCareerBlockers.IdentityLinkAmbiguous,
         "multiple reviewed same-competition identity links fail closed");
 
