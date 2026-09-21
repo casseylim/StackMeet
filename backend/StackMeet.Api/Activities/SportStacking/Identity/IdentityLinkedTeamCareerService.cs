@@ -13,14 +13,14 @@ public static class IdentityLinkedTeamCareerBlockers
 }
 
 /// <summary>
-/// Provenance for one identity-linked team career fact. The membership fingerprint binds the
+/// Provenance for one identity-linked team career fact. The registered-membership fingerprint binds the
 /// result to the validated competition-time team composition without exposing teammate identifiers.
 /// </summary>
 public sealed record IdentityLinkedTeamCareerEvidence(
     long CompetitionStateRevision,
     long CompetitionResultsRevision,
     long ResultRevision,
-    string MembershipSha256);
+    string RegisteredMembershipSha256);
 
 /// <summary>
 /// One finalized/public Doubles or Timed Relay performance linked to a permanent Stacker identity.
@@ -189,7 +189,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
                         state.StateRevision,
                         linked.ResultsRevision,
                         item.ResultRevision,
-                        item.MembershipSha256)));
+                        item.RegisteredMembershipSha256)));
             }
         }
 
@@ -228,7 +228,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
             return null;
 
         var hasExternalPartner = participantType == "Doubles" && members.Count == 1;
-        var membershipSha256 = MembershipSha256(participantType, teamCode, members, hasExternalPartner);
+        var membershipSha256 = RegisteredRegisteredMembershipSha256(participantType, teamCode, members, hasExternalPartner);
 
         var performance = ReadPerformance(row.AttemptsJson, row.Penalty);
         var logicalKey = string.Join(
@@ -291,7 +291,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
             : new TeamPerformance("Invalid", null, null, 0m);
     }
 
-    private static string MembershipSha256(
+    private static string RegisteredRegisteredMembershipSha256(
         string participantType,
         string teamCode,
         IReadOnlyList<string> members,
@@ -371,7 +371,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
         int RegisteredMemberCount,
         bool HasExternalPartner,
         long ResultRevision,
-        string MembershipSha256);
+        string RegisteredMembershipSha256);
 
     private sealed record TeamPerformance(
         string Status,
