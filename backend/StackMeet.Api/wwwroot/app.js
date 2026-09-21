@@ -502,7 +502,7 @@ function normalizeAwardItem(value) {
 
 function normalizeDoubles(doubles) {
   return doubles.map(team => {
-    const type = team.type || (String(team.division || "").toLowerCase().includes("parent") ? "child_parent" : "normal");
+    const type = team.type || (team.parentName || team.partnerName || String(team.division || "").toLowerCase().includes("parent") ? "child_parent" : "normal");
     const one = team.one || team.stackerOneId || team.childStackerId || "";
     const two = team.two || team.stackerTwoId || team.parentStackerId || "";
     const status = team.status || (two || team.parentName || type === "child_parent" ? "complete" : "pending");
@@ -4811,12 +4811,12 @@ document.addEventListener("click", async (event) => {
   if (action === "add-double") addDouble();
   if (action === "edit-double") { loadDoubleForEdit(target.dataset.id); shouldRender = false; }
   if (action === "cancel-double-edit") { clearDoubleForm(); shouldRender = false; }
-  if (action === "delete-double") deleteDouble(target.dataset.id);
+  if (action === "delete-double") { shouldSave = await deleteDouble(target.dataset.id); }
   if (action === "switch-doubles-tab") { doublesTab = target.dataset.doublesTab || "completed"; shouldRender = false; renderDoubles(); }
   if (action === "add-relay") addRelay();
   if (action === "edit-relay") { loadRelayForEdit(target.dataset.id); shouldRender = false; }
   if (action === "cancel-relay-edit") { clearRelayForm(); shouldRender = false; }
-  if (action === "delete-relay") deleteRelay(target.dataset.id);
+  if (action === "delete-relay") { shouldSave = await deleteRelay(target.dataset.id); }
   if (action === "switch-relay-tab") { relayTab = target.dataset.relayTab || "ready"; shouldRender = false; renderRelay(); }
   if (action === "save-awards") {
     const beforeAwards = auditSnapshot(state.awards);
@@ -5607,6 +5607,43 @@ async function deleteStacker(id) {
   setSaveStatus("Saved", "saved");
 }
 
+function teamHasSavedResults(type, teamId) {
+  if (!teamId) return false;
+  return state.results.some(result => {
+    const resultType = result.type === "Relay" ? "Timed Relay" : result.type;
+    return resultType === type && result.participant === teamId;
+  });
+}
+
+function doublesMembershipSignature(team) {
+  if (!team) return "";
+  return [
+    team.one || team.stackerOneId || team.childStackerId || "",
+    team.two || team.stackerTwoId || team.parentStackerId || "",
+    team.parentName || team.partnerName || ""
+  ].map(value => String(value || "").trim().toUpperCase()).join("\u001f");
+}
+
+function relayMembershipSignature(team) {
+  return relayMemberIds(team || {})
+    .map(value => String(value || "").trim().toUpperCase())
+    .join("\u001f");
+}
+
+function lockedDoublesConflict(stackerIds, exceptTeamId = "") {
+  return state.doubles.find(team =>
+    team.id !== exceptTeamId
+    && teamHasSavedResults("Doubles", team.id)
+    && registeredDoubleMemberIds(team).some(id => stackerIds.includes(id)));
+}
+
+function lockedRelayConflict(stackerIds, exceptTeamId = "") {
+  return state.relays.find(team =>
+    team.id !== exceptTeamId
+    && teamHasSavedResults("Timed Relay", team.id)
+    && relayMemberIds(team).some(id => stackerIds.includes(id)));
+}
+
 function saveStackerDoubleAssignment() {
   if (!editingStackerId) return;
   const currentTeam = doublesForStacker(editingStackerId)[0];
@@ -5622,7 +5659,13 @@ function saveStackerDoubleAssignment() {
     renderStackers();
     return;
   }
-  const displaced = removeConflictingDoubles([editingStackerId, partnerId].filter(Boolean), currentTeam?.id || "");
+  const proposedMembers = [editingStackerId, partnerId].filter(Boolean);
+  const lockedConflict = lockedDoublesConflict(proposedMembers, currentTeam?.id || "");
+  if (lockedConflict) {
+    flashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    renderStackers();
+    return;
+  }
   const first = state.stackers.find(stacker => stacker.id === editingStackerId) || {};
   const second = state.stackers.find(stacker => stacker.id === partnerId) || {};
   const team = {
@@ -5636,6 +5679,14 @@ function saveStackerDoubleAssignment() {
     division: customDivision || generatedDoublesDivision(type, editingStackerId, partnerId),
     country: first.country || second.country || "Malaysia"
   };
+  if (currentTeam
+      && teamHasSavedResults("Doubles", currentTeam.id)
+      && doublesMembershipSignature(currentTeam) !== doublesMembershipSignature(team)) {
+    flashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: currentTeam.id }) };
+    renderStackers();
+    return;
+  }
+  const displaced = removeConflictingDoubles(proposedMembers, currentTeam?.id || "");
   if (currentTeam) {
     state.doubles = state.doubles.map(existing => existing.id === currentTeam.id ? team : existing);
   } else {
@@ -5672,10 +5723,16 @@ function addDouble() {
     return;
   }
 
+  const proposedMembers = [one, two].filter(Boolean);
+  const lockedConflict = lockedDoublesConflict(proposedMembers, editingDoubleId);
+  if (lockedConflict) {
+    doubleFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    return;
+  }
   const first = state.stackers.find(stacker => stacker.id === one) || {};
   const second = state.stackers.find(stacker => stacker.id === two) || {};
-  const displaced = removeConflictingDoubles([one, two].filter(Boolean), editingDoubleId);
-  const before = auditSnapshot(editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null);
+  const beforeTeam = editingDoubleId ? state.doubles.find(item => item.id === editingDoubleId) : null;
+  const before = auditSnapshot(beforeTeam);
   const team = {
     id: editingDoubleId || nextTeamCode("2"),
     type,
@@ -5687,6 +5744,13 @@ function addDouble() {
     division: customDivision || generatedDoublesDivision(type, one, two),
     country: first.country || second.country || "Malaysia"
   };
+  if (beforeTeam
+      && teamHasSavedResults("Doubles", beforeTeam.id)
+      && doublesMembershipSignature(beforeTeam) !== doublesMembershipSignature(team)) {
+    doubleFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: beforeTeam.id }) };
+    return;
+  }
+  const displaced = removeConflictingDoubles(proposedMembers, editingDoubleId);
   if (editingDoubleId) {
     state.doubles = state.doubles.map(existing => existing.id === editingDoubleId ? team : existing);
   } else {
@@ -5756,11 +5820,39 @@ function removeConflictingDoubles(stackerIds, exceptTeamId = "") {
   return displaced;
 }
 
-function deleteDouble(id) {
+async function deleteTeamSqlResults(type, id) {
+  if (!selectedSqlCompetitionId) return true;
+  const matches = state.results.filter(result => {
+    const resultType = result.type === "Relay" ? "Timed Relay" : result.type;
+    return resultType === type && result.participant === id;
+  });
+  if (!matches.length) return true;
+
+  const deletes = matches.map(result => ({
+    stage: result.stage,
+    type: result.type === "Relay" ? "Timed Relay" : result.type,
+    participant: result.participant,
+    event: result.event,
+    expectedRevision: result.revision ?? null
+  }));
+
+  try {
+    await saveSqlResults([], deletes);
+    return true;
+  } catch (error) {
+    console.error(`Unable to delete SQL results for ${type} team ${id}.`, error);
+    alert(tf("Unable to delete {type} team {id} because its saved results could not be removed. Refresh and try again.", { type, id }));
+    return false;
+  }
+}
+
+async function deleteDouble(id) {
   const team = state.doubles.find(item => item.id === id);
-  if (!team) return;
+  if (!team) return false;
   const teamName = participantName("Doubles", id);
-  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Doubles", team.id) }))) return false;
+  if (!await deleteTeamSqlResults("Doubles", id)) return false;
+  state.results = state.results.filter(result => !(result.type === "Doubles" && result.participant === id));
   state.doubles = state.doubles.filter(d => d.id !== id);
   recordDeletedStateRecord("doubles", id);
   appendCompetitionAuditLog({
@@ -5771,6 +5863,7 @@ function deleteDouble(id) {
     before: team,
     after: null
   });
+  return true;
 }
 
 function addRelay() {
@@ -5782,8 +5875,13 @@ function addRelay() {
     return;
   }
   const members = [...new Set(selectedMembers)];
-  const displaced = removeConflictingRelays(members, editingRelayId);
-  const before = auditSnapshot(editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null);
+  const lockedConflict = lockedRelayConflict(members, editingRelayId);
+  if (lockedConflict) {
+    relayFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before moving its Stackers.", { id: lockedConflict.id }) };
+    return;
+  }
+  const beforeTeam = editingRelayId ? state.relays.find(item => item.id === editingRelayId) : null;
+  const before = auditSnapshot(beforeTeam);
   const team = {
     id: editingRelayId || nextTeamCode("3"),
     name: relayName,
@@ -5798,6 +5896,13 @@ function addRelay() {
     region: val("relayRegion").trim() || relayRegionForMembers(members),
     members
   };
+  if (beforeTeam
+      && teamHasSavedResults("Timed Relay", beforeTeam.id)
+      && relayMembershipSignature(beforeTeam) !== relayMembershipSignature(team)) {
+    relayFlashMessage = { type: "error", text: tf("Team {id} already has saved results. Delete those results before changing its members.", { id: beforeTeam.id }) };
+    return;
+  }
+  const displaced = removeConflictingRelays(members, editingRelayId);
   if (editingRelayId) {
     state.relays = state.relays.map(existing => existing.id === editingRelayId ? team : existing);
   } else {
@@ -5867,11 +5972,12 @@ function clearRelayForm(renderNow = true) {
   if (renderNow) renderRelay();
 }
 
-function deleteRelay(id) {
+async function deleteRelay(id) {
   const team = state.relays.find(item => item.id === id);
-  if (!team) return;
+  if (!team) return false;
   const teamName = participantName("Timed Relay", id);
-  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return;
+  if (!confirm(tf("Delete {id} {name}?", { id: team.id, name: participantName("Timed Relay", team.id) }))) return false;
+  if (!await deleteTeamSqlResults("Timed Relay", id)) return false;
   state.relays = state.relays.filter(relay => relay.id !== id);
   recordDeletedStateRecord("relays", id);
   state.results = state.results.filter(result => !(["Timed Relay", "Relay"].includes(result.type) && result.participant === id));
@@ -5883,6 +5989,7 @@ function deleteRelay(id) {
     before: team,
     after: null
   });
+  return true;
 }
 
 function relayForStacker(stackerId) {

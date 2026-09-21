@@ -16,6 +16,7 @@ public sealed class CompetitionStateController(
     StackMeetDbContext database,
     IHubContext<ResultsHub> resultsHub,
     CompetitionPermissionService permissions,
+    CompetitionTeamResultIntegrityService teamResults,
     ILogger<CompetitionStateController> logger) : ControllerBase
 {
     [HttpGet("{competitionKey}")]
@@ -71,6 +72,10 @@ public sealed class CompetitionStateController(
         if (validationError is not null) return BadRequest(new { error = validationError });
         var competitionId = await database.Competitions.Where(item => item.CompetitionKey == normalizedKey).Select(item => (int?)item.Id).SingleOrDefaultAsync(cancellationToken);
         if (competitionId is null) return NotFound();
+
+        if (!teamResults.TryReadReadyTeams(jsonData, out _, out var teamStateError))
+            return BadRequest(new { error = teamStateError ?? "Competition team state could not be validated." });
+
         foreach (var chunk in referencedCodes.Chunk(500))
         {
             var existing = await database.Stackers.AsNoTracking()
@@ -86,9 +91,23 @@ public sealed class CompetitionStateController(
 
         await using (var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
         {
+            // Serialize state changes with SQL result writes on the same Competition row.
+            // This closes the race where team validation passes and the team disappears before commit.
+            var lockedCompetition = await database.Competitions
+                .FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {competitionId.Value}")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (lockedCompetition is null) return NotFound();
+
             var state = await database.CompetitionStates
                 .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
                 .SingleOrDefaultAsync(cancellationToken);
+
+            var resultReferenceError = await teamResults.ValidateStateAgainstExistingResultsAsync(
+                lockedCompetition.Id,
+                state?.JsonData,
+                jsonData,
+                cancellationToken);
+            if (resultReferenceError is not null) return Conflict(new { error = resultReferenceError });
 
             if (state is null)
             {
