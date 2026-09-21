@@ -128,14 +128,14 @@ Assert(scratch.History.Single().ResultStatus == "Scratch"
 var json = JsonSerializer.Serialize(childParent);
 foreach (var forbiddenText in new[]
 {
-    ""TeamCode"",
-    ""RegisteredMemberCount"",
-    ""HasExternalPartner"",
-    ""Evidence"",
-    ""RegisteredMembershipSha256"",
-    ""CompetitionStateRevision"",
-    ""CompetitionResultsRevision"",
-    ""ResultRevision""
+    "\"TeamCode\"",
+    "\"RegisteredMemberCount\"",
+    "\"HasExternalPartner\"",
+    "\"Evidence\"",
+    "\"RegisteredMembershipSha256\"",
+    "\"CompetitionStateRevision\"",
+    "\"CompetitionResultsRevision\"",
+    "\"ResultRevision\""
 })
 {
     Assert(!json.Contains(forbiddenText, StringComparison.OrdinalIgnoreCase),
