@@ -194,6 +194,28 @@ public sealed class CompetitionTeamResultIntegrityService(StackMeetDbContext dat
         return true;
     }
 
+    public bool TryReadReadyTeamMemberships(
+        string? stateJson,
+        out CompetitionReadyTeamMemberships teams,
+        out string? error)
+    {
+        if (!TryReadState(stateJson, out var state, out error))
+        {
+            teams = CompetitionReadyTeamMemberships.Empty;
+            return false;
+        }
+
+        var doubles = state.DoublesMembers
+            .Where(item => state.ReadyDoubles.Contains(item.Key))
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        var relays = state.RelaysMembers
+            .Where(item => state.ReadyRelays.Contains(item.Key))
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+
+        teams = new CompetitionReadyTeamMemberships(doubles, relays);
+        return true;
+    }
+
     bool TryReadState(
         string? stateJson,
         out CompetitionTeamStateSnapshot state,
@@ -467,4 +489,14 @@ public sealed record CompetitionReadyTeamIds(
         new(
             new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+}
+
+public sealed record CompetitionReadyTeamMemberships(
+    IReadOnlyDictionary<string, IReadOnlyList<string>> Doubles,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> TimedRelays)
+{
+    public static CompetitionReadyTeamMemberships Empty { get; } =
+        new(
+            new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase));
 }
