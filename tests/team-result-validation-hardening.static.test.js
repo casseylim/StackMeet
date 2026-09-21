@@ -68,12 +68,22 @@ assert.match(app, /async function deleteTeamSqlResults\(type, id\)/);
 assert.match(app, /await saveSqlResults\(\[\], deletes\)/);
 assert.match(app, /shouldSave = await deleteDouble\(target\.dataset\.id\)/);
 assert.match(app, /shouldSave = await deleteRelay\(target\.dataset\.id\)/);
+const deleteDoubleBody = app.slice(
+  app.indexOf('async function deleteDouble(id)'),
+  app.indexOf('function addRelay()')
+);
+const deleteRelayBody = app.slice(
+  app.indexOf('async function deleteRelay(id)'),
+  app.indexOf('function loadRelayForEdit')
+);
 assert.ok(
-  app.indexOf('await deleteTeamSqlResults("Doubles", id)') < app.indexOf('state.doubles = state.doubles.filter'),
+  deleteDoubleBody.indexOf('await deleteTeamSqlResults("Doubles", id)') <
+    deleteDoubleBody.indexOf('state.doubles = state.doubles.filter'),
   'Doubles SQL results must be removed before team state'
 );
 assert.ok(
-  app.indexOf('await deleteTeamSqlResults("Timed Relay", id)') < app.indexOf('state.relays = state.relays.filter'),
+  deleteRelayBody.indexOf('await deleteTeamSqlResults("Timed Relay", id)') <
+    deleteRelayBody.indexOf('state.relays = state.relays.filter'),
   'Relay SQL results must be removed before team state'
 );
 
