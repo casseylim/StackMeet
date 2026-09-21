@@ -139,7 +139,6 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
             .Where(item => competitionIds.Contains(item.CompetitionId))
             .Select(item => new TeamResultRow(
                 item.CompetitionId,
-                item.Id,
                 item.Stage,
                 item.ParticipantType,
                 item.ParticipantCode,
@@ -159,7 +158,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
 
             var candidates = resultRows
                 .Where(item => item.CompetitionId == linked.CompetitionId)
-                .Select(item => TryCreateCandidate(linked, state, memberships, item))
+                .Select(item => TryCreateCandidate(linked, memberships, item))
                 .Where(item => item is not null)
                 .Select(item => item!)
                 .ToList();
@@ -207,7 +206,6 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
 
     private static TeamCareerCandidate? TryCreateCandidate(
         LinkedCompetitionRow linked,
-        TeamStateRow state,
         CompetitionReadyTeamMemberships memberships,
         TeamResultRow row)
     {
@@ -228,7 +226,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
             return null;
 
         var hasExternalPartner = participantType == "Doubles" && members.Count == 1;
-        var membershipSha256 = RegisteredRegisteredMembershipSha256(participantType, teamCode, members, hasExternalPartner);
+        var membershipSha256 = RegisteredMembershipSha256(participantType, teamCode, members, hasExternalPartner);
 
         var performance = ReadPerformance(row.AttemptsJson, row.Penalty);
         var logicalKey = string.Join(
@@ -291,7 +289,7 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
             : new TeamPerformance("Invalid", null, null, 0m);
     }
 
-    private static string RegisteredRegisteredMembershipSha256(
+    private static string RegisteredMembershipSha256(
         string participantType,
         string teamCode,
         IReadOnlyList<string> members,
@@ -349,7 +347,6 @@ public sealed class IdentityLinkedTeamCareerService(StackMeetDbContext database)
 
     private sealed record TeamResultRow(
         int CompetitionId,
-        long ResultId,
         string Stage,
         string ParticipantType,
         string TeamCode,
