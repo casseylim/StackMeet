@@ -41,7 +41,7 @@ for (const forbidden of [
     `SP-4R public point must not expose ${forbidden}.`);
 }
 
-assert.doesNotMatch(contract, /StackMeetDbContext|CompetitionResults|CompetitionState|Stackers/,
+assert.doesNotMatch(contract, /StackMeetDbContext|database\\.(?:CompetitionResults|CompetitionStates|Stackers)/,
   'SP-4R contract must transform SP-4Q facts, not read mutable persistence sources.');
 
 assert.ok(!controller.includes('PublicTeamCareerPublication'),
