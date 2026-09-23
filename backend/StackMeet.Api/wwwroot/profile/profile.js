@@ -371,6 +371,93 @@
     }
   }
 
+  function teamTiming(point) {
+    if (point.resultStatus !== 'Valid') return 'No official team time';
+    const penalty = Number(point.appliedPenalty);
+    if (Number.isFinite(penalty) && penalty > 0) {
+      return `Raw ${formatTime(point.rawBestTime)} + ${penalty.toFixed(3)} s penalty`;
+    }
+    return `Raw ${formatTime(point.rawBestTime)}`;
+  }
+
+  function renderTeamCareer(publication) {
+    const container = byId('teamCareer');
+    const empty = byId('noTeamCareer');
+    const policy = byId('teamCareerPolicy');
+    container.replaceChildren();
+
+    const history = publication && Array.isArray(publication.history)
+      ? publication.history
+      : [];
+
+    if (publication && typeof publication.privacyPolicy === 'string' && publication.privacyPolicy.trim()) {
+      policy.textContent = publication.privacyPolicy;
+      policy.hidden = false;
+    } else {
+      policy.textContent = '';
+      policy.hidden = true;
+    }
+
+    if (history.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    empty.hidden = true;
+    for (const point of history) {
+      const card = document.createElement('article');
+      card.className = 'finals-card';
+
+      const heading = document.createElement('div');
+      heading.className = 'finals-heading';
+      appendText(heading, 'finals-event', point.participantType || 'Team event');
+      appendText(heading, 'finals-count', formatDate(point.competitionDate));
+      card.appendChild(heading);
+
+      const competition = document.createElement('h3');
+      competition.className = 'finals-competition';
+      competition.textContent = point.competitionName || point.competitionKey || 'Finalized competition';
+      card.appendChild(competition);
+      if (point.competitionKey) appendText(card, 'finals-key', point.competitionKey);
+
+      appendText(
+        card,
+        'finals-best-source',
+        [point.stage, point.eventCode].filter(Boolean).join(' · ') || 'Verified team performance'
+      );
+
+      const list = document.createElement('div');
+      list.className = 'finals-history';
+      const row = document.createElement('div');
+      row.className = 'finals-history-row';
+
+      const detail = document.createElement('div');
+      detail.className = 'finals-history-detail';
+      appendText(detail, 'finals-meta', teamTiming(point));
+      row.appendChild(detail);
+
+      const outcome = document.createElement('div');
+      outcome.className = 'finals-outcome';
+
+      const time = document.createElement('strong');
+      time.className = 'finals-time';
+      time.textContent = point.resultStatus === 'Valid'
+        ? formatTime(point.officialBestTime)
+        : '—';
+      outcome.appendChild(time);
+
+      const badge = document.createElement('span');
+      badge.className = `finals-status is-${finalsStatusClass(point.resultStatus)}`;
+      badge.textContent = point.resultStatus || 'Unknown';
+      outcome.appendChild(badge);
+      row.appendChild(outcome);
+
+      list.appendChild(row);
+      card.appendChild(list);
+      container.appendChild(card);
+    }
+  }
+
   function renderTournamentHistory(tournamentHistory) {
     const container = byId('tournamentHistory');
     const empty = byId('noTournamentHistory');
@@ -448,6 +535,7 @@
     renderCareerProgression(profile.careerProgression);
     renderFinalsCareer(profile.finalsCareer);
     renderFinalsPlacements(profile.finalsPlacements);
+    renderTeamCareer(profile.teamCareer);
     renderTournamentHistory(profile.tournamentHistory);
 
     document.title = `${profile.displayName || 'Stacker'} · NADITrack`;
