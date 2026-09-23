@@ -136,14 +136,14 @@ try
     var serialized = JsonSerializer.Serialize(publication);
     foreach (var forbiddenText in new[]
     {
-        ""TeamCode"",
-        ""RegisteredMemberCount"",
-        ""HasExternalPartner"",
-        ""Evidence"",
-        ""RegisteredMembershipSha256"",
-        ""CompetitionStateRevision"",
-        ""CompetitionResultsRevision"",
-        ""ResultRevision"",
+        "\\"TeamCode\\"",
+        "\\"RegisteredMemberCount\\"",
+        "\\"HasExternalPartner\\"",
+        "\\"Evidence\\"",
+        "\\"RegisteredMembershipSha256\\"",
+        "\\"CompetitionStateRevision\\"",
+        "\\"CompetitionResultsRevision\\"",
+        "\\"ResultRevision\\"",
         "External Parent Secret"
     })
     {
