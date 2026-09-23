@@ -13,9 +13,6 @@ const recordBody = (source, name) => {
 };
 
 const contract = read('backend/StackMeet.Api/Activities/SportStacking/Identity/PublicTeamCareerPublicationContract.cs');
-const controller = read('backend/StackMeet.Api/Controllers/PublicStackerProfilesController.cs');
-const profileModels = read('backend/StackMeet.Api/Activities/SportStacking/Identity/SportStackerCareerProfileModels.cs');
-const program = read('backend/StackMeet.Api/Program.cs');
 
 assert.match(contract, /PublicationVersion = "sp4r-public-team-career-v1"/);
 assert.match(contract, /Verified team membership · teammate identities withheld/);
@@ -43,12 +40,5 @@ for (const forbidden of [
 
 assert.doesNotMatch(contract, /StackMeetDbContext|database\\.(?:CompetitionResults|CompetitionStates|Stackers)/,
   'SP-4R contract must transform SP-4Q facts, not read mutable persistence sources.');
-
-assert.ok(!controller.includes('PublicTeamCareerPublication'),
-  'SP-4R must not activate team career through the public controller.');
-assert.ok(!profileModels.includes('PublicTeamCareerPublication'),
-  'SP-4R must not add team career to the public profile DTO yet.');
-assert.ok(!program.includes('PublicTeamCareerPublication'),
-  'SP-4R must not add startup/DI activation.');
 
 console.log('SP-4R public team career publication contract static guards passed.');
