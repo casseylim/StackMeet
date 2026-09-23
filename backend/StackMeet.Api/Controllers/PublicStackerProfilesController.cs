@@ -11,19 +11,29 @@ public sealed class PublicStackerProfilesController : ControllerBase
 {
     private readonly SportStackerCareerProfileService profiles;
     private readonly PublicFinalsPlacementCareerIntegrationService? finalsPlacements;
+    private readonly PublicTeamCareerIntegrationService? teamCareer;
 
     // Retain the original constructor for isolated compatibility tests and non-DI callers.
     public PublicStackerProfilesController(SportStackerCareerProfileService profiles)
-        : this(profiles, null)
+        : this(profiles, null, null)
     {
     }
 
     public PublicStackerProfilesController(
         SportStackerCareerProfileService profiles,
         PublicFinalsPlacementCareerIntegrationService? finalsPlacements)
+        : this(profiles, finalsPlacements, null)
+    {
+    }
+
+    public PublicStackerProfilesController(
+        SportStackerCareerProfileService profiles,
+        PublicFinalsPlacementCareerIntegrationService? finalsPlacements,
+        PublicTeamCareerIntegrationService? teamCareer)
     {
         this.profiles = profiles;
         this.finalsPlacements = finalsPlacements;
+        this.teamCareer = teamCareer;
     }
 
     [HttpGet]
@@ -40,6 +50,15 @@ public sealed class PublicStackerProfilesController : ControllerBase
             if (publication is not null)
             {
                 profile = profile with { FinalsPlacements = publication };
+            }
+        }
+
+        if (teamCareer is not null)
+        {
+            var publication = await teamCareer.GetPublicEligibleAsync(nadiTrackId, ct);
+            if (publication is not null)
+            {
+                profile = profile with { TeamCareer = publication };
             }
         }
 
