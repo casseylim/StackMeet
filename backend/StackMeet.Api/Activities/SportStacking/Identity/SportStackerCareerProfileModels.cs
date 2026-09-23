@@ -109,4 +109,10 @@ public sealed record PublicSportStackerCareerProfile(
     /// manually constructed legacy objects; the public profile service populates this for every public profile.
     /// </summary>
     public PublicFinalsPlacementCareerPublication? FinalsPlacements { get; init; }
+
+    /// <summary>
+    /// SP-4S additive public Doubles/Timed Relay career publication.
+    /// Null is retained only for compatibility with manually constructed legacy objects.
+    /// </summary>
+    public PublicTeamCareerPublication? TeamCareer { get; init; }
 }
