@@ -13,6 +13,7 @@ public static class SportStackingIdentityRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<SportStacking.Identity.PublicFinalsPlacementCareerIntegrationService>();
+        services.AddScoped<SportStacking.Identity.PublicTeamCareerIntegrationService>();
         return services;
     }
 }
