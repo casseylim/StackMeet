@@ -21,10 +21,11 @@ Database changes: exactly three additive EF migrations:
 2. 20260910103000_StackerIdentityPersistenceV1
 3. 20260914093000_FinalsRankingGovernanceSp4g
 
-Application deployment: exactly ten files defined by production-release-v2-manifest.json:
+Application deployment: exactly eleven files defined by production-release-v2-manifest.json:
 
 - StackMeet.Api.dll
-- nine reviewed wwwroot assets required by modular Finals, career profiles, and Results-to-profile linking
+- ten reviewed wwwroot assets required by modular Finals, career profiles, Results-to-profile linking, and team-result integrity
+  - `wwwroot/app.js` is included because PR #62 added browser-side team membership/result integrity protections after the original Release v2 manifest was prepared.
 
 Excluded from this release: web.config, appsettings files, application csproj changes, ad-hoc SQL files, package/dependency rollout, automatic database migration, automatic IIS/app-pool control.
 
@@ -59,7 +60,7 @@ Expected output:
 
 - MASTER_EXACT_HEAD_GATE=PASS
 - RELEASE_DELTA_ALLOWLIST=PASS
-- RELEASE_FILE_COUNT=10
+- RELEASE_FILE_COUNT=11
 - MIGRATION_COUNT=3
 - RELEASE_MANIFEST_SHA256=<record this>
 - MIGRATION_PACKAGE_SHA256=<record this>
@@ -111,7 +112,7 @@ Inputs:
 - live_source_sha = ba80538a912a3dd0f708fdd65a8823ed7988dbd6
 - expected_live_dll_sha256 = 443531BC17E24251D6E059C99B2AF79BF324C253F2980800F2AFDC8271165D2E
 
-This operation performs no remote writes. It retrieves the five expected existing files, confirms the five new release files are absent, and emits LIVE_FILESET_SHA256.
+This operation performs no remote writes. It retrieves the six expected existing files, confirms the five new release files are absent, and emits LIVE_FILESET_SHA256.
 
 Record LIVE_FILESET_SHA256. The deploy operation recomputes the entire fileset before its first write and aborts if any file changed.
 
@@ -146,7 +147,7 @@ If a write fails, existing files are restored from verified backups and newly in
 Start the production application pool/site only when the deploy job reports:
 
 - RELEASE_V2_APPLICATION_DEPLOYMENT=PASS
-- POST_UPLOAD_FILE_COUNT=10
+- POST_UPLOAD_FILE_COUNT=11
 - POOL_STATE=STOPPED-MANUAL-START-REQUIRED
 
 ## Step 7 - Run post-start verification
