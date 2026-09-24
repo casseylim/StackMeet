@@ -14,7 +14,7 @@ const manifest = JSON.parse(read(manifestPath));
 const has = (value, message) => assert.ok(w.includes(value), message || ('missing: ' + value));
 const no = (regex, message) => assert.ok(!regex.test(w), message || ('forbidden: ' + regex));
 
-assert.equal(manifest.releaseVersion, 'production-release-v2-2026-09-18');
+assert.equal(manifest.releaseVersion, 'production-release-v2-2026-09-24');
 assert.equal(manifest.approvedLiveSourceSha, 'ba80538a912a3dd0f708fdd65a8823ed7988dbd6');
 assert.deepEqual(manifest.databaseMigrations, [
   '20260906033000_AddCompetitionActivityModuleCode',
@@ -32,16 +32,21 @@ const expectedApplicationFiles = [
   'backend/StackMeet.Api/wwwroot/js/reports/FinalsReportEngine.js',
   'backend/StackMeet.Api/wwwroot/js/storage/StackerApi.js',
   'backend/StackMeet.Api/wwwroot/results/index.html',
+  'backend/StackMeet.Api/wwwroot/app.js',
   'backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll'
 ];
 assert.deepEqual(manifest.applicationFiles.map(item => item.source), expectedApplicationFiles);
-assert.equal(manifest.applicationFiles.length, 10);
-assert.equal(manifest.applicationFiles.filter(item => item.expectedLiveState === 'present').length, 5);
+assert.equal(manifest.applicationFiles.length, 11);
+assert.equal(manifest.applicationFiles.filter(item => item.expectedLiveState === 'present').length, 6);
 assert.equal(manifest.applicationFiles.filter(item => item.expectedLiveState === 'absent').length, 5);
+const appJs = manifest.applicationFiles.find(item => item.remote === '/wwwroot/app.js');
+assert.ok(appJs, 'team-integrity app.js must be in the governed release set');
+assert.equal(appJs.expectedLiveState, 'present');
+assert.equal(appJs.deployOrder, 95);
 assert.equal(manifest.applicationFiles.at(-1).remote, '/StackMeet.Api.dll');
 assert.equal(manifest.applicationFiles.at(-1).deployOrder, 100);
-assert.equal(new Set(manifest.applicationFiles.map(item => item.remote)).size, 10, 'remote paths must be unique');
-assert.equal(new Set(manifest.applicationFiles.map(item => item.deployOrder)).size, 10, 'deploy order values must be unique');
+assert.equal(new Set(manifest.applicationFiles.map(item => item.remote)).size, 11, 'remote paths must be unique');
+assert.equal(new Set(manifest.applicationFiles.map(item => item.deployOrder)).size, 11, 'deploy order values must be unique');
 for (const item of manifest.applicationFiles) {
   assert.ok(item.remote === '/StackMeet.Api.dll' || item.remote.startsWith('/wwwroot/'), 'unexpected remote path: ' + item.remote);
   assert.ok(!/web\.config$|appsettings.*\.json$|\.sql$/i.test(item.source), 'forbidden deploy source: ' + item.source);
@@ -103,6 +108,7 @@ assert.ok(deployOnly.includes('expected_live_dll_sha256'));
 const verifyOnly = w.slice(verifyStart);
 assert.ok(verifyOnly.includes("'POST_START_HTTP_VALIDATION=PASS'"));
 assert.ok(verifyOnly.includes("'RELEASE_V2_STATIC_ASSETS=PASS'"));
+assert.ok(verifyOnly.includes('Get200 "$b/app.js"|Out-Null'), 'verify must read back the deployed app.js asset');
 assert.ok(verifyOnly.includes("'PUBLIC_PROFILE_LINK_CONTRACT=PASS'"));
 assert.ok(verifyOnly.includes("'PRIVACY_CHECK=PASS'"));
 assert.ok(verifyOnly.includes("'PRODUCTION_WRITES=0'"));

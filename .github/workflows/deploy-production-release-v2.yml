@@ -140,7 +140,7 @@ jobs:
           $actualMigrationFiles=@($changed|Where-Object{$_ -match '^backend/StackMeet\.Api/Migrations/.+\.cs$' -and $_ -notmatch 'StackMeetDbContextModelSnapshot\.cs$'})
           SameSet $actualMigrationFiles $expectedMigrationFiles 'Database migration set'
           if(-not($changed -contains [string]$manifest.modelSnapshot)){throw 'Expected EF model snapshot change is missing'}
-          if(@($manifest.applicationFiles).Count -ne 10){throw 'Release v2 must contain exactly 10 application files'}
+          if(@($manifest.applicationFiles).Count -ne 11){throw 'Release v2 must contain exactly 11 application files'}
           if(@($manifest.databaseMigrations).Count -ne 3){throw 'Release v2 must contain exactly 3 database migrations'}
           'MASTER_EXACT_HEAD_GATE=PASS'; 'RELEASE_DELTA_ALLOWLIST=PASS'; 'PRODUCTION_CONNECTIONS=0'; 'PRODUCTION_WRITES=0'
 
@@ -178,11 +178,11 @@ jobs:
           $migrationHash=(Get-FileHash -LiteralPath $sql -Algorithm SHA256).Hash.ToUpper()
           $dllHash=($resolved|Where-Object{$_.remote -ceq '/StackMeet.Api.dll'}).sha256
           "RELEASE_MANIFEST_SHA256=$manifestHash"; "MIGRATION_PACKAGE_SHA256=$migrationHash"; "TARGET_DLL_SHA256=$dllHash"
-          'RELEASE_FILE_COUNT=10'; 'MIGRATION_COUNT=3'; 'PRODUCTION_CONNECTIONS=0'; 'PRODUCTION_WRITES=0'
+          'RELEASE_FILE_COUNT=11'; 'MIGRATION_COUNT=3'; 'PRODUCTION_CONNECTIONS=0'; 'PRODUCTION_WRITES=0'
           "## Production Release v2 preflight" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Source: $env:DEPLOY_SHA" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Approved live baseline source: $env:LIVE_SHA" | Add-Content $env:GITHUB_STEP_SUMMARY
-          "Application files: 10; migrations: 3" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "Application files: 11; migrations: 3" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Resolved manifest SHA256: $manifestHash" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Migration package SHA256: $migrationHash" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Target DLL SHA256: $dllHash" | Add-Content $env:GITHUB_STEP_SUMMARY
@@ -337,7 +337,7 @@ jobs:
           $written=[System.Collections.Generic.List[object]]::new()
           try{
             foreach($item in @($manifest.applicationFiles|Sort-Object deployOrder)){$source=[string]$item.source;$remote=[string]$item.remote;$expectedState=[string]$item.expectedLiveState;$localHash=(Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToUpper();Stor $source $remote;$written.Add([pscustomobject]@{remote=$remote;expectedLiveState=$expectedState;localHash=$localHash})|Out-Null;$check=Join-Path $backupDir ("after-{0:D2}.bin"-f$written.Count);if(-not(RetrMaybe $remote $check)){throw "Post-upload RETR failed: $remote"};$remoteHash=(Get-FileHash -LiteralPath $check -Algorithm SHA256).Hash.ToUpper();if($remoteHash -cne $localHash){throw "Post-upload hash mismatch: $remote"}}
-            'RELEASE_V2_APPLICATION_DEPLOYMENT=PASS';'POST_UPLOAD_FILE_COUNT=10';'POOL_STATE=STOPPED-MANUAL-START-REQUIRED'
+            'RELEASE_V2_APPLICATION_DEPLOYMENT=PASS';'POST_UPLOAD_FILE_COUNT=11';'POOL_STATE=STOPPED-MANUAL-START-REQUIRED'
           }catch{
             $first=$_.Exception.Message;$rollbackOk=$true;$rollbackErrors=[System.Collections.Generic.List[string]]::new()
             for($i=$written.Count-1;$i-ge0;$i--){$entry=$written[$i];try{if($entry.expectedLiveState -ceq 'present'){$backup=[string]$backups[$entry.remote];Stor $backup $entry.remote;$verify=Join-Path $backupDir ("rollback-{0:D2}.bin"-f$i);if(-not(RetrMaybe $entry.remote $verify)){throw 'Rollback RETR failed'};$beforeHash=(Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash.ToUpper();$afterHash=(Get-FileHash -LiteralPath $verify -Algorithm SHA256).Hash.ToUpper();if($afterHash -cne $beforeHash){throw 'Rollback hash mismatch'}}else{DeleteRemote $entry.remote;$verifyAbsent=Join-Path $backupDir ("rollback-absent-{0:D2}.bin"-f$i);if(RetrMaybe $entry.remote $verifyAbsent){throw 'Rollback delete verification failed'}}}catch{$rollbackOk=$false;$rollbackErrors.Add("$($entry.remote): $($_.Exception.Message)")|Out-Null}}
@@ -366,7 +366,7 @@ jobs:
           function Get200($u){$r=Invoke-WebRequest $u -TimeoutSec 30 -MaximumRedirection 5;if($r.StatusCode-ne200){throw "$u returned $($r.StatusCode)"};return$r}
           function CountCheck($a,$e,$n){$actual=@($a).Count;if([string]::IsNullOrWhiteSpace($e)){return$actual};$x=0;if(-not[int]::TryParse($e,[ref]$x)-or$x-lt0){throw "Invalid $n count"};if($actual-ne$x){Write-Output "::warning title=Production data count drift::$n expected $x but live is $actual";if($enforce){throw "$n count mismatch"}};return$actual}
           function Privacy($v,$p='$'){if($null-eq$v){return};$bad=@('password','passwordhash','apikey','token','resettoken','securitystamp','connectionstring','connectionstrings','adminkey','birthdate','email','phone');if($v-is[pscustomobject]){foreach($q in $v.PSObject.Properties){if($bad-icontains$q.Name){throw "Forbidden key $($q.Name) at $p"};Privacy $q.Value "$p.$($q.Name)"}}elseif($v-is[Collections.IDictionary]){foreach($k in $v.Keys){if($bad-icontains[string]$k){throw "Forbidden key $k at $p"};Privacy $v[$k] "$p.$k"}}elseif($v-is[Collections.IEnumerable]-and$v-isnot[string]){foreach($i in $v){Privacy $i $p}}}
-          $b=$env:PRODUCTION_BASE_URL.TrimEnd('/');Get200 "$b/api/health"|Out-Null;Get200 "$b/api/version"|Out-Null;Get200 "$b/results/profile-links.js"|Out-Null;Get200 "$b/profile/index.html"|Out-Null;Get200 "$b/profile/profile.js"|Out-Null;Get200 "$b/js/reports/FinalsRankingPolicy.js"|Out-Null
+          $b=$env:PRODUCTION_BASE_URL.TrimEnd('/');Get200 "$b/api/health"|Out-Null;Get200 "$b/api/version"|Out-Null;Get200 "$b/results/profile-links.js"|Out-Null;Get200 "$b/profile/index.html"|Out-Null;Get200 "$b/profile/profile.js"|Out-Null;Get200 "$b/app.js"|Out-Null;Get200 "$b/js/reports/FinalsRankingPolicy.js"|Out-Null
           $id=[Uri]::EscapeDataString($env:CID.Trim());$j=(Get200 "$b/api/public/competitions/$id/results").Content|ConvertFrom-Json -Depth 100
           foreach($n in 'settings','translations','results','stackers','doubles','relays'){if(-not($j.PSObject.Properties.Name-contains$n)){throw "Missing $n"}};Privacy $j
           $links=(Get200 "$b/api/public/competitions/$id/profile-links").Content|ConvertFrom-Json -Depth 50;if(-not($links.PSObject.Properties.Name-contains'links')){throw 'Missing profile-links links collection'};Privacy $links
