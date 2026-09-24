@@ -1,5 +1,5 @@
 {
-  "releaseVersion": "production-release-v2-2026-09-18",
+  "releaseVersion": "production-release-v2-2026-09-24",
   "approvedLiveSourceSha": "ba80538a912a3dd0f708fdd65a8823ed7988dbd6",
   "databaseMigrations": [
     "20260906033000_AddCompetitionActivityModuleCode",
@@ -61,6 +61,12 @@
       "remote": "/wwwroot/results/index.html",
       "expectedLiveState": "present",
       "deployOrder": 90
+    },
+    {
+      "source": "backend/StackMeet.Api/wwwroot/app.js",
+      "remote": "/wwwroot/app.js",
+      "expectedLiveState": "present",
+      "deployOrder": 95
     },
     {
       "source": "backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll",
