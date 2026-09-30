@@ -156,7 +156,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
-          dotnet tool install --global dotnet-ef --version $env:DOTNET_EF_VERSION
+          $tools=Get-Content -LiteralPath .config/dotnet-tools.json -Raw|ConvertFrom-Json
+          if($tools.tools.'dotnet-ef'.version -cne $env:DOTNET_EF_VERSION){throw 'EF tool manifest version must match the governed release version'}
+          dotnet tool restore --tool-manifest .config/dotnet-tools.json
           if($LASTEXITCODE){exit $LASTEXITCODE}
           $out=Join-Path $env:RUNNER_TEMP 'production-release-v2'; New-Item -ItemType Directory -Force -Path $out|Out-Null
           $sql=Join-Path $out 'migrations.idempotent.sql'
