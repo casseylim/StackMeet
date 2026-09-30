@@ -15,6 +15,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers();
 builder.Services.AddNadiTrackActivityModules();
+builder.Services.AddSportStackingIdentityProfileServices();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
@@ -67,6 +68,7 @@ builder.Services.AddSingleton<SessionTokenService>();
 builder.Services.AddSingleton<PasswordHashService>();
 builder.Services.AddScoped<CompetitionPermissionService>();
 builder.Services.AddScoped<CompetitionParticipantReferenceService>();
+builder.Services.AddScoped<CompetitionTeamResultIntegrityService>();
 builder.Services.AddScoped<AccountTokenService>();
 builder.Services.AddHttpClient<AccountEmailService>(client =>
 {

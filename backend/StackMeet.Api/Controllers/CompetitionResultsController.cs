@@ -12,7 +12,7 @@ namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/results")]
-public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, IHubContext<ResultsHub> resultsHub, ILogger<CompetitionResultsController> logger) : ControllerBase
+public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, CompetitionTeamResultIntegrityService teamResults, IHubContext<ResultsHub> resultsHub, ILogger<CompetitionResultsController> logger) : ControllerBase
 {
     const int CandidateParticipantChunkSize = 300;
 
@@ -41,6 +41,22 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         var competition = await database.Competitions.FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {competitionId}").SingleOrDefaultAsync(ct);
         if (competition is null) return NotFound();
         if (competition.Status is "Closed" or "Archived" || competition.ArchivedAt is not null) return Conflict(new { error = "Results cannot be changed for a closed or archived competition." });
+
+        if (request.Upserts.Any(item => item.Type is "Doubles" or "Timed Relay"))
+        {
+            var stateJson = await database.CompetitionStates
+                .AsNoTracking()
+                .Where(item => item.CompetitionKey == competition.CompetitionKey)
+                .Select(item => item.JsonData)
+                .SingleOrDefaultAsync(ct);
+            var teamValidationError = await teamResults.ValidateResultUpsertsAsync(
+                competitionId,
+                stateJson,
+                request.Upserts,
+                ct);
+            if (teamValidationError is not null) return BadRequest(new { error = teamValidationError });
+        }
+
         var individualCodes = request.Upserts.Concat(request.Deletes.Where(item => item.Type.Equals("Individual", StringComparison.OrdinalIgnoreCase)).Select(item => new ResultUpsertRequest(item.Stage, item.Type, item.Participant, item.Event, [], 0, item.ExpectedRevision))).Where(item => item.Type.Equals("Individual", StringComparison.OrdinalIgnoreCase)).Select(item => item.Participant).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (individualCodes.Length > 0 && await database.Stackers.CountAsync(item => item.CompetitionId == competitionId && individualCodes.Contains(item.StackerCode), ct) != individualCodes.Length) return BadRequest(new { error = "Individual result participant must belong to this competition." });
         var keys = request.Upserts.Select(Key).Concat(request.Deletes.Select(Key)).ToArray();

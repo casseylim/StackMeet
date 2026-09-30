@@ -66,13 +66,30 @@ assert.match(architecture, /Archived/);
 
 // SP-3B is the reviewed publication phase. The SP-3A service may only be exposed
 // through the one privacy-preserving public controller; all other controller use is forbidden.
+// Later additive publication phases may enrich a confirmed public profile, but the original
+// not-found boundary must execute before any enrichment service is consulted.
 const controllersDir = path.join(root, 'backend/StackMeet.Api/Controllers');
 for (const file of fs.readdirSync(controllersDir).filter(name => name.endsWith('.cs'))) {
   const controller = fs.readFileSync(path.join(controllersDir, file), 'utf8');
   if (!controller.includes('SportStackerCareerProfileService')) continue;
   assert.strictEqual(file, 'PublicStackerProfilesController.cs', `Unexpected career profile controller exposure: ${file}`);
   assert.match(controller, /Route\("api\/public\/stackers\/\{nadiTrackId\}"\)/);
-  assert.match(controller, /profile is null \? NotFound\(\) : Ok\(profile\)/);
+  assert.match(controller, /var profile = await profiles\.GetPublicAsync\(nadiTrackId, ct\);/);
+  assert.match(controller, /if \(profile is null\) return NotFound\(\);/);
+  assert.match(controller, /return Ok\(profile\);/);
+
+  const profileRead = controller.indexOf('var profile = await profiles.GetPublicAsync(nadiTrackId, ct);');
+  const notFoundBoundary = controller.indexOf('if (profile is null) return NotFound();');
+  const enrichmentRead = controller.indexOf('finalsPlacements.GetPublicEligibleAsync');
+  const okBoundary = controller.indexOf('return Ok(profile);');
+  assert.ok(profileRead >= 0 && notFoundBoundary > profileRead,
+    'SP-3A public profile existence check must follow the canonical public career lookup.');
+  if (enrichmentRead >= 0) {
+    assert.ok(enrichmentRead > notFoundBoundary,
+      'later public-profile enrichment must never run before the SP-3A private/not-found boundary.');
+  }
+  assert.ok(okBoundary > notFoundBoundary,
+    'successful public profile response must remain after the private/not-found boundary.');
 }
 
 console.log('SP-3A public career profile guards passed.');

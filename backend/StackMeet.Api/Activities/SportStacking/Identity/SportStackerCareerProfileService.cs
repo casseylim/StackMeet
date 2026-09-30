@@ -157,8 +157,10 @@ public sealed class SportStackerCareerProfileService(StackMeetDbContext database
             tournamentHistory,
             careerProgression,
             finalsCareer,
-            personalRecords,
-            personalBests);
+            personalBests)
+        {
+            PersonalRecords = personalRecords
+        };
     }
 
     private static IReadOnlyList<SportStackerEventProgression> BuildCareerProgression(

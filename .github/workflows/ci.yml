@@ -56,6 +56,14 @@ jobs:
           dotnet restore tests/StackerFinalsCareerTests/StackerFinalsCareerTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingGovernancePersistenceTests/StackerFinalsRankingGovernancePersistenceTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsRankingCertificationActivationTests/StackerFinalsRankingCertificationActivationTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsHistoricalPlacementProjectionTests/StackerFinalsHistoricalPlacementProjectionTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerFinalsPlacementCareerReadModelTests/StackerFinalsPlacementCareerReadModelTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerPublicFinalsPlacementContractTests/StackerPublicFinalsPlacementContractTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerPublicFinalsPlacementIntegrationTests/StackerPublicFinalsPlacementIntegrationTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerTeamCareerReadModelTests/StackerTeamCareerReadModelTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerPublicTeamCareerContractTests/StackerPublicTeamCareerContractTests.csproj --configfile NuGet.Config
+          dotnet restore tests/StackerPublicTeamCareerIntegrationTests/StackerPublicTeamCareerIntegrationTests.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
@@ -104,6 +112,30 @@ jobs:
 
       - name: Run SP-4I governed Finals v2 certification readiness tests
         run: dotnet run --project tests/StackerFinalsRankingCertificationReadinessTests/StackerFinalsRankingCertificationReadinessTests.csproj -c Release --no-restore
+
+      - name: Run SP-4J governed Finals v2 snapshot certification activation tests
+        run: dotnet run --project tests/StackerFinalsRankingCertificationActivationTests/StackerFinalsRankingCertificationActivationTests.csproj -c Release --no-restore
+
+      - name: Run SP-4K immutable historical Finals placement projection tests
+        run: dotnet run --project tests/StackerFinalsHistoricalPlacementProjectionTests/StackerFinalsHistoricalPlacementProjectionTests.csproj -c Release --no-restore
+
+      - name: Run SP-4L identity-linked Finals placement career read-model tests
+        run: dotnet run --project tests/StackerFinalsPlacementCareerReadModelTests/StackerFinalsPlacementCareerReadModelTests.csproj -c Release --no-restore
+
+      - name: Run SP-4M public Finals placement publication contract tests
+        run: dotnet run --project tests/StackerPublicFinalsPlacementContractTests/StackerPublicFinalsPlacementContractTests.csproj -c Release --no-restore
+
+      - name: Run SP-4N public Finals placement integration tests
+        run: dotnet run --project tests/StackerPublicFinalsPlacementIntegrationTests/StackerPublicFinalsPlacementIntegrationTests.csproj -c Release --no-restore
+
+      - name: Run SP-4Q identity-linked team career read-model tests
+        run: dotnet run --project tests/StackerTeamCareerReadModelTests/StackerTeamCareerReadModelTests.csproj -c Release --no-restore
+
+      - name: Run SP-4R public team career publication contract tests
+        run: dotnet run --project tests/StackerPublicTeamCareerContractTests/StackerPublicTeamCareerContractTests.csproj -c Release --no-restore
+
+      - name: Run SP-4S public team career integration tests
+        run: dotnet run --project tests/StackerPublicTeamCareerIntegrationTests/StackerPublicTeamCareerIntegrationTests.csproj -c Release --no-restore
 
       - name: Run CoreIntegrity LocalDB integration tests
         run: dotnet run --project tests/CoreIntegrityIntegrationTests/CoreIntegrityIntegrationTests.csproj -c Release --no-restore

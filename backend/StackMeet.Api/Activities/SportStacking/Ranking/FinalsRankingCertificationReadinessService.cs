@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Activities;
 using StackMeet.Api.Data;
+using StackMeet.Api.Models;
 
 namespace StackMeet.Api.Activities.SportStacking.Ranking;
 
@@ -31,6 +32,70 @@ public sealed record FinalsRankingCertificationReadiness(
     long? SourceStateRevision,
     long? SourceResultsRevision,
     int FinalsResultCount);
+
+internal sealed record FinalsRankingCertificationResultEvidence(long Revision, string AttemptsJson);
+
+internal static class FinalsRankingCertificationEvidenceValidator
+{
+    public static IReadOnlyList<string> Validate(
+        CompetitionState? state,
+        long competitionResultsRevision,
+        IReadOnlyCollection<FinalsRankingCertificationResultEvidence> finalsResults)
+    {
+        var blockers = new List<string>();
+
+        if (state is null)
+        {
+            blockers.Add(FinalsRankingCertificationBlockers.CompetitionStateMissing);
+        }
+        else
+        {
+            if (state.StateRevision <= 0)
+                blockers.Add(FinalsRankingCertificationBlockers.StateRevisionInvalid);
+            if (!IsJsonObject(state.JsonData))
+                blockers.Add(FinalsRankingCertificationBlockers.CompetitionStateMalformed);
+        }
+
+        if (finalsResults.Any(item => item.Revision <= 0 || item.Revision > competitionResultsRevision))
+            blockers.Add(FinalsRankingCertificationBlockers.ResultRevisionInconsistent);
+
+        if (finalsResults.Any(item => !IsNumericJsonArray(item.AttemptsJson)))
+            blockers.Add(FinalsRankingCertificationBlockers.ResultAttemptsMalformed);
+
+        return blockers;
+    }
+
+    static bool IsJsonObject(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Object;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    static bool IsNumericJsonArray(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array) return false;
+            foreach (var value in document.RootElement.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out _)) return false;
+            }
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+}
 
 /// <summary>
 /// SP-4I advisory boundary that proves whether a finalized Sport Stacking competition has
@@ -104,34 +169,20 @@ public sealed class FinalsRankingCertificationReadinessService(StackMeetDbContex
         if (governance?.HasSnapshot == true)
             blockers.Add(FinalsRankingCertificationBlockers.SnapshotAlreadyCaptured);
 
-        long? stateRevision = null;
         var state = await database.CompetitionStates
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.CompetitionKey == competition.CompetitionKey, ct);
-        if (state is null)
-        {
-            blockers.Add(FinalsRankingCertificationBlockers.CompetitionStateMissing);
-        }
-        else
-        {
-            stateRevision = state.StateRevision;
-            if (state.StateRevision <= 0)
-                blockers.Add(FinalsRankingCertificationBlockers.StateRevisionInvalid);
-            if (!IsJsonObject(state.JsonData))
-                blockers.Add(FinalsRankingCertificationBlockers.CompetitionStateMalformed);
-        }
 
         var finalsResults = await database.CompetitionResults
             .AsNoTracking()
             .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
-            .Select(item => new { item.Revision, item.AttemptsJson })
+            .Select(item => new FinalsRankingCertificationResultEvidence(item.Revision, item.AttemptsJson))
             .ToListAsync(ct);
 
-        if (finalsResults.Any(item => item.Revision <= 0 || item.Revision > competition.ResultsRevision))
-            blockers.Add(FinalsRankingCertificationBlockers.ResultRevisionInconsistent);
-
-        if (finalsResults.Any(item => !IsNumericJsonArray(item.AttemptsJson)))
-            blockers.Add(FinalsRankingCertificationBlockers.ResultAttemptsMalformed);
+        blockers.AddRange(FinalsRankingCertificationEvidenceValidator.Validate(
+            state,
+            competition.ResultsRevision,
+            finalsResults));
 
         return Build(
             competition.Id,
@@ -139,7 +190,7 @@ public sealed class FinalsRankingCertificationReadinessService(StackMeetDbContex
             explicitRuleSelection: governance is not null,
             snapshotAlreadyCaptured: governance?.HasSnapshot == true,
             blockers,
-            stateRevision,
+            state?.StateRevision,
             competition.ResultsRevision,
             finalsResults.Count);
     }
@@ -171,35 +222,4 @@ public sealed class FinalsRankingCertificationReadinessService(StackMeetDbContex
     static bool IsSportStackingCompetition(string? activityModuleCode) =>
         string.IsNullOrWhiteSpace(activityModuleCode)
         || activityModuleCode.Equals(SportStackingActivityModule.ModuleCode, StringComparison.OrdinalIgnoreCase);
-
-    static bool IsJsonObject(string json)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement.ValueKind == JsonValueKind.Object;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    static bool IsNumericJsonArray(string json)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Array) return false;
-            foreach (var value in document.RootElement.EnumerateArray())
-            {
-                if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out _)) return false;
-            }
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
 }

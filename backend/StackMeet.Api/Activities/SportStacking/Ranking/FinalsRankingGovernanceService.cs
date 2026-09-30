@@ -61,13 +61,15 @@ public sealed record FinalsRankingEffectiveRule(
 /// used by a finalized Sport Stacking competition.
 /// </summary>
 /// <remarks>
-/// SP-4G intentionally has no controller/UI wiring for rule selection or capture. SP-4H adds a
-/// read-only effective-rule projection through this service while keeping activity-specific
-/// eligibility inside the Sport Stacking ranking boundary.
+/// SP-4G established the durable immutable source snapshot. SP-4H made event-level operator
+/// Finals version-aware. SP-4J adds an explicit governed-v2 certification method while keeping
+/// the original generic capture method fail-closed for v2 compatibility.
 /// </remarks>
 public sealed class FinalsRankingGovernanceService(StackMeetDbContext database)
 {
-    public const string SnapshotSchemaVersion = "finals-ranking-source-v1";
+    public const string LegacySnapshotSchemaVersion = "finals-ranking-source-v1";
+    public const string SnapshotSchemaVersion = LegacySnapshotSchemaVersion;
+    public const string GovernedV2SnapshotSchemaVersion = "finals-ranking-source-v2";
 
     static readonly JsonSerializerOptions SnapshotJsonOptions = new()
     {
@@ -144,10 +146,28 @@ WHERE [CompetitionId] = {competitionId}
         return selected;
     }
 
-    public async Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotAsync(
+    public Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotAsync(
         int competitionId,
         int? actorUserId,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        CaptureFinalizedSnapshotCoreAsync(competitionId, actorUserId, certifyGovernedV2: false, ct);
+
+    /// <summary>
+    /// SP-4J explicit certification boundary for governed-finals-v2. The SP-4I source-evidence
+    /// rules are re-evaluated after the competition/governance/state locks are acquired and before
+    /// the immutable snapshot is written in the same serializable transaction.
+    /// </summary>
+    public Task<FinalsRankingGovernanceRecord> CertifyGovernedV2SnapshotAsync(
+        int competitionId,
+        int? actorUserId,
+        CancellationToken ct = default) =>
+        CaptureFinalizedSnapshotCoreAsync(competitionId, actorUserId, certifyGovernedV2: true, ct);
+
+    async Task<FinalsRankingGovernanceRecord> CaptureFinalizedSnapshotCoreAsync(
+        int competitionId,
+        int? actorUserId,
+        bool certifyGovernedV2,
+        CancellationToken ct)
     {
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var competition = await LockCompetitionAsync(competitionId, ct)
@@ -164,20 +184,48 @@ WHERE [CompetitionId] = {competitionId}
             ? FinalsRankingRuleVersions.LegacyFinalsV1
             : FinalsRankingRuleVersions.ResolveStored(governance.RuleVersion);
 
-        if (ruleVersion == FinalsRankingRuleVersions.GovernedFinalsV2)
+        if (certifyGovernedV2)
+        {
+            if (governance is null
+                || !string.Equals(ruleVersion, FinalsRankingRuleVersions.GovernedFinalsV2, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "governed-finals-v2 snapshot certification requires an explicit persisted governed-finals-v2 rule selection.");
+            }
+        }
+        else if (ruleVersion == FinalsRankingRuleVersions.GovernedFinalsV2)
         {
             throw new InvalidOperationException(
                 "governed-finals-v2 snapshot capture is blocked until a later phase makes the operator Finals engine version-aware and proves v2 was actually applied.");
         }
 
-        var state = await LockCompetitionStateAsync(competition.CompetitionKey, ct)
-            ?? throw new InvalidOperationException("CompetitionState is required to preserve the authoritative competition-time division snapshot.");
+        var state = await LockCompetitionStateAsync(competition.CompetitionKey, ct);
+        var finalsResultEntities = await database.CompetitionResults
+            .AsNoTracking()
+            .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
+            .ToListAsync(ct);
+
+        if (certifyGovernedV2)
+        {
+            var certificationBlockers = FinalsRankingCertificationEvidenceValidator.Validate(
+                state,
+                competition.ResultsRevision,
+                finalsResultEntities
+                    .Select(item => new FinalsRankingCertificationResultEvidence(item.Revision, item.AttemptsJson))
+                    .ToArray());
+
+            if (certificationBlockers.Count != 0)
+            {
+                throw new InvalidOperationException(
+                    $"governed-finals-v2 snapshot certification blocked: {string.Join(",", certificationBlockers)}.");
+            }
+        }
+
+        if (state is null)
+            throw new InvalidOperationException("CompetitionState is required to preserve the authoritative competition-time division snapshot.");
         var stateRoot = ParseStateObject(state.JsonData);
 
-        var finalsResults = (await database.CompetitionResults
-                .AsNoTracking()
-                .Where(item => item.CompetitionId == competition.Id && item.Stage == "Finals")
-                .ToListAsync(ct))
+        var finalsResults = finalsResultEntities
             .OrderBy(item => item.ParticipantType, StringComparer.Ordinal)
             .ThenBy(item => item.ParticipantCode, StringComparer.Ordinal)
             .ThenBy(item => item.EventCode, StringComparer.Ordinal)
@@ -192,24 +240,41 @@ WHERE [CompetitionId] = {competitionId}
                 item.Revision))
             .ToArray();
 
-        var envelope = new FinalsRankingSourceSnapshot(
-            SnapshotSchemaVersion,
-            ruleVersion,
-            new FinalsSnapshotCompetition(
-                competition.CompetitionCode,
-                competition.CompetitionKey,
-                string.IsNullOrWhiteSpace(competition.ActivityModuleCode)
-                    ? SportStackingActivityModule.ModuleCode
-                    : competition.ActivityModuleCode.Trim(),
-                competition.Status,
-                competition.StartDate,
-                competition.EndDate,
-                state.StateRevision,
-                competition.ResultsRevision),
-            stateRoot,
-            finalsResults);
+        var competitionSnapshot = new FinalsSnapshotCompetition(
+            competition.CompetitionCode,
+            competition.CompetitionKey,
+            string.IsNullOrWhiteSpace(competition.ActivityModuleCode)
+                ? SportStackingActivityModule.ModuleCode
+                : competition.ActivityModuleCode.Trim(),
+            competition.Status,
+            competition.StartDate,
+            competition.EndDate,
+            state.StateRevision,
+            competition.ResultsRevision);
 
-        var snapshotJson = JsonSerializer.Serialize(envelope, SnapshotJsonOptions);
+        var snapshotSchemaVersion = certifyGovernedV2
+            ? GovernedV2SnapshotSchemaVersion
+            : LegacySnapshotSchemaVersion;
+
+        var snapshotJson = certifyGovernedV2
+            ? JsonSerializer.Serialize(
+                new GovernedV2FinalsRankingSourceSnapshot(
+                    GovernedV2SnapshotSchemaVersion,
+                    ruleVersion,
+                    FinalsRankingCertificationReadinessService.OperatorContractVersion,
+                    competitionSnapshot,
+                    stateRoot,
+                    finalsResults),
+                SnapshotJsonOptions)
+            : JsonSerializer.Serialize(
+                new FinalsRankingSourceSnapshot(
+                    LegacySnapshotSchemaVersion,
+                    ruleVersion,
+                    competitionSnapshot,
+                    stateRoot,
+                    finalsResults),
+                SnapshotJsonOptions);
+
         var snapshotHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(snapshotJson)));
         var capturedAt = DateTime.UtcNow;
 
@@ -222,14 +287,14 @@ INSERT INTO [dbo].[FinalsRankingGovernance]
      [SnapshotJson], [SnapshotSha256], [SnapshotCapturedAt], [SnapshotCapturedByUserId])
 VALUES
     ({competitionId}, {ruleVersion}, {capturedAt}, {actorUserId},
-     {SnapshotSchemaVersion}, {state.StateRevision}, {competition.ResultsRevision},
+     {snapshotSchemaVersion}, {state.StateRevision}, {competition.ResultsRevision},
      {snapshotJson}, {snapshotHash}, {capturedAt}, {actorUserId});", ct);
         }
         else
         {
             var affected = await database.Database.ExecuteSqlInterpolatedAsync($@"
 UPDATE [dbo].[FinalsRankingGovernance]
-SET [SnapshotSchemaVersion] = {SnapshotSchemaVersion},
+SET [SnapshotSchemaVersion] = {snapshotSchemaVersion},
     [SourceStateRevision] = {state.StateRevision},
     [SourceResultsRevision] = {competition.ResultsRevision},
     [SnapshotJson] = {snapshotJson},
@@ -341,6 +406,14 @@ WHERE [CompetitionId] = @competitionId;";
     sealed record FinalsRankingSourceSnapshot(
         string SchemaVersion,
         string RuleVersion,
+        FinalsSnapshotCompetition Competition,
+        JsonElement CompetitionState,
+        IReadOnlyList<FinalsSnapshotResult> FinalsResults);
+
+    sealed record GovernedV2FinalsRankingSourceSnapshot(
+        string SchemaVersion,
+        string RuleVersion,
+        string OperatorContractVersion,
         FinalsSnapshotCompetition Competition,
         JsonElement CompetitionState,
         IReadOnlyList<FinalsSnapshotResult> FinalsResults);

@@ -191,9 +191,35 @@ SP-4I adds no public/controller endpoint, no schema migration, no historical ran
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP4I.md`.
 
+## SP-4J — Governed Finals v2 Snapshot Certification Activation
+
+SP-4J adds an explicit certification seam for finalized competitions that persisted `governed-finals-v2` before finalization.
+
+The new certification path re-evaluates the SP-4I source-evidence rules after acquiring the existing serializable competition/governance/state locks and before writing the immutable source snapshot. The original generic snapshot method deliberately remains fail-closed for v2, so old callers cannot acquire certification behavior implicitly.
+
+A successful v2 certification persists the governing rule, exact state/results revisions, competition-time state/division provenance, durable SQL Finals rows with raw attempts and penalties, capture actor/time and the SHA-256 of the canonical immutable payload. The database immutability trigger remains authoritative after capture.
+
+SP-4J adds no controller/API, no automatic close/archive capture, no schema migration and no historical placement, podium, medal or award publication.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4J.md`.
+
+## SP-4K — Immutable Historical Finals Placement Projection
+
+SP-4K adds a server-side, read-only historical Finals placement projector for certified `governed-finals-v2` evidence.
+
+The projector accepts only `finals-ranking-source-v2` snapshots whose SHA-256, rule version, source revisions and embedded `sp4h-event-finals-v1` operator-contract provenance are intact. It derives placement from the immutable snapshot only and deliberately does not read current `CompetitionState`, `CompetitionResult`, `Stacker` or permanent-identity data.
+
+Every projected rank is bound to one explicit cohort: Individual participant type, competition-snapshot division, event, category and gender. Category/gender filters are applied before ranking, matching the reviewed operator contract. Governed-v2 classification and tie rules remain server-owned, including finite-penalty official-best ordering, penalty-999 Scratch precedence and competition ranking gaps such as `1, 1, 3`.
+
+If competition-time participant metadata is insufficient to prove cohort membership, SP-4K fails closed instead of reconstructing history from current data. Legacy `finals-ranking-source-v1` evidence also fails closed because it does not contain the SP-4J operator-contract provenance required by this projector.
+
+SP-4K does **not** expose the projection through a controller or public profile, does not persist calculated placement, and does not publish podium, medal, award or record-holder claims. Public historical placement remains deferred until the identity-linked career read-model boundary is separately reviewed.
+
+Detailed design: `docs/architecture/STACKER_IDENTITY_SP4K.md`.
+
 ## SP-5A — Personal Record Achievement Summary
 
-SP-5A deliberately returns development focus to athlete-facing Personal Records while certificate generation and governed-v2 snapshot certification are deferred for later work.
+SP-5A deliberately returns development focus to athlete-facing Personal Records alongside the separately reviewed Finals and team-career features.
 
 The additive `PersonalRecords` projection summarizes each supported Individual event with:
 
@@ -208,7 +234,7 @@ The summary is derived on the server from the same `CareerProgression` projectio
 
 The existing `PersonalBests` API property remains intact for backward compatibility, and the public profile presents the richer information under **Personal Records**.
 
-SP-5A does not generate certificates, resume Finals snapshot certification, publish placements/medals/awards, add a schema migration, or alter ranking semantics.
+SP-5A does not generate certificates, change Finals snapshot certification, publish placements/medals/awards, add a schema migration, or alter ranking semantics.
 
 Detailed design: `docs/architecture/STACKER_IDENTITY_SP5A.md`.
 
@@ -228,14 +254,14 @@ The following remain outside Stacker Identity v1 phases completed to date unless
 - athlete directory/search and search-engine indexing;
 - Doubles/Relay permanent career statistics;
 - WSSA-ID uniqueness enforcement;
-- historical placement/medal/podium publication;
+- public historical placement/medal/podium publication;
 - All-Around career standing;
 - record-holder / official-record governance;
 - global or national ranking systems.
 
 ## Migration and deployment boundary
 
-SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I and SP-5A add no schema migration and only consume or project already-reviewed data boundaries.
+SP-1 introduced the identity schema. SP-2, SP-3A, SP-3B, SP-4A, SP-4B, SP-4C, SP-4D, SP-4E and SP-4F add no further schema migration. SP-4G introduces the isolated `FinalsRankingGovernance` persistence migration. SP-4H, SP-4I, SP-4J, SP-4K and SP-5A add no schema migration and only consume, assess, certify or project from that already-reviewed persistence boundary.
 
 These development phases do **not** apply the SP-4G migration to production, deploy production code, or mutate production data.
 
@@ -260,5 +286,7 @@ Integration tests use isolated generated LocalDB databases where required. Chara
 - SP-4F: Versioned Finals Ranking governance foundation — complete.
 - SP-4G: Persisted Finals Ranking snapshot and activation boundary — complete.
 - SP-4H: Operator Finals Ranking version activation — complete.
-- SP-4I: Governed Finals v2 certification readiness — complete; activation deferred.
+- SP-4I: Governed Finals v2 certification readiness — complete.
+- SP-4J: Governed Finals v2 snapshot certification activation — complete.
+- SP-4K: Immutable Historical Finals placement projection — complete.
 - SP-5A: Personal Record achievement summary — complete.

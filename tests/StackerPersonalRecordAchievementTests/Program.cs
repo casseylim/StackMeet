@@ -131,6 +131,16 @@ try
     Assert(profile.PersonalRecords.All(item => item.CurrentPersonalBest > 2m),
         "active/private competitions cannot contaminate public personal records");
 
+    var legacyProfile = new PublicSportStackerCareerProfile(
+        profile.NadiTrackId, profile.DisplayName, profile.Country, profile.Club, profile.Region,
+        profile.CompetitionCount, profile.FirstCompetitionDate, profile.LatestCompetitionDate,
+        profile.TournamentHistory, profile.CareerProgression, profile.FinalsCareer, profile.PersonalBests);
+    Assert(legacyProfile.PersonalRecords.Count == 0,
+        "legacy public profile constructors remain compatible with additive PersonalRecords");
+    var enrichedProfile = profile with { FinalsPlacements = null, TeamCareer = null };
+    Assert(ReferenceEquals(enrichedProfile.PersonalRecords, profile.PersonalRecords),
+        "Finals and Team Career enrichment retains PersonalRecords");
+
     var recordProperties = typeof(SportStackerPersonalRecordAchievement).GetProperties()
         .Select(item => item.Name)
         .ToHashSet(StringComparer.Ordinal);

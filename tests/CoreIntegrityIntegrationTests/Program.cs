@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
+using StackMeet.Api.Dtos;
 using StackMeet.Api.Services;
 
 const string server = @"(localdb)\MSSQLLocalDB";
@@ -55,6 +56,96 @@ try
     Assert(references.ContainsParticipant("{\"relays\":[", "1.1"), "malformed state fails closed for deletion safety");
     Assert(!references.ContainsParticipant("{\"doubles\":[{\"parentName\":\"1.7\"}]}", "1.7"), "external parent name is not a participant reference");
     Assert(!references.ContainsParticipant("{\"notes\":{\"membersText\":\"1.8\"}}", "1.8"), "unrelated text is not a participant reference");
+
+    var teamIntegrity = new CompetitionTeamResultIntegrityService(db);
+    var teamState = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\"},{\"id\":\"2.2\",\"one\":\"A1\",\"status\":\"pending\"},{\"id\":\"2.3\",\"type\":\"child_parent\",\"one\":\"A3\",\"parentName\":\"External Parent\"},{\"id\":\"2.4\",\"stackerOneId\":\"A1\",\"stackerTwoId\":\"A2\"},{\"id\":\"2.5\",\"one\":\"A3\",\"parentName\":\"Legacy External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]},{\"id\":\"3.2\",\"members\":[\"A1\",\"A2\",\"A3\"]},{\"id\":\"3.3\",\"one\":\"A1\",\"two\":\"A2\",\"three\":\"A3\",\"four\":\"A4\"}]}";
+    Assert(teamIntegrity.TryReadReadyTeams(teamState, out var readyTeams, out var teamStateError) && teamStateError is null, "team state parsed");
+    Assert(readyTeams.Doubles.SetEquals(new[] { "2.1", "2.3", "2.4", "2.5" }), "complete doubles detected including legacy aliases");
+    Assert(readyTeams.TimedRelays.SetEquals(new[] { "3.1", "3.3" }), "ready relays detected including legacy member slots");
+    Assert(teamIntegrity.ValidateResultUpserts(teamState, [new ResultUpsertRequest("Finals", "Doubles", "2.1", "Cycle", [8.123m], 0, null)]) is null, "valid doubles result team accepted");
+    Assert(teamIntegrity.ValidateResultUpserts(teamState, [new ResultUpsertRequest("Finals", "Doubles", "2.2", "Cycle", [8.123m], 0, null)]) is not null, "pending doubles result team rejected");
+    Assert(teamIntegrity.ValidateResultUpserts(teamState, [new ResultUpsertRequest("Finals", "Timed Relay", "3.1", "3-6-3", [20.123m], 0, null)]) is null, "valid relay result team accepted");
+    Assert(teamIntegrity.ValidateResultUpserts(teamState, [new ResultUpsertRequest("Finals", "Timed Relay", "3.2", "3-6-3", [20.123m], 0, null)]) is not null, "incomplete relay result team rejected");
+    Assert(!teamIntegrity.TryReadReadyTeams("{\"doubles\":[{\"id\":\"2.1\",\"two\":\"A2\"},{\"id\":\"2.1\",\"two\":\"A3\"}]}", out _, out var duplicateTeamError) && duplicateTeamError?.Contains("unique", StringComparison.OrdinalIgnoreCase) == true, "duplicate team IDs fail closed");
+    Assert(!teamIntegrity.TryReadReadyTeams("{\"relays\":[", out _, out var malformedTeamError) && malformedTeamError is not null, "malformed team state fails closed");
+
+    var teamCompetitionKey = $"TEAM_{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+    var teamCompetition = new StackMeet.Api.Models.Competition
+    {
+        CompetitionCode = teamCompetitionKey,
+        CompetitionKey = teamCompetitionKey,
+        CompetitionName = "Team Integrity",
+        Venue = "LocalDB",
+        StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+        EndDate = DateOnly.FromDateTime(DateTime.UtcNow),
+        Status = "Active",
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+    db.Competitions.Add(teamCompetition);
+    await db.SaveChangesAsync();
+    db.Stackers.AddRange(
+        new StackMeet.Api.Models.Stacker { CompetitionId = teamCompetition.Id, StackerCode = "A1", FirstName = "A", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+        new StackMeet.Api.Models.Stacker { CompetitionId = teamCompetition.Id, StackerCode = "A2", FirstName = "A", LastName = "Two", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+        new StackMeet.Api.Models.Stacker { CompetitionId = teamCompetition.Id, StackerCode = "A3", FirstName = "A", LastName = "Three", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+        new StackMeet.Api.Models.Stacker { CompetitionId = teamCompetition.Id, StackerCode = "A4", FirstName = "A", LastName = "Four", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+    await db.SaveChangesAsync();
+
+    Assert(await teamIntegrity.ValidateResultUpsertsAsync(
+        teamCompetition.Id,
+        teamState,
+        [new ResultUpsertRequest("Finals", "Doubles", "2.1", "Cycle", [8.123m], 0, null)]) is null,
+        "team result resolves to registered competition stackers");
+
+    var foreignMemberState = "{\"doubles\":[{\"id\":\"2.9\",\"one\":\"A1\",\"two\":\"FOREIGN\"}],\"relays\":[]}";
+    Assert(await teamIntegrity.ValidateResultUpsertsAsync(
+        teamCompetition.Id,
+        foreignMemberState,
+        [new ResultUpsertRequest("Finals", "Doubles", "2.9", "Cycle", [8.123m], 0, null)]) is not null,
+        "team result rejects member outside competition stackers");
+
+    var externalParentState = "{\"doubles\":[{\"id\":\"2.8\",\"one\":\"A3\",\"parentName\":\"External Parent\"}],\"relays\":[]}";
+    Assert(await teamIntegrity.ValidateResultUpsertsAsync(
+        teamCompetition.Id,
+        externalParentState,
+        [new ResultUpsertRequest("Finals", "Doubles", "2.8", "Cycle", [8.123m], 0, null)]) is null,
+        "child parent result links registered child while external parent remains external");
+
+    db.CompetitionResults.Add(new StackMeet.Api.Models.CompetitionResult
+    {
+        CompetitionId = teamCompetition.Id,
+        Stage = "Finals",
+        ParticipantType = "Doubles",
+        ParticipantCode = "2.1",
+        EventCode = "Cycle",
+        AttemptsJson = "[8.123]",
+        Penalty = 0,
+        Revision = 1,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    });
+    await db.SaveChangesAsync();
+
+    var metadataOnlyTeamState = teamState.Replace(
+        "{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\"}",
+        "{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"division\":\"12U\"}",
+        StringComparison.Ordinal);
+    Assert(await teamIntegrity.ValidateStateAgainstExistingResultsAsync(
+        teamCompetition.Id,
+        teamState,
+        metadataOnlyTeamState) is null,
+        "team metadata may change while result membership stays fixed");
+
+    var swappedMemberState = teamState.Replace(
+        "{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\"}",
+        "{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A3\"}",
+        StringComparison.Ordinal);
+    Assert(await teamIntegrity.ValidateStateAgainstExistingResultsAsync(
+        teamCompetition.Id,
+        teamState,
+        swappedMemberState) is not null,
+        "team members cannot change while SQL results reference team");
+
     await RunHttpAcceptanceAsync(builder.ConnectionString, db);
 
     Console.WriteLine("Assertions: passed");
@@ -104,7 +195,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
     await db.SaveChangesAsync();
     db.Stackers.Add(new StackMeet.Api.Models.Stacker { CompetitionId = other.Id, StackerCode = "B1", FirstName = "B", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
     await db.SaveChangesAsync();
-    db.Stackers.AddRange(new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A1", FirstName = "A", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A2", FirstName = "A", LastName = "Two", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A3", FirstName = "A", LastName = "Three", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
+    db.Stackers.AddRange(new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A1", FirstName = "A", LastName = "One", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A2", FirstName = "A", LastName = "Two", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A3", FirstName = "A", LastName = "Three", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now }, new StackMeet.Api.Models.Stacker { CompetitionId = competition.Id, StackerCode = "A4", FirstName = "A", LastName = "Four", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
     db.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState { CompetitionKey = key, JsonData = "{\"seed\":true}", SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now });
     await db.SaveChangesAsync();
 
@@ -129,11 +220,34 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
             throw new InvalidOperationException($"HTTP API did not become ready: {ready?.StatusCode}; body={body}; processExited={process.HasExited}");
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
-        var valid = "{\"doubles\":[{\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"members\":[\"A3\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
+        var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
         var saved = await PostState(client, key, originalEtag, valid); Assert(saved.StatusCode == HttpStatusCode.NoContent, "HTTP valid state save");
         var after = await client.GetAsync($"/api/state/{key}"); var afterJson = await after.Content.ReadAsStringAsync(); var newEtag = after.Headers.ETag?.Tag ?? throw new InvalidOperationException("Updated ETag missing."); Assert(afterJson == valid && newEtag == "\"2\"", "HTTP revision and ETag increment");
         var invalid = await PostState(client, key, newEtag, "{\"doubles\":[{\"participantCode\":\"MISSING\",\"two\":\"A2\"}]}"); var invalidBody = await invalid.Content.ReadAsStringAsync(); Assert(invalid.StatusCode == HttpStatusCode.BadRequest, $"HTTP missing participant rejected ({(int)invalid.StatusCode}: {invalidBody})"); var unchanged = await client.GetAsync($"/api/state/{key}"); Assert(await unchanged.Content.ReadAsStringAsync() == valid && unchanged.Headers.ETag?.Tag == newEtag, "HTTP rejected state unchanged");
         var wrongCompetition = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"B1\",\"two\":\"A2\"}]}"); Assert(wrongCompetition.StatusCode == HttpStatusCode.BadRequest, "HTTP wrong-competition participant rejected");
+
+        var referencedTeamResult = new StackMeet.Api.Models.CompetitionResult
+        {
+            CompetitionId = competition.Id,
+            PublicId = Guid.NewGuid(),
+            Stage = "Finals",
+            ParticipantType = "Doubles",
+            ParticipantCode = "2.1",
+            EventCode = "Cycle",
+            AttemptsJson = "[8.123]",
+            Penalty = 0,
+            Revision = 1,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        db.CompetitionResults.Add(referencedTeamResult);
+        await db.SaveChangesAsync();
+        var removeReferencedTeam = await PostState(client, key, newEtag, "{\"doubles\":[],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}]}");
+        Assert(removeReferencedTeam.StatusCode == HttpStatusCode.Conflict, "HTTP state cannot orphan existing doubles result");
+        var afterRejectedTeamRemoval = await client.GetAsync($"/api/state/{key}");
+        Assert(await afterRejectedTeamRemoval.Content.ReadAsStringAsync() == valid && afterRejectedTeamRemoval.Headers.ETag?.Tag == newEtag, "HTTP rejected team removal leaves state unchanged");
+        db.CompetitionResults.Remove(referencedTeamResult);
+        await db.SaveChangesAsync();
         var externalOnly = await PostState(client, key, newEtag, "{\"doubles\":[{\"one\":\"A1\",\"parentName\":\"External Parent\"}]}"); Assert(externalOnly.StatusCode == HttpStatusCode.NoContent, "HTTP external parent name ignored"); var currentEtag = (await client.GetAsync($"/api/state/{key}")).Headers.ETag!.Tag!;
         var stale = await PostState(client, key, newEtag, "{\"seed\":\"stale\"}"); Assert(stale.StatusCode == HttpStatusCode.Conflict && stale.Headers.ETag?.Tag == currentEtag, "HTTP OCC conflict preserved");
         var malformed = await PostState(client, key, currentEtag, "{malformed"); Assert(malformed.StatusCode == HttpStatusCode.BadRequest, "HTTP malformed JSON rejected");

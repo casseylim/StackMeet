@@ -4,7 +4,7 @@ Status: complete
 
 ## Purpose
 
-SP-5A returns the roadmap to athlete-facing personal records after the Finals ranking certification stream was deliberately deferred for later work.
+SP-5A adds athlete-facing personal records alongside the separately reviewed Finals placement and Team Career features on current master.
 
 The phase enriches the permanent public Stacker profile with a server-owned personal-record achievement summary for each supported Individual event:
 
@@ -60,6 +60,8 @@ SP-5A adds the additive `SportStackerPersonalRecordAchievement` projection and e
 
 The existing `PersonalBests` property remains unchanged for compatibility. SP-5A is additive rather than a replacement contract.
 
+`PersonalRecords` is an initialized additive property, preserving the existing public-profile constructor. The public controller's Finals placement and Team Career enrichment retains the personal-record summary.
+
 The personal-record projection deliberately excludes private/internal fields such as:
 
 - birth date;
@@ -98,15 +100,15 @@ The existing public-profile protections remain mandatory:
 SP-5A does **not**:
 
 - generate certificates;
-- resume governed-v2 Finals snapshot certification;
-- publish placement, podium, medals or awards;
+- change governed-v2 Finals snapshot certification;
+- introduce placement, podium, medal or award publication;
 - publish record-holder or official-record claims;
 - change Prelims/Finals ranking semantics;
-- add Doubles or Relay career records;
+- change the separately reviewed Doubles or Relay career records;
 - add a schema migration;
 - mutate production data.
 
-Certificate generation and governed Finals certification remain separate deferred work streams.
+Certificate generation remains deferred. Existing governed Finals certification, placement publication and Team Career behavior remain intact.
 
 ## Tests
 
