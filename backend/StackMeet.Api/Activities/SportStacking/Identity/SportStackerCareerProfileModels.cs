@@ -15,6 +15,27 @@ public sealed record SportStackerPersonalBest(
     string Stage);
 
 /// <summary>
+/// Achievement summary for one supported Individual event. The server derives this from the same
+/// finalized public tournament-best progression that powers Career Progress so presentation code
+/// never needs to recalculate personal-record milestones.
+/// </summary>
+public sealed record SportStackerPersonalRecordAchievement(
+    string EventCode,
+    decimal FirstRecordedPersonalBest,
+    decimal CurrentPersonalBest,
+    decimal TotalImprovement,
+    int PersonalBestMilestoneCount,
+    int FinalizedPerformanceCount,
+    string FirstPersonalBestCompetitionKey,
+    string FirstPersonalBestCompetitionName,
+    DateOnly FirstPersonalBestDate,
+    string FirstPersonalBestStage,
+    string CurrentPersonalBestCompetitionKey,
+    string CurrentPersonalBestCompetitionName,
+    DateOnly CurrentPersonalBestDate,
+    string CurrentPersonalBestStage);
+
+/// <summary>
 /// One finalized public tournament performance for an individual event.
 /// This is competition-history data only; no private registration attributes are exposed.
 /// </summary>
@@ -104,6 +125,10 @@ public sealed record PublicSportStackerCareerProfile(
     IReadOnlyList<SportStackerEventFinalsSummary> FinalsCareer,
     IReadOnlyList<SportStackerPersonalBest> PersonalBests)
 {
+    /// <summary>SP-5A server-derived personal record achievements; empty for legacy callers.</summary>
+    public IReadOnlyList<SportStackerPersonalRecordAchievement> PersonalRecords { get; init; }
+        = Array.Empty<SportStackerPersonalRecordAchievement>();
+
     /// <summary>
     /// SP-4N additive permanent-placement publication. Null is retained only for compatibility with
     /// manually constructed legacy objects; the public profile service populates this for every public profile.
