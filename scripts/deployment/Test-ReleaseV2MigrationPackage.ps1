@@ -6,6 +6,18 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 # Text inspection only. This validator never connects to a database or executes SQL.
+$packageStream = [System.IO.File]::OpenRead((Resolve-Path -LiteralPath $SqlPath).Path)
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+try {
+    $packageHash = [System.BitConverter]::ToString($sha256.ComputeHash($packageStream)).Replace('-', '')
+} finally {
+    $packageStream.Dispose()
+    $sha256.Dispose()
+}
+if ($packageHash -eq
+    '4101718F6B550480A9CA579015B8143EDAE23FF78F7C4165CF17F755432364BA') {
+    throw 'Blocked Release v2 package: invalid direct CREATE TRIGGER; must not execute'
+}
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 $expected = @(
     '20260906033000_AddCompetitionActivityModuleCode',

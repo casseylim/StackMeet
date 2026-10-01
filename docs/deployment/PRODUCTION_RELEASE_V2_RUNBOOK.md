@@ -205,3 +205,19 @@ Finals career placements additionally require eligible governed-v2 immutable Fin
 ## Closure
 
 After successful verification, record the new production source SHA, deployed DLL SHA256, resolved manifest SHA256, migration package SHA256, live fileset evidence, workflow run IDs, and verification results in the production deployment record. Only then should the old ba80538 baseline be considered superseded.
+
+## Blocked trigger package
+
+Package SHA256 `4101718F6B550480A9CA579015B8143EDAE23FF78F7C4165CF17F755432364BA`
+is **BLOCKED / MUST NOT EXECUTE**. Its direct `CREATE TRIGGER` operation is invalid
+inside EF Core's idempotent migration `IF` block. Offline TSql160Parser validation
+caught the error before execution; production impact was **NONE**, with all 12
+predecessor migrations present and 0/3 Release v2 migrations applied.
+
+The source correction executes `CREATE TRIGGER` through `EXEC(N'...')`, making it
+the first statement of its own dynamic SQL batch while preserving trigger behavior.
+The migration ID, EF model, check constraints, and governed FROM/TO range remain
+unchanged. A locally generated candidate is validation evidence only, never an
+authorized production artifact. A fresh, separately authorized preflight and review
+of its new package hash are required before production execution. The old hash
+remains permanently blocked, including an explicit hash rejection in the package validator.

@@ -69,6 +69,7 @@ CHECK (
 ); ");
 
             migrationBuilder.Sql(@"
+EXEC(N'
 CREATE TRIGGER [dbo].[TR_FinalsRankingGovernance_ImmutableSnapshot]
 ON [dbo].[FinalsRankingGovernance]
 AFTER UPDATE, DELETE
@@ -77,9 +78,10 @@ BEGIN
     SET NOCOUNT ON;
     IF EXISTS (SELECT 1 FROM deleted WHERE [SnapshotCapturedAt] IS NOT NULL)
     BEGIN
-        THROW 51041, 'Captured Finals ranking governance records are immutable.', 1;
+        THROW 51041, ''Captured Finals ranking governance records are immutable.'', 1;
     END
-END; ");
+END;
+');");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
