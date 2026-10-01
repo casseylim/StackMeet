@@ -16,11 +16,21 @@ const no = (regex, message) => assert.ok(!regex.test(w), message || ('forbidden:
 
 assert.equal(manifest.releaseVersion, 'production-release-v2-2026-09-24');
 assert.equal(manifest.approvedLiveSourceSha, 'ba80538a912a3dd0f708fdd65a8823ed7988dbd6');
+assert.equal(manifest.databaseMigrationFrom, '20260826074651_AddAccountSessionVersion');
+assert.equal(manifest.databaseMigrationTo, '20260914093000_FinalsRankingGovernanceSp4g');
 assert.deepEqual(manifest.databaseMigrations, [
   '20260906033000_AddCompetitionActivityModuleCode',
   '20260910103000_StackerIdentityPersistenceV1',
   '20260914093000_FinalsRankingGovernanceSp4g'
 ]);
+const migrationChain = fs.readdirSync(path.join(root, 'backend/StackMeet.Api/Migrations'))
+  .filter(name => /^\d{14}_[A-Za-z0-9_]+\.cs$/.test(name))
+  .map(name => name.slice(0, -3)).sort();
+const fromIndex = migrationChain.indexOf(manifest.databaseMigrationFrom);
+const toIndex = migrationChain.indexOf(manifest.databaseMigrationTo);
+assert.ok(fromIndex >= 0 && toIndex > fromIndex, 'governed boundaries must exist in the source chain');
+assert.deepEqual(migrationChain.slice(fromIndex + 1, toIndex + 1), manifest.databaseMigrations,
+  'exclusive FROM/inclusive TO must select exactly the three governed migrations');
 
 const expectedApplicationFiles = [
   'backend/StackMeet.Api/wwwroot/js/reports/FinalsRankingPolicy.js',
@@ -64,7 +74,12 @@ assert.equal(tools.tools['dotnet-ef'].version, '8.0.8');
 has('dotnet tool restore --tool-manifest .config/dotnet-tools.json');
 has("$tools.tools.'dotnet-ef'.version -cne $env:DOTNET_EF_VERSION");
 no(/dotnet tool install --global dotnet-ef/, 'local EF manifest must be restored instead of installing a shadowed global tool');
-has('dotnet ef migrations script --idempotent');
+has('dotnet ef migrations script $manifest.databaseMigrationFrom $manifest.databaseMigrationTo --idempotent');
+no(/dotnet ef migrations script\s+--/, 'unbounded full-chain migration generation is forbidden');
+no(/dotnet ef migrations script\s+["']?0\b/, 'generation from migration zero is forbidden');
+has("$manifest.databaseMigrationFrom -cne '20260826074651_AddAccountSessionVersion'");
+has("$manifest.databaseMigrationTo -cne '20260914093000_FinalsRankingGovernanceSp4g'");
+has('& ./scripts/deployment/Test-ReleaseV2MigrationPackage.ps1 -SqlPath $sql -ManifestPath $env:RELEASE_MANIFEST');
 has('actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4');
 has('RELEASE_MANIFEST_SHA256=');
 has('MIGRATION_PACKAGE_SHA256=');
