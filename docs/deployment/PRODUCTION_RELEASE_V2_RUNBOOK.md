@@ -17,6 +17,13 @@ The target commit is always the exact protected-master SHA supplied to the workf
 
 Database changes: exactly three additive EF migrations:
 
+The manifest governs the exclusive FROM boundary `20260826074651_AddAccountSessionVersion`
+and inclusive TO boundary `20260914093000_FinalsRankingGovernanceSp4g`. The idempotent
+SQL artifact contains only the three Release v2 migrations below, not the entire migration chain.
+Production must already contain every migration through the FROM boundary before this package
+can be applied. Verify that baseline history separately; do not use this release to repair missing
+historical migrations.
+
 1. 20260906033000_AddCompetitionActivityModuleCode
 2. 20260910103000_StackerIdentityPersistenceV1
 3. 20260914093000_FinalsRankingGovernanceSp4g
@@ -65,6 +72,8 @@ Expected output:
 - RELEASE_MANIFEST_SHA256=<record this>
 - MIGRATION_PACKAGE_SHA256=<record this>
 - TARGET_DLL_SHA256=<record this>
+- MIGRATION_PACKAGE_SCOPE=PASS
+- GOVERNED_MIGRATION_COUNT=3
 - PRODUCTION_WRITES=0
 
 Download and retain the production-release-v2-preflight artifact. It contains:
@@ -79,6 +88,18 @@ Do not proceed if the preflight source SHA, manifest hash, migration count, or f
 Before executing the generated migration package, create and verify a production database backup/snapshot using the hosting provider's supported database backup mechanism.
 
 Apply only the exact migrations.idempotent.sql from the preflight artifact whose SHA256 matches MIGRATION_PACKAGE_SHA256. Because the script is idempotent, EF migration history determines which migration blocks execute.
+
+Before execution, inspect `__EFMigrationsHistory` read-only and confirm the complete historical
+baseline through `20260826074651_AddAccountSessionVersion` is already applied. Stop if any
+baseline migration is absent or the target is ambiguous. The package validator rejects missing
+governed IDs and any earlier or unexpected migration ID; the predecessor is a generation
+boundary only and is not executable SQL in this artifact. All three release migrations may
+already be applied, in which case proceed directly to read-only schema verification.
+
+The earlier full-chain artifact with SHA256
+`D18A21300B73302DE788A41CD539048D7F2065213F01C5D540F7CF62261D1BFC`
+is not approved for this scoped stage. A separately authorized fresh preflight is required after
+the tooling fix is merged; retain and verify its newly generated SQL hash.
 
 After execution, verify the schema with read-only SQL. Example checks:
 

@@ -162,12 +162,12 @@ jobs:
           if($LASTEXITCODE){exit $LASTEXITCODE}
           $out=Join-Path $env:RUNNER_TEMP 'production-release-v2'; New-Item -ItemType Directory -Force -Path $out|Out-Null
           $sql=Join-Path $out 'migrations.idempotent.sql'
-          dotnet ef migrations script --idempotent --project backend/StackMeet.Api/StackMeet.Api.csproj --startup-project backend/StackMeet.Api/StackMeet.Api.csproj --configuration Release --no-build --output $sql
+          $manifest=Get-Content -LiteralPath $env:RELEASE_MANIFEST -Raw|ConvertFrom-Json
+          if($manifest.databaseMigrationFrom -cne '20260826074651_AddAccountSessionVersion' -or $manifest.databaseMigrationTo -cne '20260914093000_FinalsRankingGovernanceSp4g'){throw 'Unexpected Release v2 migration range'}
+          dotnet ef migrations script $manifest.databaseMigrationFrom $manifest.databaseMigrationTo --idempotent --project backend/StackMeet.Api/StackMeet.Api.csproj --startup-project backend/StackMeet.Api/StackMeet.Api.csproj --configuration Release --no-build --output $sql
           if($LASTEXITCODE){exit $LASTEXITCODE}
           if(-not(Test-Path -LiteralPath $sql -PathType Leaf)){throw 'Migration package was not generated'}
-          $manifest=Get-Content -LiteralPath $env:RELEASE_MANIFEST -Raw|ConvertFrom-Json
-          $sqlText=Get-Content -LiteralPath $sql -Raw
-          foreach($migration in @($manifest.databaseMigrations)){if(-not$sqlText.Contains([string]$migration)){throw "Generated migration package is missing $migration"}}
+          & ./scripts/deployment/Test-ReleaseV2MigrationPackage.ps1 -SqlPath $sql -ManifestPath $env:RELEASE_MANIFEST
           $resolved=@()
           foreach($item in @($manifest.applicationFiles|Sort-Object deployOrder)){
             $source=[string]$item.source
@@ -181,6 +181,7 @@ jobs:
           $dllHash=($resolved|Where-Object{$_.remote -ceq '/StackMeet.Api.dll'}).sha256
           "RELEASE_MANIFEST_SHA256=$manifestHash"; "MIGRATION_PACKAGE_SHA256=$migrationHash"; "TARGET_DLL_SHA256=$dllHash"
           'RELEASE_FILE_COUNT=11'; 'MIGRATION_COUNT=3'; 'PRODUCTION_CONNECTIONS=0'; 'PRODUCTION_WRITES=0'
+          "MIGRATION_FROM=$($manifest.databaseMigrationFrom)"; "MIGRATION_TO=$($manifest.databaseMigrationTo)"
           "## Production Release v2 preflight" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Source: $env:DEPLOY_SHA" | Add-Content $env:GITHUB_STEP_SUMMARY
           "Approved live baseline source: $env:LIVE_SHA" | Add-Content $env:GITHUB_STEP_SUMMARY
