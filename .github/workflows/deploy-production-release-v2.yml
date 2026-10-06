@@ -364,14 +364,28 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
-          if([string]::IsNullOrWhiteSpace($env:CID)){throw 'verification_competition_id required'}
           $enforce=switch($env:ENFORCE_COUNTS.Trim().ToLower()){'true'{$true}'false'{$false}default{throw 'enforce_expected_counts must be true/false'}}
-          function Get200($u){$r=Invoke-WebRequest $u -TimeoutSec 30 -MaximumRedirection 5;if($r.StatusCode-ne200){throw "$u returned $($r.StatusCode)"};return $r}
+          function GetResponse($u){return Invoke-WebRequest $u -TimeoutSec 30 -MaximumRedirection 5 -SkipHttpErrorCheck}
+          function Get200($u){$r=GetResponse $u;if($r.StatusCode-ne200){throw "$u returned $($r.StatusCode)"};return $r}
           function CountCheck($a,$e,$n){$actual=@($a).Count;if([string]::IsNullOrWhiteSpace($e)){return $actual};$x=0;if(-not[int]::TryParse($e,[ref]$x)-or$x-lt0){throw "Invalid $n count"};if($actual-ne$x){Write-Output "::warning title=Production data count drift::$n expected $x but live is $actual";if($enforce){throw "$n count mismatch"}};return $actual}
-          function Privacy($v,$p='$'){if($null-eq$v){return};$bad=@('password','passwordhash','apikey','token','resettoken','securitystamp','connectionstring','connectionstrings','adminkey','birthdate','email','phone');if($v-is[pscustomobject]){foreach($q in $v.PSObject.Properties){if($bad-icontains$q.Name){throw "Forbidden key $($q.Name) at $p"};Privacy $q.Value "$p.$($q.Name)"}}elseif($v-is[Collections.IDictionary]){foreach($k in $v.Keys){if($bad-icontains[string]$k){throw "Forbidden key $k at $p"};Privacy $v[$k] "$p.$k"}}elseif($v-is[Collections.IEnumerable]-and$v-isnot[string]){foreach($i in $v){Privacy $i $p}}}
+          function Privacy($v,$p='
+){if($null-eq$v){return};$bad=@('password','passwordhash','apikey','token','resettoken','securitystamp','connectionstring','connectionstrings','adminkey','birthdate','email','phone');if($v-is[pscustomobject]){foreach($q in $v.PSObject.Properties){if($bad-icontains$q.Name){throw "Forbidden key $($q.Name) at $p"};Privacy $q.Value "$p.$($q.Name)"}}elseif($v-is[Collections.IDictionary]){foreach($k in $v.Keys){if($bad-icontains[string]$k){throw "Forbidden key $k at $p"};Privacy $v[$k] "$p.$k"}}elseif($v-is[Collections.IEnumerable]-and$v-isnot[string]){foreach($i in $v){Privacy $i $p}}}
           $b=$env:PRODUCTION_BASE_URL.TrimEnd('/');Get200 "$b/api/health"|Out-Null;Get200 "$b/api/version"|Out-Null;Get200 "$b/results/profile-links.js"|Out-Null;Get200 "$b/profile/index.html"|Out-Null;Get200 "$b/profile/profile.js"|Out-Null;Get200 "$b/app.js"|Out-Null;Get200 "$b/js/reports/FinalsRankingPolicy.js"|Out-Null
-          $id=[Uri]::EscapeDataString($env:CID.Trim());$j=(Get200 "$b/api/public/competitions/$id/results").Content|ConvertFrom-Json -Depth 100
+          $cid=$env:CID.Trim();$source='provided';$j=$null
+          if([string]::IsNullOrWhiteSpace($cid)){
+            $directory=(Get200 "$b/api/public/competitions").Content|ConvertFrom-Json -Depth 20
+            $candidates=@($directory);if($candidates.Count-eq0){throw 'No publicly listed competition available for verification'}
+            foreach($candidate in $candidates){
+              $candidateId=[string]$candidate.id;if([string]::IsNullOrWhiteSpace($candidateId)){continue}
+              $escaped=[Uri]::EscapeDataString($candidateId.Trim());$response=GetResponse "$b/api/public/competitions/$escaped/results"
+              if($response.StatusCode-eq200){$cid=$candidateId.Trim();$j=$response.Content|ConvertFrom-Json -Depth 100;$source='auto-discovered';break}
+            }
+            if($null-eq$j){throw 'No publicly listed competition exposes public results'}
+          }else{
+            if($cid.Length-lt3-or$cid.Length-gt50){throw 'verification_competition_id must be a 3-50 character CompetitionCode or CompetitionKey, not a numeric SQL id'}
+            $escaped=[Uri]::EscapeDataString($cid);$j=(Get200 "$b/api/public/competitions/$escaped/results").Content|ConvertFrom-Json -Depth 100
+          }
           foreach($n in 'settings','translations','results','stackers','doubles','relays'){if(-not($j.PSObject.Properties.Name-contains$n)){throw "Missing $n"}};Privacy $j
-          $links=(Get200 "$b/api/public/competitions/$id/profile-links").Content|ConvertFrom-Json -Depth 50;if(-not($links.PSObject.Properties.Name-contains'links')){throw 'Missing profile-links links collection'};Privacy $links
+          $id=[Uri]::EscapeDataString($cid);$links=(Get200 "$b/api/public/competitions/$id/profile-links").Content|ConvertFrom-Json -Depth 50;if(-not($links.PSObject.Properties.Name-contains'links')){throw 'Missing profile-links links collection'};Privacy $links
           $resultsCount=CountCheck $j.results $env:ER 'results';$stackersCount=CountCheck $j.stackers $env:ES 'stackers';$doublesCount=CountCheck $j.doubles $env:ED 'doubles';$relaysCount=CountCheck $j.relays $env:EL 'relays'
-          'POST_START_HTTP_VALIDATION=PASS';'RELEASE_V2_STATIC_ASSETS=PASS';'PUBLIC_PROFILE_LINK_CONTRACT=PASS';'PRIVACY_CHECK=PASS';"RESULTS_COUNT=$resultsCount";"STACKERS_COUNT=$stackersCount";"DOUBLES_COUNT=$doublesCount";"RELAYS_COUNT=$relaysCount";"COUNT_ENFORCEMENT=$enforce";'PRODUCTION_WRITES=0'
+          'POST_START_HTTP_VALIDATION=PASS';'RELEASE_V2_STATIC_ASSETS=PASS';'PUBLIC_PROFILE_LINK_CONTRACT=PASS';'PRIVACY_CHECK=PASS';"VERIFICATION_COMPETITION_ID=$cid";"VERIFICATION_COMPETITION_SOURCE=$source";"RESULTS_COUNT=$resultsCount";"STACKERS_COUNT=$stackersCount";"DOUBLES_COUNT=$doublesCount";"RELAYS_COUNT=$relaysCount";"COUNT_ENFORCEMENT=$enforce";'PRODUCTION_WRITES=0'
