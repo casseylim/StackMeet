@@ -23,7 +23,7 @@ if (execute && !publish) Fail("Execution requires --public; this tool is only fo
 if (execute && string.IsNullOrWhiteSpace(operatorNote)) Fail("Execution requires --operator-note for the audit trail.");
 
 var config = new ConfigurationBuilder()
-    .AddUserSecrets("stackmeet-api-local-test", optional: true)
+    .AddUserSecrets<StackMeetDbContext>(optional: true)
     .AddEnvironmentVariables()
     .Build();
 
