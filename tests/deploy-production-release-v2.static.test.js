@@ -133,6 +133,11 @@ assert.ok(verifyOnly.includes("'PUBLIC_PROFILE_LINK_CONTRACT=PASS'"));
 assert.ok(verifyOnly.includes("'PRIVACY_CHECK=PASS'"));
 assert.ok(verifyOnly.includes("'PRODUCTION_WRITES=0'"));
 assert.ok(!/\breturn\$[A-Za-z_]/.test(verifyOnly), 'verify PowerShell return statements must separate return from variables');
+assert.ok(verifyOnly.includes('Get200 "$b/api/public/competitions"'), 'verify must discover public competitions when no code is supplied');
+assert.ok(verifyOnly.includes("'No publicly listed competition exposes public results'"), 'verify must fail clearly when no public results candidate exists');
+assert.ok(verifyOnly.includes('"VERIFICATION_COMPETITION_ID=$cid"'));
+assert.ok(verifyOnly.includes('"VERIFICATION_COMPETITION_SOURCE=$source"'));
+assert.ok(verifyOnly.includes('CompetitionCode or CompetitionKey, not a numeric SQL id'));
 assert.ok(!/--upload-file|\bStor\(|\bDeleteRemote\(|\bDELE\b/i.test(verifyOnly), 'verify must remain read only');
 
 has('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4');
