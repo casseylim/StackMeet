@@ -14,6 +14,8 @@ public static class SportStackingIdentityRegistration
 
         services.AddScoped<SportStacking.Identity.PublicFinalsPlacementCareerIntegrationService>();
         services.AddScoped<SportStacking.Identity.PublicTeamCareerIntegrationService>();
+        services.AddSingleton<SportStacking.Identity.INadiTrackIdGenerator, SportStacking.Identity.CryptographicNadiTrackIdGenerator>();
+        services.AddScoped<SportStacking.Identity.StackerIdentityBackfillService>();
         return services;
     }
 }

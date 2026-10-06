@@ -3,6 +3,9 @@ using Microsoft.Extensions.Configuration;
 using StackMeet.Api.Activities.SportStacking.Identity;
 using StackMeet.Api.Data;
 using StackMeet.Api.Models;
+using StackMeet.Api.Services;
+using Microsoft.AspNetCore.Http;
+using System.Data;
 
 const string executeFlag = "--execute";
 const string publicFlag = "--public";
@@ -19,7 +22,6 @@ var selectedNadiTrackId = Optional(arguments, "--existing-naditrack-id");
 if (competitionId <= 0) Fail("--competition-id must be a positive integer.");
 if (string.IsNullOrWhiteSpace(stackerCode)) Fail("--stacker-code is required.");
 if (string.IsNullOrWhiteSpace(expectedDisplayName)) Fail("--expected-display-name is required.");
-if (execute && !publish) Fail("Execution requires --public; this tool is only for governed public-profile activation.");
 if (execute && string.IsNullOrWhiteSpace(operatorNote)) Fail("Execution requires --operator-note for the audit trail.");
 
 var config = new ConfigurationBuilder()
@@ -41,6 +43,7 @@ var options = new DbContextOptionsBuilder<StackMeetDbContext>()
     .Options;
 
 await using var database = new StackMeetDbContext(options);
+var audit = new AuditLogService(database, new HttpContextAccessor(), new SessionTokenService(config));
 
 var competition = await database.Competitions.AsNoTracking()
     .SingleOrDefaultAsync(item => item.Id == competitionId)
@@ -93,16 +96,32 @@ if (existingLink is not null)
 
     RequireConfirmation(arguments, competitionId, stackerCode);
 
+    if (!publish)
+    {
+        Console.WriteLine("IDENTITY_LINK_STATE=EXISTING_NO_CHANGE");
+        Console.WriteLine("PRODUCTION_WRITES=0");
+        return;
+    }
+
+    await using var publicationTransaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+    if (!await database.StackerIdentityLinks.AnyAsync(item => item.Id == existingLink.Id
+        && item.StackerId == stacker.Id && item.SportStackerIdentityId == linkedIdentity.Id))
+        Fail("Selected relationship changed before publication. No write attempted.");
+    if (!string.IsNullOrWhiteSpace(selectedNadiTrackId)
+        && !string.Equals(NadiTrackIdRules.Normalize(selectedNadiTrackId), linkedIdentity.NadiTrackId, StringComparison.Ordinal))
+        Fail("Existing identity selection differs from the current link. No write attempted.");
     if (!linkedIdentity.IsPublicProfile)
     {
         var writable = await database.SportStackerIdentities
             .SingleAsync(item => item.Id == linkedIdentity.Id);
         writable.IsPublicProfile = true;
         writable.UpdatedAt = DateTime.UtcNow;
-        await database.SaveChangesAsync();
+        await audit.Write("StackerIdentity.PublicationChanged", "SportStackerIdentity", writable.Id.ToString(),
+            oldValue: new { IsPublicProfile = false }, newValue: new { IsPublicProfile = true, Reason = operatorNote });
     }
 
     await VerifyPublicProfileAsync(database, linkedIdentity.NadiTrackId);
+    await publicationTransaction.CommitAsync();
     Console.WriteLine("IDENTITY_CREATED=FALSE");
     Console.WriteLine("IDENTITY_LINK_CREATED=FALSE");
     Console.WriteLine("PUBLIC_PROFILE_ACTIVATED=TRUE");
@@ -195,6 +214,9 @@ if (!execute)
 }
 
 RequireConfirmation(arguments, competitionId, stackerCode);
+if (publish) Fail("Create/link and publication must be separate actions. First execute without --public; review the private identity, then publish the existing link in a separate invocation.");
+
+await using var linkTransaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
 var persistence = new StackerIdentityPersistenceService(
     database,
@@ -206,23 +228,16 @@ var persisted = await persistence.PersistAsync(
         resolution,
         resolutionNote,
         LinkedByUserId: null));
+await audit.Write("StackerIdentity.Linked", "StackerIdentityLink", persisted.Link.Id.ToString(),
+    competitionId: competitionId, newValue: new { persisted.Link.StackerId, persisted.Identity.NadiTrackId, persisted.IdentityCreated });
+await linkTransaction.CommitAsync();
 
 Console.WriteLine($"NADITRACK_ID={persisted.Identity.NadiTrackId}");
 Console.WriteLine($"IDENTITY_CREATED={persisted.IdentityCreated}");
 Console.WriteLine("IDENTITY_LINK_CREATED=TRUE");
 Console.WriteLine($"PUBLIC_PROFILE_CURRENT={persisted.Identity.IsPublicProfile}");
 
-if (!persisted.Identity.IsPublicProfile)
-{
-    var writable = await database.SportStackerIdentities
-        .SingleAsync(item => item.Id == persisted.Identity.Id);
-    writable.IsPublicProfile = true;
-    writable.UpdatedAt = DateTime.UtcNow;
-    await database.SaveChangesAsync();
-}
-
-await VerifyPublicProfileAsync(database, persisted.Identity.NadiTrackId);
-Console.WriteLine("PUBLIC_PROFILE_ACTIVATED=TRUE");
+Console.WriteLine("PUBLIC_PROFILE_ACTIVATED=FALSE");
 Console.WriteLine("PRODUCTION_WRITE=PASS");
 
 static StackerIdentityMatchQuery QueryFrom(Stacker stacker) => new(

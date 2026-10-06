@@ -32,6 +32,12 @@ assert.ok(p.includes('PRODUCTION_WRITES=0'),
   'dry-run must emit zero-write evidence');
 assert.ok(p.includes('PUBLIC_PROFILE_PROJECTION=PASS'),
   'execution must verify public projection after activation');
+assert.ok(p.includes('if (publish) Fail("Create/link and publication must be separate actions.'),
+  'creation/linking must reject combined publication');
+assert.ok(p.includes('if (!publish)') && p.includes('PUBLIC_PROFILE_ACTIVATED=FALSE'),
+  'link-only execution must preserve visibility');
+assert.ok(p.includes('StackerIdentity.PublicationChanged') && p.includes('StackerIdentity.Linked'),
+  'CLI transitions must use existing administrative audit events');
 assert.ok(p.includes('Expected display name mismatch'),
   'target must be pinned by expected display name');
 assert.ok(p.includes('ACTION_REQUIRED=REVIEW_EXISTING_IDENTITY_CANDIDATES'),

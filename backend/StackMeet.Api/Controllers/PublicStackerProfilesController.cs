@@ -26,6 +26,7 @@ public sealed class PublicStackerProfilesController : ControllerBase
     {
     }
 
+    [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
     public PublicStackerProfilesController(
         SportStackerCareerProfileService profiles,
         PublicFinalsPlacementCareerIntegrationService? finalsPlacements,
