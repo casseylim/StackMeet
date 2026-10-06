@@ -64,9 +64,13 @@ jobs:
           dotnet restore tests/StackerTeamCareerReadModelTests/StackerTeamCareerReadModelTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerPublicTeamCareerContractTests/StackerPublicTeamCareerContractTests.csproj --configfile NuGet.Config
           dotnet restore tests/StackerPublicTeamCareerIntegrationTests/StackerPublicTeamCareerIntegrationTests.csproj --configfile NuGet.Config
+          dotnet restore tools/StackerIdentityActivation/StackerIdentityActivation.csproj --configfile NuGet.Config
 
       - name: Build Release
         run: dotnet build StackMeet.sln -c Release --no-restore
+
+      - name: Build governed production identity activation tool
+        run: dotnet build tools/StackerIdentityActivation/StackerIdentityActivation.csproj -c Release --no-restore
 
       - name: Run Phase 5A production module integration tests
         run: dotnet run --project tests/Phase5AActivityModuleIntegrationTests/Phase5AActivityModuleIntegrationTests.csproj -c Release --no-restore
