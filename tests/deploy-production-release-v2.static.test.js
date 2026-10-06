@@ -138,6 +138,8 @@ assert.ok(verifyOnly.includes("'No publicly listed competition exposes public re
 assert.ok(verifyOnly.includes('"VERIFICATION_COMPETITION_ID=$cid"'));
 assert.ok(verifyOnly.includes('"VERIFICATION_COMPETITION_SOURCE=$source"'));
 assert.ok(verifyOnly.includes('CompetitionCode or CompetitionKey, not a numeric SQL id'));
+assert.ok(verifyOnly.includes("function Privacy($v,$p='root')"), 'verify privacy helper must keep a YAML-safe default path literal');
+assert.ok(!verifyOnly.includes("function Privacy($v,$p='\n"), 'verify workflow must not split the Privacy default across YAML lines');
 assert.ok(!/--upload-file|\bStor\(|\bDeleteRemote\(|\bDELE\b/i.test(verifyOnly), 'verify must remain read only');
 
 has('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4');
