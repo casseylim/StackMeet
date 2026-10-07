@@ -34,11 +34,6 @@ concurrency:
 env:
   SOURCE_SHA: 1e2c0211aa00d39d55e444c42565c4111592fe78
   EXPECTED_LIVE_DLL: 1533B551313FAAFF6B3A28985EC4FB5EB3FF3D4DEE04EEEEF82894479387D097
-  FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
-  FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
-  FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
-  FTP_PORT: ${{ vars.PROD_FTP_PORT }}
-  FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
   GH_TOKEN: ${{ github.token }}
 
 jobs:
@@ -46,6 +41,13 @@ jobs:
     if: ${{ inputs.operation == 'preflight' }}
     runs-on: windows-latest
     timeout-minutes: 15
+    environment: production
+    env:
+      FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+      FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+      FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+      FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+      FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -89,6 +91,13 @@ jobs:
     if: ${{ inputs.operation == 'deploy' }}
     runs-on: windows-latest
     timeout-minutes: 15
+    environment: production
+    env:
+      FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+      FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+      FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+      FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+      FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

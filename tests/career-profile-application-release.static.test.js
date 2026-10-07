@@ -8,6 +8,8 @@ const script = fs.readFileSync(path.join(root, 'scripts/deployment/Invoke-Career
 assert.match(workflow, /options: \[preflight, deploy\]/);
 assert.match(workflow, /default: preflight/);
 assert.match(workflow, /group: naditrack-production/);
+assert.equal((workflow.match(/environment: production/g) || []).length, 2, 'both FTP jobs must bind production environment secrets');
+assert.equal((workflow.match(/FTP_HOST: \$\{\{ secrets.PROD_FTP_HOST \}\}/g) || []).length, 2, 'environment secrets must be resolved in each job');
 assert.match(workflow, /SourceRevisionId=\$env:SOURCE_SHA/);
 assert.match(workflow, /git merge-base --is-ancestor \$env:SOURCE_SHA HEAD/);
 assert.match(workflow, /Download exact preflight artifact without rebuilding/);
