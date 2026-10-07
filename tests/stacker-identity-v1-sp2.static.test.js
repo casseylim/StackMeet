@@ -56,7 +56,11 @@ for (const scenario of [
 const controllersDir = path.join(root, 'backend/StackMeet.Api/Controllers');
 for (const file of fs.readdirSync(controllersDir).filter(name => name.endsWith('.cs'))) {
   const controller = fs.readFileSync(path.join(controllersDir, file), 'utf8');
-  assert.ok(!controller.includes('StackerIdentityBackfillService'), `SP-2 must not expose backfill HTTP API yet: ${file}`);
+  if (controller.includes('StackerIdentityBackfillService')) {
+    assert.equal(file, 'AdminStackerIdentitiesController.cs', 'only the reviewed admin controller may expose backfill');
+    assert.match(controller, /Route\("api\/admin\/stacker-identities"\)/, 'backfill must remain within the protected admin boundary');
+    assert.ok(!controller.includes('api/public'), 'public routes must never expose backfill');
+  }
 }
 
 console.log('SP-2 historical identity backfill guards passed.');

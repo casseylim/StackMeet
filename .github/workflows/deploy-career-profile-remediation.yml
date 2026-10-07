@@ -1,0 +1,120 @@
+name: NADITrack Career Profile Application Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [preflight, deploy]
+        default: preflight
+        required: true
+      preflight_run_id:
+        description: Deploy only; successful preflight artifact run
+        type: string
+      expected_manifest_sha256:
+        description: Deploy only; preflight manifest SHA256
+        type: string
+      pool_confirmation:
+        description: Deploy only; SITE-STOPPED after NADITrack site is stopped
+        type: string
+        default: NOT-CONFIRMED
+      deployment_confirmation:
+        description: Deploy only; DEPLOY CAREER PROFILE DLL
+        type: string
+        default: NOT-CONFIRMED
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: naditrack-production
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 1e2c0211aa00d39d55e444c42565c4111592fe78
+  EXPECTED_LIVE_DLL: 1533B551313FAAFF6B3A28985EC4FB5EB3FF3D4DEE04EEEEF82894479387D097
+  FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+  FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+  FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+  FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+  FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  preflight:
+    if: ${{ inputs.operation == 'preflight' }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact application source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 1e2c0211aa00d39d55e444c42565c4111592fe78
+          path: release-source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 8.0.x
+      - name: Build exact source and check application-only delta
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:GITHUB_REF -cne 'refs/heads/master'){throw 'Protected master dispatch required'}
+          $source=(git -C release-source rev-parse HEAD).Trim()
+          if($source -cne $env:SOURCE_SHA){throw 'Application source mismatch'}
+          git merge-base --is-ancestor $env:SOURCE_SHA HEAD
+          if($LASTEXITCODE){throw 'Reviewed source must be merged into protected master'}
+          $delta=@(git -C release-source diff --name-only c0c4d82fd81375543e1962eb7d8f12508a3a8ba8 $env:SOURCE_SHA -- backend/StackMeet.Api)
+          foreach($path in $delta){if($path -match '/(Migrations|wwwroot)/|\.csproj$|web\.config$|appsettings.*\.json$'){throw "DLL-only delta forbids $path"}}
+          dotnet restore release-source/StackMeet.sln --configfile release-source/NuGet.Config
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          dotnet build release-source/StackMeet.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true -p:SourceRevisionId=$env:SOURCE_SHA
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          & ./scripts/deployment/Invoke-CareerProfileDllRelease.ps1 -Operation Preflight -PackageDirectory "$env:RUNNER_TEMP/career-package" -SourceDll release-source/backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll
+      - name: Save exact release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: career-profile-release-${{ github.run_id }}
+          path: ${{ runner.temp }}/career-package/
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy:
+    if: ${{ inputs.operation == 'deploy' }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download exact preflight artifact without rebuilding
+        uses: actions/download-artifact@v4
+        with:
+          name: career-profile-release-${{ inputs.preflight_run_id }}
+          path: ${{ runner.temp }}/career-package
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.preflight_run_id }}
+      - name: Check interlocks, backup, deploy DLL, verify or rollback
+        shell: pwsh
+        env:
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+          EXPECTED_MANIFEST: ${{ inputs.expected_manifest_sha256 }}
+          POOL_CONFIRMATION: ${{ inputs.pool_confirmation }}
+          DEPLOYMENT_CONFIRMATION: ${{ inputs.deployment_confirmation }}
+        run: |
+          & ./scripts/deployment/Invoke-CareerProfileDllRelease.ps1 -Operation Deploy -PackageDirectory "$env:RUNNER_TEMP/career-package"
+      - name: Retain rollback DLL and deployment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: career-profile-rollback-${{ github.run_id }}
+          path: ${{ runner.temp }}/career-rollback/
+          if-no-files-found: warn
+          retention-days: 30

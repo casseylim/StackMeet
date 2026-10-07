@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using StackMeet.Api.Data;
 using StackMeet.Api.Models;
 
@@ -26,9 +27,14 @@ public sealed class StackerIdentityPersistenceService(
         var note = TrimOrNull(request.ResolutionNote);
         ValidateApprovedResolution(request.Resolution, note);
 
-        await using var transaction = await database.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken);
+        // An admin caller may own the transaction to include its AuditLog atomically.
+        // Never accept a weaker external isolation level for identity decisions.
+        if (database.Database.CurrentTransaction is { } current
+            && current.GetDbTransaction().IsolationLevel != IsolationLevel.Serializable)
+            throw new InvalidOperationException("Identity persistence requires serializable isolation.");
+        await using var transaction = database.Database.CurrentTransaction is null
+            ? await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
 
         var stacker = await database.Stackers
             .SingleOrDefaultAsync(item => item.Id == request.StackerId, cancellationToken)
@@ -51,6 +57,15 @@ public sealed class StackerIdentityPersistenceService(
         }
         else if (request.Resolution.Action == StackerIdentityResolutionAction.CreateNew)
         {
+            // Resolution may have been computed before another request created a person.
+            // Recheck under the same serializable transaction as the insert.
+            var identities = await database.SportStackerIdentities.AsNoTracking().ToListAsync(cancellationToken);
+            var matches = StackerIdentityMatcher.FindMatches(new StackerIdentityMatchQuery(
+                null, stacker.WssaId, stacker.FirstName, stacker.LastName, stacker.BirthDate,
+                stacker.Country, stacker.Club, stacker.Email, stacker.Phone), identities);
+            if (matches.Candidates.Count > 0
+                && request.Resolution.ReasonCode != "APPROVED_CREATE_NEW_DESPITE_CANDIDATES")
+                throw new InvalidOperationException("Identity candidates changed; a new operator review is required.");
             identity = await CreateIdentityFromStackerAsync(stacker, now, cancellationToken);
             identityCreated = true;
             database.Set<SportStackerIdentity>().Add(identity);
@@ -74,7 +89,7 @@ public sealed class StackerIdentityPersistenceService(
 
         links.Add(link);
         await database.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
 
         return new StackerIdentityPersistenceResult(identity, link, identityCreated);
     }
