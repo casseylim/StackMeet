@@ -52,7 +52,9 @@ function Transaction($f,$state){
   if($state.writes -eq $state.rollbackFailAt){throw 'simulated rollback transport failure'}
  }.GetNewClosure()
  $delete={param($name)$state.deletes.Add($name);$path=Join-Path $f.live $name;if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path}}.GetNewClosure()
- $snapshot={Snapshot $f}.GetNewClosure()
+ # Capture the function body explicitly: GitHub dot-sources the runner script.
+ $snapshotFunction=${function:Snapshot}
+ $snapshot={& $snapshotFunction $f}.GetNewClosure()
  $before={$state.gates++;if($state.drift){throw 'master drift'}}.GetNewClosure()
  Invoke-ReleaseTransaction $f.dir $f.policy $upload $delete $snapshot $before
 }
