@@ -6,7 +6,7 @@
     <title>NADITrack Competition Admin</title>
     <link rel="icon" type="image/png" href="assets/stackmeet-logo.png" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="admin.css?v=xml-controls-ui" />
+    <link rel="stylesheet" href="admin.css?v=career-admin-v1" />
   </head>
   <body>
     <main class="admin-shell">
@@ -27,6 +27,7 @@
         <button class="active" data-admin-page-target="email" type="button" data-i18n="Email Setup">Email Setup</button>
         <button data-admin-page-target="users" type="button" data-i18n="User Management">User Management</button>
         <button data-admin-page-target="competition" type="button" data-i18n="Competition">Competition</button>
+        <button id="careerTab" data-admin-page-target="career" type="button" hidden>Career Profiles</button>
         <button data-admin-page-target="audit" type="button" data-i18n="Audit Logs">Audit Logs</button>
       </nav>
 
@@ -177,6 +178,40 @@
           </div>
         </article>
       </section>
+      <section class="admin-page" data-admin-page="career">
+        <article class="panel">
+          <h2>Career Profile administration</h2>
+          <p id="careerStatus" role="status" aria-live="polite">Sign in and verify Career Profile capabilities.</p>
+          <div id="careerControls" hidden>
+            <p>Review one registration at a time. Creating an identity and linking it are separate from publication. No bulk activation.</p>
+            <form id="careerSearchForm" class="admin-form">
+              <label>Competition ID<input id="careerCompetition" type="number" min="1" required /></label>
+              <label>Participant number or name<input id="careerSearch" maxlength="100" /></label>
+              <button type="submit">Search registrations</button>
+            </form>
+            <p id="careerPageStatus"></p>
+            <div class="table-wrap"><table><thead><tr><th>Participant</th><th>Display name</th><th>Identity</th><th></th></tr></thead><tbody id="careerRows"></tbody></table></div>
+            <div class="button-row"><button id="careerPrevious" type="button">Previous</button><button id="careerNext" type="button">Next</button></div>
+            <div id="careerReview" hidden>
+              <h3>Selected registration</h3>
+              <pre id="careerDetails" class="admin-json"></pre>
+              <p id="careerCandidates"></p>
+              <label>Existing NadiTrackId<input id="careerIdentity" maxlength="50" autocomplete="off" /></label>
+              <button id="careerLookup" type="button">Review permanent identity</button>
+              <p id="careerIdentityReview"></p>
+              <label>Reason for this single operation<textarea id="careerReason" maxlength="1000" required></textarea></label>
+              <div class="button-row career-actions">
+                <button id="careerCreate" type="button">Create PRIVATE identity and link</button>
+                <button id="careerLink" type="button">Link reviewed identity</button>
+                <button id="careerPublish" type="button">Publish profile</button>
+                <button id="careerUnpublish" type="button">Unpublish profile</button>
+                <button id="careerUnlink" class="danger-button" type="button">Unlink registration</button>
+              </div>
+              <a id="careerPublicUrl" hidden target="_blank" rel="noopener noreferrer">Open public Career Profile</a>
+            </div>
+          </div>
+        </article>
+      </section>
       <datalist id="competitionOptions"></datalist>
     </main>
     <script src="js/i18n/I18n.js?v=multilanguage-v2-phase3b"></script>
@@ -185,6 +220,7 @@
     <script src="js/i18n/locales/zh-Hans.js?v=multilanguage-v2-phase3b"></script>
     <script src="js/i18n/LanguagePreference.js?v=multilanguage-v2-phase3b"></script>
     <script src="js/i18n/UiLocalization.js?v=multilanguage-v2-phase3b"></script>
-    <script src="admin.js?v=multilanguage-v2-phase3b"></script>
+    <script src="career-admin.js?v=career-admin-v1"></script>
+    <script src="admin.js?v=career-admin-v1"></script>
   </body>
 </html>

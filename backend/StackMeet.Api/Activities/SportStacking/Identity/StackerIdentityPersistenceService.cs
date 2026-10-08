@@ -54,6 +54,8 @@ public sealed class StackerIdentityPersistenceService(
         if (request.Resolution.Action == StackerIdentityResolutionAction.LinkExisting)
         {
             identity = await ResolvePersistedIdentityAsync(request.Resolution, cancellationToken);
+            if (identity.IsPublicProfile)
+                throw new InvalidOperationException("Unpublish the identity in a separate reviewed operation before adding a new competition link.");
         }
         else if (request.Resolution.Action == StackerIdentityResolutionAction.CreateNew)
         {
@@ -270,13 +272,13 @@ public sealed class StackerIdentityPersistenceService(
 
     private static void ValidateStackerSnapshot(Stacker stacker)
     {
-        if (string.IsNullOrWhiteSpace(stacker.FirstName)
-            || string.IsNullOrWhiteSpace(stacker.LastName)
+        if (!IdentityNameQuality.IsUsable(stacker.FirstName)
+            || !IdentityNameQuality.IsUsable(stacker.LastName)
             || string.IsNullOrWhiteSpace(stacker.Gender)
             || string.IsNullOrWhiteSpace(stacker.Country))
         {
             throw new InvalidOperationException(
-                "Competition Stacker snapshot is incomplete and cannot seed a permanent identity.");
+                "Competition Stacker snapshot is incomplete or contains a placeholder name; review source data before creating a permanent identity.");
         }
     }
 

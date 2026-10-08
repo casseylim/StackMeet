@@ -131,11 +131,17 @@ app.Use(async (context, next) =>
             && adminSession.IsAccountSession)
         {
             var database = context.RequestServices.GetRequiredService<StackMeetDbContext>();
-            if (!await AccountSessionIsCurrent(adminSession, database, context.RequestAborted)
-                || !adminSession.IsSystemAdmin)
+            if (!await AccountSessionIsCurrent(adminSession, database, context.RequestAborted))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsJsonAsync(new { error = "Login session is no longer valid. Sign in again." });
+                return;
+            }
+
+            if (!adminSession.IsSystemAdmin)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new { error = "Global System Admin authority required." });
                 return;
             }
 

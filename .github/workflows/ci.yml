@@ -168,6 +168,10 @@ jobs:
       - name: Run core integrity Phase D static guards
         run: node tests/core-integrity-v2-phase-d.static.test.js
 
+      - name: Run offline governed application release safety tests
+        shell: pwsh
+        run: ./tests/naditrack-application-release.tests.ps1
+
       - name: Run complete JavaScript regression suite
         shell: pwsh
         run: |

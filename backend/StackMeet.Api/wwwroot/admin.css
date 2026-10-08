@@ -58,3 +58,11 @@
   .admin-page-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; }
   .admin-page-tabs button { min-height: 40px; min-width: 0; padding: 8px 6px; font-size: 0.82rem; }
 }
+
+/* Career admin remains a single-registration workflow, including on narrow screens. */
+#careerControls[hidden], #careerReview[hidden], #careerTab[hidden], #careerPublicUrl[hidden] { display: none !important; }
+#careerReview { margin-top: 20px; display: grid; gap: 12px; }
+#careerReview label { display: grid; gap: 6px; }
+#careerReason { width: 100%; min-height: 80px; box-sizing: border-box; }
+.career-actions { flex-wrap: wrap; }
+#careerDetails { overflow-wrap: anywhere; }
