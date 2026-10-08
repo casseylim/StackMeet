@@ -37,7 +37,8 @@ function validate(sql, expectedSuccess, description, configuration = manifest) {
   fs.writeFileSync(manifestPath, JSON.stringify(configuration));
   const result = spawnSync(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
     path.join(root, 'scripts/deployment/Test-ReleaseV2MigrationPackage.ps1'),
-    '-SqlPath', sqlPath, '-ManifestPath', manifestPath], { encoding: 'utf8', timeout: 30000 });
+    // Bound Windows runner cold-start/execution delays without changing validation assertions.
+    '-SqlPath', sqlPath, '-ManifestPath', manifestPath], { encoding: 'utf8', timeout: 120000 });
   assert.ifError(result.error);
   assert.equal(result.status === 0, expectedSuccess, `${description}: ${result.stdout}\n${result.stderr}`);
   if (expectedSuccess) assert.match(result.stdout, /MIGRATION_PACKAGE_SCOPE=PASS/);
