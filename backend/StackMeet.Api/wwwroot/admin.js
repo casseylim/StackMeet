@@ -58,7 +58,8 @@
   async function requestResponse(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
+        window.StackMeetCareerAdmin?.clear();
         sessionStorage.removeItem(keyName);
         sessionStorage.removeItem(adminSessionName);
         updateAuthPanelVisibility();
@@ -138,6 +139,7 @@
   }
 
   async function loadAdminData() {
+    await window.StackMeetCareerAdmin?.refresh();
     updateAuthPanelVisibility();
     await loadCompetitions();
     await Promise.all([loadUsers(), loadUserSecurityOptions(), loadEmailSettings(), loadAuditLogs()]);
@@ -481,6 +483,7 @@
 
   // Clears the current admin credential and returns the browser to the admin login panel.
   async function logoutAdmin() {
+    window.StackMeetCareerAdmin?.clear();
     const session = adminSession();
     if (session?.token) {
       try {
@@ -737,6 +740,7 @@
     if (text) toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
   }
 
+  window.StackMeetCareerAdmin?.connect(request);
   document.title = t("NADITrack Competition Admin");
   ui?.apply(document.querySelector(".admin-shell"));
   $("operatorLanguage")?.addEventListener("change", event => {

@@ -46,7 +46,8 @@ try
     var other = Stacker(active.Id, "1.2", "Synthetic", "Career");
     var privateCompetition = Stacker(hidden.Id, "1.3", "Synthetic", "Career");
     var raceStacker = Stacker(closed.Id, "1.4", "Race", "Synthetic");
-    db.Stackers.AddRange(first, other, privateCompetition, raceStacker);
+    var placeholder = Stacker(closed.Id, "1.99", "Placeholder", "-");
+    db.Stackers.AddRange(first, other, privateCompetition, raceStacker, placeholder);
     await db.SaveChangesAsync();
     db.CompetitionResults.AddRange(Result(closed.Id, "1.1", "Prelims", 5m),
         Result(closed.Id, "1.1", "Finals", 4m), Result(active.Id, "1.2", "Prelims", 1m),
@@ -86,11 +87,40 @@ try
     }
     await Status(anonymous.GetAsync("/api/public/stackers/not-an-id"), HttpStatusCode.NotFound, "malformed ID safe 404 via real MVC");
     await Status(anonymous.GetAsync("/api/public/stackers/NDT-2345678"), HttpStatusCode.NotFound, "unknown ID safe 404 via real MVC");
+    var tokens = new SessionTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
+        ["Security:SessionSigningKey"] = "synthetic-career-session-signing-key" }).Build());
+    using var systemAdmin = new HttpClient { BaseAddress = anonymous.BaseAddress, Timeout = anonymous.Timeout };
+    systemAdmin.DefaultRequestHeaders.Authorization = new("Bearer", tokens.CreateForUser(systemUser.Id, systemUser.Email,
+        systemUser.DisplayName, true, systemUser.SessionVersion).ToString());
+    using var ordinary = new HttpClient { BaseAddress = anonymous.BaseAddress, Timeout = anonymous.Timeout };
+    ordinary.DefaultRequestHeaders.Authorization = new("Bearer", tokens.CreateForUser(ordinaryUser.Id, ordinaryUser.Email,
+        ordinaryUser.DisplayName, false, ordinaryUser.SessionVersion).ToString());
+    await Status(anonymous.GetAsync("/api/admin/career-profile/capabilities"), HttpStatusCode.Unauthorized, "anonymous capabilities rejected");
+    await Status(ordinary.GetAsync("/api/admin/career-profile/capabilities"), HttpStatusCode.Forbidden, "ordinary capabilities forbidden");
+    var capabilities = await Json(systemAdmin.GetAsync("/api/admin/career-profile/capabilities"), "current system-admin capabilities");
+    Assert(capabilities.EnumerateObject().Count() == 7 && capabilities.EnumerateObject().All(p => p.Value.ValueKind == JsonValueKind.True), "capabilities contain only seven operational booleans");
+    await Json(admin.GetAsync("/api/admin/career-profile/capabilities"), "existing admin-key authority uses same gate");
+    await Status(ordinary.GetAsync("/api/admin/stacker-identities/profiles/NDT-2345678/publication"), HttpStatusCode.Forbidden, "ordinary publication gate matches capabilities");
+    await Status(ordinary.GetAsync("/api/admin/stacker-identities/links/1/unlink"), HttpStatusCode.Forbidden, "ordinary unlink gate matches capabilities");
+    await Status(ordinary.PostAsJsonAsync("/api/admin/stacker-identities/links", Create(first.Id)), HttpStatusCode.Forbidden, "failed authorization cannot create identity");
+    var review = await Json(systemAdmin.GetAsync("/api/admin/stacker-identities/stackers/" + first.Id), "read-only registration review");
+    Assert(review.GetProperty("link").ValueKind == JsonValueKind.Null && !review.GetProperty("proposedIdentity").GetProperty("isPublicProfile").GetBoolean(), "review proposes private identity");
+    var search = await Json(systemAdmin.GetAsync($"/api/admin/stacker-identities/stackers?competitionId={closed.Id}&search=1.1&take=1"), "bounded registration search");
+    Assert(search.GetProperty("total").GetInt32() == 1 && search.GetProperty("items")[0].GetProperty("stackerId").GetInt32() == first.Id, "search selects exact participant");
+    var badName = await Json(admin.GetAsync("/api/admin/stacker-identities/stackers/" + placeholder.Id), "placeholder-name review");
+    Assert(!badName.GetProperty("createAllowed").GetBoolean(), "placeholder name cannot be copied into permanent identity");
+    await Status(admin.PostAsJsonAsync("/api/admin/stacker-identities/links", Create(placeholder.Id)), HttpStatusCode.Conflict, "server rejects punctuation-only name on creation");
+    Assert(IdentityNameQuality.IsUsable("Anne-Marie") && IdentityNameQuality.IsUsable("李") && !IdentityNameQuality.IsUsable("—"), "name quality preserves legitimate Unicode and hyphenated names");
+    Assert(await db.SportStackerIdentities.CountAsync() == 0 && await db.StackerIdentityLinks.CountAsync() == 0 && await db.AuditLogs.CountAsync() == 0, "capabilities, reads and rejected requests perform no mutation");
     await Status(anonymous.PostAsJsonAsync("/api/admin/stacker-identities/links", Create(first.Id)), HttpStatusCode.Unauthorized, "anonymous creation rejected");
     var created = await Json(admin.PostAsJsonAsync("/api/admin/stacker-identities/links", Create(first.Id)), "create and link");
     var id = created.GetProperty("nadiTrackId").GetString()!;
     var linkId = created.GetProperty("linkId").GetInt64();
     Assert(!created.GetProperty("isPublicProfile").GetBoolean() && created.GetProperty("identityCreated").GetBoolean(), "new identity defaults private");
+    var linkedReview = await Json(systemAdmin.GetAsync("/api/admin/stacker-identities/stackers/" + first.Id), "linked registration review");
+    Assert(linkedReview.GetProperty("link").GetProperty("linkId").GetInt64() == linkId
+        && linkedReview.GetProperty("link").GetProperty("nadiTrackId").GetString() == id
+        && !linkedReview.GetProperty("link").GetProperty("isPublicProfile").GetBoolean(), "linked review retains exact relationship and private state");
     var adminProfile = await Json(admin.GetAsync("/api/admin/stacker-identities/profiles/" + id), "admin can inspect private publication state and link receipt");
     Assert(!adminProfile.GetProperty("isPublicProfile").GetBoolean()
         && adminProfile.GetProperty("links")[0].GetProperty("linkId").GetInt64() == linkId, "private identity review resolves exact link");
@@ -110,19 +140,15 @@ try
     await Json(admin.PostAsJsonAsync("/api/admin/stacker-identities/links", Existing(privateCompetition.Id, id)), "explicit private-competition link");
     Assert(!(await db.SportStackerIdentities.AsNoTracking().SingleAsync()).IsPublicProfile, "linking preserves private visibility");
     await Status(anonymous.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", Publication(true)), HttpStatusCode.Unauthorized, "anonymous publish rejected");
-    var tokens = new SessionTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
-        ["Security:SessionSigningKey"] = "synthetic-career-session-signing-key" }).Build());
     anonymous.DefaultRequestHeaders.Authorization = new("Bearer", tokens.Create("CAREER-CLOSED", "Local manager").ToString());
     await Status(anonymous.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", Publication(true)), HttpStatusCode.Unauthorized, "competition-scoped session cannot publish");
     anonymous.DefaultRequestHeaders.Authorization = new("Bearer", tokens.CreateForUser(ordinaryUser.Id, ordinaryUser.Email,
         ordinaryUser.DisplayName, false, ordinaryUser.SessionVersion).ToString());
-    await Status(anonymous.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", Publication(true)), HttpStatusCode.Unauthorized, "current ordinary account cannot publish");
+    await Status(anonymous.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", Publication(true)), HttpStatusCode.Forbidden, "current ordinary account cannot publish");
     anonymous.DefaultRequestHeaders.Authorization = null;
     await Status(admin.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", new { reason = "Missing flag" }), HttpStatusCode.BadRequest, "publication requires explicit boolean");
-    using var systemAdmin = new HttpClient { BaseAddress = anonymous.BaseAddress, Timeout = anonymous.Timeout };
-    systemAdmin.DefaultRequestHeaders.Authorization = new("Bearer", tokens.CreateForUser(systemUser.Id, systemUser.Email,
-        systemUser.DisplayName, true, systemUser.SessionVersion).ToString());
     await Json(systemAdmin.PutAsJsonAsync($"/api/admin/stacker-identities/profiles/{id}/publication", Publication(true)), "publish separately using current system-admin account");
+    await Status(admin.PostAsJsonAsync("/api/admin/stacker-identities/links", Existing(raceStacker.Id, id)), HttpStatusCode.Conflict, "link cannot expose registration through already public identity");
     var profile = await Json(anonymous.GetAsync("/api/public/stackers/" + id), "public profile HTTP 200");
     Assert(profile.GetProperty("competitionCount").GetInt32() == 1, "only finalized publicly listed competition included");
     Assert(profile.GetProperty("personalBests")[0].GetProperty("officialTime").GetDecimal() == 4m, "Prelims and Finals best aggregated; Active and private results excluded");

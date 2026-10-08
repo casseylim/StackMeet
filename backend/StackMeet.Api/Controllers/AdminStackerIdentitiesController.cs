@@ -30,6 +30,49 @@ public sealed class AdminStackerIdentitiesController(
                     candidate.NadiTrackId, candidate.DisplayName, candidate.Strength, candidate.Evidence }) }) });
     }
 
+    // Bounded search includes linked registrations so operators can inspect and unlink safely.
+    [HttpGet("stackers")]
+    public async Task<IActionResult> Stackers(int competitionId, string? search = null, int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        if (competitionId <= 0 || skip < 0 || take is < 1 or > 100 || search?.Length > 100) return BadRequest();
+        var query = database.Stackers.AsNoTracking().Where(s => s.CompetitionId == competitionId);
+        var term = search?.Trim();
+        if (!string.IsNullOrEmpty(term)) query = query.Where(s => s.StackerCode.Contains(term)
+            || (s.FirstName + " " + s.LastName).Contains(term));
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderBy(s => s.StackerCode).ThenBy(s => s.Id).Skip(skip).Take(take)
+            .Select(s => new { StackerId = s.Id, s.CompetitionId, s.StackerCode,
+                DisplayName = s.FirstName + " " + s.LastName,
+                NadiTrackId = database.StackerIdentityLinks.Where(l => l.StackerId == s.Id)
+                    .Select(l => l.SportStackerIdentity.NadiTrackId).FirstOrDefault() }).ToListAsync(ct);
+        return Ok(new { Total = total, Skip = skip, Take = take, Items = items });
+    }
+
+    [HttpGet("stackers/{stackerId:int}")]
+    public async Task<IActionResult> StackerReview(int stackerId, CancellationToken ct)
+    {
+        var stacker = await database.Stackers.AsNoTracking().SingleOrDefaultAsync(s => s.Id == stackerId, ct);
+        if (stacker is null) return NotFound();
+        var link = await database.StackerIdentityLinks.AsNoTracking().Where(l => l.StackerId == stackerId)
+            .Select(l => new { LinkId = l.Id, l.SportStackerIdentity.NadiTrackId,
+                l.SportStackerIdentity.IsPublicProfile,
+                DisplayName = l.SportStackerIdentity.FirstName + " " + l.SportStackerIdentity.LastName }).SingleOrDefaultAsync(ct);
+        var competition = await database.Competitions.AsNoTracking().Where(c => c.Id == stacker.CompetitionId)
+            .Select(c => new { c.CompetitionCode, c.Status }).SingleAsync(ct);
+        var matches = StackerIdentityMatcher.FindMatches(new StackerIdentityMatchQuery(null, stacker.WssaId,
+            stacker.FirstName, stacker.LastName, stacker.BirthDate, stacker.Country, stacker.Club, stacker.Email, stacker.Phone),
+            await database.SportStackerIdentities.AsNoTracking().ToListAsync(ct));
+        return Ok(new { MatchingCandidates = matches.Candidates.Select(c => new { c.Identity.NadiTrackId,
+                DisplayName = c.Identity.FirstName + " " + c.Identity.LastName, c.Strength, c.Evidence }),
+            StackerId = stacker.Id, stacker.CompetitionId, stacker.StackerCode,
+            DisplayName = stacker.FirstName + " " + stacker.LastName, Competition = competition, Link = link,
+            CreateAllowed = IdentityNameQuality.IsUsable(stacker.FirstName) && IdentityNameQuality.IsUsable(stacker.LastName),
+            ProposedIdentity = new { FirstName = stacker.FirstName.Trim(), LastName = stacker.LastName.Trim(),
+                stacker.Gender, stacker.BirthDate, stacker.Country, stacker.Club, stacker.Region, stacker.WssaId,
+                IsPublicProfile = false },
+            ContactCopyNotice = "Existing contact values, if any, are preserved from this registration and are not shown here." });
+    }
+
     [HttpGet("profiles/{nadiTrackId}")]
     public async Task<IActionResult> Profile(string nadiTrackId, CancellationToken ct)
     {
@@ -37,6 +80,7 @@ public sealed class AdminStackerIdentitiesController(
         var id = NadiTrackIdRules.Normalize(nadiTrackId);
         var profile = await database.SportStackerIdentities.AsNoTracking().Where(item => item.NadiTrackId == id)
             .Select(item => new { item.NadiTrackId, item.IsPublicProfile,
+                DisplayName = item.FirstName + " " + item.LastName,
                 ProfilePath = "/Stackers/" + item.NadiTrackId,
                 Links = database.StackerIdentityLinks.Where(link => link.SportStackerIdentityId == item.Id)
                     .Select(link => new { LinkId = link.Id, link.StackerId }).ToList() }).SingleOrDefaultAsync(ct);
