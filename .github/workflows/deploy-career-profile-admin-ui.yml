@@ -1,0 +1,132 @@
+name: NADITrack Career Profile Admin UI Release
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [preflight, deploy]
+        default: preflight
+        required: true
+      preflight_run_id:
+        description: Successful preflight run from this exact master
+        type: string
+      expected_manifest_sha256:
+        description: Exact new preflight manifest SHA256 (not the local preparation manifest)
+        type: string
+      site_confirmation:
+        description: SITE-STOPPED-NADITRACK-ONLY; shared pool must remain running
+        type: string
+        default: NOT-CONFIRMED
+      deployment_confirmation:
+        description: DEPLOY-CAREER-PROFILE-ADMIN-UI
+        type: string
+        default: NOT-CONFIRMED
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: naditrack-production
+  cancel-in-progress: false
+env:
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  preflight:
+    if: ${{ inputs.operation == 'preflight' }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+      FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+      FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+      FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+      FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 6182e405ced08c24cf5f8738f1172c8df5197d3e
+          path: release-source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: 10.0.400
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: Run new release tooling tests offline
+        shell: pwsh
+        run: |
+          & ./tests/naditrack-application-release.tests.ps1
+          node tests/career-profile-admin-ui-release.static.test.js
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Start disposable LocalDB integration harness
+        shell: pwsh
+        run: |
+          SqlLocalDB.exe start MSSQLLocalDB
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Exact source tests, five-file package and read-only FTP baseline
+        shell: pwsh
+        run: |
+          & ./scripts/deployment/Invoke-NadiTrackApplicationRelease.ps1 -Operation Preflight -SourceDirectory release-source -PackageDirectory "$env:RUNNER_TEMP/career-admin-ui-package"
+      - name: Save exact immutable preflight release and rollback baseline
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: career-admin-ui-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/career-admin-ui-package/
+          if-no-files-found: error
+          retention-days: 30
+  deploy:
+    if: ${{ inputs.operation == 'deploy' }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      FTP_HOST: ${{ secrets.PROD_FTP_HOST }}
+      FTP_USER: ${{ secrets.PROD_FTP_USERNAME }}
+      FTP_PASS: ${{ secrets.PROD_FTP_PASSWORD }}
+      FTP_PORT: ${{ vars.PROD_FTP_PORT }}
+      FTP_SSL: ${{ vars.PROD_FTP_ENABLE_SSL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate explicit interlocks before artifact access
+        shell: pwsh
+        env:
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+          EXPECTED_MANIFEST: ${{ inputs.expected_manifest_sha256 }}
+          SITE_CONFIRMATION: ${{ inputs.site_confirmation }}
+          DEPLOYMENT_CONFIRMATION: ${{ inputs.deployment_confirmation }}
+        run: |
+          Import-Module ./scripts/deployment/NadiTrackApplicationRelease.psm1
+          Assert-DeployInterlocks $env:PREFLIGHT_RUN_ID $env:EXPECTED_MANIFEST $env:SITE_CONFIRMATION $env:DEPLOYMENT_CONFIRMATION
+      - name: Download exact preflight artifact without rebuilding
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: career-admin-ui-preflight-${{ inputs.preflight_run_id }}
+          path: ${{ runner.temp }}/career-admin-ui-package
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.preflight_run_id }}
+      - name: Fresh backup, drift gates, five-file deployment and whole-set rollback
+        shell: pwsh
+        env:
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+          EXPECTED_MANIFEST: ${{ inputs.expected_manifest_sha256 }}
+          SITE_CONFIRMATION: ${{ inputs.site_confirmation }}
+          DEPLOYMENT_CONFIRMATION: ${{ inputs.deployment_confirmation }}
+        run: |
+          & ./scripts/deployment/Invoke-NadiTrackApplicationRelease.ps1 -Operation Deploy -PackageDirectory "$env:RUNNER_TEMP/career-admin-ui-package"
+      - name: Preserve verified rollback files and deployment outcome
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: career-admin-ui-rollback-${{ github.run_id }}
+          path: ${{ runner.temp }}/career-admin-ui-rollback/
+          if-no-files-found: warn
+          retention-days: 30

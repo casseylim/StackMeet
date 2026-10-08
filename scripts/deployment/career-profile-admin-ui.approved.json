@@ -1,0 +1,51 @@
+{
+  "sourceSha": "6182e405ced08c24cf5f8738f1172c8df5197d3e",
+  "baselineDllSha256": "9CD4BFC317E185711AF1BFF0155A3210B1A82E526F5F8B53891ECC4E16F65924",
+  "files": [
+    {
+      "name": "admin.html",
+      "repositoryPath": "backend/StackMeet.Api/wwwroot/admin.html",
+      "sha256": "97F07C4C39F8BF32D33408705E911BFB7B71E6EF432CEF7062EF09DC940303DA",
+      "bytes": 20367,
+      "kind": "frontend/static",
+      "purpose": "Career Profile admin controls and module reference",
+      "productionPath": "/admin.html"
+    },
+    {
+      "name": "admin.js",
+      "repositoryPath": "backend/StackMeet.Api/wwwroot/admin.js",
+      "sha256": "66ED5D09896BB599EE06C2E259D1970D35B162C52CCFF6547A87359B162BA42D",
+      "bytes": 38177,
+      "kind": "frontend/static",
+      "purpose": "Authenticated capability refresh and logout integration",
+      "productionPath": "/admin.js"
+    },
+    {
+      "name": "admin.css",
+      "repositoryPath": "backend/StackMeet.Api/wwwroot/admin.css",
+      "sha256": "C5A529C8C8AD5381182431F5377D9E08738A1F5A8FD2D6153DEDFC6345AD750B",
+      "bytes": 5567,
+      "kind": "frontend/static",
+      "purpose": "Career Profile section layout",
+      "productionPath": "/admin.css"
+    },
+    {
+      "name": "career-admin.js",
+      "repositoryPath": "backend/StackMeet.Api/wwwroot/career-admin.js",
+      "sha256": "9F6F366D8D4E0831243B7D90F2DB66CFAD250463D8C99C324C6EEF31A5F20009",
+      "bytes": 11247,
+      "kind": "frontend/static",
+      "purpose": "Single-registration governed identity UI",
+      "productionPath": "/career-admin.js"
+    },
+    {
+      "name": "StackMeet.Api.dll",
+      "repositoryPath": "backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.dll",
+      "sha256": "2D9981445CDBA4196B70622112C909FD062949682787B74B92D52F0C622AF5CA",
+      "bytes": 1189376,
+      "kind": "backend/binary",
+      "purpose": "Capabilities, bounded registration reads and private-link guards",
+      "productionPath": "/StackMeet.Api.dll"
+    }
+  ]
+}
