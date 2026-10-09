@@ -6,7 +6,10 @@ $dll=Join-Path $project 'bin/Release/net8.0/StackMeet.Api.dll'
 $obj=Join-Path $project 'obj/Release/net8.0'
 $assets=Get-Content (Join-Path $project 'obj/project.assets.json') -Raw|ConvertFrom-Json
 $libraries=@($assets.libraries.PSObject.Properties|Sort-Object Name|ForEach-Object{[ordered]@{name=$_.Name;sha512=$_.Value.sha512;type=$_.Value.type}})
-$resolution=[ordered]@{libraries=$libraries;frameworks=$assets.project.frameworks}
+# The SDK location is diagnostic metadata, not a dependency version/checksum.
+$frameworks=$assets.project.frameworks|ConvertTo-Json -Depth 20|ConvertFrom-Json
+foreach($framework in $frameworks.PSObject.Properties){$framework.Value.PSObject.Properties.Remove('runtimeIdentifierGraphPath')}
+$resolution=[ordered]@{libraries=$libraries;frameworks=$frameworks}
 $normalized=$resolution|ConvertTo-Json -Depth 15 -Compress
 $sha=[Security.Cryptography.SHA256]::Create()
 $resolutionHash=[Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized)))

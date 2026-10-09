@@ -11,6 +11,7 @@ function Enable-ReleaseToolchain([string]$DotnetExecutable) {
  $env:UseSharedCompilation='false'
 }
 function Assert-ReleaseToolchainInventory([string]$Root,[string]$Sdk,[string[]]$Runtimes) {
+ $Root=[IO.Path]::GetFullPath($Root)
  if($Sdk -cne '10.0.400'){throw 'Isolated toolchain requires SDK 10.0.400'}
  $core10=@($Runtimes|Where-Object {$_ -cmatch '^Microsoft.NETCore.App 10\.'})
  if($core10.Count -ne 1 -or $core10[0] -cnotmatch '^Microsoft.NETCore.App 10\.0\.11 \['){throw 'Isolated toolchain requires only compiler runtime 10.0.11'}
@@ -25,6 +26,24 @@ function Assert-ReleaseToolchain([string]$DotnetExecutable) {
  $sdk=(& $DotnetExecutable --version) -join '';if($LASTEXITCODE){throw 'Isolated SDK selection failed'}
  $runtimes=@(& $DotnetExecutable --list-runtimes);if($LASTEXITCODE){throw 'Isolated runtime inventory failed'}
  Assert-ReleaseToolchainInventory (Split-Path $DotnetExecutable) $sdk.Trim() $runtimes
+ # Host tracing proves the actual compiler process selection before restore/build.
+ $root=[IO.Path]::GetFullPath((Split-Path $DotnetExecutable))
+ $trace=Join-Path $root ('compiler-probe-'+[Guid]::NewGuid().ToString('N')+'.txt')
+ $oldTrace=$env:DOTNET_HOST_TRACE;$oldFile=$env:DOTNET_HOST_TRACEFILE
+ try{
+  $env:DOTNET_HOST_TRACE='1';$env:DOTNET_HOST_TRACEFILE=$trace
+  $compiler=Join-Path $root 'sdk/10.0.400/Roslyn/bincore/csc.dll'
+  $version=(& $DotnetExecutable $compiler -version) -join ''
+  if($LASTEXITCODE){throw 'Isolated compiler probe failed'}
+  $coreclr=Join-Path $root 'shared/Microsoft.NETCore.App/10.0.11/coreclr.dll'
+  $evidence=Get-Content -LiteralPath $trace -Raw
+  if(-not $evidence.Contains("CoreCLR path = '$coreclr'")){throw 'Compiler runtime selection cannot be proven'}
+  Write-Host "COMPILER_PROBE_CORECLR_PATH=$coreclr"
+  Write-Host "COMPILER_PROBE_VERSION=$version"
+ }finally{
+  $env:DOTNET_HOST_TRACE=$oldTrace;$env:DOTNET_HOST_TRACEFILE=$oldFile
+  if(Test-Path -LiteralPath $trace){Remove-Item -LiteralPath $trace}
+ }
 }
 function Get-ReleaseCompilerRuntime([string]$Pdb) {
  $stream=[IO.File]::OpenRead($Pdb)

@@ -219,5 +219,47 @@ Check 'hash/size mismatch prints expected and actual diagnostics and still rejec
   if(-not $diagnostics.Contains($value)){throw "Missing diagnostic: $value"}
  }
 }
+Import-Module (Join-Path $PSScriptRoot '../scripts/deployment/ReleaseToolchain.psm1') -Force
+$isolatedRoot=Join-Path $testRoot 'toolchain'
+$runtime11="Microsoft.NETCore.App 10.0.11 [$isolatedRoot\shared\Microsoft.NETCore.App]"
+$runtime12="Microsoft.NETCore.App 10.0.12 [$isolatedRoot\shared\Microsoft.NETCore.App]"
+$reviewedRuntime='10.0.11-servicing.26373.116+e2f47b0110ed922f21a1522da67279133ce28f32'
+Check 'isolated reviewed SDK and compiler runtime accepted' {
+ Assert-ReleaseToolchainInventory $isolatedRoot '10.0.400' @($runtime11)
+ Assert-ReleaseCompilerRuntime $reviewedRuntime
+}
+Check 'compiler runtime 10.0.12 rejected even with approved SDK' {
+ Reject {Assert-ReleaseCompilerRuntime '10.0.12-servicing.26422.108+95017c711e6afc1085133d440e42b4bd78155701'} 'did not execute'
+ Reject {Assert-ReleaseToolchainInventory $isolatedRoot '10.0.400' @($runtime12)} 'only compiler runtime'
+}
+Check 'newer runtime alongside reviewed runtime rejected' {
+ Reject {Assert-ReleaseToolchainInventory $isolatedRoot '10.0.400' @($runtime11,$runtime12)} 'only compiler runtime'
+}
+Check 'wrong isolated SDK rejected' {
+ Reject {Assert-ReleaseToolchainInventory $isolatedRoot '10.0.401' @($runtime11)} 'requires SDK'
+}
+Check 'missing required compiler runtime rejected' {
+ Reject {Assert-ReleaseToolchainInventory $isolatedRoot '10.0.400' @()} 'only compiler runtime'
+ Reject {Assert-ReleaseCompilerRuntime ''} 'did not execute'
+}
+Check 'unavailable isolated executable rejected before any build' {
+ Reject {Enable-ReleaseToolchain (Join-Path $isolatedRoot 'dotnet.exe')} 'unavailable'
+ Reject {Assert-ReleaseToolchain (Join-Path $isolatedRoot 'dotnet.exe')} 'unavailable'
+ Reject {Enable-ReleaseToolchain 'dotnet'} 'unavailable'
+}
+Check 'runtime resolved outside isolated root rejected' {
+ Reject {Assert-ReleaseToolchainInventory $isolatedRoot '10.0.400' @('Microsoft.NETCore.App 10.0.11 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]')} 'outside isolated'
+}
+foreach($forbidden in 'dotnet.exe','dotnet-install.ps1','ReleaseToolchain.psm1','web.config','appsettings.json','appsettings.Production.json'){
+ Check "payload refuses $forbidden" {
+  $f=Fixture;Set-Content (Join-Path $f.dir "payload/$forbidden") 'forbidden'
+  Reject {Assert-ReleaseBundle $f.dir $f.policy (PackageHash $f)} 'allow-list'
+ }
+}
+Check 'DLL hash remains mandatory with correct file size' {
+ $f=Fixture;$dll=Join-Path $f.dir 'payload/StackMeet.Api.dll'
+ $bytes=[IO.File]::ReadAllBytes($dll);$bytes[0]=$bytes[0] -bxor 1;[IO.File]::WriteAllBytes($dll,$bytes)
+ Reject {Assert-ReleaseBundle $f.dir $f.policy (PackageHash $f)} 'hash/size mismatch'
+}
 [ordered]@{status='PASS';tests=$count;productionConnections=0;productionWrites=0;directory=$testRoot}|ConvertTo-Json|Set-Content (Join-Path $testRoot 'results.json')
 Write-Host "DEPLOYMENT_SCRIPT_TESTS=PASS ($count cases); PRODUCTION_WRITES=0"
