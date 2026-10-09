@@ -30,9 +30,12 @@ jobs:
           path: release-source
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.400
+      - name: Capture global runtime drift evidence
+        shell: pwsh
+        run: dotnet --list-runtimes
+      - name: Install disposable reviewed release toolchain
+        shell: pwsh
+        run: ./scripts/deployment/Install-ReleaseToolchain.ps1 -InstallDirectory "$env:RUNNER_TEMP/release-toolchain"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -41,7 +44,7 @@ jobs:
         run: SqlLocalDB.exe start MSSQLLocalDB
       - name: Measure exact-source DLLs without production access
         shell: pwsh
-        run: ./scripts/deployment/Test-ReleaseDllReproducibility.ps1 -SourceDirectory release-source -OutputDirectory "$env:RUNNER_TEMP/dll-analysis" -RunSuites -MirrorPreflight
+        run: ./scripts/deployment/Test-ReleaseDllReproducibility.ps1 -SourceDirectory release-source -OutputDirectory "$env:RUNNER_TEMP/dll-analysis" -RunSuites -MirrorPreflight -DotnetExecutable "$env:RUNNER_TEMP/release-toolchain/dotnet.exe"
       - name: Save analysis measurements (not a deployment artifact)
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
