@@ -167,5 +167,45 @@ Check 'actual entry-point FTP snapshot captures backups, missing module and hash
  $script:fakeFailName='';$snapshot=Read-LiveSnapshot (Join-Path $testRoot 'wrapper-five-backup')
  if(@($snapshot.files|Where-Object existed).Count -ne 5){throw 'Existing fifth file not backed up'}
 }
+Check 'approved installed and selected SDK passes' {Assert-ReleaseBuildSdk @('10.0.400 [sdk]') '10.0.400'}
+Check 'multiple installed SDKs accept only approved selection' {Assert-ReleaseBuildSdk @('10.0.400 [sdk]','11.0.100-preview.1 [sdk]') '10.0.400'}
+Check 'missing approved SDK fails closed' {Reject {Assert-ReleaseBuildSdk @('11.0.100 [sdk]') '10.0.400'} 'requires SDK'}
+Check 'newer selected SDK fails closed' {Reject {Assert-ReleaseBuildSdk @('10.0.400 [sdk]','11.0.100 [sdk]') '11.0.100'} 'requires SDK'}
+Check 'temporary pin specifies exact nonrolling stable SDK' {
+ $script:build=Join-Path $testRoot 'disposable-build';New-Item -ItemType Directory $build | Out-Null
+ Initialize-ReleaseBuildSdk $build
+ $pin=Read-ReleaseJson (Join-Path $build 'global.json')
+ if($pin.sdk.version -cne '10.0.400' -or $pin.sdk.rollForward -cne 'disable' -or $pin.sdk.allowPrerelease -ne $false){throw 'Incorrect SDK pin'}
+}
+Check 'existing source SDK pin is never overwritten' {
+ $path=Join-Path $build 'global.json';$before=Get-ReleaseHash $path
+ Reject {Initialize-ReleaseBuildSdk $build} 'unexpectedly contains'
+ if((Get-ReleaseHash $path) -cne $before){throw 'Source pin overwritten'}
+}
+Check 'real dotnet host honors disposable pin or fails when SDK unavailable' {
+ $installed=@(& dotnet --list-sdks);if($LASTEXITCODE){throw 'Cannot inspect test SDK inventory'}
+ $available=@($installed | Where-Object {$_ -cmatch '^10\.0\.400\s+\['}).Count -gt 0
+ Push-Location $build
+ try {
+  $selected=@(& dotnet --version 2>$null);$code=$LASTEXITCODE
+  if($available){
+   if($code -ne 0 -or ($selected -join '').Trim() -cne '10.0.400'){throw 'Real host ignored exact SDK pin'}
+  }elseif($code -eq 0){throw 'Real host rolled forward despite unavailable exact SDK'}
+ }finally{Pop-Location}
+}
+Check 'global.json cannot enter production payload' {
+ $f=Fixture;Copy-Item (Join-Path $build 'global.json') (Join-Path $f.dir 'payload/global.json')
+ Reject {Assert-ReleaseBundle $f.dir $f.policy (PackageHash $f)} 'allow-list'
+}
+Check 'pin changes only disposable archive, not original source' {
+ $original=Join-Path $testRoot 'original-source';$copy=Join-Path $testRoot 'expanded-source'
+ New-Item -ItemType Directory $original,$copy | Out-Null
+ Set-Content (Join-Path $original 'source.txt') 'reviewed source'
+ Copy-Item (Join-Path $original 'source.txt') $copy
+ $before=Get-ReleaseHash (Join-Path $original 'source.txt')
+ Initialize-ReleaseBuildSdk $copy
+ if((Test-Path (Join-Path $original 'global.json')) -or (Get-ReleaseHash (Join-Path $original 'source.txt')) -cne $before){throw 'Original source changed'}
+ if((Get-ReleaseHash (Join-Path $copy 'source.txt')) -cne $before){throw 'Expanded source changed'}
+}
 [ordered]@{status='PASS';tests=$count;productionConnections=0;productionWrites=0;directory=$testRoot}|ConvertTo-Json|Set-Content (Join-Path $testRoot 'results.json')
 Write-Host "DEPLOYMENT_SCRIPT_TESTS=PASS ($count cases); PRODUCTION_WRITES=0"

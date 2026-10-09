@@ -107,4 +107,16 @@ function Invoke-ReleaseTransaction([string]$Directory,$Policy,[scriptblock]$Uplo
   throw
  }
 }
+function Initialize-ReleaseBuildSdk([string]$BuildRoot) {
+ $pin=Join-Path $BuildRoot 'global.json'
+ if(Test-Path -LiteralPath $pin){throw 'Reviewed source unexpectedly contains global.json'}
+ # Only call after expanding the exact source archive into its disposable build root.
+ Write-ReleaseJson ([ordered]@{sdk=[ordered]@{version='10.0.400';rollForward='disable';allowPrerelease=$false}}) $pin
+}
+function Assert-ReleaseBuildSdk([string[]]$Installed,[string]$Selected) {
+ $available=@($Installed | Where-Object {$_ -cmatch '^10\.0\.400\s+\['}).Count -gt 0
+ Write-Host ('INSTALLED_SDK_10_0_400='+$(if($available){'YES'}else{'NO'}))
+ Write-Host "SELECTED_SDK=$Selected"
+ if(-not $available -or $Selected -cne '10.0.400'){throw 'Approved artifact requires SDK 10.0.400'}
+}
 Export-ModuleMember -Function *-Release*,Assert-SourceGate,Assert-DeployInterlocks,Assert-PreflightRun,Assert-LiveSnapshot

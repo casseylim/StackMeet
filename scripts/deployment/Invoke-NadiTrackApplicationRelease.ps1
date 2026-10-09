@@ -95,12 +95,21 @@ try {
   $buildRoot=Join-Path $SourceDirectory 'outputs/career-admin-ui-validation/source-6182e40'
   if(Test-Path -LiteralPath $buildRoot){throw 'Exact-source build directory already exists'}
   Expand-Archive -LiteralPath $archive -DestinationPath $buildRoot
+  Initialize-ReleaseBuildSdk $buildRoot
   $SourceDirectory=$buildRoot
   if((Test-Path -LiteralPath $PackageDirectory) -and @(Get-ChildItem -LiteralPath $PackageDirectory -Force).Count){throw 'Preflight output must be empty'}
   # These tests use disposable LocalDB. No production database secrets are provided.
   Push-Location $SourceDirectory
   try {
-   if((& dotnet --version).Trim() -cne '10.0.400'){throw 'Approved artifact requires SDK 10.0.400'}
+   $installed=@(& dotnet --list-sdks)
+   $inventoryExit=$LASTEXITCODE
+   $installed | ForEach-Object {Write-Host $_}
+   $selectedOutput=@(& dotnet --version)
+   $selectionExit=$LASTEXITCODE
+   $selectedOutput | ForEach-Object {Write-Host $_}
+   $selected=($selectedOutput -join "`n").Trim()
+   Assert-ReleaseBuildSdk $installed $selected
+   if($inventoryExit -ne 0 -or $selectionExit -ne 0){throw 'SDK diagnostics failed'}
    Run-Checked dotnet @('restore','StackMeet.sln','--configfile','NuGet.Config')
    foreach($project in Get-ChildItem tests -Recurse -Filter *.csproj | Sort-Object FullName){
     Run-Checked dotnet @('restore',$project.FullName,'--configfile','NuGet.Config')

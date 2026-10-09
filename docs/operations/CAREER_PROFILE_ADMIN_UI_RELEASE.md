@@ -85,3 +85,13 @@ Owner inspects the authenticated Career Profile section without clicking mutatio
 If separately authorized read-only DB checks are available, compare identity/link/public counts (expected zero), Stacker 62 unchanged/unlinked, competition 18 Active, and result 378/379/380 row fingerprints against the prior audit. Do not mutate data to achieve an expected count. Report any mismatch rather than correcting it.
 
 There is no eligible finalized-competition activation candidate. Do not create identities, link Stacker 62, correct its stored last name '-', publish/unpublish/unlink, finalize Competition 18, or change results 378–380. Deployment readiness does not imply activation readiness.
+
+## Build-harness SDK selection
+
+The preflight expands the reviewed feature archive into a disposable build directory,
+then creates a build-only `global.json` there. It pins SDK `10.0.400`, disables roll
+forward, and disallows prerelease SDKs. `setup-dotnet` installation alone does not
+select that SDK when the runner already has a newer SDK. The harness logs installed
+SDKs and the selected version, and fails closed unless 10.0.400 is installed and
+selected. The original checkout remains unchanged. The exact five-file allow-list
+rejects `global.json`, web.config, and appsettings files from the payload.
