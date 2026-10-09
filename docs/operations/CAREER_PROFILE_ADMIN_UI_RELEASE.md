@@ -95,3 +95,19 @@ select that SDK when the runner already has a newer SDK. The harness logs instal
 SDKs and the selected version, and fails closed unless 10.0.400 is installed and
 selected. The original checkout remains unchanged. The exact five-file allow-list
 rejects `global.json`, web.config, and appsettings files from the payload.
+
+## Offline DLL reproducibility diagnostics
+
+A payload mismatch logs expected/actual SHA256 and byte counts before throwing.
+It never approves a replacement checksum. The offline CI analysis job builds the
+exact reviewed source three times with SDK 10.0.400 and the approved final command,
+then compares a direct build with the final build after all exact-source suites.
+It records resolved dependencies, generated-source hashes, SourceLink, source roots,
+compiler hash/version, informational version, MVID and PE/debug metadata. The first
+GitHub build uses the preflight checkout layout; the other builds use separate paths.
+
+This job has no production environment or secrets and makes no FTP/HTTP/database
+connection to production. Its artifact contains analysis JSON/logs and separately
+named DLL/PDB measurements, never a governed release bundle or deployment manifest.
+A completed analysis is not a deployment
+approval, and a different measured hash never changes the reviewed policy.

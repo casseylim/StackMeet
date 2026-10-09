@@ -8,6 +8,14 @@ const workflow = read('.github/workflows/deploy-career-profile-admin-ui.yml');
 const script = read('scripts/deployment/Invoke-NadiTrackApplicationRelease.ps1');
 const moduleText = read('scripts/deployment/NadiTrackApplicationRelease.psm1');
 const policy = JSON.parse(read('scripts/deployment/career-profile-admin-ui.approved.json'));
+for (const field of ['EXPECTED_SHA256','ACTUAL_SHA256','EXPECTED_BYTES','ACTUAL_BYTES']) {
+  assert.ok(moduleText.includes(field + '='), 'fail-closed mismatches need ' + field);
+}
+const analysis = read('scripts/deployment/Test-ReleaseDllReproducibility.ps1');
+assert.ok(!/FTP_|SqlConnection|Invoke-RestMethod|workflow run|Upload-Target|Operation Deploy/.test(analysis), 'offline DLL analysis cannot access production');
+assert.match(analysis,/foreach\(\$number in 1\.\.3\)/);
+assert.match(analysis,/-p:ContinuousIntegrationBuild=true/);
+assert.match(analysis,/sourceSha/);
 assert.match(script,/Expand-Archive[^\n]*\n\s*Initialize-ReleaseBuildSdk \$buildRoot/);
 assert.match(script,/dotnet --list-sdks[\s\S]*dotnet --version[\s\S]*Assert-ReleaseBuildSdk/);
 assert.match(moduleText,/rollForward='disable';allowPrerelease=\$false/);

@@ -18,7 +18,15 @@ function Assert-ReleaseDirectory([string]$Directory,$Files) {
  $items=@(Get-ChildItem -LiteralPath $Directory -Force)
  Assert-ReleaseNames @($items.Name) @($Files.name)
  foreach($item in $items){if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Directory or link in payload'}}
- foreach($f in $Files){$p=Join-Path $Directory $f.name; if((Get-ReleaseHash $p) -cne $f.sha256 -or (Get-Item -LiteralPath $p).Length -ne $f.bytes){throw "File hash/size mismatch: $($f.name)"}}
+ foreach($f in $Files){
+  $p=Join-Path $Directory $f.name;$actualHash=Get-ReleaseHash $p;$actualBytes=(Get-Item -LiteralPath $p).Length
+  if($actualHash -cne $f.sha256 -or $actualBytes -ne $f.bytes){
+   Write-Host "MISMATCH_FILE=$($f.name)"
+   Write-Host "EXPECTED_SHA256=$($f.sha256)";Write-Host "ACTUAL_SHA256=$actualHash"
+   Write-Host "EXPECTED_BYTES=$($f.bytes)";Write-Host "ACTUAL_BYTES=$actualBytes"
+   throw "File hash/size mismatch: $($f.name)"
+  }
+ }
 }
 function Assert-ReleaseRootNames($Names,$Policy) {
  if(@($Names | Where-Object {$_ -match '[/\\]' -or $_ -eq '..'}).Count){throw 'Ambiguous FTP root listing'}
