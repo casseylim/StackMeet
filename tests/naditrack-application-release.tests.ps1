@@ -210,5 +210,14 @@ Check 'pin changes only disposable archive, not original source' {
  if((Test-Path (Join-Path $original 'global.json')) -or (Get-ReleaseHash (Join-Path $original 'source.txt')) -cne $before){throw 'Original source changed'}
  if((Get-ReleaseHash (Join-Path $copy 'source.txt')) -cne $before){throw 'Expanded source changed'}
 }
+Check 'hash/size mismatch prints expected and actual diagnostics and still rejects' {
+ $f=Fixture;$target=Join-Path $f.dir 'payload/StackMeet.Api.dll';Set-Content $target 'different bytes'
+ $expected=@($f.policy.files|Where-Object name -CEQ 'StackMeet.Api.dll')[0]
+ $actualHash=Get-ReleaseHash $target;$actualBytes=(Get-Item $target).Length
+ $diagnostics=@(& {try{Assert-ReleaseDirectory (Join-Path $f.dir 'payload') $f.policy.files;throw 'Mismatch accepted'}catch{if($_.Exception.Message -notmatch '^File hash/size mismatch: StackMeet.Api.dll$'){throw}}} 6>&1)|Out-String
+ foreach($value in "EXPECTED_SHA256=$($expected.sha256)","ACTUAL_SHA256=$actualHash","EXPECTED_BYTES=$($expected.bytes)","ACTUAL_BYTES=$actualBytes"){
+  if(-not $diagnostics.Contains($value)){throw "Missing diagnostic: $value"}
+ }
+}
 [ordered]@{status='PASS';tests=$count;productionConnections=0;productionWrites=0;directory=$testRoot}|ConvertTo-Json|Set-Content (Join-Path $testRoot 'results.json')
 Write-Host "DEPLOYMENT_SCRIPT_TESTS=PASS ($count cases); PRODUCTION_WRITES=0"

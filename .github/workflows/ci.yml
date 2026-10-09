@@ -18,6 +18,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dll-reproducibility:
+    name: Offline DLL reproducibility analysis
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 6182e405ced08c24cf5f8738f1172c8df5197d3e
+          path: release-source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.400
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Start disposable LocalDB
+        shell: pwsh
+        run: SqlLocalDB.exe start MSSQLLocalDB
+      - name: Measure exact-source DLLs without production access
+        shell: pwsh
+        run: ./scripts/deployment/Test-ReleaseDllReproducibility.ps1 -SourceDirectory release-source -OutputDirectory "$env:RUNNER_TEMP/dll-analysis" -RunSuites -MirrorPreflight
+      - name: Save analysis measurements (not a deployment artifact)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-dll-analysis-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/dll-analysis/*.json
+            ${{ runner.temp }}/dll-analysis/*.log
+            ${{ runner.temp }}/dll-analysis/*.dll
+            ${{ runner.temp }}/dll-analysis/*.pdb
+          if-no-files-found: error
+          retention-days: 14
   build-and-test:
     name: Build and test
     runs-on: windows-latest
