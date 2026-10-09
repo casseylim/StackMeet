@@ -52,9 +52,9 @@ jobs:
           path: release-source
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
-        with:
-          dotnet-version: 10.0.400
+      - name: Install disposable reviewed release toolchain
+        shell: pwsh
+        run: ./scripts/deployment/Install-ReleaseToolchain.ps1 -InstallDirectory "$env:RUNNER_TEMP/release-toolchain"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
@@ -72,7 +72,7 @@ jobs:
       - name: Exact source tests, five-file package and read-only FTP baseline
         shell: pwsh
         run: |
-          & ./scripts/deployment/Invoke-NadiTrackApplicationRelease.ps1 -Operation Preflight -SourceDirectory release-source -PackageDirectory "$env:RUNNER_TEMP/career-admin-ui-package"
+          & ./scripts/deployment/Invoke-NadiTrackApplicationRelease.ps1 -Operation Preflight -DotnetExecutable "$env:RUNNER_TEMP/release-toolchain/dotnet.exe" -SourceDirectory release-source -PackageDirectory "$env:RUNNER_TEMP/career-admin-ui-package"
       - name: Save exact immutable preflight release and rollback baseline
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

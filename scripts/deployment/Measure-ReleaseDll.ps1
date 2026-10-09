@@ -1,11 +1,15 @@
-param([Parameter(Mandatory)][string]$BuildRoot)
+param([Parameter(Mandatory)][string]$BuildRoot,[string]$DotnetExecutable='dotnet')
 $ErrorActionPreference='Stop'
+Import-Module (Join-Path $PSScriptRoot 'ReleaseToolchain.psm1') -Force
 $project=Join-Path $BuildRoot 'backend/StackMeet.Api'
 $dll=Join-Path $project 'bin/Release/net8.0/StackMeet.Api.dll'
 $obj=Join-Path $project 'obj/Release/net8.0'
 $assets=Get-Content (Join-Path $project 'obj/project.assets.json') -Raw|ConvertFrom-Json
 $libraries=@($assets.libraries.PSObject.Properties|Sort-Object Name|ForEach-Object{[ordered]@{name=$_.Name;sha512=$_.Value.sha512;type=$_.Value.type}})
-$resolution=[ordered]@{libraries=$libraries;frameworks=$assets.project.frameworks}
+# The SDK location is diagnostic metadata, not a dependency version/checksum.
+$frameworks=$assets.project.frameworks|ConvertTo-Json -Depth 20|ConvertFrom-Json
+foreach($framework in $frameworks.PSObject.Properties){$framework.Value.PSObject.Properties.Remove('runtimeIdentifierGraphPath')}
+$resolution=[ordered]@{libraries=$libraries;frameworks=$frameworks}
 $normalized=$resolution|ConvertTo-Json -Depth 15 -Compress
 $sha=[Security.Cryptography.SHA256]::Create()
 $resolutionHash=[Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized)))
@@ -23,10 +27,10 @@ try{
 }finally{$pe.Dispose();$stream.Dispose()}
 $generated=@(Get-ChildItem $obj -File|Where-Object {$_.Extension -eq '.cs' -or $_.Name -like '*sourcelink.json'}|Sort-Object Name|ForEach-Object{[ordered]@{name=$_.Name;sha256=(Get-FileHash $_.FullName).Hash}})
 $sourceLink=Get-ChildItem $obj -Filter '*sourcelink.json'|Select-Object -First 1
-$inputJson=& dotnet msbuild (Join-Path $project 'StackMeet.Api.csproj') -target:InitializeSourceControlInformation,InitializeSourceRootMappedPaths -getProperty:SourceRevisionId,PathMap,ContinuousIntegrationBuild,Deterministic,MSBuildVersion,RoslynTargetsPath -getItem:SourceRoot -p:ContinuousIntegrationBuild=true -p:SourceRevisionId=6182e405ced08c24cf5f8738f1172c8df5197d3e
+$inputJson=& $DotnetExecutable msbuild (Join-Path $project 'StackMeet.Api.csproj') -target:InitializeSourceControlInformation,InitializeSourceRootMappedPaths -getProperty:SourceRevisionId,PathMap,ContinuousIntegrationBuild,Deterministic,MSBuildVersion,RoslynTargetsPath -getItem:SourceRoot -p:ContinuousIntegrationBuild=true -p:SourceRevisionId=6182e405ced08c24cf5f8738f1172c8df5197d3e
 if($LASTEXITCODE){throw 'Safe build-input query failed'}
 $inputs=($inputJson -join "`n")|ConvertFrom-Json
 $compiler=Join-Path $inputs.Properties.RoslynTargetsPath 'bincore/csc.dll'
-$compilerVersion=(& dotnet $compiler -version) -join ''
+$compilerVersion=(& $DotnetExecutable $compiler -version) -join ''
 if($LASTEXITCODE){throw 'Compiler version query failed'}
-[ordered]@{dllSha256=(Get-FileHash $dll).Hash;dllBytes=(Get-Item $dll).Length;informationalVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($dll).ProductVersion;mvid=$mvid;peStamp=$stamp;debug=$debug;generated=$generated;sourceLink=$(if($sourceLink){Get-Content $sourceLink.FullName -Raw}else{$null});assetsRawSha256=(Get-FileHash (Join-Path $project 'obj/project.assets.json')).Hash;dependencyResolutionSha256=$resolutionHash;dependencyResolution=$resolution;buildInputs=$inputs;compilerVersion=$compilerVersion;compilerSha256=(Get-FileHash $compiler).Hash}
+[ordered]@{compilerRuntime=(Get-ReleaseCompilerRuntime (Join-Path $project 'bin/Release/net8.0/StackMeet.Api.pdb'));dllSha256=(Get-FileHash $dll).Hash;dllBytes=(Get-Item $dll).Length;informationalVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($dll).ProductVersion;mvid=$mvid;peStamp=$stamp;debug=$debug;generated=$generated;sourceLink=$(if($sourceLink){Get-Content $sourceLink.FullName -Raw}else{$null});assetsRawSha256=(Get-FileHash (Join-Path $project 'obj/project.assets.json')).Hash;dependencyResolutionSha256=$resolutionHash;dependencyResolution=$resolution;buildInputs=$inputs;compilerVersion=$compilerVersion;compilerSha256=(Get-FileHash $compiler).Hash}

@@ -3,6 +3,7 @@ param(
  [Parameter(Mandatory)][ValidateSet('Preflight','Deploy','VerifyRollback')][string]$Operation,
  [Parameter(Mandatory)][string]$PackageDirectory,
  [string]$SourceDirectory,
+ [string]$DotnetExecutable,
  [string]$PreflightRunId=$env:PREFLIGHT_RUN_ID,
  [string]$ExpectedManifestSha256=$env:EXPECTED_MANIFEST,
  [string]$SiteConfirmation=$env:SITE_CONFIRMATION,
@@ -11,6 +12,7 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'NadiTrackApplicationRelease.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ReleaseToolchain.psm1') -Force
 $policy=Read-ReleaseJson (Join-Path $PSScriptRoot 'career-profile-admin-ui.approved.json')
 Assert-ReleasePolicy $policy
 function GitHub([string]$Path){
@@ -82,6 +84,8 @@ function Read-LiveSnapshot([string]$SaveTo) {
 function Run-Checked([string]$Executable,[string[]]$Arguments){ & $Executable @Arguments; if($LASTEXITCODE){throw "$Executable failed (exit $LASTEXITCODE)"} }
 try {
  if($Operation -eq 'Preflight'){
+  Enable-ReleaseToolchain $DotnetExecutable
+  Assert-ReleaseToolchain $DotnetExecutable
   if(-not $SourceDirectory){throw 'Exact source checkout required'}
   $SourceDirectory=(Resolve-Path -LiteralPath $SourceDirectory).Path
   $head=(& git -C $SourceDirectory rev-parse HEAD).Trim()
@@ -101,24 +105,25 @@ try {
   # These tests use disposable LocalDB. No production database secrets are provided.
   Push-Location $SourceDirectory
   try {
-   $installed=@(& dotnet --list-sdks)
+   $installed=@(& $DotnetExecutable --list-sdks)
    $inventoryExit=$LASTEXITCODE
    $installed | ForEach-Object {Write-Host $_}
-   $selectedOutput=@(& dotnet --version)
+   $selectedOutput=@(& $DotnetExecutable --version)
    $selectionExit=$LASTEXITCODE
    $selectedOutput | ForEach-Object {Write-Host $_}
    $selected=($selectedOutput -join "`n").Trim()
    Assert-ReleaseBuildSdk $installed $selected
    if($inventoryExit -ne 0 -or $selectionExit -ne 0){throw 'SDK diagnostics failed'}
-   Run-Checked dotnet @('restore','StackMeet.sln','--configfile','NuGet.Config')
+   Run-Checked $DotnetExecutable @('restore','StackMeet.sln','--configfile','NuGet.Config')
    foreach($project in Get-ChildItem tests -Recurse -Filter *.csproj | Sort-Object FullName){
-    Run-Checked dotnet @('restore',$project.FullName,'--configfile','NuGet.Config')
-    Run-Checked dotnet @('run','--project',$project.FullName,'-c','Release','--no-restore')
+    Run-Checked $DotnetExecutable @('restore',$project.FullName,'--configfile','NuGet.Config')
+    Run-Checked $DotnetExecutable @('run','--project',$project.FullName,'-c','Release','--no-restore')
    }
    foreach($test in Get-ChildItem tests -Filter *.test.js | Sort-Object Name){Run-Checked node @($test.FullName)}
    Run-Checked node @('backend/StackMeet.Api/wwwroot/js/storage/storage-smoke.test.js')
    # Final exact-source CI build AFTER tests (tests may build with different properties).
-   Run-Checked dotnet @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)")
+   Run-Checked $DotnetExecutable @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)")
+   Assert-ReleaseCompilerRuntime (Get-ReleaseCompilerRuntime (Join-Path $SourceDirectory 'backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.pdb'))
   } finally {Pop-Location}
   $payload=Join-Path $PackageDirectory 'payload';New-Item -ItemType Directory -Path $payload -Force | Out-Null
   foreach($f in $policy.files){Copy-Item -LiteralPath (Join-Path $SourceDirectory $f.repositoryPath) -Destination (Join-Path $payload $f.name)}

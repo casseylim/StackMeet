@@ -1,6 +1,9 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$SourceDirectory,[Parameter(Mandatory)][string]$OutputDirectory,[switch]$RunSuites,[switch]$MirrorPreflight)
+param([Parameter(Mandatory)][string]$SourceDirectory,[Parameter(Mandatory)][string]$OutputDirectory,[switch]$RunSuites,[switch]$MirrorPreflight,[Parameter(Mandatory)][string]$DotnetExecutable)
 $ErrorActionPreference='Stop'
+Import-Module (Join-Path $PSScriptRoot 'ReleaseToolchain.psm1') -Force
+Enable-ReleaseToolchain $DotnetExecutable
+Assert-ReleaseToolchain $DotnetExecutable
 Import-Module (Join-Path $PSScriptRoot 'NadiTrackApplicationRelease.psm1') -Force
 $policy=Read-ReleaseJson (Join-Path $PSScriptRoot 'career-profile-admin-ui.approved.json')
 $SourceDirectory=(Resolve-Path $SourceDirectory).Path
@@ -17,7 +20,7 @@ function Run([string]$Exe,[string[]]$Arguments,[string]$Log){
  & $Exe @Arguments *> $Log
  if($LASTEXITCODE){throw "$Exe failed: $([IO.Path]::GetFileName($Log))"}
 }
-function Get-DllMeasurement([string]$BuildRoot){& (Join-Path $PSScriptRoot 'Measure-ReleaseDll.ps1') $BuildRoot}
+function Get-DllMeasurement([string]$BuildRoot){& (Join-Path $PSScriptRoot 'Measure-ReleaseDll.ps1') $BuildRoot -DotnetExecutable $DotnetExecutable}
 $builds=@(foreach($number in 1..3){
  $checkout=Join-Path $OutputDirectory "build-$number"
  if($MirrorPreflight -and $number -eq 1){$checkout=$SourceDirectory}else{
@@ -32,10 +35,11 @@ $builds=@(foreach($number in 1..3){
  Initialize-ReleaseBuildSdk $buildRoot
  Push-Location $buildRoot
  try{
-  $sdk=(& dotnet --version).Trim();Assert-ReleaseBuildSdk @(& dotnet --list-sdks) $sdk
-  Run dotnet @('restore','StackMeet.sln','--configfile','NuGet.Config') (Join-Path $OutputDirectory "restore-$number.log")
-  Run dotnet @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)") (Join-Path $OutputDirectory "build-$number.log")
+  $sdk=(& $DotnetExecutable --version).Trim();Assert-ReleaseBuildSdk @(& $DotnetExecutable --list-sdks) $sdk
+  Run $DotnetExecutable @('restore','StackMeet.sln','--configfile','NuGet.Config') (Join-Path $OutputDirectory "restore-$number.log")
+  Run $DotnetExecutable @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)") (Join-Path $OutputDirectory "build-$number.log")
   $result=Get-DllMeasurement $buildRoot
+  Assert-ReleaseCompilerRuntime $result.compilerRuntime
   $result['number']=$number;$result['buildRoot']=$buildRoot;$result['sdk']=$sdk
   $result|ConvertTo-Json -Depth 25|Set-Content (Join-Path $OutputDirectory "build-$number.json")
   foreach($extension in 'dll','pdb'){Copy-Item (Join-Path $buildRoot "backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.$extension") (Join-Path $OutputDirectory "measurement-$number.$extension")}
@@ -49,14 +53,15 @@ if($RunSuites){
  $buildRoot=$builds[0].buildRoot;Push-Location $buildRoot
  try{
   foreach($project in Get-ChildItem tests -Recurse -Filter *.csproj|Sort-Object FullName){
-   Run dotnet @('restore',$project.FullName,'--configfile','NuGet.Config') (Join-Path $OutputDirectory ($project.BaseName+'.restore.log'))
-   Run dotnet @('run','--project',$project.FullName,'-c','Release','--no-restore') (Join-Path $OutputDirectory ($project.BaseName+'.test.log'))
+   Run $DotnetExecutable @('restore',$project.FullName,'--configfile','NuGet.Config') (Join-Path $OutputDirectory ($project.BaseName+'.restore.log'))
+   Run $DotnetExecutable @('run','--project',$project.FullName,'-c','Release','--no-restore') (Join-Path $OutputDirectory ($project.BaseName+'.test.log'))
    Write-Host "SUITE_PASS=$($project.BaseName)"
   }
   foreach($test in Get-ChildItem tests -Filter *.test.js|Sort-Object Name){Run node @($test.FullName) (Join-Path $OutputDirectory ($test.Name+'.log'))}
   Run node @('backend/StackMeet.Api/wwwroot/js/storage/storage-smoke.test.js') (Join-Path $OutputDirectory 'storage.log')
-  Run dotnet @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)") (Join-Path $OutputDirectory 'post-test-build.log')
+  Run $DotnetExecutable @('build','StackMeet.sln','-c','Release','--no-restore','-p:ContinuousIntegrationBuild=true',"-p:SourceRevisionId=$($policy.sourceSha)") (Join-Path $OutputDirectory 'post-test-build.log')
   $post=Get-DllMeasurement $buildRoot
+  Assert-ReleaseCompilerRuntime $post.compilerRuntime
   $post|ConvertTo-Json -Depth 25|Set-Content (Join-Path $OutputDirectory 'post-test.json')
   foreach($extension in 'dll','pdb'){Copy-Item (Join-Path $buildRoot "backend/StackMeet.Api/bin/Release/net8.0/StackMeet.Api.$extension") (Join-Path $OutputDirectory "post-test.$extension")}
   Write-Host "POST_TEST_BUILD_SHA256=$($post.dllSha256)"
