@@ -191,6 +191,9 @@ Check 'real dotnet host honors disposable pin or fails when SDK unavailable' {
   if($available){
    if($code -ne 0 -or ($selected -join '').Trim() -cne '10.0.400'){throw 'Real host ignored exact SDK pin'}
   }elseif($code -eq 0){throw 'Real host rolled forward despite unavailable exact SDK'}
+  # The expected rejection was asserted. GitHub's dot-sourced wrapper exits with
+  # LASTEXITCODE, so do not leak that deliberately nonzero native result.
+  $global:LASTEXITCODE=0
  }finally{Pop-Location}
 }
 Check 'global.json cannot enter production payload' {
