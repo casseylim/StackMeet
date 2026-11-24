@@ -18,6 +18,36 @@ class Repository {
       : "DEFAULT";
   }
 
+  // Transitional JSON boundary. SQL owns roster and results; keep runtime state intact.
+  static withoutLegacyStackers(data) {
+    const legacy = structuredClone(data);
+    legacy.stackers = [];
+    return legacy;
+  }
+
+  static legacyStateForSave(data) {
+    const legacy = structuredClone(data);
+    legacy.stackers = [];
+    legacy.results = [];
+    return legacy;
+  }
+
+  // Preserve the existing additive merge and tombstone semantics. Revision acceptance
+  // remains the provider's responsibility; this function does not perform any I/O.
+  static mergeConcurrentState(latestState, localState, deletedRecords) {
+    deletedRecords = deletedRecords || {};
+    const merged = { ...latestState, ...localState };
+    ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
+      if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
+      const records = new Map(latestState[key].map(item => [String(item.id), item]));
+      const deleted = deletedRecords[key] instanceof Set ? deletedRecords[key] : new Set();
+      deleted.forEach(id => records.delete(String(id)));
+      localState[key].forEach(item => records.set(String(item.id), item));
+      merged[key] = [...records.values()];
+    });
+    return merged;
+  }
+
   load() { return this.provider.load(); }
   reloadLatestCompetition() { return this.provider.reloadLatest(); }
   save(state) { return this.provider.save(state); }

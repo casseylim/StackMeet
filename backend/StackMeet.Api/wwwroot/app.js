@@ -358,16 +358,11 @@ async function loadState() {
 }
 
 function withoutLegacyStackers(data) {
-  const legacy = structuredClone(data);
-  legacy.stackers = [];
-  return legacy;
+  return CompetitionRepository.withoutLegacyStackers(data);
 }
 
 function legacyStateForSave(data) {
-  const legacy = structuredClone(data);
-  legacy.stackers = [];
-  legacy.results = [];
-  return legacy;
+  return CompetitionRepository.legacyStateForSave(data);
 }
 
 function normalizeState(data) {
@@ -636,17 +631,7 @@ function resultLogicalKey(result) {
 
 // Merges additive records from the latest server snapshot before saving, so separate computers do not erase each other's new entries.
 function mergeConcurrentState(latestState, localState, deletedRecords) {
-  deletedRecords = deletedRecords || {};
-  const merged = { ...latestState, ...localState };
-  ["doubles", "relays", "notifications", "auditLogs"].forEach(key => {
-    if (!Array.isArray(latestState?.[key]) || !Array.isArray(localState?.[key])) return;
-    const records = new Map(latestState[key].map(item => [String(item.id), item]));
-    const deleted = deletedRecords[key] instanceof Set ? deletedRecords[key] : new Set();
-    deleted.forEach(id => records.delete(String(id)));
-    localState[key].forEach(item => records.set(String(item.id), item));
-    merged[key] = [...records.values()];
-  });
-  return merged;
+  return CompetitionRepository.mergeConcurrentState(latestState, localState, deletedRecords);
 }
 
 function recordDeletedStateRecord(collection, id) {
