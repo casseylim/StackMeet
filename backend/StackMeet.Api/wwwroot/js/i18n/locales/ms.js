@@ -348,4 +348,26 @@
   Object.assign(root.StackMeetI18nLocales.ms, { "Status: {status}": "Keadaan: {status}" });
   Object.assign(root.StackMeetI18nLocales.ms, { "Location: {location}": "Lokasi: {location}", "{country} · Organization: {organization}": "{country} · Organisasi: {organization}", "Stackers: {members} · Division: {division}": "Peserta: {members} · Divisyen: {division}" });
   Object.assign(root.StackMeetI18nLocales.ms, { "Preview": "Pratonton", "Choose a print item to generate a printable preview.": "Pilih item cetakan untuk menjana pratonton yang boleh dicetak." });
+  Object.assign(root.StackMeetI18nLocales["ms"], {
+  "Discard the current result draft?": "Buang draf keputusan semasa?",
+  "Review latest saved results": "Semak keputusan tersimpan terkini",
+  "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}. Tersimpan: {saved}. Draf: {draft}.",
+  "No saved result": "Tiada keputusan tersimpan",
+  "No draft result": "Tiada keputusan draf",
+  "Use reviewed results as the new baseline": "Gunakan keputusan yang disemak sebagai asas baharu",
+  "Keep your draft and use these reviewed results for the next save?": "Kekalkan draf anda dan gunakan keputusan yang disemak untuk simpanan seterusnya?",
+  "Results changed again. Review the latest saved results.": "Keputusan berubah lagi. Semak keputusan tersimpan terkini.",
+  "Reviewed results accepted. Your draft is still in the editor.": "Keputusan yang disemak diterima. Draf anda masih dalam editor.",
+  "Could not load saved results. Your draft was kept.": "Keputusan tersimpan tidak dapat dimuatkan. Draf anda dikekalkan.",
+  "{attempts} (penalty {penalty})": "{attempts} (penalti {penalty})",
+  "Review saved results before saving this draft.": "Semak keputusan tersimpan sebelum menyimpan draf ini.",
+  "Results were saved. Review saved results before continuing.": "Keputusan telah disimpan. Semak keputusan tersimpan sebelum meneruskan.",
+  "The save outcome is unknown. Review saved results before trying again.": "Status simpanan belum diketahui. Semak keputusan tersimpan sebelum mencuba lagi.",
+  "Saved results changed. Review them alongside your draft.": "Keputusan tersimpan telah berubah. Bandingkannya dengan draf anda.",
+  "Refresh or reopen the scoring screen to upgrade before saving.": "Muat semula atau buka semula skrin pemarkahan sebelum menyimpan.",
+  "Results were rejected. Your draft was kept.": "Keputusan ditolak. Draf anda dikekalkan.",
+  "Open the result editor before saving.": "Buka editor keputusan sebelum menyimpan.",
+  "Results saved.": "Keputusan disimpan.",
+  "Your draft changed. Save again to review the updated draft.": "Draf anda telah berubah. Tekan Simpan sekali lagi untuk menyemak draf terkini."
+});
 })(typeof window !== "undefined" ? window : globalThis);

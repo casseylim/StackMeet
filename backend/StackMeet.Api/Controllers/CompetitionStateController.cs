@@ -76,16 +76,10 @@ public sealed class CompetitionStateController(
         if (!teamResults.TryReadReadyTeams(jsonData, out _, out var teamStateError))
             return BadRequest(new { error = teamStateError ?? "Competition team state could not be validated." });
 
-        foreach (var chunk in referencedCodes.Chunk(500))
-        {
-            var existing = await database.Stackers.AsNoTracking()
-                .Where(item => item.CompetitionId == competitionId && chunk.Contains(item.StackerCode))
-                .Select(item => item.StackerCode).ToListAsync(cancellationToken);
-            if (existing.Count != chunk.Length)
-                return BadRequest(new { error = "Competition state contains a participant reference that does not belong to this competition." });
-        }
-
-        var updatedBy = Request.Headers["X-StackMeet-Updated-By"].FirstOrDefault();
+        var session = HttpContext.Items["StackMeetSession"] as SessionToken;
+        var updatedBy = HttpContext.Items["StackMeetMaintenanceApiKey"] is true
+            ? "maintenance:api-key"
+            : session?.UserId is int userId ? $"account:{userId}" : "legacy:competition-session";
         var changedAt = DateTime.UtcNow;
         long committedRevision;
 
@@ -101,6 +95,20 @@ public sealed class CompetitionStateController(
             var state = await database.CompetitionStates
                 .FromSqlInterpolated($"SELECT * FROM [dbo].[CompetitionState] WITH (UPDLOCK, HOLDLOCK) WHERE [CompetitionKey] = {normalizedKey}")
                 .SingleOrDefaultAsync(cancellationToken);
+
+            if (lockedCompetition.ArchivedAt is not null || string.Equals(lockedCompetition.Status, "Archived", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = "Competition is archived." });
+            if (string.Equals(lockedCompetition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+                return Conflict(new { error = "Competition is closed and read-only." });
+
+            foreach (var chunk in referencedCodes.Chunk(500))
+            {
+                var existing = await database.Stackers.AsNoTracking()
+                    .Where(item => item.CompetitionId == competitionId && chunk.Contains(item.StackerCode))
+                    .Select(item => item.StackerCode).ToListAsync(cancellationToken);
+                if (existing.Count != chunk.Length)
+                    return BadRequest(new { error = "Competition state contains a participant reference that does not belong to this competition." });
+            }
 
             var resultReferenceError = await teamResults.ValidateStateAgainstExistingResultsAsync(
                 lockedCompetition.Id,
@@ -124,7 +132,7 @@ public sealed class CompetitionStateController(
                     StateRevision = 1,
                     CreatedAt = changedAt,
                     UpdatedAt = changedAt,
-                    UpdatedBy = string.IsNullOrWhiteSpace(updatedBy) ? null : updatedBy
+                    UpdatedBy = updatedBy
                 };
                 database.CompetitionStates.Add(state);
                 committedRevision = 1;
@@ -139,7 +147,7 @@ public sealed class CompetitionStateController(
                 state.JsonData = jsonData;
                 state.StateRevision++;
                 state.UpdatedAt = changedAt;
-                state.UpdatedBy = string.IsNullOrWhiteSpace(updatedBy) ? null : updatedBy;
+                state.UpdatedBy = updatedBy;
                 committedRevision = state.StateRevision;
             }
 

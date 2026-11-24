@@ -69,4 +69,26 @@
   Object.assign(root.StackMeetI18nLocales.en, { "Place {number}": "Place {number}", "ID: {id}": "ID: {id}", "Type: {type}": "Type: {type}", "Status: {status}": "Status: {status}", "Partner: {partner}": "Partner: {partner}", "Division: {division}": "Division: {division}", "No doubles entry yet": "No doubles entry yet", "No {stage} results yet.": "No {stage} results yet.", "All required prelim times entered": "All required prelim times entered", "Individual Time Sheets ({range})": "Individual Time Sheets ({range})", "No stackers": "No stackers", "No stackers found in this range.": "No stackers found in this range.", "No completed doubles teams are available for preliminary time sheets.": "No completed doubles teams are available for preliminary time sheets.", "No ready relay teams are available for preliminary time sheets.": "No ready relay teams are available for preliminary time sheets.", "Bracket": "Bracket", "Seed {number}": "Seed {number}", "All (by Overall)": "All (by Overall)", "All (by Division)": "All (by Division)", "No Limit": "No Limit" });
   Object.assign(root.StackMeetI18nLocales.en, { "Location: {location}": "Location: {location}", "{country} · Organization: {organization}": "{country} · Organization: {organization}", "Stackers: {members} · Division: {division}": "Stackers: {members} · Division: {division}" });
   Object.assign(root.StackMeetI18nLocales.en, { "Preview": "Preview", "Choose a print item to generate a printable preview.": "Choose a print item to generate a printable preview." });
+  Object.assign(root.StackMeetI18nLocales["en"], {
+  "Discard the current result draft?": "Discard the current result draft?",
+  "Review latest saved results": "Review latest saved results",
+  "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}. Saved: {saved}. Draft: {draft}.",
+  "No saved result": "No saved result",
+  "No draft result": "No draft result",
+  "Use reviewed results as the new baseline": "Use reviewed results as the new baseline",
+  "Keep your draft and use these reviewed results for the next save?": "Keep your draft and use these reviewed results for the next save?",
+  "Results changed again. Review the latest saved results.": "Results changed again. Review the latest saved results.",
+  "Reviewed results accepted. Your draft is still in the editor.": "Reviewed results accepted. Your draft is still in the editor.",
+  "Could not load saved results. Your draft was kept.": "Could not load saved results. Your draft was kept.",
+  "{attempts} (penalty {penalty})": "{attempts} (penalty {penalty})",
+  "Review saved results before saving this draft.": "Review saved results before saving this draft.",
+  "Results were saved. Review saved results before continuing.": "Results were saved. Review saved results before continuing.",
+  "The save outcome is unknown. Review saved results before trying again.": "The save outcome is unknown. Review saved results before trying again.",
+  "Saved results changed. Review them alongside your draft.": "Saved results changed. Review them alongside your draft.",
+  "Refresh or reopen the scoring screen to upgrade before saving.": "Refresh or reopen the scoring screen to upgrade before saving.",
+  "Results were rejected. Your draft was kept.": "Results were rejected. Your draft was kept.",
+  "Open the result editor before saving.": "Open the result editor before saving.",
+  "Results saved.": "Results saved.",
+  "Your draft changed. Save again to review the updated draft.": "Your draft changed. Save again to review the updated draft."
+});
 })(typeof window !== "undefined" ? window : globalThis);

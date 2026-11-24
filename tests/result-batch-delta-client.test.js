@@ -91,6 +91,18 @@ const result = (participant, event, revision, attempts) => ({
   assert.equal(calls.at(-2).method, "POST");
   assert.equal(calls.at(-1).method, "GET");
 
+  // A different writer advanced the dataset and deleted a cached row before our save.
+  queuedResponses.push(
+    { revision: 10, results: [result("1.2", "3-6-3", 10, [10])] },
+    { revision: 10, results: [result("1.2", "3-6-3", 10, [10])] }
+  );
+  const afterGap = await uncachedApi.saveBatch(7, {
+    upserts: [{ stage: "Prelims", type: "Individual", participant: "1.2", event: "3-6-3", attempts: [10], penalty: 0, expectedRevision: 6 }],
+    deletes: []
+  });
+  assert.deepEqual(afterGap.results.map(item => item.participant), ["1.2"]);
+  assert.equal(calls.at(-1).method, "GET", "A revision gap must trigger an authoritative refresh.");
+
   console.log("Result batch delta client tests passed.");
 })().catch(error => {
   console.error(error);
