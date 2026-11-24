@@ -113,7 +113,9 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         // sessions during the account/RBAC migration. Account sessions must honor their assigned role.
         if (HttpContext.Items["StackMeetMaintenanceApiKey"] is true) return null;
         if (HttpContext.Items["StackMeetSession"] is not SessionToken session) return Unauthorized();
-        if (!session.IsAccountSession) return null;
+        if (!session.IsAccountSession)
+            return await permissions.CanAccessCompetitionId(session, competitionId, ct)
+                ? null : StatusCode(StatusCodes.Status403Forbidden);
         if (session.UserId is null) return Unauthorized();
 
         var role = await permissions.RoleForCompetitionId(session.UserId.Value, session.IsSystemAdmin, competitionId, ct);

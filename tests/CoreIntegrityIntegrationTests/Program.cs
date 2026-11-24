@@ -626,6 +626,13 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
         Assert(logout.StatusCode == HttpStatusCode.NoContent, "ENG02B logout-all succeeds");
     Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
         && await ReadStatus(b, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B old token rejected by both API gates after logout-all");
+    using (var mixed = new HttpClient { BaseAddress = a.BaseAddress })
+    {
+        mixed.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", "phase-e-http-test-key");
+        mixed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer.ToString());
+        Assert(await ReadStatus(mixed, "/api/auth/me") == HttpStatusCode.Unauthorized,
+            "ENG02E maintenance key cannot make a revoked bearer current");
+    }
     deliveredBefore = deliveredChanges;
     await TriggerHubChange();
     Assert(!await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 revoked account token cannot rejoin");
@@ -639,6 +646,55 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     await db.SaveChangesAsync();
     Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
         && await ReadStatus(a, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B deactivated account session rejected");
+    // Exercise role and authority boundaries using real requests without changing existing scoring.
+    using var roleClient = new HttpClient { BaseAddress = a.BaseAddress };
+    roleClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", unassignedToken);
+    var stackerRoute = $"/api/competitions/{competitionId}/stackers";
+    var assetRoute = $"/api/competitions/{competitionId}/assets";
+    var stateRoute = $"/api/state/{key}";
+    Assert(await ReadStatus(roleClient, stateRoute) == HttpStatusCode.Forbidden
+        && await ReadStatus(roleClient, route) == HttpStatusCode.Forbidden,
+        "ENG02E unassigned account cannot access state or results");
+    viewerAssignment.IsActive = true;
+    foreach (var roleId in new[] { 4, 3, 2 })
+    {
+        viewerAssignment.RoleId = roleId;
+        await db.SaveChangesAsync();
+        foreach (var readRoute in new[] { stateRoute, route, stackerRoute, assetRoute })
+            Assert(await ReadStatus(roleClient, readRoute) == HttpStatusCode.OK, $"ENG02E role {roleId} can read assigned resource");
+        using (var stateWrite = await roleClient.PostAsync(stateRoute, new StringContent("{}")))
+            Assert(stateWrite.StatusCode == (roleId == 2 ? HttpStatusCode.PreconditionRequired : HttpStatusCode.Forbidden),
+                $"ENG02E role {roleId} state management gate");
+        using (var batch = await roleClient.PostAsJsonAsync(route + "/batch", new { upserts = Array.Empty<object>(), deletes = Array.Empty<object>() }))
+            Assert(batch.StatusCode == (roleId == 4 ? HttpStatusCode.Forbidden : HttpStatusCode.BadRequest),
+                $"ENG02E role {roleId} result entry gate");
+        using (var assetDelete = await roleClient.DeleteAsync(assetRoute + "/logo"))
+            Assert(assetDelete.StatusCode == (roleId == 2 ? HttpStatusCode.NoContent : HttpStatusCode.Forbidden),
+                $"ENG02E role {roleId} asset management gate");
+        Assert(await ReadStatus(roleClient, "/api/admin/competitions") == HttpStatusCode.Forbidden,
+            $"ENG02E role {roleId} cannot administer system");
+    }
+    var unrelated = await db.Competitions.AsNoTracking().FirstAsync(item => item.Id != competitionId && item.Status == "Active");
+    Assert(await ReadStatus(roleClient, $"/api/state/{unrelated.CompetitionKey}") == HttpStatusCode.Forbidden
+        && await ReadStatus(roleClient, $"/api/competitions/{unrelated.Id}/stackers") == HttpStatusCode.Forbidden,
+        "ENG02E account cannot read another competition");
+    using var legacyClient = new HttpClient { BaseAddress = a.BaseAddress };
+    legacyClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", legacyHubToken);
+    Assert(await ReadStatus(legacyClient, stateRoute) == HttpStatusCode.OK
+        && await ReadStatus(legacyClient, stackerRoute) == HttpStatusCode.OK
+        && await ReadStatus(legacyClient, route) == HttpStatusCode.Unauthorized,
+        "ENG02E legacy state and roster access retained, account-only results protected");
+    Assert(await ReadStatus(legacyClient, $"/api/state/{unrelated.CompetitionKey}") == HttpStatusCode.Forbidden
+        && await ReadStatus(legacyClient, $"/api/competitions/{unrelated.Id}/stackers") == HttpStatusCode.Forbidden,
+        "ENG02E legacy scope enforced across resource routes");
+    Assert(await ReadStatus(maintenance, stateRoute) == HttpStatusCode.OK
+        && await ReadStatus(maintenance, stackerRoute) == HttpStatusCode.OK
+        && await ReadStatus(maintenance, route) == HttpStatusCode.Unauthorized
+        && await ReadStatus(maintenance, "/api/admin/competitions") == HttpStatusCode.Unauthorized,
+        "ENG02E maintenance scope remains distinct from account and admin authority");
+    Assert(await ReadStatus(admin, stateRoute) == HttpStatusCode.Unauthorized,
+        "ENG02E admin key alone is not an operator or maintenance credential");
+
 }
 
 static async Task RunPublicationAcceptanceAsync(int port, string key, StackMeetDbContext db)

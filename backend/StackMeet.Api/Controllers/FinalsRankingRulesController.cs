@@ -15,20 +15,7 @@ public sealed class FinalsRankingRulesController(StackMeetDbContext database) : 
     {
         var query = database.Competitions.AsNoTracking();
 
-        if (HttpContext.Items["StackMeetSession"] is SessionToken session)
-        {
-            if (session.IsAccountSession && !session.IsSystemAdmin)
-            {
-                query = query.Where(item => item.CompetitionUsers.Any(access =>
-                    access.IsActive
-                    && access.UserId == session.UserId
-                    && access.User.IsActive));
-            }
-            else if (!session.IsAccountSession)
-            {
-                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
-            }
-        }
+        query = SessionAuthorization.ScopeCompetitions(query, HttpContext);
 
         var competitionIds = await query
             .OrderBy(item => item.CompetitionCode)
