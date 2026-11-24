@@ -37,6 +37,31 @@ try
     catch (Exception ex) { throw new InvalidOperationException($"LocalDB migration phase failed for {databaseName}. {ex.Message}", ex); }
     Console.WriteLine("Migration: passed");
     Console.WriteLine("Assertions: starting");
+    var passwordService = new PasswordHashService();
+    const string syntheticPassword = "Synthetic-only-password!";
+    var generatedHash = passwordService.Hash(syntheticPassword);
+    Assert(passwordService.Verify(syntheticPassword, generatedHash), "ENG02 current password hash round trip");
+    Assert(!passwordService.Verify("wrong-synthetic-password", generatedHash), "ENG02 incorrect password rejected");
+    var hashFields = generatedHash.Split('$');
+    string WithHashField(int index, string value)
+    {
+        var fields = (string[])hashFields.Clone();
+        fields[index] = value;
+        return string.Join("$", fields);
+    }
+    foreach (var iteration in new[] { "0", "-1", "1000001", "2147483647", "invalid" })
+        Assert(!passwordService.Verify(syntheticPassword, WithHashField(1, iteration)), "ENG02 malformed or excessive iterations rejected");
+    foreach (var field in new[] { 2, 3 })
+        foreach (var invalid in new[] { "", "!!!", Convert.ToBase64String(new byte[1]), Convert.ToBase64String(new byte[65]) })
+            Assert(!passwordService.Verify(syntheticPassword, WithHashField(field, invalid)), "ENG02 malformed salt or digest rejected");
+    Assert(!passwordService.Verify(syntheticPassword, new string('x', 501)), "ENG02 oversized hash rejected");
+    Assert(!passwordService.Verify(syntheticPassword, WithHashField(0, "unsupported")), "ENG02 unsupported hash algorithm rejected");
+    Assert(!passwordService.Verify(syntheticPassword, null), "ENG02 null stored hash rejected");
+    // Compatibility: the encoded iteration count remains usable for valid prior hashes.
+    var priorSalt = new byte[16];
+    var priorKey = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(syntheticPassword, priorSalt, 100_000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
+    var priorHash = string.Join("$", "PBKDF2-SHA256", "100000", Convert.ToBase64String(priorSalt), Convert.ToBase64String(priorKey));
+    Assert(passwordService.Verify(syntheticPassword, priorHash), "ENG02 valid historical iteration count supported");
     Assert(CompetitionResultRules.MaximumBatchSize == 500, "batch limit");
     Assert(CompetitionResultRules.NormalizeParticipantType(" relay ") == "Timed Relay", "legacy relay normalization");
     Assert(CompetitionResultRules.NormalizeStage(" finals ") == "Finals", "stage normalization");
