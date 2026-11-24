@@ -313,6 +313,11 @@ let adminPrintOrientation = "landscape";
 let activePrelimParticipantId = "";
 let activePrelimParticipantType = "";
 let prelimSaveInFlight = null;
+let finalSaveInFlight = null;
+let prelimResultEditor = null;
+let finalResultEditor = null;
+let resultCompetitionEpoch = 0;
+let resultsLoadedForEpoch = -1;
 let activeFinalSheetId = "";
 let doublesTab = "completed";
 let doubleFlashMessage = null;
@@ -717,6 +722,14 @@ function sqlCompetitionIdFromUrl() {
 }
 
 function setSelectedSqlCompetition(competition) {
+  if (selectedSqlCompetitionId !== Number(competition.id)) {
+    resultCompetitionEpoch++;
+    resultsLoadedForEpoch = -1;
+    currentResultsRevision = 0;
+    state.results = [];
+    prelimResultEditor = finalResultEditor = null;
+    activePrelimParticipantId = activePrelimParticipantType = activeFinalSheetId = "";
+  }
   selectedSqlCompetitionId = Number(competition.id);
   sqlCompetition = competition;
   sessionStorage.setItem(sqlCompetitionSessionKey, String(selectedSqlCompetitionId));
@@ -872,9 +885,9 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
 
 async function refreshSqlResults({ rerender = true } = {}) {
   if (!selectedSqlCompetitionId) return false;
+  const epoch = resultCompetitionEpoch;
   const payload = await resultApi.list(selectedSqlCompetitionId);
-  state.results = normalizeResults(payload.results);
-  currentResultsRevision = payload.revision;
+  if (!applySqlResultSnapshot(epoch, payload)) return false;
   resultSyncDiagnostics.currentResultsRevision = currentResultsRevision;
   resultSyncDiagnostics.lastReloadRevision = payload.revision;
   resultSyncDiagnostics.lastReloadCount = payload.results.length;
@@ -892,16 +905,203 @@ async function refreshSqlResults({ rerender = true } = {}) {
   return true;
 }
 
-async function saveSqlResults(upserts, deletes = []) {
-  const creates = upserts.some(item => item.expectedRevision == null);
-  const payload = await resultApi.saveBatch(selectedSqlCompetitionId, {
-    upserts: upserts.map(item => ({ ...item, expectedRevision: item.expectedRevision ?? 0 })),
-    deletes,
-    ...(creates ? { expectedResultsRevision: currentResultsRevision } : {})
-  });
+function applySqlResultSnapshot(epoch, payload) {
+  if (epoch !== resultCompetitionEpoch || payload.revision < currentResultsRevision) return false;
   state.results = normalizeResults(payload.results);
   currentResultsRevision = payload.revision;
-  return payload;
+  resultsLoadedForEpoch = epoch;
+  return true;
+}
+
+async function saveSqlResults(upserts, deletes = [], editor = null) {
+  const epoch = resultCompetitionEpoch;
+  const competitionId = editor?.competitionId ?? selectedSqlCompetitionId;
+  if (editor && !isCurrentResultEditor(editor)) throw new Error("Result editor changed.");
+  const payload = await resultApi.saveBatch(competitionId, {
+    upserts,
+    deletes,
+    ...(upserts.some(item => item.expectedRevision === 0) ? { expectedResultsRevision: editor.baseline.revision } : {})
+  });
+  applySqlResultSnapshot(epoch, payload);
+  return epoch === resultCompetitionEpoch;
+}
+
+function captureResultBaseline(keys, findSaved, revision = currentResultsRevision) {
+  const rows = {};
+  keys.forEach(key => {
+    const saved = findSaved(key);
+    rows[resultLogicalKey(key)] = Object.freeze({
+      key: Object.freeze({ ...key }),
+      id: saved?.id ?? null,
+      exists: Boolean(saved),
+      revision: saved?.revision ?? null,
+      attempts: Object.freeze([...(saved?.attempts ?? [])]),
+      penalty: saved?.penalty ?? null
+    });
+  });
+  return Object.freeze({ revision, rows: Object.freeze(rows) });
+}
+
+function makeResultEditor(kind, id, keys, findSaved, sheet = null) {
+  return {
+    kind, id, sheet, epoch: resultCompetitionEpoch, competitionId: selectedSqlCompetitionId,
+    baseline: captureResultBaseline(keys, findSaved),
+    ready: resultsLoadedForEpoch === resultCompetitionEpoch,
+    initialInput: null, reviewRequired: false, saving: false, reviewVersion: 0
+  };
+}
+
+function isCurrentResultEditor(editor) {
+  return editor.epoch === resultCompetitionEpoch
+    && editor === (editor.kind === "prelim" ? prelimResultEditor : finalResultEditor);
+}
+
+function resultEditorInputs(editor) {
+  return editor.kind === "prelim" ? visiblePrelimTimeInputs() : visibleFinalTimeInputs();
+}
+
+function editorInputSnapshot(editor) {
+  return JSON.stringify(resultEditorInputs(editor).map(input => input.value));
+}
+
+function canReplaceResultEditor(editor) {
+  if (!editor) return true;
+  if (editor.saving) return false;
+  if (!editor.reviewRequired && editor.initialInput === editorInputSnapshot(editor)) return true;
+  return confirm(t("Discard the current result draft?"));
+}
+
+function leaveResultEditors(nextRoute) {
+  if (nextRoute === "competition") return true;
+  if (!canReplaceResultEditor(prelimResultEditor) || !canReplaceResultEditor(finalResultEditor)) return false;
+  if (prelimResultEditor) clearPrelimEntry(true);
+  if (finalResultEditor) clearFinalSheet(true, true);
+  return true;
+}
+
+function editorUpserts(editor, draft) {
+  return draft.map(row => {
+    const previous = editor.baseline.rows[resultLogicalKey(row)];
+    if (!previous || (previous.exists && !(previous.revision > 0))) {
+      throw Object.assign(new Error("Result revision is unavailable."), { outcome: "review-required" });
+    }
+    return { ...previous.key, attempts: row.attempts, penalty: row.penalty, expectedRevision: previous.exists ? previous.revision : 0 };
+  });
+}
+
+function showResultEditorReview(editor, draft, message) {
+  if (!isCurrentResultEditor(editor)) return;
+  editor.reviewRequired = true;
+  const target = document.getElementById(editor.kind === "prelim" ? "prelimEntryMessage" : "finalEntryMessage");
+  if (!target) return;
+  target.hidden = false;
+  target.classList.add("error");
+  const status = document.createElement("span");
+  status.textContent = t(message);
+  status.setAttribute("role", "status");
+  const reviewedInput = editorInputSnapshot(editor);
+  const review = document.createElement("button");
+  review.type = "button";
+  review.textContent = t("Review latest saved results");
+  target.replaceChildren(status, document.createTextNode(" "), review);
+  review.addEventListener("click", async () => {
+    const reviewVersion = ++editor.reviewVersion;
+    review.disabled = true;
+    try {
+      const latest = await resultApi.review(editor.competitionId);
+      if (!isCurrentResultEditor(editor) || reviewVersion !== editor.reviewVersion) return;
+      const normalized = normalizeResults(latest.results);
+      const savedByKey = new Map(normalized.map(row => [resultLogicalKey(row), row]));
+      const items = document.createElement("ul");
+      const details = draft.map(row => {
+        const saved = savedByKey.get(resultLogicalKey(row));
+        return tf("{participant} / {event}. Saved: {saved}. Draft: {draft}.", {
+          participant: row.participant, event: row.event,
+          saved: saved ? resultReviewValue(saved) : t("No saved result"),
+          draft: resultReviewValue(row)
+        });
+      });
+      details.forEach(detail => {
+        const li = document.createElement("li");
+        li.textContent = detail;
+        items.append(li);
+      });
+      const accept = document.createElement("button");
+      accept.type = "button";
+      accept.textContent = t("Use reviewed results as the new baseline");
+      target.replaceChildren(status, review, items, accept);
+      accept.addEventListener("click", () => {
+        if (!isCurrentResultEditor(editor) || reviewVersion !== editor.reviewVersion) return;
+        if (editorInputSnapshot(editor) !== reviewedInput) {
+          target.textContent = t("Your draft changed. Save again to review the updated draft.");
+          return;
+        }
+        if (!confirm(t("Keep your draft and use these reviewed results for the next save?"))) return;
+        if (latest.revision < currentResultsRevision || !resultApi.acceptReview(editor.competitionId, latest.revision)) {
+          showResultEditorReview(editor, draft, "Results changed again. Review the latest saved results.");
+          return;
+        }
+        const keys = Object.values(editor.baseline.rows).map(row => row.key);
+        editor.baseline = captureResultBaseline(keys, key => savedByKey.get(resultLogicalKey(key)), latest.revision);
+        editor.ready = true;
+        editor.reviewRequired = false;
+        applySqlResultSnapshot(editor.epoch, latest);
+        target.textContent = t("Reviewed results accepted. Your draft is still in the editor.");
+      });
+    } catch {
+      if (isCurrentResultEditor(editor)) status.textContent = t("Could not load saved results. Your draft was kept.");
+    } finally {
+      review.disabled = false;
+    }
+  });
+}
+
+function recordOnlineResultAudit(editor, draft) {
+  appendCompetitionAuditLog({
+    action: editor.kind === "prelim" ? "results.prelim_saved" : "results.final_saved",
+    entityType: "Result", entityId: editor.id,
+    summary: `${editor.id}: ${draft.length} result(s) saved.`,
+    before: draft.map(row => editor.baseline.rows[resultLogicalKey(row)]),
+    after: draft
+  });
+}
+
+function resultReviewValue(row) {
+  return tf("{attempts} (penalty {penalty})", { attempts: row.attempts.join(", "), penalty: row.penalty });
+}
+
+async function persistOnlineResultDraft(editor, draft) {
+  if (!isCurrentResultEditor(editor)) return false;
+  if (editor.reviewRequired || !editor.ready) {
+    showResultEditorReview(editor, draft, "Review saved results before saving this draft.");
+    return false;
+  }
+  editor.saving = true;
+  const inputs = resultEditorInputs(editor);
+  inputs.forEach(input => { input.readOnly = true; });
+  try {
+    return await saveSqlResults(editorUpserts(editor, draft), [], editor) && isCurrentResultEditor(editor);
+  } catch (error) {
+    if (!isCurrentResultEditor(editor)) return false;
+    const messages = {
+      "committed-refresh-failed": "Results were saved. Review saved results before continuing.",
+      unknown: "The save outcome is unknown. Review saved results before trying again.",
+      "review-required": "Review saved results before saving this draft."
+    };
+    const message = messages[error.outcome]
+      || (error.status === 409 ? "Saved results changed. Review them alongside your draft."
+        : error.status === 428 ? "Refresh or reopen the scoring screen to upgrade before saving."
+          : "Results were rejected. Your draft was kept.");
+    if (messages[error.outcome] || error.status === 409 || error.status === 428) {
+      showResultEditorReview(editor, draft, message);
+    } else {
+      (editor.kind === "prelim" ? showPrelimMessage : showFinalMessage)(t(message), true);
+    }
+    return false;
+  } finally {
+    editor.saving = false;
+    inputs.forEach(input => { input.readOnly = false; });
+  }
 }
 
 function defaultCompetitionCode() {
@@ -1055,7 +1255,7 @@ function applyPendingCompetitionUpdate() {
   if (pendingResultsRefresh && !competitionEditorActive()) {
     pendingResultsRefresh = false;
     resultSyncDiagnostics.pendingResultsRevision = null;
-    void refreshSqlResults({ rerender: true });
+    void refreshSqlResults({ rerender: true }).catch(error => console.warn("Unable to refresh SQL results.", error));
   }
   if (!pendingRemoteCompetitionState || competitionEditorActive()) return false;
   const latest = pendingRemoteCompetitionState;
@@ -1243,6 +1443,10 @@ function eventGroupEnabled(group) {
 }
 
 function render() {
+  if (route === "competition" && (prelimResultEditor || finalResultEditor) && document.getElementById("resultStage")) {
+    refreshResultsDisplayAfterSync();
+    return;
+  }
   if (route !== "leaderboard") stopLeaderboardLoop();
   if (!routeIsAvailable([route])) route = "dashboard";
   document.body.classList.toggle("leaderboard-mode", route === "leaderboard");
@@ -2443,6 +2647,7 @@ function renderCompetition() {
     input.addEventListener("keydown", event => {
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (input.readOnly) return;
       if (!input.value.trim()) input.value = "999";
       if (!normalizeCompetitionTimeInput(input)) return;
       const visibleInputs = visiblePrelimTimeInputs();
@@ -2462,6 +2667,7 @@ function renderCompetition() {
     input.addEventListener("keydown", event => {
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (input.readOnly) return;
       if (!input.value.trim()) input.value = "999";
       if (!normalizeFinalTimeInput(input)) return;
       updateFinalSheetComputedColumns();
@@ -2522,6 +2728,11 @@ function updateCompetitionEntryMode() {
 }
 
 function loadPrelimParticipant() {
+  if (!canReplaceResultEditor(prelimResultEditor)) {
+    if (prelimResultEditor) setValue("timeSheetId", prelimResultEditor.id);
+    return null;
+  }
+  prelimResultEditor = null;
   const participant = resolvePrelimParticipant(val("timeSheetId"));
   if (!participant) {
     activePrelimParticipantId = "";
@@ -2544,6 +2755,14 @@ function loadPrelimParticipant() {
     setValue(fieldId, participant.events.includes(event) ? prelimResultInputValue(result) : "");
   });
   showPrelimEntryFields(participant.events);
+  if (selectedSqlCompetitionId) {
+    const keys = participant.events.map(event => {
+      const saved = findPrelimEntryResult(participant, event);
+      return { stage: saved?.stage ?? prelimEntryResultStage(), type: participant.type, participant: participant.id, event };
+    });
+    prelimResultEditor = makeResultEditor("prelim", participant.id, keys, key => findPrelimEntryResult(participant, key.event));
+    prelimResultEditor.initialInput = editorInputSnapshot(prelimResultEditor);
+  }
   const hasExistingResult = participant.events.some(event => Boolean(findPrelimEntryResult(participant, event)));
   showPrelimMessage(tf("{status}: {id} {name}.", { status: t(hasExistingResult ? "Editing Existing Result" : "Ready for Entry"), id: participant.id, name: participant.name }), false);
   const firstInput = visiblePrelimTimeInputs()[0];
@@ -2649,7 +2868,9 @@ function prelimResultInputValue(result) {
   return Number.isFinite(summary.bestTime) ? summary.bestTime.toFixed(3) : "999";
 }
 
-function clearPrelimEntry() {
+function clearPrelimEntry(force = false) {
+  if (!force && !canReplaceResultEditor(prelimResultEditor)) return;
+  prelimResultEditor = null;
   activePrelimParticipantId = "";
   activePrelimParticipantType = "";
   ["timeSheetId", "prelim333", "prelim363", "prelimCycle"].forEach(id => setValue(id, ""));
@@ -2737,6 +2958,26 @@ async function persistPrelimResults(options = {}) {
     document.getElementById("prelim333")?.focus();
     return;
   }
+  if (selectedSqlCompetitionId) {
+    const editor = prelimResultEditor;
+    if (!editor || editor.id !== participant.id) {
+      showPrelimMessage(t("Open the result editor before saving."), true);
+      return false;
+    }
+    const draft = completed.map(entry => ({
+      stage: Object.values(editor.baseline.rows).find(row => row.key.event === entry.event)?.key.stage ?? prelimEntryResultStage(),
+      type: participant.type, participant: participant.id, event: entry.event,
+      attempts: [entry.parsed.value], penalty: entry.parsed.kind === "scratch" ? 999 : 0
+    }));
+    if (!await persistOnlineResultDraft(editor, draft)) return false;
+    recordOnlineResultAudit(editor, draft);
+    drawResultRows();
+    drawMissingTimes();
+    clearPrelimEntry(true);
+    await applyPendingCompetitionUpdate();
+    showPrelimMessage(t("Results saved."));
+    return true;
+  }
   const previousState = structuredClone(state);
   const resultStage = prelimEntryResultStage();
   let created = 0;
@@ -2773,9 +3014,7 @@ async function persistPrelimResults(options = {}) {
     after: changes.map(item => ({ event: item.event, result: item.after }))
   });
   try {
-    if (selectedSqlCompetitionId) {
-      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
-    } else await saveState();
+    await saveState();
   } catch (error) {
     state = previousState;
     showPrelimMessage(tf("Save failed. Times remain on screen and were not cleared: {error}", { error: error.message || t("Unable to verify persistence") }), true);
@@ -2940,6 +3179,15 @@ function loadFinalSheetFromInput() {
 }
 
 function loadFinalSheet(id, focusFirst = true) {
+  if (id === finalResultEditor?.id && !focusFirst) return finalResultEditor.sheet;
+  if (!canReplaceResultEditor(finalResultEditor)) {
+    if (finalResultEditor) {
+      setValue("finalSheetId", finalResultEditor.id);
+      setValue("finalSheetSelect", finalResultEditor.id);
+    }
+    return null;
+  }
+  finalResultEditor = null;
   const sheet = finalSheets().find(item => item.id === id);
   if (!sheet) {
     clearFinalSheet(false);
@@ -2956,6 +3204,11 @@ function loadFinalSheet(id, focusFirst = true) {
     summary.innerHTML = `<div><span>${esc(t("Final Sheet ID"))}</span><strong>${esc(sheet.id)}</strong></div><div><span>${esc(t(sheet.entryType))}</span><strong>${esc(sheet.division)} // ${esc(sheet.event)}</strong></div><div><span>${esc(t("Advance"))}</span><strong>${esc(tf("Top {advance} of {total}", { advance: Math.min(finalAdvanceLimit(sheet.type, sheet.division) || sheet.finalists.length, sheet.finalists.length), total: sheet.prelimRows.length }))}</strong></div><div><span>${esc(t("Order"))}</span><strong>${esc(t("Slowest qualifier competes first"))}</strong></div>`;
   }
   drawFinalSheetRows(sheet);
+  if (selectedSqlCompetitionId) {
+    const keys = sheet.finalists.map(finalist => ({ stage: "Finals", type: sheet.type, participant: finalist.participant, event: sheet.event }));
+    finalResultEditor = makeResultEditor("final", sheet.id, keys, key => finalResultFor(sheet, key.participant), structuredClone(sheet));
+    finalResultEditor.initialInput = editorInputSnapshot(finalResultEditor);
+  }
   showFinalMessage(tf("Ready for Finals {id}: {entryType} // {division} // {event}.", { id: sheet.id, entryType: t(sheet.entryType), division: sheet.division, event: sheet.event }), false);
   if (focusFirst) {
     const firstInput = visibleFinalTimeInputs()[0];
@@ -2993,6 +3246,7 @@ function drawFinalSheetRows(sheet) {
     input.addEventListener("keydown", event => {
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (input.readOnly) return;
       if (!input.value.trim()) input.value = "999";
       if (!normalizeFinalTimeInput(input)) return;
       updateFinalSheetComputedColumns();
@@ -3098,9 +3352,14 @@ function finalTieBreakKey(result) {
   return FinalsReportEngine.finalTieKey(result);
 }
 
-async function saveFinalResults() {
-  const previousState = structuredClone(state);
-  const sheet = finalSheets().find(item => item.id === activeFinalSheetId);
+function saveFinalResults() {
+  if (finalSaveInFlight) return finalSaveInFlight;
+  finalSaveInFlight = persistFinalResults().finally(() => { finalSaveInFlight = null; });
+  return finalSaveInFlight;
+}
+
+async function persistFinalResults() {
+  const sheet = selectedSqlCompetitionId ? finalResultEditor?.sheet : finalSheets().find(item => item.id === activeFinalSheetId);
   if (!sheet) {
     showFinalMessage(t("Find a valid final sheet before saving."), true);
     return;
@@ -3113,6 +3372,19 @@ async function saveFinalResults() {
     return;
   }
   const draftRows = finalDraftResults(sheet);
+  if (selectedSqlCompetitionId) {
+    const draft = draftRows.filter(row => row.attempts.length);
+    if (!draft.length) return false;
+    const editor = finalResultEditor;
+    if (!await persistOnlineResultDraft(editor, draft)) return false;
+    recordOnlineResultAudit(editor, draft);
+    clearFinalSheet(true, true);
+    populateFinalSheetSelect();
+    showFinalMessage(t("Results saved."));
+    drawResultRows();
+    return true;
+  }
+  const previousState = structuredClone(state);
   let saved = 0;
   const changes = [];
   draftRows.forEach(row => {
@@ -3133,9 +3405,7 @@ async function saveFinalResults() {
     after: changes.map(item => ({ participant: item.participant, result: item.after }))
   });
   try {
-    if (selectedSqlCompetitionId) {
-      await saveSqlResults(changes.map(item => ({ stage: item.after.stage, type: item.after.type, participant: item.after.participant, event: item.after.event, attempts: item.after.attempts, penalty: item.after.penalty, expectedRevision: item.before?.revision ?? null })));
-    } else await saveState();
+    await saveState();
   } catch (error) {
     state = previousState;
     showFinalMessage(tf("Save failed. Results were not committed: {error}", { error: error.message || t("Unable to verify persistence") }), true);
@@ -3150,7 +3420,9 @@ async function saveFinalResults() {
   drawResultRows();
 }
 
-function clearFinalSheet(clearInput = true) {
+function clearFinalSheet(clearInput = true, force = false) {
+  if (!force && !canReplaceResultEditor(finalResultEditor)) return;
+  finalResultEditor = null;
   activeFinalSheetId = "";
   if (clearInput) {
     setValue("finalSheetId", "");
@@ -4780,6 +5052,7 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-route], [data-action]");
   if (!target) return;
   if (target.dataset.route) {
+    if (!leaveResultEditors(target.dataset.route)) return;
     closeNavigationDrawer();
     if (target.dataset.reportTab) reportTab = ["finals", "admin"].includes(target.dataset.reportTab) ? target.dataset.reportTab : reportTab;
     route = target.dataset.route;
@@ -4920,7 +5193,12 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("hashchange", () => {
-  route = location.hash.replace("#", "") || "dashboard";
+  const nextRoute = location.hash.replace("#", "") || "dashboard";
+  if (!leaveResultEditors(nextRoute)) {
+    history.replaceState(null, "", "#" + route);
+    return;
+  }
+  route = nextRoute;
   render();
 });
 
@@ -5842,11 +6120,13 @@ async function deleteTeamSqlResults(type, id) {
   }));
 
   try {
-    await saveSqlResults([], deletes);
-    return true;
+    const applied = await saveSqlResults([], deletes);
+    return applied;
   } catch (error) {
     console.error(`Unable to delete SQL results for ${type} team ${id}.`, error);
-    alert(tf("Unable to delete {type} team {id} because its saved results could not be removed. Refresh and try again.", { type, id }));
+    if (error.outcome === "committed-refresh-failed") alert(t("Results were saved. Review saved results before continuing."));
+    else if (error.outcome === "unknown" || error.outcome === "review-required") alert(t("The save outcome is unknown. Review saved results before trying again."));
+    else alert(tf("Unable to delete {type} team {id} because its saved results could not be removed. Refresh and try again.", { type, id }));
     return false;
   }
 }

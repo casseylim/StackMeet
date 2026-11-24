@@ -336,4 +336,25 @@
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Place {number}": "第 {number} 名", "ID: {id}": "编号：{id}", "Type: {type}": "类型：{type}", "Status: {status}": "状态：{status}", "Partner: {partner}": "搭档：{partner}", "Division: {division}": "组别：{division}", "No doubles entry yet": "暂无双人赛记录", "No {stage} results yet.": "暂无{stage}成绩。", "All required prelim times entered": "所有必需的预赛时间均已录入", "Individual Time Sheets ({range})": "个人计时表（{range}）", "No stackers": "暂无选手", "No stackers found in this range.": "此范围内没有找到选手。", "No completed doubles teams are available for preliminary time sheets.": "暂无完成的双人队伍可用于预赛计时表。", "No ready relay teams are available for preliminary time sheets.": "暂无准备就绪的接力队伍可用于预赛计时表。", "Bracket": "对阵表", "Seed {number}": "种子 {number}", "All (by Overall)": "全部（按总成绩）", "All (by Division)": "全部（按组别）", "No Limit": "不限" });
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Location: {location}": "地点：{location}", "{country} · Organization: {organization}": "{country} · 组织：{organization}", "Stackers: {members} · Division: {division}": "选手：{members} · 组别：{division}" });
   Object.assign(root.StackMeetI18nLocales["zh-Hans"], { "Preview": "预览", "Choose a print item to generate a printable preview.": "选择一个打印项目以生成可打印的预览。" });
+  Object.assign(root.StackMeetI18nLocales["zh-Hans"], {
+  "Discard the current result draft?": "放弃当前成绩草稿？",
+  "Review latest saved results": "查看最新已保存成绩",
+  "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}。已保存：{saved}。草稿：{draft}。",
+  "No saved result": "没有已保存成绩",
+  "Use reviewed results as the new baseline": "将已查看的成绩用作新基准",
+  "Keep your draft and use these reviewed results for the next save?": "保留草稿，并以上述已查看成绩为下次保存的基准？",
+  "Results changed again. Review the latest saved results.": "成绩再次发生变化。请查看最新已保存成绩。",
+  "Reviewed results accepted. Your draft is still in the editor.": "已接受查看过的成绩。草稿仍保留在编辑器中。",
+  "Could not load saved results. Your draft was kept.": "无法加载已保存成绩。草稿已保留。",
+  "{attempts} (penalty {penalty})": "{attempts}（罚时 {penalty}）",
+  "Review saved results before saving this draft.": "保存草稿前请先查看已保存成绩。",
+  "Results were saved. Review saved results before continuing.": "成绩已保存。请查看已保存成绩后再继续。",
+  "The save outcome is unknown. Review saved results before trying again.": "保存结果未知。请查看已保存成绩后再试。",
+  "Saved results changed. Review them alongside your draft.": "已保存成绩发生变化。请与草稿对照查看。",
+  "Refresh or reopen the scoring screen to upgrade before saving.": "保存前请刷新或重新打开计分界面以更新版本。",
+  "Results were rejected. Your draft was kept.": "成绩未被接受。草稿已保留。",
+  "Open the result editor before saving.": "保存前请打开成绩编辑器。",
+  "Results saved.": "成绩已保存。",
+  "Your draft changed. Save again to review the updated draft.": "草稿已更改。请再次点击保存以查看更新后的草稿。"
+});
 })(typeof window !== "undefined" ? window : globalThis);
