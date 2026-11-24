@@ -6,6 +6,10 @@ namespace StackMeet.Api.Services;
 public sealed class SessionTokenService(IConfiguration configuration)
 {
     const string AccountPayloadVersion = "v3";
+    const int MaxTokenLength = 8192;
+    const int SignatureSize = 32;
+    public const int MaxLegacyDisplayNameLength = 1000;
+    static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     /// <summary>
     /// Creates a legacy competition-scoped session token.
@@ -68,57 +72,54 @@ public sealed class SessionTokenService(IConfiguration configuration)
     public bool TryValidate(string? token, out SessionToken session)
     {
         session = new SessionToken("", "", DateTimeOffset.MinValue);
-        if (string.IsNullOrWhiteSpace(SigningKey)) return false;
-        var parts = token?.Split('.', 2);
-        if (parts is not { Length: 2 }) return false;
+        if (string.IsNullOrWhiteSpace(SigningKey) || string.IsNullOrWhiteSpace(token) || token.Length > MaxTokenLength)
+            return false;
+        var parts = token.Split('.', 2);
+        if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length != 43) return false;
 
-        byte[] payloadBytes;
-        byte[] suppliedSignature;
         try
         {
-            payloadBytes = FromBase64Url(parts[0]);
-            suppliedSignature = FromBase64Url(parts[1]);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
+            var payloadBytes = FromBase64Url(parts[0]);
+            var suppliedSignature = FromBase64Url(parts[1]);
+            if (suppliedSignature.Length != SignatureSize) return false;
+            var expectedSignature = Sign(payloadBytes);
+            if (!CryptographicOperations.FixedTimeEquals(suppliedSignature, expectedSignature)) return false;
 
-        var expectedSignature = Sign(payloadBytes);
-        if (!CryptographicOperations.FixedTimeEquals(suppliedSignature, expectedSignature)) return false;
-
-        var payload = Encoding.UTF8.GetString(payloadBytes).Split('|');
-        if (payload.Length == 7 && payload[0] == AccountPayloadVersion)
-        {
-            if (!int.TryParse(payload[1], out var userId)
-                || !long.TryParse(payload[5], out var sessionVersion)
-                || sessionVersion < 1
-                || !long.TryParse(payload[6], out var accountExpiresUnix))
+            var payload = StrictUtf8.GetString(payloadBytes).Split('|');
+            if (payload.Length == 7 && payload[0] == AccountPayloadVersion)
             {
-                return false;
+                if (!int.TryParse(payload[1], out var userId) || userId <= 0
+                    || (payload[4] != "0" && payload[4] != "1")
+                    || !long.TryParse(payload[5], out var sessionVersion)
+                    || sessionVersion < 1
+                    || !long.TryParse(payload[6], out var accountExpiresUnix))
+                    return false;
+
+                var accountExpiresAt = DateTimeOffset.FromUnixTimeSeconds(accountExpiresUnix);
+                if (accountExpiresAt <= DateTimeOffset.UtcNow) return false;
+                var email = Unescape(payload[2]);
+                var displayName = Unescape(payload[3]);
+                if (string.IsNullOrWhiteSpace(email)) return false;
+
+                session = new SessionToken("", displayName, accountExpiresAt, userId, email, payload[4] == "1", sessionVersion);
+                return true;
             }
 
-            var accountExpiresAt = DateTimeOffset.FromUnixTimeSeconds(accountExpiresUnix);
-            if (accountExpiresAt <= DateTimeOffset.UtcNow) return false;
+            if (payload.Length != 3 || !long.TryParse(payload[2], out var expiresUnix)) return false;
+            var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresUnix);
+            if (expiresAt <= DateTimeOffset.UtcNow) return false;
+            var competitionId = Unescape(payload[0]);
+            var legacyDisplayName = Unescape(payload[1]);
+            if (string.IsNullOrWhiteSpace(competitionId)) return false;
 
-            session = new SessionToken(
-                "",
-                Unescape(payload[3]),
-                accountExpiresAt,
-                userId,
-                Unescape(payload[2]),
-                payload[4] == "1",
-                sessionVersion);
-            return !string.IsNullOrWhiteSpace(session.Email);
+            session = new SessionToken(competitionId, legacyDisplayName, expiresAt);
+            return true;
         }
-
-        if (payload.Length != 3 || !long.TryParse(payload[2], out var expiresUnix)) return false;
-
-        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresUnix);
-        if (expiresAt <= DateTimeOffset.UtcNow) return false;
-
-        session = new SessionToken(Unescape(payload[0]), Unescape(payload[1]), expiresAt);
-        return !string.IsNullOrWhiteSpace(session.CompetitionId);
+        catch (Exception error) when (error is FormatException or ArgumentOutOfRangeException or DecoderFallbackException)
+        {
+            // Invalid external input, including signed but malformed payloads, must fail closed.
+            return false;
+        }
     }
 
     public string? SigningKey => configuration["Security:SessionSigningKey"];
@@ -142,7 +143,7 @@ public sealed class SessionTokenService(IConfiguration configuration)
     }
 
     static string Escape(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
-    static string Unescape(string value) => Encoding.UTF8.GetString(Convert.FromBase64String(value));
+    static string Unescape(string value) => StrictUtf8.GetString(Convert.FromBase64String(value));
 
     static string Base64Url(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');

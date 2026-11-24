@@ -469,6 +469,8 @@ public sealed class AuthController(
         }
 
         var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? "StackMeet User" : request.DisplayName.Trim();
+        if (displayName.Length > SessionTokenService.MaxLegacyDisplayNameLength)
+            return BadRequest(new { error = "Display name is too long." });
         var tokenValue = tokens.Create(competitionKey, displayName);
         await auditLogs.Write(
             "auth.login.competition_success",

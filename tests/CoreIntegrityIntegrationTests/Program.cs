@@ -62,6 +62,54 @@ try
     var priorKey = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(syntheticPassword, priorSalt, 100_000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
     var priorHash = string.Join("$", "PBKDF2-SHA256", "100000", Convert.ToBase64String(priorSalt), Convert.ToBase64String(priorKey));
     Assert(passwordService.Verify(syntheticPassword, priorHash), "ENG02 valid historical iteration count supported");
+
+    const string sessionTestKey = "synthetic-eng02b-local-only-signing-key";
+    var sessionConfig = new ConfigurationBuilder().AddInMemoryCollection(
+        new Dictionary<string, string?> { ["Security:SessionSigningKey"] = sessionTestKey }).Build();
+    var sessionService = new SessionTokenService(sessionConfig);
+    var legacySession = sessionService.Create("SYNTHETIC", "测试 Malay");
+    Assert(sessionService.TryValidate(legacySession.ToString(), out var parsedLegacy)
+        && !parsedLegacy.IsAccountSession && parsedLegacy.CompetitionId == "SYNTHETIC"
+        && parsedLegacy.DisplayName == "测试 Malay", "ENG02B valid legacy session round trip");
+    var longLegacy = sessionService.Create("SYNTHETIC", new string('测', SessionTokenService.MaxLegacyDisplayNameLength));
+    Assert(sessionService.TryValidate(longLegacy.ToString(), out _), "ENG02B maximum supported legacy display name remains usable");
+    var accountSession = sessionService.CreateForUser(123, "synthetic@example.test", "Synthetic", true, 7);
+    Assert(sessionService.TryValidate(accountSession.ToString(), out var parsedAccount)
+        && parsedAccount.UserId == 123 && parsedAccount.IsSystemAdmin && parsedAccount.SessionVersion == 7,
+        "ENG02B valid account session round trip");
+    string EncodeText(string text) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text));
+    string EncodeUrl(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    string SignSyntheticPayload(byte[] value)
+    {
+        using var signer = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding.UTF8.GetBytes(sessionTestKey));
+        return EncodeUrl(value) + "." + EncodeUrl(signer.ComputeHash(value));
+    }
+    var validUntil = DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds();
+    var expiredAt = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
+    var emailField = EncodeText("synthetic@example.test");
+    var nameField = EncodeText("Synthetic");
+    var competitionField = EncodeText("SYNTHETIC");
+    foreach (var malformed in new[]
+    {
+        $"v3|0|{emailField}|{nameField}|1|7|{validUntil}",
+        $"v3|123|{emailField}|{nameField}|2|7|{validUntil}",
+        $"v3|123|{emailField}|{nameField}|1|0|{validUntil}",
+        $"v3|123|!!!|{nameField}|1|7|{validUntil}",
+        $"v3|123||{nameField}|1|7|{validUntil}",
+        $"v3|123|{emailField}|{nameField}|1|7|{long.MaxValue}",
+        $"v3|123|{emailField}|{nameField}|1|7|{expiredAt}",
+        $"{competitionField}|!!!|{validUntil}",
+        $"{competitionField}|{nameField}|{long.MinValue}",
+        $"{competitionField}|{nameField}|{expiredAt}",
+        $"|{nameField}|{validUntil}"
+    })
+    {
+        Assert(!sessionService.TryValidate(SignSyntheticPayload(System.Text.Encoding.UTF8.GetBytes(malformed)), out var rejected)
+            && !rejected.IsAccountSession && rejected.CompetitionId == "", "ENG02B malformed or expired signed token rejected");
+    }
+    Assert(!sessionService.TryValidate(SignSyntheticPayload(new byte[] { 0xff, 0xfe }), out _), "ENG02B invalid UTF-8 rejected");
+    foreach (var malformed in new string?[] { null, "", ".", "bad.token", new string('x', 8193), accountSession.Payload + "." + new string('A', 43) })
+        Assert(!sessionService.TryValidate(malformed, out _), "ENG02B invalid unsigned token rejected");
     Assert(CompetitionResultRules.MaximumBatchSize == 500, "batch limit");
     Assert(CompetitionResultRules.NormalizeParticipantType(" relay ") == "Timed Relay", "legacy relay normalization");
     Assert(CompetitionResultRules.NormalizeStage(" finals ") == "Finals", "stage normalization");
@@ -453,4 +501,25 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     Assert((await PostState(maintenance, key, current, "{\"seed\":true}")).StatusCode == HttpStatusCode.NoContent
         && await db.CompetitionStates.AsNoTracking().AnyAsync(x => x.CompetitionKey == key && x.UpdatedBy == "maintenance:api-key"),
         "ENG01 maintenance state attribution");
+
+    // Exercise the actual middleware and logout-all endpoint, not only token parsing.
+    async Task<HttpStatusCode> ReadStatus(HttpClient client, string path)
+    {
+        using var response = await client.GetAsync(path);
+        return response.StatusCode;
+    }
+    Assert(await ReadStatus(a, route) == HttpStatusCode.OK
+        && await ReadStatus(a, "/api/admin/competitions") == HttpStatusCode.OK, "ENG02B current account token accepted by both API gates");
+    using (var logout = await a.PostAsync("/api/auth/logout-all", null))
+        Assert(logout.StatusCode == HttpStatusCode.NoContent, "ENG02B logout-all succeeds");
+    Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
+        && await ReadStatus(b, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B old token rejected by both API gates after logout-all");
+    await db.Entry(actor).ReloadAsync();
+    var renewed = tokens.CreateForUser(actor.Id, actor.Email, actor.DisplayName, true, actor.SessionVersion);
+    a.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", renewed.ToString());
+    Assert(await ReadStatus(a, route) == HttpStatusCode.OK, "ENG02B current session version accepted");
+    actor.IsActive = false;
+    await db.SaveChangesAsync();
+    Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
+        && await ReadStatus(a, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B deactivated account session rejected");
 }
