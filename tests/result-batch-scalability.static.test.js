@@ -42,7 +42,7 @@ assert(/competition\.ResultsRevision\+\+;/.test(batch),
   "A real batch must increment ResultsRevision exactly once in the mutation path.");
 assert(/foreach \(var row in touched\)[\s\S]*row\.Revision = competition\.ResultsRevision;/.test(batch),
   "Only touched upsert rows must receive the new competition results revision.");
-assert(/SendAsync\("ResultsChanged"/.test(batch),
+assert(/resultsNotifications\.SendAsync\(competition\.CompetitionKey, "ResultsChanged"/.test(batch),
   "Committed result changes must keep the ResultsChanged SignalR event.");
 assert(!/return await List\(competitionId, ct\);/.test(batch),
   "Batch responses must not reload and return the complete result set after a bounded mutation.");
