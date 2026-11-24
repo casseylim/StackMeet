@@ -84,7 +84,10 @@ async function editorScenarios() {
     assert.equal(baseline.revision, 10);
     assert.equal(Object.values(baseline.rows).find(entry => entry.exists).id, stage + "-id");
     input.value = "6.123";
-    latest = snapshot(11, [row(stage, 11, [7])]);
+    latest = snapshot(11, [
+      row(stage, 11, [7]),
+      ...(prelim ? [{ ...row(stage, 11, [8.765]), id: "other-event", event: "3-3-3" }] : [])
+    ]);
     await hooks.refreshSqlResults({ rerender: false });
     const first = save();
     assert.equal(first, save(), "repeated submission joins the pending write");
@@ -97,6 +100,11 @@ async function editorScenarios() {
     await message.children[2].click();
     const comparison = message.children[2].children[0].textContent;
     assert.match(comparison, /Saved: 7.*Draft: 6\.123/);
+    if (prelim) {
+      const comparisons = message.children[2].children.map(item => item.textContent);
+      assert.equal(comparisons.length, Object.keys(baseline.rows).length, "review must show every rebased row");
+      assert.ok(comparisons.some(value => /3-3-3.*Saved: 8\.765.*Draft: No draft result/.test(value)), "a blank draft row with a remote result must be shown before accepting the new baseline");
+    }
     context.confirmAnswer = false;
     message.children[3].click();
     assert.equal(hooks.baseline(prelim ? "prelim" : "final"), baseline);
@@ -189,7 +197,7 @@ async function transportScenarios() {
   await transportScenarios();
   const localeContext = vm.createContext({});
   const keys = ["Review latest saved results", "The save outcome is unknown. Review saved results before trying again.",
-    "Results were saved. Review saved results before continuing.", "Use reviewed results as the new baseline"];
+    "Results were saved. Review saved results before continuing.", "Use reviewed results as the new baseline", "No draft result"];
   for (const locale of ["en", "ms", "zh-Hans"]) {
     vm.runInContext(read("js/i18n/locales/" + locale + ".js"), localeContext);
     for (const key of keys) {

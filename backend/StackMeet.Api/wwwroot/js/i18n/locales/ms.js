@@ -353,6 +353,7 @@
   "Review latest saved results": "Semak keputusan tersimpan terkini",
   "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}. Tersimpan: {saved}. Draf: {draft}.",
   "No saved result": "Tiada keputusan tersimpan",
+  "No draft result": "Tiada keputusan draf",
   "Use reviewed results as the new baseline": "Gunakan keputusan yang disemak sebagai asas baharu",
   "Keep your draft and use these reviewed results for the next save?": "Kekalkan draf anda dan gunakan keputusan yang disemak untuk simpanan seterusnya?",
   "Results changed again. Review the latest saved results.": "Keputusan berubah lagi. Semak keputusan tersimpan terkini.",

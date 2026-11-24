@@ -341,6 +341,7 @@
   "Review latest saved results": "查看最新已保存成绩",
   "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}。已保存：{saved}。草稿：{draft}。",
   "No saved result": "没有已保存成绩",
+  "No draft result": "没有草稿成绩",
   "Use reviewed results as the new baseline": "将已查看的成绩用作新基准",
   "Keep your draft and use these reviewed results for the next save?": "保留草稿，并以上述已查看成绩为下次保存的基准？",
   "Results changed again. Review the latest saved results.": "成绩再次发生变化。请查看最新已保存成绩。",
