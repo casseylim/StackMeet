@@ -75,6 +75,10 @@
         "mode": "classic"
       },
       {
+        "src": "js/NavigationActions.js",
+        "mode": "classic"
+      },
+      {
         "src": "app.js",
         "mode": "classic"
       }
@@ -187,7 +191,6 @@
     ]
   },
   "delegatedActions": [
-    "print-current-view",
     "mark-read",
     "save-settings",
     "upload-asset",
@@ -204,7 +207,6 @@
     "show-stacker-form",
     "add-stacker",
     "sort-stackers",
-    "print-stacker-sheet",
     "edit-stacker",
     "cancel-stacker-edit",
     "delete-stacker",
@@ -225,9 +227,6 @@
     "save-awards",
     "export-awards-csv",
     "export-competition-audit-csv",
-    "paperwork",
-    "print-paper-preview",
-    "build-bracket",
     "lookup-prelim-participant",
     "load-missing-prelim",
     "clear-prelim-entry",
@@ -236,7 +235,6 @@
     "load-final-missing",
     "clear-final-sheet",
     "save-final-results",
-    "print-final-sheet",
     "save-result",
     "delete-result",
     "switch-report-tab",
@@ -253,5 +251,13 @@
     "export-admin-excel",
     "sort-admin-report",
     "run-report"
+  ],
+  "extractedActions": [
+    "print-current-view",
+    "print-stacker-sheet",
+    "paperwork",
+    "print-paper-preview",
+    "build-bracket",
+    "print-final-sheet"
   ]
 }

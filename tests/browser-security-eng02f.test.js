@@ -6,12 +6,14 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..", "backend/StackMeet.Api/wwwroot");
 const read = name => fs.readFileSync(path.join(root, name), "utf8");
 const app = read("app.js");
+const navigation = read("js/NavigationActions.js");
 const results = read("results/results.js");
 const printing = read("js/printing/TimeSheetPrinting.js");
 
 assert.match(app, /\$\{esc\(tf\("\{prelims\} prelim \/ \{finals\} final", \{ prelims: state\.settings\.prelims, finals: state\.settings\.finals \}\)\)\}/);
 assert.doesNotMatch(app + printing, /onclick\s*=\s*["']window\.print/);
-assert.match(app, /if \(action === "print-current-view"\) \{ window\.print\(\); return; \}/);
+assert.match(navigation, /if \(action === "print-current-view"\) \{ ports\.print\(\); return true; \}/);
+assert.match(app, /if \(window\.StackMeetNavigationActions\.dispatchPrint\(action, target\.dataset, \{[\s\S]*?\}\)\) return;\s*let shouldRender = true;\s*let shouldSave = true;/);
 assert.match(app, /if \(asset\.publicUrl !== expectedPath\) continue;/);
 
 const start = results.indexOf("  function publicBrandingPath(");
