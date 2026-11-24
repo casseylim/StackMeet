@@ -725,10 +725,10 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     // All probes are confined to the existing isolated loopback host and synthetic database.
     using var endpointMatrix = System.Text.Json.JsonDocument.Parse(
         await File.ReadAllTextAsync("tests/security-endpoint-matrix.json"));
-    async Task<HttpStatusCode> Probe(HttpClient client, string verb, string target)
+    async Task<HttpStatusCode> Probe(HttpClient client, string verb, string target, object? payload = null)
     {
         using var request = new HttpRequestMessage(new HttpMethod(verb), target);
-        if (verb is "POST" or "PUT" or "PATCH") request.Content = JsonContent.Create(new { });
+        if (verb is "POST" or "PUT" or "PATCH") request.Content = JsonContent.Create(payload ?? new { });
         using var response = await client.SendAsync(request);
         return response.StatusCode;
     }
@@ -768,8 +768,22 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
             // Account has manager permission for its own competition but is not maintenance.
             // Replace the ID placeholder for these probes with the assigned competition.
             var assignedTarget = target.Replace("/2147483647", $"/{competitionId}");
-            Assert(await Probe(roleClient, verb, assignedTarget) == HttpStatusCode.Forbidden,
-                $"ENG02G competition manager denied maintenance operation {verb} {template}");
+            // [ApiController] validates request DTOs before invoking the controller.
+            // Use complete synthetic payloads here so a 400 cannot mask a missing maintenance gate.
+            var fixtureDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            object? payload = verb switch
+            {
+                "POST" => new CompetitionRequest(key + "MNT", "Synthetic maintenance probe", "LocalDB",
+                    fixtureDate, fixtureDate, "Active", false),
+                "PUT" when template.EndsWith("/activity", StringComparison.Ordinal) =>
+                    new CompetitionActivityAssignmentRequest("sport-stacking"),
+                "PUT" => new CompetitionRequest(key + "MNT", "Synthetic maintenance probe", "LocalDB",
+                    fixtureDate, fixtureDate, "Active", false),
+                _ => null
+            };
+            var denied = await Probe(roleClient, verb, assignedTarget, payload);
+            Assert(denied == HttpStatusCode.Forbidden,
+                $"ENG02G competition manager denied maintenance operation {verb} {template} (actual {(int)denied})");
         }
     }
     Assert(anonymousChecks == 59 && adminChecks == 36,

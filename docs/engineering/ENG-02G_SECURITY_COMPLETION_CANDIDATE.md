@@ -21,7 +21,7 @@ The reviewed machine-readable [endpoint matrix](../../tests/security-endpoint-ma
 | compatible-manage | 4 |
 | public-shell | 1 |
 
-The isolated LocalDB/loopback suite probes 59 protected actions anonymously (401), all 36 admin actions with a non-admin account (403), maintenance key (401) and scoped legacy token (401), plus 4 maintenance mutation routes with a competition manager (403). Requests use synthetic fixtures and empty payloads; these are gate-rejection checks, not exhaustive valid-payload authorization proofs. Existing ENG-02E role, ENG-02B/C session and real WebSocket, ENG-02D privacy and ENG-02F header/VM tests remain. Hosted execution pending. Do not run these probes against production.
+The isolated LocalDB/loopback suite probes 59 protected actions anonymously (401), all 36 admin actions with a non-admin account (403), maintenance key (401) and scoped legacy token (401), plus 4 maintenance mutation routes with a competition manager (403). Requests use synthetic fixtures. Middleware rejection probes use empty payloads, while maintenance mutation probes use complete DTOs where required to reach controller authorization rather than automatic model validation. These are gate-rejection checks, not exhaustive valid-payload authorization proofs. Existing ENG-02E role, ENG-02B/C session and real WebSocket, ENG-02D privacy and ENG-02F header/VM tests remain. Hosted execution pending. Do not run these probes against production.
 
 ## Prior validated evidence
 
