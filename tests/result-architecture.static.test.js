@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const app = read('backend/StackMeet.Api/wwwroot/app.js');
+const repository = read('backend/StackMeet.Api/wwwroot/js/storage/Repository.js');
 const publicApi = read('backend/StackMeet.Api/Controllers/PublicResultsController.cs');
 const resultsApi = read('backend/StackMeet.Api/Controllers/CompetitionResultsController.cs');
 const packageAssembler = read('backend/StackMeet.Api/wwwroot/js/CompetitionPackageAssembler.js');
@@ -15,7 +16,9 @@ assert.doesNotMatch(app, /connection\.on\("ResultsUpdated", receiveChange\)/);
 assert.match(app, /const sqlOwnedStackers = state\.stackers/);
 assert.match(app, /const sqlOwnedResults = state\.results/);
 assert.match(app, /function competitionStateSyncSignature[\s\S]*divisionSettings[\s\S]*doubles[\s\S]*relays/);
-assert.match(app, /legacy\.results\s*=\s*\[\]/);
+assert.match(app, /function legacyStateForSave\(data\) \{\s*return CompetitionRepository\.legacyStateForSave\(data\);/);
+assert.match(repository, /static legacyStateForSave\(data\) \{\s*const legacy = structuredClone\(data\);\s*legacy\.stackers = \[\];\s*legacy\.results = \[\];\s*return legacy;/);
+assert.match(app, /await repository\.save\(legacyStateForSave\(mergedState\)\)/);
 assert.match(app, /saveSqlResults\(/);
 assert.match(publicApi, /database\.CompetitionResults/);
 assert.doesNotMatch(publicApi, /results\s*=\s*PublicResults\(root\)/);

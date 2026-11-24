@@ -4,6 +4,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const CompetitionRepository = require("../backend/StackMeet.Api/wwwroot/js/storage/Repository.js");
 
 const appPath = path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js");
 const source = fs.readFileSync(appPath, "utf8");
@@ -39,7 +40,7 @@ function extractFunction(name) {
 }
 
 function loadFunctions(names) {
-  const context = { structuredClone, Map, Set, Array, String };
+  const context = { structuredClone, Map, Set, Array, String, CompetitionRepository };
   context.globalThis = context;
   const code = names.map(extractFunction).join("\n") + `\nglobalThis.__hooks = { ${names.join(", ")} };`;
   vm.runInNewContext(code, context, { filename: "post-v2-regression-audit.vm.js" });
@@ -92,8 +93,8 @@ audit("REMOTE-TEAM-ADDITION-PRESERVED", () => {
 });
 
 // P0 regression: an explicit local deletion must override the latest server record.
-// The third argument is the required deletion-intent contract; current code ignores it,
-// which proves why explicit deletes are presently resurrected.
+// The third argument is the required deletion-intent contract; keep testing the
+// actual app wrapper and repository implementation together to prevent resurrection.
 audit("TEAM-DELETION-MERGE", () => {
   const deleted = {
     doubles: new Set(["2.2"]),
