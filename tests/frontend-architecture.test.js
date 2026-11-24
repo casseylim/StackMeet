@@ -27,13 +27,18 @@ for (const [page, expected] of Object.entries(manifest.shells)) {
     assert.deepEqual(actual, expected, page + ": script dependency/order changed; review and update manifest");
 }
 const app = read("app.js");
+const navigationSource = read("js/NavigationActions.js");
+const navigation = require("../backend/StackMeet.Api/wwwroot/js/NavigationActions.js");
 const start = app.indexOf('document.addEventListener("click", async (event) => {');
 const end = app.indexOf('\ndocument.addEventListener("change", (event) => {', start);
 assert.ok(start >= 0 && end > start, "Delegated action handler moved; update characterization harness");
 const source = app.slice(start, end);
 const actions = [...source.matchAll(/\baction === "([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(actions, manifest.delegatedActions, "Delegated action inventory changed");
-assert.equal(new Set(actions).size, actions.length);
+const extractedActions = [...navigationSource.matchAll(/\baction === "([^"]+)"/g)].map(match => match[1]);
+assert.deepEqual(extractedActions, manifest.extractedActions, "Extracted action inventory changed");
+const allActions = [...actions, ...extractedActions];
+assert.equal(new Set(allActions).size, allActions.length);
 
 async function scenario(name, dataset, overrides, expected, check) {
     const trace = [];
@@ -41,7 +46,7 @@ async function scenario(name, dataset, overrides, expected, check) {
     const record = label => (...args) => { trace.push([label, ...args]); };
     const context = {
         document: { addEventListener(type, callback) { assert.equal(type, "click"); handler = callback; } },
-        window: { print: record("print"), StackMeetPrintCenter: {
+        window: { StackMeetNavigationActions: navigation, print: record("print"), StackMeetPrintCenter: {
             buildPaperwork: record("paperwork"), printPaperPreview: record("preview")
         } },
         console: { error: record("save-error") },
@@ -52,6 +57,8 @@ async function scenario(name, dataset, overrides, expected, check) {
         savePrelimResults: record("prelim"), saveFinalResults: record("final"),
         uploadCompetitionAsset: record("upload"), exportResults: record("export"),
         runFinalsReport: record("report"),
+        buildBracket: record("bracket"), printSingleStackerSheet: record("stacker-sheet"),
+        printCurrentFinalSheet: record("final-sheet"),
         deleteDouble: id => { trace.push(["delete-double", id]); return false; },
         ...overrides
     };
@@ -81,11 +88,19 @@ async function run() {
     await scenario("finals report is read-only", { action: "run-finals-report" }, {}, [["report"]]);
     await scenario("cancelled doubles deletion renders but does not save", { action: "delete-double", id: "2.1" }, {},
         [["delete-double", "2.1"], ["render"]]);
-    await scenario("existing preview action still schedules legacy save (known issue, not changed)", { action: "print-paper-preview" }, {},
-        [["preview"], ["save"]]);
-    await scenario("existing paperwork action still schedules legacy save (known issue, not changed)", { action: "paperwork", type: "individual" }, {},
-        [["paperwork", "individual"], ["save"]]);
+    await scenario("preview never schedules a full-state save", { action: "print-paper-preview" }, {}, [["preview"]]);
+    await scenario("paperwork never schedules a full-state save", { action: "paperwork", type: "individual" }, {},
+        [["paperwork", "individual"]]);
+    await scenario("bracket never schedules a full-state save", { action: "build-bracket" }, {}, [["bracket"]]);
+    await scenario("stacker sheet never schedules a full-state save", { action: "print-stacker-sheet", id: "1.1" }, {},
+        [["stacker-sheet", "1.1"]]);
+    await scenario("final sheet never schedules a full-state save", { action: "print-final-sheet" }, {}, [["final-sheet"]]);
+    await scenario("route takes precedence over an action", { route: "reports", action: "print-current-view" }, {},
+        [["leave", "reports"], ["close"], ["render"]]);
+    await scenario("mutation still renders then saves", { action: "mark-read" },
+        { state: { notifications: [{ id: "n1", read: false }] } }, [["render"], ["save"]],
+        context => assert.equal(context.state.notifications[0].read, true));
     console.log("ENG-03A frontend architecture: " + Object.keys(manifest.shells).length + " shells, "
-        + actions.length + " delegated actions, 13 behavior scenarios passed.");
+        + allActions.length + " delegated actions, 18 behavior scenarios passed.");
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

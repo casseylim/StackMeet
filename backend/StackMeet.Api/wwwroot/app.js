@@ -5055,16 +5055,21 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-route], [data-action]");
   if (!target) return;
   if (target.dataset.route) {
-    if (!leaveResultEditors(target.dataset.route)) return;
-    closeNavigationDrawer();
-    if (target.dataset.reportTab) reportTab = ["finals", "admin"].includes(target.dataset.reportTab) ? target.dataset.reportTab : reportTab;
-    route = target.dataset.route;
-    render();
+    window.StackMeetNavigationActions.navigate(target.dataset, {
+      leaveResultEditors, closeNavigationDrawer, render,
+      setRoute: next => { route = next; },
+      setReportTab: next => { reportTab = next; }
+    });
     return;
   }
   const action = target.dataset.action;
-  // Printing must never trigger a competition-state write.
-  if (action === "print-current-view") { window.print(); return; }
+  // Read-only print actions are dispatched without falling into the legacy save path.
+  if (window.StackMeetNavigationActions.dispatchPrint(action, target.dataset, {
+    print: () => window.print(),
+    paperwork: type => window.StackMeetPrintCenter.buildPaperwork(type),
+    preview: () => window.StackMeetPrintCenter.printPaperPreview(),
+    bracket: buildBracket, stackerSheet: printSingleStackerSheet, finalSheet: printCurrentFinalSheet
+  })) return;
   let shouldRender = true;
   let shouldSave = true;
   if (action === "mark-read") state.notifications = state.notifications.map(n => ({ ...n, read: true }));
@@ -5083,7 +5088,6 @@ document.addEventListener("click", async (event) => {
   if (action === "show-stacker-form") { showStackerForm(); shouldRender = false; }
   if (action === "add-stacker") await addStacker();
   if (action === "sort-stackers") { sortStackerTable(target.dataset.sortKey); shouldRender = false; }
-  if (action === "print-stacker-sheet") { printSingleStackerSheet(target.dataset.id); shouldRender = false; }
   if (action === "edit-stacker") { loadStackerForEdit(target.dataset.id); shouldRender = false; }
   if (action === "cancel-stacker-edit") { clearStackerForm(); shouldRender = false; }
   if (action === "delete-stacker") { requestDeleteStacker(target.dataset.id); shouldRender = false; }
@@ -5115,9 +5119,6 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "export-awards-csv") { exportAwardsCsv(); shouldRender = false; }
   if (action === "export-competition-audit-csv") { exportCompetitionAuditCsv(); shouldRender = false; shouldSave = false; }
-  if (action === "paperwork") { window.StackMeetPrintCenter.buildPaperwork(target.dataset.type); shouldRender = false; }
-  if (action === "print-paper-preview") { window.StackMeetPrintCenter.printPaperPreview(); shouldRender = false; }
-  if (action === "build-bracket") { buildBracket(); shouldRender = false; }
   if (action === "lookup-prelim-participant") { loadPrelimParticipant(); shouldRender = false; }
   if (action === "load-missing-prelim") { loadMissingPrelim(target.dataset.id); shouldRender = false; }
   if (action === "clear-prelim-entry") { clearPrelimEntry(); shouldRender = false; }
@@ -5126,7 +5127,6 @@ document.addEventListener("click", async (event) => {
   if (action === "load-final-missing") { loadFinalSheet(target.dataset.id); shouldRender = false; }
   if (action === "clear-final-sheet") { clearFinalSheet(); shouldRender = false; }
   if (action === "save-final-results") { await saveFinalResults(); shouldRender = false; shouldSave = false; }
-  if (action === "print-final-sheet") { printCurrentFinalSheet(); shouldRender = false; }
   if (action === "save-result") saveResult();
   if (action === "delete-result") {
     const result = state.results.find(item => item.id === target.dataset.id);
