@@ -1,0 +1,428 @@
+[
+  {
+    "controller": "AdminAuditLogsController.cs",
+    "method": "GET",
+    "route": "/api/admin/audit-logs",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminCareerProfileCapabilitiesController.cs",
+    "method": "GET",
+    "route": "/api/admin/career-profile/capabilities",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminEmailSettingsController.cs",
+    "method": "GET",
+    "route": "/api/admin/email-settings",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminEmailSettingsController.cs",
+    "method": "PUT",
+    "route": "/api/admin/email-settings",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminEmailSettingsController.cs",
+    "method": "POST",
+    "route": "/api/admin/email-settings/test",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "GET",
+    "route": "/api/admin/stacker-identities/candidates",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "POST",
+    "route": "/api/admin/stacker-identities/links",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "POST",
+    "route": "/api/admin/stacker-identities/links/{linkId:long}/unlink",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "GET",
+    "route": "/api/admin/stacker-identities/profiles/{nadiTrackId}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "PUT",
+    "route": "/api/admin/stacker-identities/profiles/{nadiTrackId}/publication",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "GET",
+    "route": "/api/admin/stacker-identities/stackers",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminStackerIdentitiesController.cs",
+    "method": "GET",
+    "route": "/api/admin/stacker-identities/stackers/{stackerId:int}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "GET",
+    "route": "/api/admin/users",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "POST",
+    "route": "/api/admin/users",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "DELETE",
+    "route": "/api/admin/users/{id:int}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "GET",
+    "route": "/api/admin/users/{id:int}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "PUT",
+    "route": "/api/admin/users/{id:int}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "POST",
+    "route": "/api/admin/users/{id:int}/competition-access",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "DELETE",
+    "route": "/api/admin/users/{id:int}/competition-access/{accessId:int}",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "POST",
+    "route": "/api/admin/users/{id:int}/password",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "POST",
+    "route": "/api/admin/users/{id:int}/password-reset",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "POST",
+    "route": "/api/admin/users/invite",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "GET",
+    "route": "/api/admin/users/security-options",
+    "authority": "admin"
+  },
+  {
+    "controller": "AdminUsersController.cs",
+    "method": "PUT",
+    "route": "/api/admin/users/security-options",
+    "authority": "admin"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "POST",
+    "route": "/api/auth/activate",
+    "authority": "public-auth"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "POST",
+    "route": "/api/auth/forgot-password",
+    "authority": "public-auth"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "POST",
+    "route": "/api/auth/login",
+    "authority": "public-auth"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "POST",
+    "route": "/api/auth/logout",
+    "authority": "session"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "GET",
+    "route": "/api/auth/me",
+    "authority": "session"
+  },
+  {
+    "controller": "AuthController.cs",
+    "method": "POST",
+    "route": "/api/auth/reset-password",
+    "authority": "public-auth"
+  },
+  {
+    "controller": "AuthSessionsController.cs",
+    "method": "POST",
+    "route": "/api/auth/logout-all",
+    "authority": "account"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "GET",
+    "route": "/api/admin/competitions",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "GET",
+    "route": "/api/admin/competitions/{competitionKey}",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "PUT",
+    "route": "/api/admin/competitions/{competitionKey}",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/archive",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/delete",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/password",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "GET",
+    "route": "/api/admin/competitions/{competitionKey}/state/export",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/state/import",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/state/initialize",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/state/reset",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAdminController.cs",
+    "method": "POST",
+    "route": "/api/admin/competitions/{competitionKey}/status",
+    "authority": "admin"
+  },
+  {
+    "controller": "CompetitionAssetsController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{competitionId:int}/assets",
+    "authority": "account-read"
+  },
+  {
+    "controller": "CompetitionAssetsController.cs",
+    "method": "DELETE",
+    "route": "/api/competitions/{competitionId:int}/assets/{assetType}",
+    "authority": "account-manage"
+  },
+  {
+    "controller": "CompetitionAssetsController.cs",
+    "method": "POST",
+    "route": "/api/competitions/{competitionId:int}/assets/{assetType}",
+    "authority": "account-manage"
+  },
+  {
+    "controller": "CompetitionAssetsController.cs",
+    "method": "GET",
+    "route": "/api/public/competitions/{competitionId:int}/assets/{assetType}",
+    "authority": "public-read"
+  },
+  {
+    "controller": "CompetitionResultsController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{competitionId:int}/results",
+    "authority": "account-read"
+  },
+  {
+    "controller": "CompetitionResultsController.cs",
+    "method": "POST",
+    "route": "/api/competitions/{competitionId:int}/results/batch",
+    "authority": "account-score"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "GET",
+    "route": "/api/competitions",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "POST",
+    "route": "/api/competitions",
+    "authority": "maintenance"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "DELETE",
+    "route": "/api/competitions/{id:int}",
+    "authority": "maintenance"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{id:int}",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "PUT",
+    "route": "/api/competitions/{id:int}",
+    "authority": "maintenance"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{id:int}/activity",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "CompetitionsController.cs",
+    "method": "PUT",
+    "route": "/api/competitions/{id:int}/activity",
+    "authority": "maintenance"
+  },
+  {
+    "controller": "CompetitionStateController.cs",
+    "method": "GET",
+    "route": "/api/state/{competitionKey}",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "CompetitionStateController.cs",
+    "method": "POST",
+    "route": "/api/state/{competitionKey}",
+    "authority": "compatible-manage"
+  },
+  {
+    "controller": "FinalsRankingRulesController.cs",
+    "method": "GET",
+    "route": "/api/competitions/finals-ranking-rules",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "HealthController.cs",
+    "method": "GET",
+    "route": "/api/health",
+    "authority": "public-read"
+  },
+  {
+    "controller": "PublicCompetitionDirectoryController.cs",
+    "method": "GET",
+    "route": "/api/public/competitions",
+    "authority": "public-read"
+  },
+  {
+    "controller": "PublicResultsController.cs",
+    "method": "GET",
+    "route": "/api/public/competitions/{competitionId}/results",
+    "authority": "public-read"
+  },
+  {
+    "controller": "PublicResultsProfileLinksController.cs",
+    "method": "GET",
+    "route": "/api/public/competitions/{competitionId}/profile-links",
+    "authority": "public-read"
+  },
+  {
+    "controller": "PublicStackerProfilesController.cs",
+    "method": "GET",
+    "route": "/api/public/stackers/{nadiTrackId}",
+    "authority": "public-read"
+  },
+  {
+    "controller": "PublicStackerProfilesController.cs",
+    "method": "GET",
+    "route": "/Stackers/{nadiTrackId}",
+    "authority": "public-shell"
+  },
+  {
+    "controller": "StackersController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{competitionId:int}/stackers",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "StackersController.cs",
+    "method": "POST",
+    "route": "/api/competitions/{competitionId:int}/stackers",
+    "authority": "compatible-manage"
+  },
+  {
+    "controller": "StackersController.cs",
+    "method": "DELETE",
+    "route": "/api/competitions/{competitionId:int}/stackers/{id:int}",
+    "authority": "compatible-manage"
+  },
+  {
+    "controller": "StackersController.cs",
+    "method": "GET",
+    "route": "/api/competitions/{competitionId:int}/stackers/{id:int}",
+    "authority": "compatible-read"
+  },
+  {
+    "controller": "StackersController.cs",
+    "method": "PUT",
+    "route": "/api/competitions/{competitionId:int}/stackers/{id:int}",
+    "authority": "compatible-manage"
+  },
+  {
+    "controller": "VersionController.cs",
+    "method": "GET",
+    "route": "/api/version",
+    "authority": "public-read"
+  }
+]

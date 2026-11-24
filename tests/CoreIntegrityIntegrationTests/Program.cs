@@ -721,6 +721,74 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
         Assert(scriptResponse.StatusCode == HttpStatusCode.OK && !scriptResponse.Headers.Contains("Content-Security-Policy"),
             "ENG02F static script loading remains available");
 
+    // The reviewed manifest is also checked against controller attributes by the Node suite.
+    // All probes are confined to the existing isolated loopback host and synthetic database.
+    using var endpointMatrix = System.Text.Json.JsonDocument.Parse(
+        await File.ReadAllTextAsync("tests/security-endpoint-matrix.json"));
+    async Task<HttpStatusCode> Probe(HttpClient client, string verb, string target, object? payload = null)
+    {
+        using var request = new HttpRequestMessage(new HttpMethod(verb), target);
+        if (verb is "POST" or "PUT" or "PATCH") request.Content = JsonContent.Create(payload ?? new { });
+        using var response = await client.SendAsync(request);
+        return response.StatusCode;
+    }
+    var anonymousChecks = 0;
+    var adminChecks = 0;
+    foreach (var endpoint in endpointMatrix.RootElement.EnumerateArray())
+    {
+        var authority = endpoint.GetProperty("authority").GetString()!;
+        if (authority.StartsWith("public-", StringComparison.Ordinal)) continue;
+        var verb = endpoint.GetProperty("method").GetString()!;
+        var template = endpoint.GetProperty("route").GetString()!;
+        var target = System.Text.RegularExpressions.Regex.Replace(template, @"\{([^}:]+)(?::[^}]+)?\}", match =>
+            match.Groups[1].Value switch
+            {
+                "competitionKey" => key,
+                "competitionId" => competitionId.ToString(),
+                "nadiTrackId" => "NDT-7K4M2PX",
+                "assetType" => "logo",
+                "id" or "stackerId" or "accessId" or "linkId" => "2147483647",
+                _ => throw new InvalidOperationException("Unreviewed route placeholder: " + match.Value)
+            });
+        Assert(await Probe(browser, verb, target) == HttpStatusCode.Unauthorized,
+            $"ENG02G anonymous denied {verb} {template}");
+        anonymousChecks++;
+        if (authority == "admin")
+        {
+            Assert(await Probe(roleClient, verb, target) == HttpStatusCode.Forbidden,
+                $"ENG02G non-admin account denied {verb} {template}");
+            Assert(await Probe(maintenance, verb, target) == HttpStatusCode.Unauthorized,
+                $"ENG02G maintenance key denied {verb} {template}");
+            Assert(await Probe(legacyClient, verb, target) == HttpStatusCode.Unauthorized,
+                $"ENG02G legacy token denied {verb} {template}");
+            adminChecks++;
+        }
+        else if (authority == "maintenance")
+        {
+            // Account has manager permission for its own competition but is not maintenance.
+            // Replace the ID placeholder for these probes with the assigned competition.
+            var assignedTarget = target.Replace("/2147483647", $"/{competitionId}");
+            // [ApiController] validates request DTOs before invoking the controller.
+            // Use complete synthetic payloads here so a 400 cannot mask a missing maintenance gate.
+            var fixtureDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            object? payload = verb switch
+            {
+                "POST" => new CompetitionRequest(key + "MNT", "Synthetic maintenance probe", "LocalDB",
+                    fixtureDate, fixtureDate, "Active", false),
+                "PUT" when template.EndsWith("/activity", StringComparison.Ordinal) =>
+                    new CompetitionActivityAssignmentRequest("sport-stacking"),
+                "PUT" => new CompetitionRequest(key + "MNT", "Synthetic maintenance probe", "LocalDB",
+                    fixtureDate, fixtureDate, "Active", false),
+                _ => null
+            };
+            var denied = await Probe(roleClient, verb, assignedTarget, payload);
+            Assert(denied == HttpStatusCode.Forbidden,
+                $"ENG02G competition manager denied maintenance operation {verb} {template} (actual {(int)denied})");
+        }
+    }
+    Assert(anonymousChecks == 59 && adminChecks == 36,
+        "ENG02G complete protected-route negative probe inventory");
+
 
 }
 
