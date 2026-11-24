@@ -29,6 +29,7 @@
   const stackMeetLocale = () => activeLanguage === "ms" ? "ms-MY" : activeLanguage === "zh-Hans" ? "zh-Hans-MY" : "en-MY";
   let lastVersion = "";
   let refreshInFlight = false;
+  let liveSubscription = false;
 
   const el = id => document.getElementById(id);
   const t = key => i18n.translate(key, activeLanguage, publicTranslations, builtInLocales);
@@ -146,7 +147,7 @@
       const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
       if (showLoader || version !== lastVersion) render(payload);
       lastVersion = version;
-      setConnection("live", "Connected");
+      setConnection(liveSubscription ? "live" : "offline", liveSubscription ? "Connected" : "Auto refresh");
     } catch (error) {
       if (showLoader || !lastVersion) renderError(error.message === "The competition does not exist, is archived, or has no published results yet."
         ? error.message
@@ -1718,21 +1719,36 @@
 
     connection.on("CompetitionChanged", () => void refresh(false));
     connection.on("ResultsChanged", () => void refresh(false));
-    connection.onreconnecting(() => setConnection("connecting", "Reconnecting"));
-    connection.onreconnected(async () => {
-      await connection.invoke("JoinCompetition", competitionId);
-      setConnection("live", "Connected");
-      void refresh(false);
+    connection.onreconnecting(() => {
+      liveSubscription = false;
+      setConnection("connecting", "Reconnecting");
     });
-    connection.onclose(() => setConnection("offline", "Auto refresh"));
+    connection.onreconnected(async () => {
+      try {
+        await connection.invoke("JoinCompetition", competitionId);
+        liveSubscription = true;
+        setConnection("live", "Connected");
+        void refresh(false);
+      } catch {
+        await connection.stop().catch(() => undefined);
+      }
+    });
+    connection.onclose(() => {
+      liveSubscription = false;
+      setConnection("offline", "Auto refresh");
+    });
 
     try {
       await connection.start();
       await connection.invoke("JoinCompetition", competitionId);
+      liveSubscription = true;
       setConnection("live", "Connected");
     } catch {
+      liveSubscription = false;
       setConnection("offline", "Auto refresh");
-      window.setTimeout(connectLiveUpdates, 10000);
+      await connection.stop().catch(() => undefined);
+      // Unlisted direct links continue refreshing through the public HTTP endpoint.
+      // Do not continuously reconnect a denied anonymous subscription.
     }
   }
 

@@ -510,10 +510,92 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     }
     Assert(await ReadStatus(a, route) == HttpStatusCode.OK
         && await ReadStatus(a, "/api/admin/competitions") == HttpStatusCode.OK, "ENG02B current account token accepted by both API gates");
+
+    // Actual SignalR JSON protocol over an isolated loopback WebSocket.
+    using var hubTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+    using var socket = new System.Net.WebSockets.ClientWebSocket();
+    await socket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/hubs/results"), hubTimeout.Token);
+    var hubBuffer = new byte[8192];
+    var hubPending = new List<byte>();
+    var hubFrames = new Queue<string>();
+    async Task SendHub(string json)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json + "\u001e");
+        await socket.SendAsync(new ArraySegment<byte>(bytes), System.Net.WebSockets.WebSocketMessageType.Text, true, hubTimeout.Token);
+    }
+    async Task<string> ReceiveHub()
+    {
+        while (hubFrames.Count == 0)
+        {
+            var frame = await socket.ReceiveAsync(new ArraySegment<byte>(hubBuffer), hubTimeout.Token);
+            if (frame.MessageType != System.Net.WebSockets.WebSocketMessageType.Text)
+                throw new InvalidOperationException("Expected SignalR text frame.");
+            for (var index = 0; index < frame.Count; index++)
+            {
+                if (hubBuffer[index] == 0x1e)
+                {
+                    hubFrames.Enqueue(System.Text.Encoding.UTF8.GetString(hubPending.ToArray()));
+                    hubPending.Clear();
+                }
+                else hubPending.Add(hubBuffer[index]);
+            }
+        }
+        return hubFrames.Dequeue();
+    }
+    await SendHub("{\"protocol\":\"json\",\"version\":1}");
+    using (var handshake = System.Text.Json.JsonDocument.Parse(await ReceiveHub()))
+        Assert(!handshake.RootElement.TryGetProperty("error", out _), "ENG02C1 hub handshake");
+    var invocation = 0;
+    async Task<bool> JoinHub(string target, params string[] arguments)
+    {
+        var id = (++invocation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await SendHub(System.Text.Json.JsonSerializer.Serialize(new { type = 1, invocationId = id, target, arguments }));
+        while (true)
+        {
+            using var completion = System.Text.Json.JsonDocument.Parse(await ReceiveHub());
+            var root = completion.RootElement;
+            if (root.GetProperty("type").GetInt32() == 3
+                && root.GetProperty("invocationId").GetString() == id)
+                return !root.TryGetProperty("error", out _);
+        }
+    }
+    Assert(!await JoinHub("JoinCompetition", key), "ENG02C1 anonymous unlisted subscription rejected");
+    Assert(!await JoinHub("JoinCompetition", "UNKNOWN-COMPETITION"), "ENG02C1 unknown competition rejected");
+    Assert(!await JoinHub("JoinOperatorCompetition", key, "invalid-token"), "ENG02C1 invalid operator token rejected");
+    Assert(await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 current operator accepted");
+    var legacyHubToken = tokens.Create(key, "Synthetic legacy operator").ToString();
+    Assert(await JoinHub("JoinOperatorCompetition", key, legacyHubToken), "ENG02C1 scoped legacy operator accepted");
+    Assert(!await JoinHub("JoinOperatorCompetition", key, tokens.Create("OTHER-COMPETITION", "Synthetic").ToString()), "ENG02C1 wrong legacy scope rejected");
+    var hubCompetition = await db.Competitions.SingleAsync(item => item.Id == competitionId);
+    var unassigned = new StackMeet.Api.Models.AppUser
+    {
+        Email = "eng02c1@example.test", NormalizedEmail = "ENG02C1@EXAMPLE.TEST",
+        DisplayName = "Synthetic viewer", CreatedAt = DateTime.UtcNow
+    };
+    db.AppUsers.Add(unassigned);
+    await db.SaveChangesAsync();
+    var unassignedToken = tokens.CreateForUser(unassigned.Id, unassigned.Email, unassigned.DisplayName, false, unassigned.SessionVersion).ToString();
+    Assert(!await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C1 unassigned account rejected");
+    db.CompetitionUsers.Add(new StackMeet.Api.Models.CompetitionUser
+    {
+        CompetitionId = competitionId, UserId = unassigned.Id, RoleId = 4,
+        IsActive = true, AssignedAt = DateTime.UtcNow
+    });
+    await db.SaveChangesAsync();
+    Assert(await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C1 assigned viewer accepted");
+    hubCompetition.IsPubliclyListed = true;
+    await db.SaveChangesAsync();
+    Assert(await JoinHub("JoinCompetition", hubCompetition.CompetitionCode), "ENG02C1 listed public code resolves canonical subscription");
+    hubCompetition.IsPubliclyListed = false;
+    await db.SaveChangesAsync();
+    Assert(!await JoinHub("JoinCompetition", key), "ENG02C1 unlisted competition cannot be rejoined");
+    Assert(await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 operator can rejoin unlisted competition");
     using (var logout = await a.PostAsync("/api/auth/logout-all", null))
         Assert(logout.StatusCode == HttpStatusCode.NoContent, "ENG02B logout-all succeeds");
     Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
         && await ReadStatus(b, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B old token rejected by both API gates after logout-all");
+    Assert(!await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 revoked account token cannot rejoin");
+    socket.Abort();
     await db.Entry(actor).ReloadAsync();
     var renewed = tokens.CreateForUser(actor.Id, actor.Email, actor.DisplayName, true, actor.SessionVersion);
     a.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", renewed.ToString());
