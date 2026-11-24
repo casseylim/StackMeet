@@ -24,6 +24,10 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         var competition = await database.Competitions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == competitionId, ct);
         if (competition is null) return NotFound();
         var rows = await database.CompetitionResults.AsNoTracking().Where(x => x.CompetitionId == competitionId).OrderBy(x => x.Id).ToListAsync(ct);
+        var confirmedRevision = await database.Competitions.Where(x => x.Id == competitionId)
+            .Select(x => (long?)x.ResultsRevision).SingleOrDefaultAsync(ct);
+        if (confirmedRevision != competition.ResultsRevision)
+            return Conflict(new { error = "Results changed during the read. Refresh and try again." });
         return Ok(new CompetitionResultsResponse(competition.ResultsRevision, rows.Select(Map).ToList()));
     }
 
@@ -34,13 +38,23 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         if (access is not null) return access;
         if (request is null || request.Upserts is null || request.Deletes is null || request.Upserts.Length + request.Deletes.Length == 0) return BadRequest(new { error = "At least one result change is required." });
         if (request.Upserts.Length + request.Deletes.Length > CompetitionResultRules.MaximumBatchSize) return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = $"A result batch cannot contain more than {CompetitionResultRules.MaximumBatchSize} changes." });
+        if (request.Upserts.Any(x => x is null || x.ExpectedRevision < 0)
+            || request.Deletes.Any(x => x is null || x.ExpectedRevision <= 0)
+            || request.ExpectedResultsRevision < 0)
+            return BadRequest(new { error = "Invalid result revision." });
+        if (request.Deletes.Any(x => x.ExpectedRevision is null)
+            || (request.ExpectedResultsRevision is null && request.Upserts.Any(x => x.ExpectedRevision == 0)))
+            return StatusCode(StatusCodes.Status428PreconditionRequired, new { error = "A result revision is required for deletes and a dataset revision is required for explicit creates." });
         var invalid = request.Upserts.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event).Concat(CompetitionResultRules.ValidateAttempts(x.Attempts, x.Penalty))).Concat(request.Deletes.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event))).ToArray();
         if (invalid.Length > 0) return BadRequest(new { error = invalid[0] });
-        request = new ResultBatchRequest(request.Upserts.Select(Normalize).ToArray(), request.Deletes.Select(Normalize).ToArray());
+        request = request with { Upserts = request.Upserts.Select(Normalize).ToArray(), Deletes = request.Deletes.Select(Normalize).ToArray() };
         await using var transaction = await database.Database.BeginTransactionAsync(ct);
         var competition = await database.Competitions.FromSqlInterpolated($"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {competitionId}").SingleOrDefaultAsync(ct);
         if (competition is null) return NotFound();
         if (competition.Status is "Closed" or "Archived" || competition.ArchivedAt is not null) return Conflict(new { error = "Results cannot be changed for a closed or archived competition." });
+
+        if (request.ExpectedResultsRevision is long expected && expected != competition.ResultsRevision)
+            return Conflict(new { error = "Results changed since the batch was prepared.", revision = competition.ResultsRevision });
 
         if (request.Upserts.Any(item => item.Type is "Doubles" or "Timed Relay"))
         {
@@ -88,6 +102,10 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
             existingByKey.TryGetValue(Key(item), out var row);
             if (row is not null && item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             var now = DateTime.UtcNow;
+            if (row is not null && item.ExpectedRevision is null)
+                return StatusCode(StatusCodes.Status428PreconditionRequired, new { error = "A result revision is required for updates." });
+            if (row is null && item.ExpectedRevision > 0)
+                return Conflict(new { error = "This result was deleted by another user." });
             if (row is null)
             {
                 row = new CompetitionResult

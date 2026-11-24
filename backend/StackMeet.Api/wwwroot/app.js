@@ -893,7 +893,12 @@ async function refreshSqlResults({ rerender = true } = {}) {
 }
 
 async function saveSqlResults(upserts, deletes = []) {
-  const payload = await resultApi.saveBatch(selectedSqlCompetitionId, { upserts, deletes });
+  const creates = upserts.some(item => item.expectedRevision == null);
+  const payload = await resultApi.saveBatch(selectedSqlCompetitionId, {
+    upserts: upserts.map(item => ({ ...item, expectedRevision: item.expectedRevision ?? 0 })),
+    deletes,
+    ...(creates ? { expectedResultsRevision: currentResultsRevision } : {})
+  });
   state.results = normalizeResults(payload.results);
   currentResultsRevision = payload.revision;
   return payload;

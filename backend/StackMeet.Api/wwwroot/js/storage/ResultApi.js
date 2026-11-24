@@ -14,7 +14,7 @@ class SqlResultApi {
     const key = this.#competitionKey(competitionId);
     const delta = await this.#request(`${this.#url(competitionId)}/batch`, { method: "POST", body: payload });
     const cached = this.#cache.get(key);
-    if (!cached) return this.list(competitionId);
+    if (!cached || delta.revision > cached.revision + 1 || delta.revision < cached.revision) return this.list(competitionId);
 
     const changedByKey = new Map((delta.results || []).map(item => [this.#logicalKey(item), item]));
     const deletedKeys = new Set((payload.deletes || []).map(item => this.#logicalKey(item)));

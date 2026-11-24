@@ -37,13 +37,17 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
         var validation = Validate(request); if (validation is not null) return BadRequest(new { error = validation });
-        if (!await CompetitionExists(competitionId, ct)) return NotFound();
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var competition = await LockCompetition(competitionId, ct);
+        var unavailable = WriteRestriction(competition);
+        if (unavailable is not null) return unavailable;
         var value = Normalize(request);
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == competitionId && x.StackerCode == value.StackerCode, ct)) return Conflict(new { error = "StackerCode already exists for this competition." });
         var now = DateTime.UtcNow;
         var item = new Stacker { CompetitionId = competitionId, StackerCode = value.StackerCode, WssaId = value.WssaId, FirstName = value.FirstName, LastName = value.LastName, Gender = value.Gender, BirthDate = value.BirthDate, Country = value.Country, Club = value.Club, Region = value.Region, Email = value.Email, Phone = value.Phone, CustomDivision = value.CustomDivision, Paid = value.Paid!, CheckedIn = value.CheckedIn!, IsSpecialStacker = value.IsSpecialStacker, CreatedAt = now, UpdatedAt = now };
         database.Stackers.Add(item);
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return CreatedAtAction(nameof(Get), new { competitionId, id = item.Id }, Map(item));
     }
 
@@ -53,7 +57,10 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
         var validation = Validate(request); if (validation is not null) return BadRequest(new { error = validation });
-        if (!await CompetitionExists(competitionId, ct)) return NotFound();
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var competition = await LockCompetition(competitionId, ct);
+        var unavailable = WriteRestriction(competition);
+        if (unavailable is not null) return unavailable;
         var value = Normalize(request);
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
@@ -61,6 +68,7 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
         if (await database.Stackers.AnyAsync(x => x.CompetitionId == competitionId && x.Id != id && x.StackerCode == value.StackerCode, ct)) return Conflict(new { error = "StackerCode already exists for this competition." });
         item.StackerCode = value.StackerCode; item.WssaId = value.WssaId; item.FirstName = value.FirstName; item.LastName = value.LastName; item.Gender = value.Gender; item.BirthDate = value.BirthDate; item.Country = value.Country; item.Club = value.Club; item.Region = value.Region; item.Email = value.Email; item.Phone = value.Phone; item.CustomDivision = value.CustomDivision; item.Paid = value.Paid!; item.CheckedIn = value.CheckedIn!; item.IsSpecialStacker = value.IsSpecialStacker; item.UpdatedAt = DateTime.UtcNow;
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return NoContent();
     }
 
@@ -69,16 +77,34 @@ public sealed class StackersController(StackMeetDbContext database, CompetitionP
     {
         var access = await Access(competitionId, true, ct);
         if (access is not null) return access;
-        if (!await CompetitionExists(competitionId, ct)) return NotFound();
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var competition = await LockCompetition(competitionId, ct);
+        var unavailable = WriteRestriction(competition);
+        if (unavailable is not null) return unavailable;
         var item = await database.Stackers.SingleOrDefaultAsync(x => x.CompetitionId == competitionId && x.Id == id, ct);
         if (item is null) return NotFound();
         if (await database.CompetitionResults.AnyAsync(x => x.CompetitionId == competitionId && x.ParticipantCode == item.StackerCode, ct)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
-        var key = await database.Competitions.Where(x => x.Id == competitionId).Select(x => x.CompetitionKey).SingleAsync(ct);
+        var key = competition!.CompetitionKey;
         var state = await database.CompetitionStates.AsNoTracking().SingleOrDefaultAsync(x => x.CompetitionKey == key, ct);
         if (state is not null && references.ContainsParticipant(state.JsonData, item.StackerCode)) return Conflict(new { error = "Participant cannot be deleted while competition results or team references exist." });
         database.Stackers.Remove(item);
         await database.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return NoContent();
+    }
+
+    Task<Competition?> LockCompetition(int competitionId, CancellationToken ct) =>
+        database.Competitions.FromSqlInterpolated(
+            $"SELECT * FROM [dbo].[Competition] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {competitionId}").SingleOrDefaultAsync(ct);
+
+    ActionResult? WriteRestriction(Competition? competition)
+    {
+        if (competition is null) return NotFound();
+        if (competition.ArchivedAt is not null || string.Equals(competition.Status, "Archived", StringComparison.OrdinalIgnoreCase))
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Competition is archived." });
+        if (string.Equals(competition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+            return Conflict(new { error = "Competition is closed and read-only." });
+        return null;
     }
 
     async Task<ActionResult?> Access(int competitionId, bool write, CancellationToken ct)

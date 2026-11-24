@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
@@ -204,6 +206,9 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
     foreach (var argument in new[] { "run", "--project", "backend/StackMeet.Api/StackMeet.Api.csproj", "-c", "Release", "--no-build", "--urls", $"http://127.0.0.1:{port}", "--", $"--ConnectionStrings:StackMeet={connectionString}", "--Security:ApiKey=phase-e-http-test-key" }) startInfo.ArgumentList.Add(argument);
     using var process = new Process { StartInfo = startInfo };
     process.StartInfo.Environment["ConnectionStrings__StackMeet"] = connectionString;
+    const string signingKey = "synthetic-eng01-local-signing-key";
+    process.StartInfo.Environment["Security__SessionSigningKey"] = signingKey;
+    process.StartInfo.Environment["Security__AdminKey"] = "synthetic-eng01-admin";
     process.StartInfo.Environment["Security__ApiKey"] = "phase-e-http-test-key";
     process.StartInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
     process.StartInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
@@ -218,6 +223,18 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
         {
             var body = ready is null ? "<no response>" : await ready.Content.ReadAsStringAsync();
             throw new InvalidOperationException($"HTTP API did not become ready: {ready?.StatusCode}; body={body}; processExited={process.HasExited}");
+        }
+        await using (var isolated = new StackMeetDbContext(new DbContextOptionsBuilder<StackMeetDbContext>().UseSqlServer(connectionString).Options))
+        {
+            var engKey = key + "ENG";
+            var eng = new StackMeet.Api.Models.Competition { CompetitionCode = engKey, CompetitionKey = engKey, CompetitionName = "ENG01 Acceptance", Venue = "LocalDB", StartDate = DateOnly.FromDateTime(now), EndDate = DateOnly.FromDateTime(now), Status = "Active", CreatedAt = now, UpdatedAt = now };
+            isolated.Add(eng);
+            await isolated.SaveChangesAsync();
+            for (var i = 1; i <= 4; i++)
+                isolated.Stackers.Add(new StackMeet.Api.Models.Stacker { CompetitionId = eng.Id, StackerCode = $"A{i}", FirstName = "Synthetic", LastName = $"{i}", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now });
+            isolated.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState { CompetitionKey = engKey, JsonData = "{\"seed\":true}", SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now });
+            await isolated.SaveChangesAsync();
+            await RunResultAcceptanceAsync(port, eng.Id, engKey, signingKey, isolated);
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
         var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
@@ -260,4 +277,95 @@ static async Task<HttpResponseMessage> PostState(HttpClient client, string key, 
     using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/state/{key}") { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
     request.Headers.TryAddWithoutValidation("If-Match", etag);
     return await client.SendAsync(request);
+}
+
+static async Task RunResultAcceptanceAsync(int port, int competitionId, string key, string signingKey, StackMeetDbContext db)
+{
+    var actor = new StackMeet.Api.Models.AppUser
+    {
+        Email = "eng01@example.test", NormalizedEmail = "ENG01@EXAMPLE.TEST",
+        DisplayName = "Synthetic actor", IsSystemAdmin = true, CreatedAt = DateTime.UtcNow
+    };
+    db.Add(actor);
+    await db.SaveChangesAsync();
+    var config = new ConfigurationBuilder().AddInMemoryCollection(
+        new Dictionary<string, string?> { ["Security:SessionSigningKey"] = signingKey }).Build();
+    var tokens = new SessionTokenService(config);
+    using var a = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+    using var b = new HttpClient { BaseAddress = a.BaseAddress };
+    using var admin = new HttpClient { BaseAddress = a.BaseAddress };
+    var bearer = tokens.CreateForUser(actor.Id, actor.Email, actor.DisplayName, true, actor.SessionVersion);
+    a.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", $"{bearer.Payload}.{bearer.Signature}");
+    b.DefaultRequestHeaders.Authorization = a.DefaultRequestHeaders.Authorization;
+    admin.DefaultRequestHeaders.Add("X-StackMeet-Admin-Key", "synthetic-eng01-admin");
+    var route = $"/api/competitions/{competitionId}/results";
+    ResultUpsertRequest Upsert(long? revision, decimal seconds, string code = "A1") =>
+        new("Prelims", "Individual", code, "Cycle", [seconds], 0, revision);
+    ResultDeleteRequest Delete(long? revision) => new("Prelims", "Individual", "A1", "Cycle", revision);
+    async Task<HttpStatusCode> Send(HttpClient client, ResultBatchRequest batch)
+    {
+        using var response = await client.PostAsJsonAsync($"{route}/batch", batch);
+        return response.StatusCode;
+    }
+    async Task<CompetitionResultsResponse> Read() =>
+        await a.GetFromJsonAsync<CompetitionResultsResponse>(route) ?? throw new InvalidOperationException("Missing results");
+
+    Assert(await Send(admin, new([Upsert(null, 5)], [])) == HttpStatusCode.Unauthorized, "ENG01 result write requires account actor");
+    Assert(await Send(a, new([Upsert(0, 5)], [])) == HttpStatusCode.PreconditionRequired, "ENG01 explicit create requires dataset revision");
+    var creates = await Task.WhenAll(Send(a, new([Upsert(0, 5)], [], 0)), Send(b, new([Upsert(0, 6)], [], 0)));
+    Assert(creates.Count(x => x == HttpStatusCode.OK) == 1 && creates.Count(x => x == HttpStatusCode.Conflict) == 1,
+        "ENG01 competing creates commit once");
+    Assert(await Send(a, new([Upsert(null, 9)], [])) == HttpStatusCode.PreconditionRequired, "ENG01 blind overwrite rejected");
+    Assert(await Send(a, new([], [Delete(null)])) == HttpStatusCode.PreconditionRequired, "ENG01 blind delete rejected");
+    var revision = (await Read()).Results.Single().Revision;
+    var updates = await Task.WhenAll(Send(a, new([Upsert(revision, 7)], [])), Send(b, new([Upsert(revision, 8)], [])));
+    Assert(updates.Count(x => x == HttpStatusCode.OK) == 1 && updates.Count(x => x == HttpStatusCode.Conflict) == 1,
+        "ENG01 competing edits commit once");
+    var after = await Read();
+    Assert(after.Revision == revision + 1 && after.Results.Count == 1, "ENG01 only one revision advances");
+    Assert(await db.CompetitionResults.AsNoTracking().AnyAsync(x => x.CompetitionId == competitionId && x.UpdatedByUserId == actor.Id),
+        "ENG01 result records authenticated account");
+    Assert(await Send(a, new([Upsert(null, 11, "A2"), Upsert(revision, 12)], [])) == HttpStatusCode.Conflict,
+        "ENG01 stale member rejects whole batch");
+    Assert((await Read()).Results.Count == 1 && (await Read()).Revision == after.Revision, "ENG01 failed batch persists nothing");
+    Assert(await Send(a, new([], [Delete(after.Revision)])) == HttpStatusCode.OK, "ENG01 versioned delete");
+    Assert(await Send(b, new([Upsert(after.Revision, 12)], [])) == HttpStatusCode.Conflict, "ENG01 stale edit cannot recreate deleted row");
+    Assert(await Send(b, new([Upsert(0, 12)], [], 0)) == HttpStatusCode.Conflict, "ENG01 stale create cannot recreate deleted row");
+    Assert(await Send(a, new([Upsert(null, 10)], [])) == HttpStatusCode.OK, "ENG01 legacy create-only compatibility");
+    Assert(await Send(b, new([], [Delete(after.Revision)])) == HttpStatusCode.Conflict, "ENG01 stale delete cannot remove recreated row");
+    Assert(await Send(a, new([], [Delete((await Read()).Revision)])) == HttpStatusCode.OK, "ENG01 clean result fixture");
+
+    a.DefaultRequestHeaders.Add("X-StackMeet-Updated-By", "forged actor");
+    Assert((await PostState(a, key, "\"1\"", "{\"seed\":true}")).StatusCode == HttpStatusCode.NoContent, "ENG01 account state save");
+    Assert(await db.CompetitionStates.AsNoTracking().AnyAsync(x => x.CompetitionKey == key && x.UpdatedBy == $"account:{actor.Id}"),
+        "ENG01 state attribution ignores caller label");
+
+    var stackerId = await db.Stackers.Where(x => x.CompetitionId == competitionId && x.StackerCode == "A4").Select(x => x.Id).SingleAsync();
+    var deleteStacker = b.DeleteAsync($"/api/competitions/{competitionId}/stackers/{stackerId}");
+    var saveReference = PostState(a, key, "\"2\"", "{\"doubles\":[{\"id\":\"2.9\",\"one\":\"A1\",\"two\":\"A4\"}]}");
+    await Task.WhenAll(deleteStacker, saveReference);
+    Assert((deleteStacker.Result.StatusCode == HttpStatusCode.NoContent && saveReference.Result.StatusCode == HttpStatusCode.BadRequest)
+        || (deleteStacker.Result.StatusCode == HttpStatusCode.Conflict && saveReference.Result.StatusCode == HttpStatusCode.NoContent),
+        "ENG01 participant removal and state reference serialize");
+    if (deleteStacker.Result.StatusCode == HttpStatusCode.NoContent)
+    {
+        db.Stackers.Add(new StackMeet.Api.Models.Stacker { CompetitionId = competitionId, StackerCode = "A4", FirstName = "A", LastName = "Four", Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+    }
+    var current = (await a.GetAsync($"/api/state/{key}")).Headers.ETag!.Tag!;
+    var close = admin.PostAsJsonAsync($"/api/admin/competitions/{key}/status", new { status = "Closed" });
+    var save = PostState(a, key, current, "{\"seed\":true}");
+    await Task.WhenAll(close, save);
+    Assert(close.Result.StatusCode == HttpStatusCode.NoContent && save.Result.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.Conflict,
+        "ENG01 close and save yield legal serial outcomes");
+    current = (await a.GetAsync($"/api/state/{key}")).Headers.ETag!.Tag!;
+    using var maintenance = new HttpClient { BaseAddress = a.BaseAddress };
+    maintenance.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", "phase-e-http-test-key");
+    Assert((await PostState(maintenance, key, current, "{}")).StatusCode == HttpStatusCode.Conflict, "ENG01 locked lifecycle rejects closed maintenance state save");
+    Assert(await Send(a, new([Upsert(null, 5)], [])) == HttpStatusCode.Conflict, "ENG01 closed result batch rejected");
+    Assert((await admin.PostAsJsonAsync($"/api/admin/competitions/{key}/status", new { status = "Active" })).StatusCode == HttpStatusCode.NoContent,
+        "ENG01 fixture reopened");
+    Assert((await PostState(maintenance, key, current, "{\"seed\":true}")).StatusCode == HttpStatusCode.NoContent
+        && await db.CompetitionStates.AsNoTracking().AnyAsync(x => x.CompetitionKey == key && x.UpdatedBy == "maintenance:api-key"),
+        "ENG01 maintenance state attribution");
 }
