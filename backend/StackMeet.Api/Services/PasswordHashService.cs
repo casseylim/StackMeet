@@ -7,6 +7,9 @@ public sealed class PasswordHashService
     const int SaltSize = 16;
     const int KeySize = 32;
     const int Iterations = 210_000;
+    // Bound verification work independently from the current generation policy.
+    const int MaxVerificationIterations = 1_000_000;
+    const int MaxStoredHashLength = 500;
 
     public string Hash(string password)
     {
@@ -18,9 +21,11 @@ public sealed class PasswordHashService
 
     public bool Verify(string password, string? hash)
     {
-        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(hash)) return false;
+        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(hash) || hash.Length > MaxStoredHashLength) return false;
         var parts = hash.Split('$');
-        if (parts.Length != 4 || parts[0] != "PBKDF2-SHA256" || !int.TryParse(parts[1], out var iterations)) return false;
+        if (parts.Length != 4 || parts[0] != "PBKDF2-SHA256"
+            || !int.TryParse(parts[1], out var iterations)
+            || iterations < 1 || iterations > MaxVerificationIterations) return false;
 
         byte[] salt;
         byte[] expected;
@@ -34,7 +39,9 @@ public sealed class PasswordHashService
             return false;
         }
 
-        var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
+        // Hash() has always emitted these lengths in the reviewed implementation.
+        if (salt.Length != SaltSize || expected.Length != KeySize) return false;
+        var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, KeySize);
         return CryptographicOperations.FixedTimeEquals(actual, expected);
     }
 }
