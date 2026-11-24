@@ -11,6 +11,7 @@ on:
       - master
       - "feature/**"
       - "hardening/**"
+      - codex/eng-01
 
 permissions:
   contents: read

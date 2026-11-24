@@ -30,7 +30,7 @@ assert(/existingByKey\.TryGetValue\(Key\(item\), out var row\)/.test(batch),
   "Upserts must resolve existing rows from the logical-key dictionary.");
 assert(/existingByKey\.Add\(Key\(item\), row\)/.test(batch),
   "New rows must be added to the logical-key dictionary immediately.");
-assert(/if \(!existingByKey\.TryGetValue\(Key\(item\), out var row\)\) continue;/.test(batch),
+assert(/if \(!existingByKey\.TryGetValue\(Key\(item\), out var row\)\) return Conflict/.test(batch),
   "Deletes must resolve candidates from the same logical-key dictionary.");
 assert(/if \(row is not null && item\.ExpectedRevision is not null && row\.Revision != item\.ExpectedRevision\) return Conflict/.test(batch),
   "Stale upsert ExpectedRevision conflicts must remain enforced.");

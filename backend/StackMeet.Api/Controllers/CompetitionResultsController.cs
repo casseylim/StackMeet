@@ -42,9 +42,10 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
             || request.Deletes.Any(x => x is null || x.ExpectedRevision <= 0)
             || request.ExpectedResultsRevision < 0)
             return BadRequest(new { error = "Invalid result revision." });
-        if (request.Deletes.Any(x => x.ExpectedRevision is null)
+        if (request.Upserts.Any(x => x.ExpectedRevision is null)
+            || request.Deletes.Any(x => x.ExpectedRevision is null)
             || (request.ExpectedResultsRevision is null && request.Upserts.Any(x => x.ExpectedRevision == 0)))
-            return StatusCode(StatusCodes.Status428PreconditionRequired, new { error = "A result revision is required for deletes and a dataset revision is required for explicit creates." });
+            return StatusCode(StatusCodes.Status428PreconditionRequired, new { code = "result_precondition_required", error = "Refresh results and upgrade the scoring screen before saving.", required = new { create = "ExpectedRevision=0 and ExpectedResultsRevision", update = "positive ExpectedRevision", delete = "positive ExpectedRevision" } });
         var invalid = request.Upserts.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event).Concat(CompetitionResultRules.ValidateAttempts(x.Attempts, x.Penalty))).Concat(request.Deletes.SelectMany(x => CompetitionResultRules.ValidateIdentity(x.Stage, x.Type, x.Participant, x.Event))).ToArray();
         if (invalid.Length > 0) return BadRequest(new { error = invalid[0] });
         request = request with { Upserts = request.Upserts.Select(Normalize).ToArray(), Deletes = request.Deletes.Select(Normalize).ToArray() };
@@ -100,10 +101,9 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         foreach (var item in request.Upserts)
         {
             existingByKey.TryGetValue(Key(item), out var row);
+            if (row is not null && item.ExpectedRevision == 0) return Conflict(new { error = "This result already exists.", result = Map(row) });
             if (row is not null && item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             var now = DateTime.UtcNow;
-            if (row is not null && item.ExpectedRevision is null)
-                return StatusCode(StatusCodes.Status428PreconditionRequired, new { error = "A result revision is required for updates." });
             if (row is null && item.ExpectedRevision > 0)
                 return Conflict(new { error = "This result was deleted by another user." });
             if (row is null)
@@ -130,7 +130,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
 
         foreach (var item in request.Deletes)
         {
-            if (!existingByKey.TryGetValue(Key(item), out var row)) continue;
+            if (!existingByKey.TryGetValue(Key(item), out var row)) return Conflict(new { error = "This result was already deleted." });
             if (item.ExpectedRevision is not null && row.Revision != item.ExpectedRevision) return Conflict(new { error = "This result was changed by another user.", result = Map(row) });
             database.CompetitionResults.Remove(row);
             deletedCount++;
