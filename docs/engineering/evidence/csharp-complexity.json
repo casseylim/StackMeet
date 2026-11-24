@@ -1,0 +1,242 @@
+[
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionResultsController.cs",
+    "Line": 30,
+    "Method": "Batch",
+    "Score": 34
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/PublicFinalsPlacementCareerIntegrationService.cs",
+    "Line": 95,
+    "Method": "ReadImmutableSelections",
+    "Score": 31
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/StackerIdentityPersistenceService.cs",
+    "Line": 181,
+    "Method": "ValidateApprovedResolution",
+    "Score": 22
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsHistoricalPlacementProjectionService.cs",
+    "Line": 71,
+    "Method": "ProjectAsync",
+    "Score": 21
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/IdentityLinkedFinalsPlacementCareerService.cs",
+    "Line": 69,
+    "Method": "GetPublicEligibleAsync",
+    "Score": 20
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/PublicTeamCareerPublicationContract.cs",
+    "Line": 111,
+    "Method": "EnsurePublicationSafeSource",
+    "Score": 19
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionStateController.cs",
+    "Line": 43,
+    "Method": "Save",
+    "Score": 19
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/CompetitionTeamResultIntegrityService.cs",
+    "Line": 115,
+    "Method": "ValidateStateAgainstExistingResultsAsync",
+    "Score": 19
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/CompetitionTeamResultIntegrityService.cs",
+    "Line": 51,
+    "Method": "ValidateResultUpsertsAsync",
+    "Score": 18
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/StackerIdentityMatcher.cs",
+    "Line": 70,
+    "Method": "EvaluateCandidate",
+    "Score": 18
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/SportStackerCareerProfileService.cs",
+    "Line": 16,
+    "Method": "GetPublicAsync",
+    "Score": 17
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsRankingGovernanceService.cs",
+    "Line": 166,
+    "Method": "CaptureFinalizedSnapshotCoreAsync",
+    "Score": 17
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/AuthController.cs",
+    "Line": 313,
+    "Method": "LoginAccount",
+    "Score": 17
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/IdentityLinkedTeamCareerService.cs",
+    "Line": 65,
+    "Method": "GetPublicEligibleAsync",
+    "Score": 17
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/PublicFinalsPlacementPublicationContract.cs",
+    "Line": 108,
+    "Method": "EnsurePublicationSafeEvidence",
+    "Score": 16
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/SessionTokenService.cs",
+    "Line": 68,
+    "Method": "TryValidate",
+    "Score": 15
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/CompetitionResultRules.cs",
+    "Line": 14,
+    "Method": "ValidateIdentity",
+    "Score": 14
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsHistoricalPlacementProjectionService.cs",
+    "Line": 277,
+    "Method": "BuildScopedRows",
+    "Score": 14
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/PublicTeamCareerPublicationContract.cs",
+    "Line": 144,
+    "Method": "EnsurePublicationSafeEvidence",
+    "Score": 14
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/PublicFinalsPlacementCareerIntegrationService.cs",
+    "Line": 25,
+    "Method": "GetPublicEligibleAsync",
+    "Score": 14
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/IdentityLinkedTeamCareerService.cs",
+    "Line": 207,
+    "Method": "TryCreateCandidate",
+    "Score": 13
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs",
+    "Line": 16,
+    "Method": "Upload",
+    "Score": 13
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsRankingGovernanceService.cs",
+    "Line": 359,
+    "Method": "ReadGovernanceAsync",
+    "Score": 13
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/PublicResultsController.cs",
+    "Line": 13,
+    "Method": "Get",
+    "Score": 12
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/PublicResultsController.cs",
+    "Line": 272,
+    "Method": "FindRangeName",
+    "Score": 12
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/StackerIdentityPersistenceService.cs",
+    "Line": 20,
+    "Method": "PersistAsync",
+    "Score": 11
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Identity/SportStackerCareerProfileService.cs",
+    "Line": 308,
+    "Method": "TryCreateFinalsCandidate",
+    "Score": 11
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionAdminController.cs",
+    "Line": 296,
+    "Method": "Delete",
+    "Score": 11
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/AccountEmailService.cs",
+    "Line": 214,
+    "Method": "ReadSettings",
+    "Score": 11
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/AdminEmailSettingsController.cs",
+    "Line": 153,
+    "Method": "Validate",
+    "Score": 11
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionAdminController.cs",
+    "Line": 334,
+    "Method": "ResetState",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/CompetitionTeamResultIntegrityService.cs",
+    "Line": 272,
+    "Method": "ReadDoubles",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionAdminController.cs",
+    "Line": 538,
+    "Method": "ValidateRequest",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/CompetitionTeamResultIntegrityService.cs",
+    "Line": 318,
+    "Method": "ReadRelays",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/StackersController.cs",
+    "Line": 50,
+    "Method": "Update",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Services/AccountTokenService.cs",
+    "Line": 75,
+    "Method": "ConsumeTokenWithResult",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/AdminUsersController.cs",
+    "Line": 288,
+    "Method": "Delete",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs",
+    "Line": 34,
+    "Method": "DetectFormat",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsHistoricalPlacementProjectionService.cs",
+    "Line": 171,
+    "Method": "NormalizeScope",
+    "Score": 10
+  },
+  {
+    "Source": "backend/StackMeet.Api/Activities/SportStacking/Ranking/FinalsHistoricalPlacementProjectionService.cs",
+    "Line": 334,
+    "Method": "Compute",
+    "Score": 10
+  }
+]

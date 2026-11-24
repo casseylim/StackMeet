@@ -1,0 +1,77 @@
+# Controller HTTP action attributes
+
+Route prefixes and middleware are declared separately. Absolute templates override the controller prefix.
+
+| Source | Verb / attribute template | Action |
+|---|---|---|
+| backend/StackMeet.Api/Controllers/AdminAuditLogsController.cs:25 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/AdminCareerProfileCapabilitiesController.cs:11 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/AdminEmailSettingsController.cs:27 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/AdminEmailSettingsController.cs:50 | HttpPut | Save |
+| backend/StackMeet.Api/Controllers/AdminEmailSettingsController.cs:99 | HttpPost("test") | Test |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:21 | HttpGet("candidates") | Candidates |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:34 | HttpGet("stackers") | Stackers |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:51 | HttpGet("stackers/{stackerId:int}") | StackerReview |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:76 | HttpGet("profiles/{nadiTrackId}") | Profile |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:90 | HttpPost("links") | Link |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:110 | HttpPut("profiles/{nadiTrackId}/publication") | Publication |
+| backend/StackMeet.Api/Controllers/AdminStackerIdentitiesController.cs:128 | HttpPost("links/{linkId:long}/unlink") | Unlink |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:38 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:59 | HttpGet("security-options") | GetSecurityOptions |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:71 | HttpPut("security-options") | SaveSecurityOptions |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:94 | HttpPost | Create |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:139 | HttpPost("invite") | Invite |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:207 | HttpGet("{id:int}") | Get |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:220 | HttpPut("{id:int}") | Update |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:257 | HttpPost("{id:int}/password") | SetPassword |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:288 | HttpDelete("{id:int}") | Delete |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:359 | HttpPost("{id:int}/password-reset") | SendPasswordReset |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:393 | HttpPost("{id:int}/competition-access") | SetCompetitionAccess |
+| backend/StackMeet.Api/Controllers/AdminUsersController.cs:423 | HttpDelete("{id:int}/competition-access/{accessId:int}") | RemoveCompetitionAccess |
+| backend/StackMeet.Api/Controllers/AuthController.cs:34 | HttpPost("login") | Login |
+| backend/StackMeet.Api/Controllers/AuthController.cs:57 | HttpGet("me") | Me |
+| backend/StackMeet.Api/Controllers/AuthController.cs:95 | HttpPost("logout") | Logout |
+| backend/StackMeet.Api/Controllers/AuthController.cs:121 | HttpPost("forgot-password") | ForgotPassword |
+| backend/StackMeet.Api/Controllers/AuthController.cs:227 | HttpPost("activate") | Activate |
+| backend/StackMeet.Api/Controllers/AuthController.cs:262 | HttpPost("reset-password") | ResetPassword |
+| backend/StackMeet.Api/Controllers/AuthSessionsController.cs:14 | HttpPost("logout-all") | LogoutAll |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:23 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:29 | HttpGet("{competitionKey}") | Get |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:37 | HttpPost | Create |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:100 | HttpPut("{competitionKey}") | Update |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:131 | HttpPost("{competitionKey}/password") | SetPassword |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:153 | HttpPost("{competitionKey}/status") | SetStatus |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:156 | HttpPost("{competitionKey}/archive") | Archive |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:180 | HttpGet("{competitionKey}/state/export") | ExportState |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:202 | HttpPost("{competitionKey}/state/import") | ImportState |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:266 | HttpPost("{competitionKey}/state/initialize") | InitializeState |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:296 | HttpPost("{competitionKey}/delete") | Delete |
+| backend/StackMeet.Api/Controllers/CompetitionAdminController.cs:334 | HttpPost("{competitionKey}/state/reset") | ResetState |
+| backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs:15 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs:16 | HttpPost("{assetType}") | Upload |
+| backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs:30 | HttpDelete("{assetType}") | Delete |
+| backend/StackMeet.Api/Controllers/CompetitionAssetsController.cs:31 | HttpGet("/api/public/competitions/{competitionId:int}/assets/{assetType}") | Public |
+| backend/StackMeet.Api/Controllers/CompetitionResultsController.cs:19 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/CompetitionResultsController.cs:30 | HttpPost("batch") | Batch |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:17 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:36 | HttpGet("{id:int}") | Get |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:58 | HttpGet("{id:int}/activity") | Activity |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:80 | HttpPut("{id:int}/activity") | AssignActivity |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:118 | HttpPost | Create |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:132 | HttpPut("{id:int}") | Update |
+| backend/StackMeet.Api/Controllers/CompetitionsController.cs:153 | HttpDelete("{id:int}") | Delete |
+| backend/StackMeet.Api/Controllers/CompetitionStateController.cs:22 | HttpGet("{competitionKey}") | Get |
+| backend/StackMeet.Api/Controllers/CompetitionStateController.cs:43 | HttpPost("{competitionKey}") | Save |
+| backend/StackMeet.Api/Controllers/FinalsRankingRulesController.cs:13 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/HealthController.cs:9 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/PublicCompetitionDirectoryController.cs:14 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/PublicResultsController.cs:13 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/PublicResultsProfileLinksController.cs:18 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/PublicStackerProfilesController.cs:40 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/PublicStackerProfilesController.cs:75 | HttpGet | Get |
+| backend/StackMeet.Api/Controllers/StackersController.cs:14 | HttpGet | List |
+| backend/StackMeet.Api/Controllers/StackersController.cs:24 | HttpGet("{id:int}") | Get |
+| backend/StackMeet.Api/Controllers/StackersController.cs:34 | HttpPost | Create |
+| backend/StackMeet.Api/Controllers/StackersController.cs:50 | HttpPut("{id:int}") | Update |
+| backend/StackMeet.Api/Controllers/StackersController.cs:67 | HttpDelete("{id:int}") | Delete |
+| backend/StackMeet.Api/Controllers/VersionController.cs:9 | HttpGet | Get |
