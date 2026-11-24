@@ -1,7 +1,15 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const purpose = params.get("purpose") || "activate";
-  const token = params.get("token") || "";
+  let token = params.get("token") || "";
+  // Retain the one-time token in this page only, not in the visible URL or storage.
+  if (params.has("token")) {
+    try {
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("token");
+      history.replaceState(history.state, "", cleanUrl.href);
+    } catch (_) { /* referrer protection still applies if history replacement is unavailable */ }
+  }
   const $ = id => document.getElementById(id);
   const ui = window.StackMeetUiLocalization;
   const t = key => ui?.t(key) || key;
@@ -44,6 +52,7 @@
       return message(knownMessage(error, "Unable to save password."));
     }
 
+    token = "";
     $("accountForm").reset();
     message(t("Password saved. You can now return to NADITrack and log in."), true);
   }

@@ -169,7 +169,7 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
     const out = document.getElementById("paperOutput");
     const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-    out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+    out.innerHTML = `<div class="panel-head"><h2>${esc(val("bracketType"))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" data-action="print-current-view" type="button">${esc(t("Print"))}</button></div>
     ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 

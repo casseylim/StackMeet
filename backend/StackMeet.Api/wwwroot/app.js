@@ -1668,7 +1668,7 @@ function renderDashboard() {
       <div class="list-row"><span>${esc(t("Name"))}</span><strong>${esc(competition.competitionName)}</strong></div>
       <div class="list-row"><span>${esc(t("Date"))}</span><strong>${esc(tf("{from} to {to}", { from: competition.startDate, to: competition.endDate }))}</strong></div>
       <div class="list-row"><span>${esc(t("Venue"))}</span><strong>${esc(competition.venue || "--")}</strong></div>
-      <div class="list-row"><span>${esc(t("Rounds"))}</span><strong>${tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals })}</strong></div>
+      <div class="list-row"><span>${esc(t("Rounds"))}</span><strong>${esc(tf("{prelims} prelim / {finals} final", { prelims: state.settings.prelims, finals: state.settings.finals }))}</strong></div>
       <div class="list-row"><span>${esc(t("Version"))}</span><strong>${esc(STACKMEET_APP_VERSION)}</strong></div>
     </div>
     <div class="results-share">
@@ -4528,7 +4528,7 @@ function competitionReportTable(title, rows) {
     const finalClass = highlight && advanceLimit && row.rank <= advanceLimit ? ` class="finals-highlight"` : "";
     return `${groupHeader}<tr${finalClass}><td>${row.rank}</td><td>${esc(row.event)}</td><td><strong>${esc(row.name)}</strong><small>${esc(row.org || row.country || "")}</small></td><td>${esc(row.division)}</td><td>${fmt(row.time)}</td><td>${row.gap ? `+${fmt(row.gap)}` : ""}</td></tr>`;
   }).join("");
-  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">${esc(t("Export JSON"))}</button><button class="ghost" data-action="export-results-csv" type="button">${esc(t("Export CSV"))}</button><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>`;
+  const exportButtons = `<div class="report-export-actions"><button class="ghost" data-action="export-results-json" type="button">${esc(t("Export JSON"))}</button><button class="ghost" data-action="export-results-csv" type="button">${esc(t("Export CSV"))}</button><button class="ghost" data-action="print-current-view" type="button">${esc(t("Print"))}</button></div>`;
   return `<div class="panel-head"><h2>${esc(title)}</h2>${exportButtons}</div>
     <div class="table-wrap"><table><thead><tr><th>#</th><th>${esc(t("Event"))}</th><th>${esc(t("Stacker"))}</th><th>${esc(t("Division"))}</th><th>${esc(t("Time"))}</th><th>${esc(t("Gap"))}</th></tr></thead><tbody>${body || `<tr><td colspan="6">${esc(t("No matching results yet"))}</td></tr>`}</tbody></table></div>`;
 }
@@ -5078,6 +5078,8 @@ document.addEventListener("click", async (event) => {
     return;
   }
   const action = target.dataset.action;
+  // Printing must never trigger a competition-state write.
+  if (action === "print-current-view") { window.print(); return; }
   let shouldRender = true;
   let shouldSave = true;
   if (action === "mark-read") state.notifications = state.notifications.map(n => ({ ...n, read: true }));
@@ -6549,7 +6551,7 @@ function printTimeSheetTarget(target, removableElement = null) {
 function buildBracket() {
   const out = document.getElementById("paperOutput");
   const size = Number((val("bracketType").match(/\d+/) || [8])[0]);
-  out.innerHTML = `<div class="panel-head"><h2>${esc(t(val("bracketType")))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" onclick="window.print()" type="button">${esc(t("Print"))}</button></div>
+  out.innerHTML = `<div class="panel-head"><h2>${esc(t(val("bracketType")))} ${esc(val("resultEvent") || val("bracketEvent"))} ${esc(t("Bracket"))}</h2><button class="ghost" data-action="print-current-view" type="button">${esc(t("Print"))}</button></div>
     ${Array.from({ length: size }, (_, i) => `<div class="bracket">${esc(tf("Seed {number}", { number: i + 1 }))}: ____________________________</div>`).join("")}`;
 }
 
@@ -6750,8 +6752,11 @@ async function refreshCompetitionBranding() {
     const assets = await competitionAssetApi.list(selectedSqlCompetitionId);
     for (const id of ["competitionLogoPreview", "competitionBannerPreview"]) { const preview = document.getElementById(id); if (preview) { preview.hidden = true; preview.removeAttribute("src"); } }
     for (const asset of assets) {
+      if (!["logo", "banner"].includes(asset.assetType)) continue;
+      const expectedPath = `/api/public/competitions/${selectedSqlCompetitionId}/assets/${asset.assetType}`;
+      if (asset.publicUrl !== expectedPath) continue;
       const preview = document.getElementById(`competition${asset.assetType === "logo" ? "Logo" : "Banner"}Preview`);
-      if (preview) { preview.src = `${asset.publicUrl}?v=${encodeURIComponent(asset.updatedAt || asset.sha256 || Date.now())}`; preview.hidden = false; }
+      if (preview) { preview.src = `${expectedPath}?v=${encodeURIComponent(asset.updatedAt || asset.sha256 || Date.now())}`; preview.hidden = false; }
     }
   } catch (error) { setCompetitionBrandingStatus(error.message, true); }
 }
