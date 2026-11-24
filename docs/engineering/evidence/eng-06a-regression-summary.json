@@ -1,0 +1,843 @@
+{
+  "schemaVersion": 1,
+  "commit": "054325cf47803042ab3ebb24069e7555725eb513",
+  "sdk": "10.0.400",
+  "node": "v24.18.0",
+  "os": "Microsoft Windows 10.0.26200",
+  "apiCoverage": {
+    "line": 72.88,
+    "branch": 56.92
+  },
+  "controllers": {
+    "CompetitionResultsController": {
+      "hitLines": 100,
+      "mappedLines": 117
+    },
+    "CompetitionStateController": {
+      "hitLines": 113,
+      "mappedLines": 139
+    },
+    "StackersController": {
+      "hitLines": 32,
+      "mappedLines": 95
+    }
+  },
+  "suites": [
+    {
+      "name": "CareerProfileReadinessTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 6533
+    },
+    {
+      "name": "CoreIntegrityIntegrationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4344
+    },
+    {
+      "name": "Phase4CActivityAssignmentIntegrationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5009
+    },
+    {
+      "name": "Phase5AActivityModuleIntegrationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4948
+    },
+    {
+      "name": "StackerCareerProfileTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4764
+    },
+    {
+      "name": "StackerCareerProgressTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5111
+    },
+    {
+      "name": "StackerFinalsCareerTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4190
+    },
+    {
+      "name": "StackerFinalsHistoricalPlacementProjectionTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 3975
+    },
+    {
+      "name": "StackerFinalsPlacementCareerReadModelTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4242
+    },
+    {
+      "name": "StackerFinalsRankingCertificationActivationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4336
+    },
+    {
+      "name": "StackerFinalsRankingCertificationReadinessTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4060
+    },
+    {
+      "name": "StackerFinalsRankingGovernancePersistenceTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5490
+    },
+    {
+      "name": "StackerIdentityBackfillTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4040
+    },
+    {
+      "name": "StackerIdentityMatchingTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4488
+    },
+    {
+      "name": "StackerIdentityPersistenceTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5202
+    },
+    {
+      "name": "StackerIdentityResolutionTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5266
+    },
+    {
+      "name": "StackerPersonalRecordAchievementTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4930
+    },
+    {
+      "name": "StackerPublicFinalsPlacementContractTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5496
+    },
+    {
+      "name": "StackerPublicFinalsPlacementIntegrationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5374
+    },
+    {
+      "name": "StackerPublicProfileTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4671
+    },
+    {
+      "name": "StackerPublicTeamCareerContractTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4369
+    },
+    {
+      "name": "StackerPublicTeamCareerIntegrationTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4741
+    },
+    {
+      "name": "StackerTeamCareerReadModelTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 5883
+    },
+    {
+      "name": "StackerTournamentHistoryTests-build",
+      "kind": "Build",
+      "exitCode": 0,
+      "durationMs": 4905
+    },
+    {
+      "name": "coverage",
+      "kind": "Coverage",
+      "exitCode": 0,
+      "durationMs": 135984
+    },
+    {
+      "name": "CareerProfileReadinessTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 17074
+    },
+    {
+      "name": "CoreIntegrityIntegrationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 10645
+    },
+    {
+      "name": "Phase4CActivityAssignmentIntegrationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 7338
+    },
+    {
+      "name": "Phase5AActivityModuleIntegrationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 310
+    },
+    {
+      "name": "StackerCareerProfileTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5925
+    },
+    {
+      "name": "StackerCareerProgressTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5825
+    },
+    {
+      "name": "StackerFinalsCareerTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6172
+    },
+    {
+      "name": "StackerFinalsHistoricalPlacementProjectionTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6157
+    },
+    {
+      "name": "StackerFinalsPlacementCareerReadModelTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5846
+    },
+    {
+      "name": "StackerFinalsRankingCertificationActivationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6470
+    },
+    {
+      "name": "StackerFinalsRankingCertificationReadinessTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5751
+    },
+    {
+      "name": "StackerFinalsRankingGovernancePersistenceTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5705
+    },
+    {
+      "name": "StackerIdentityBackfillTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6616
+    },
+    {
+      "name": "StackerIdentityMatchingTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 320
+    },
+    {
+      "name": "StackerIdentityPersistenceTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5796
+    },
+    {
+      "name": "StackerIdentityResolutionTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 290
+    },
+    {
+      "name": "StackerPersonalRecordAchievementTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5793
+    },
+    {
+      "name": "StackerPublicFinalsPlacementContractTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 330
+    },
+    {
+      "name": "StackerPublicFinalsPlacementIntegrationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6034
+    },
+    {
+      "name": "StackerPublicProfileTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5630
+    },
+    {
+      "name": "StackerPublicTeamCareerContractTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 337
+    },
+    {
+      "name": "StackerPublicTeamCareerIntegrationTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6155
+    },
+    {
+      "name": "StackerTeamCareerReadModelTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 5740
+    },
+    {
+      "name": "StackerTournamentHistoryTests",
+      "kind": "DotNet",
+      "exitCode": 0,
+      "durationMs": 6122
+    },
+    {
+      "name": "account-competition-detail.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 75
+    },
+    {
+      "name": "career-profile-admin-ui-release.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 82
+    },
+    {
+      "name": "career-profile-admin-ui.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "career-profile-application-release.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 75
+    },
+    {
+      "name": "characterization.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 127
+    },
+    {
+      "name": "competition-admin-phase1.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 78
+    },
+    {
+      "name": "competition-assets.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 80
+    },
+    {
+      "name": "competition-package.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 175
+    },
+    {
+      "name": "competition-report-engine.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 106
+    },
+    {
+      "name": "competition-state-concurrency.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 105
+    },
+    {
+      "name": "competition-state-occ-compat.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 110
+    },
+    {
+      "name": "controller-forbid-safety.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 87
+    },
+    {
+      "name": "core-auth-hardening.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 95
+    },
+    {
+      "name": "core-integrity-v2-phase-b.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 119
+    },
+    {
+      "name": "core-integrity-v2-phase-c.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 99
+    },
+    {
+      "name": "core-integrity-v2-phase-d.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 79
+    },
+    {
+      "name": "core-integrity-v2-phase-e.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 69
+    },
+    {
+      "name": "core-integrity-v2.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 70
+    },
+    {
+      "name": "deploy-production-release-v2.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 78
+    },
+    {
+      "name": "deploy-production-workflow.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 79
+    },
+    {
+      "name": "email-confirmation-default.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 69
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase2.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 71
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 80
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3b.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 91
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3c.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3d.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 103
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3e.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 84
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3f.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 74
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase3g.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 71
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase4a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 67
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase4b.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 74
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase4c.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 97
+    },
+    {
+      "name": "modular-platform-foundation-v1-phase5a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 76
+    },
+    {
+      "name": "multilanguage-v2-coverage.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 83
+    },
+    {
+      "name": "multilanguage-v2-phase1.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 67
+    },
+    {
+      "name": "multilanguage-v2-phase2.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 73
+    },
+    {
+      "name": "multilanguage-v2-phase3b.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 83
+    },
+    {
+      "name": "multilanguage-v2-phase3c.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 84
+    },
+    {
+      "name": "multilanguage-v2-phase3d.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 87
+    },
+    {
+      "name": "multilanguage-v2-phase3e.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 96
+    },
+    {
+      "name": "multilanguage-v2-phase3f.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 120
+    },
+    {
+      "name": "post-v2-regression-audit.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 76
+    },
+    {
+      "name": "post-v2-save-state-async.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 83
+    },
+    {
+      "name": "pre-public-security.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 75
+    },
+    {
+      "name": "prelim-save-pipeline.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 247
+    },
+    {
+      "name": "production-public-profile-activation.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 83
+    },
+    {
+      "name": "protected-setting-aead.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 75
+    },
+    {
+      "name": "public-results-portal.sample-data.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 99
+    },
+    {
+      "name": "public-results-portal.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 122
+    },
+    {
+      "name": "release-v2-idempotent-trigger-syntax.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 87
+    },
+    {
+      "name": "release-v2-migration-package-scope.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 11955
+    },
+    {
+      "name": "responsive-layout.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "result-architecture.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 79
+    },
+    {
+      "name": "result-batch-delta-client.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 80
+    },
+    {
+      "name": "result-batch-scalability.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 82
+    },
+    {
+      "name": "session-revocation-foundation.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "session-revocation-triggers.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 114
+    },
+    {
+      "name": "sql-stacker-authority.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 84
+    },
+    {
+      "name": "stacker-identity-v1-sp0a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 151
+    },
+    {
+      "name": "stacker-identity-v1-sp1.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 84
+    },
+    {
+      "name": "stacker-identity-v1-sp2.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 105
+    },
+    {
+      "name": "stacker-identity-v1-sp3a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 84
+    },
+    {
+      "name": "stacker-identity-v1-sp3b.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 103
+    },
+    {
+      "name": "stacker-identity-v1-sp4a.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 81
+    },
+    {
+      "name": "stacker-identity-v1-sp4b.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "stacker-identity-v1-sp4c.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 79
+    },
+    {
+      "name": "stacker-identity-v1-sp4d.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 98
+    },
+    {
+      "name": "stacker-identity-v1-sp4e-finals-ranking-compat.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 121
+    },
+    {
+      "name": "stacker-identity-v1-sp4f-finals-ranking-governance.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 102
+    },
+    {
+      "name": "stacker-identity-v1-sp4g.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 89
+    },
+    {
+      "name": "stacker-identity-v1-sp4h-finals-ranking-activation.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "stacker-identity-v1-sp4i-finals-ranking-certification-readiness.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 87
+    },
+    {
+      "name": "stacker-identity-v1-sp4j-finals-ranking-certification-activation.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 101
+    },
+    {
+      "name": "stacker-identity-v1-sp4k-historical-placement-projection.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 88
+    },
+    {
+      "name": "stacker-identity-v1-sp4l-identity-linked-placement-career.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 77
+    },
+    {
+      "name": "stacker-identity-v1-sp4m-public-finals-placement-contract.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 90
+    },
+    {
+      "name": "stacker-identity-v1-sp4n-public-finals-placement-integration.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 100
+    },
+    {
+      "name": "stacker-identity-v1-sp4o-public-results-career-profile-linking.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 94
+    },
+    {
+      "name": "stacker-identity-v1-sp4p-team-member-career-profile-linking.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 91
+    },
+    {
+      "name": "stacker-identity-v1-sp4q-team-career-foundation.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 78
+    },
+    {
+      "name": "stacker-identity-v1-sp4r-public-team-career-contract.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 68
+    },
+    {
+      "name": "stacker-identity-v1-sp4s-public-team-career-integration.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 73
+    },
+    {
+      "name": "stacker-identity-v1-sp4t-production-release-readiness.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 89
+    },
+    {
+      "name": "stacker-identity-v1-sp5a-personal-records.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 92
+    },
+    {
+      "name": "team-result-validation-hardening.static.test.js",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 89
+    },
+    {
+      "name": "storage-smoke",
+      "kind": "Node",
+      "exitCode": 0,
+      "durationMs": 82
+    },
+    {
+      "name": "release-safety",
+      "kind": "PowerShell",
+      "exitCode": 0,
+      "durationMs": 8385
+    }
+  ]
+}

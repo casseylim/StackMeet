@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - master
+      - engineering/eng-00-baseline
+      - codex/eng-01
   push:
     branches:
       - master
@@ -226,3 +228,33 @@ jobs:
               exit $exitCode
             }
           }
+
+  regression-evidence:
+    name: Regression evidence and API coverage
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install pinned coverage tool and start LocalDB
+        shell: pwsh
+        run: |
+          dotnet tool install dotnet-coverage --version 18.12.0 --tool-path "$env:RUNNER_TEMP/eng-tools" --configfile NuGet.Config
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          SqlLocalDB.exe start MSSQLLocalDB
+      - name: Run existing suites and collect evidence
+        shell: pwsh
+        run: ./tests/Invoke-RegressionEvidence.ps1 -OutputDirectory "$env:RUNNER_TEMP/eng-evidence" -CoverageExecutable "$env:RUNNER_TEMP/eng-tools/dotnet-coverage.exe"
+      - name: Upload regression ledger and coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/eng-evidence
+          if-no-files-found: error
+          retention-days: 14
