@@ -24,8 +24,12 @@ assert.match(program, /!path\.StartsWithSegments\("\/api\/public"\)/, "Public re
 
 assert.match(stateController, /CompetitionChanged/, "Successful state saves must broadcast CompetitionChanged.");
 assert.doesNotMatch(stateController, /ResultsUpdated/, "CompetitionState saves must not emit the retired results compatibility event.");
-assert.match(stateController, /ResultsHub\.GroupName\(normalizedKey\)/, "Updates must be scoped to one competition.");
-assert.match(hub, /AddToGroupAsync/, "Viewers must join a competition-specific group.");
+assert.match(stateController, /resultsNotifications\.SendAsync\(normalizedKey,/, "Updates must be scoped to one competition through authorized fanout.");
+const notifications = read("backend/StackMeet.Api/Hubs/ResultsNotificationService.cs");
+assert.match(hub, /subscriptions\.Set\(subscription\)/, "Viewers must register a competition-specific subscription.");
+assert.match(notifications, /subscriptions\.ForCompetition\(competitionKey\)/, "Fanout must use competition-scoped recipients.");
+assert.match(notifications, /hub\.Clients\.Clients\(recipients\)/, "Fanout must target authorized connection IDs, not an unchecked group.");
+assert.doesNotMatch(notifications, /\.Clients\.Group\(/, "Do not bypass recipient reauthorization.");
 
 assert.match(publicController, /AsNoTracking\(\)/, "Public queries must be read-only.");
 assert.match(publicController, /logoUrl/);

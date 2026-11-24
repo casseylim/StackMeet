@@ -6,13 +6,12 @@ using StackMeet.Api.Dtos;
 using StackMeet.Api.Models;
 using StackMeet.Api.Services;
 using StackMeet.Api.Hubs;
-using Microsoft.AspNetCore.SignalR;
 
 namespace StackMeet.Api.Controllers;
 
 [ApiController]
 [Route("api/competitions/{competitionId:int}/results")]
-public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, CompetitionTeamResultIntegrityService teamResults, IHubContext<ResultsHub> resultsHub, ILogger<CompetitionResultsController> logger) : ControllerBase
+public sealed class CompetitionResultsController(StackMeetDbContext database, CompetitionPermissionService permissions, CompetitionTeamResultIntegrityService teamResults, ResultsNotificationService resultsNotifications, ILogger<CompetitionResultsController> logger) : ControllerBase
 {
     const int CandidateParticipantChunkSize = 300;
 
@@ -151,7 +150,7 @@ public sealed class CompetitionResultsController(StackMeetDbContext database, Co
         try { await database.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 }) { return Conflict(new { error = "A result with the same competition, stage, participant type, participant and event already exists." }); }
         await transaction.CommitAsync(ct);
-        try { await resultsHub.Clients.Group(ResultsHub.GroupName(competition.CompetitionKey)).SendAsync("ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, CancellationToken.None); }
+        try { await resultsNotifications.SendAsync(competition.CompetitionKey, "ResultsChanged", new { competitionId, competitionKey = competition.CompetitionKey, revision = competition.ResultsRevision, scope = "results", type = "ResultsChanged" }, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionId}.", competitionId); }
         // Batch responses are deltas; the full GET remains the authoritative resync path.
         return Ok(new CompetitionResultsResponse(competition.ResultsRevision, touched.Select(Map).ToList()));

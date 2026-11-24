@@ -23,9 +23,9 @@ assert.match(controller, /ImportState[\s\S]*BeginTransactionAsync\(IsolationLeve
 assert.match(controller, /ImportState[\s\S]*UPDLOCK, HOLDLOCK/);
 assert.match(controller, /ImportState[\s\S]*state\.StateRevision\+\+/);
 assert.match(controller, /admin\.competition\.state_imported/);
-assert.match(controller, /ImportState[\s\S]*SendAsync\("CompetitionChanged"/);
+assert.match(controller, /ImportState[\s\S]*transaction\.CommitAsync\(ct\)[\s\S]*resultsNotifications\.SendAsync\(normalizedKey, "CompetitionChanged"/);
 assert.match(controller, /ResetState[\s\S]*state\.StateRevision\+\+/);
-assert.match(controller, /ResetState[\s\S]*SendAsync\("CompetitionChanged"/);
+assert.match(controller, /ResetState[\s\S]*transaction\.CommitAsync\(ct\)[\s\S]*resultsNotifications\.SendAsync\(normalizedKey, "CompetitionChanged"/);
 assert.doesNotMatch(controller, /ResultsUpdated/);
 
 assert.match(securityScript, /\$etag = \[string\]\$before\.Headers\["ETag"\]/);
