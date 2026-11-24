@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 const migration = read("backend/StackMeet.Api/Migrations/20260713034108_CompetitionAdminPhase1.cs");
 const program = read("backend/StackMeet.Api/Program.cs");
+const permissions = read("backend/StackMeet.Api/Services/CompetitionPermissionService.cs");
 const auth = read("backend/StackMeet.Api/Controllers/AuthController.cs");
 const authClient = read("backend/StackMeet.Api/wwwroot/js/auth/AuthSession.js");
 const admin = read("backend/StackMeet.Api/Controllers/CompetitionAdminController.cs");
@@ -51,7 +52,13 @@ assert(/function usesAuthenticatedCompetitionState\(\)/.test(rootApp), "Authenti
 assert(/if \(usesAuthenticatedCompetitionState\(\)\) \{\s*applyCompetitionAgeCalculation\(state\.settings\.ageCalculationMode\);\s*return;\s*\}/.test(rootApp), "Authenticated age settings must load from the canonical competition state.");
 assert(/if \(usesAuthenticatedCompetitionState\(\)\) return;\s*await competitionSettingsProvider\(\)\.save/.test(rootApp), "Authenticated age settings must not save to a secondary competition-ID state key.");
 assert(!/data\.settings\.ageCalculationMode = "actual";/.test(rootApp), "State normalization must preserve a saved year-born age mode.");
-assert(/SessionCanAccessPath/.test(program) && /CompetitionKey == session\.CompetitionId/.test(program), "Session isolation must compare token CompetitionKey to route data.");
+assert(/SessionCanAccessPath\(session, path,/.test(program)
+  && /permissions\.CanAccessCompetitionKey\(session, requestedCompetition, ct\)/.test(program)
+  && /permissions\.CanAccessCompetitionId\(session, competitionId, ct\)/.test(program),
+  "Session isolation must route both key and SQL ID checks through the shared permission service.");
+assert(/CanAccessCompetitionKey[\s\S]*string\.Equals\(session\.CompetitionId, competitionKey, StringComparison\.OrdinalIgnoreCase\)/.test(permissions)
+  && /CanAccessCompetitionId[\s\S]*item\.Id == competitionId && item\.CompetitionKey == session\.CompetitionId/.test(permissions),
+  "Legacy session isolation must compare the validated token scope with the requested key or SQL ID.");
 assert(/DEFAULT state reset is blocked/.test(admin), "DEFAULT reset must be blocked in Phase 1.");
 assert(/Query\(normalizedKey\)\.SingleOrDefaultAsync\(ct\)/.test(admin) && /Query\(key\)\.SingleAsync\(ct\)/.test(admin), "Admin competition lookups must filter entities before response projection.");
 assert(!/Query\(\)\.SingleOrDefaultAsync\(item => item\.CompetitionKey/.test(admin) && !/Query\(\)\.SingleAsync\(item => item\.CompetitionKey/.test(admin), "Admin queries must not filter projected response records.");
