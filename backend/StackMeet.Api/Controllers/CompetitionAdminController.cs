@@ -39,19 +39,20 @@ public sealed class CompetitionAdminController(
         var validation = ValidateRequest(request, requirePassword: true, out var key, out var code);
         if (validation is BadRequestObjectResult badRequest) return BadRequest(badRequest.Value);
 
-        if (await database.Competitions.AnyAsync(item => item.CompetitionKey == key, ct))
+        // Both public aliases share a namespace. Keep the check and insertion in one transaction.
+        await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        if (await database.Competitions.AnyAsync(item => item.CompetitionKey == key || item.CompetitionCode == key, ct))
         {
             return Conflict(new { error = "CompetitionKey already exists." });
         }
 
-        if (await database.Competitions.AnyAsync(item => item.CompetitionCode == code, ct))
+        if (await database.Competitions.AnyAsync(item => item.CompetitionCode == code || item.CompetitionKey == code, ct))
         {
             return Conflict(new { error = "CompetitionCode already exists." });
         }
 
         var stateExists = await database.CompetitionStates.AnyAsync(item => item.CompetitionKey == key, ct);
 
-        await using var transaction = await database.Database.BeginTransactionAsync(ct);
         var now = DateTime.UtcNow;
         var competition = new Competition
         {

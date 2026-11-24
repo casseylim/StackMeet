@@ -21,17 +21,21 @@ public sealed class PublicResultsProfileLinksController(StackMeetDbContext datab
         var normalized = competitionId.Trim().ToUpperInvariant();
         if (normalized.Length is < 3 or > 50) return NotFound();
 
-        var competition = await database.Competitions.AsNoTracking()
+        var matches = await database.Competitions.AsNoTracking()
             .Where(item => item.CompetitionKey == normalized || item.CompetitionCode == normalized)
-            .Select(item => new { item.Id, item.ArchivedAt, item.Status })
-            .SingleOrDefaultAsync(ct);
+            .Select(item => new { item.Id, item.ArchivedAt, item.Status, item.IsPubliclyListed })
+            .Take(2).ToListAsync(ct);
 
-        if (competition is null
-            || competition.ArchivedAt is not null
+        if (matches.Count != 1) return NotFound();
+        var competition = matches[0];
+        // Direct-link results and permanent cross-event identity publication are separate.
+        if (competition.ArchivedAt is not null
             || string.Equals(competition.Status, "Archived", StringComparison.OrdinalIgnoreCase))
         {
             return NotFound();
         }
+
+        if (!competition.IsPubliclyListed) return Ok(new { links = Array.Empty<object>() });
 
         var candidates = await database.StackerIdentityLinks.AsNoTracking()
             .Where(link =>

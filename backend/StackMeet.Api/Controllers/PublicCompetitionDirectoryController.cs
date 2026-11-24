@@ -8,6 +8,7 @@ namespace StackMeet.Api.Controllers;
 /// <remarks>Only competitions explicitly marked for public listing are returned.</remarks>
 [ApiController]
 [Route("api/public/competitions")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class PublicCompetitionDirectoryController(StackMeetDbContext database) : ControllerBase
 {
     /// <summary>Returns publicly listed competitions in descending event-date order.</summary>
