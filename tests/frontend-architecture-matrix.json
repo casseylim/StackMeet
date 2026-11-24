@@ -1,0 +1,257 @@
+{
+  "baseline": "86245335b4186a465f3a8735d26dee2899695cba",
+  "shells": {
+    "index.html": [
+      {
+        "src": "config.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/I18n.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/en.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/ms.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/zh-Hans.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/LanguagePreference.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/UiLocalization.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/auth/AuthSession.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/storage/ApiProvider.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/storage/StackerApi.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/storage/CompetitionAssetApi.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/storage/ResultApi.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/storage/Repository.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/results/BestResultEngine.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/reports/FinalsReportEngine.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/CompetitionPackage.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/CompetitionPackageAssembler.js",
+        "mode": "classic"
+      },
+      {
+        "src": "results/vendor/signalr.min.js",
+        "mode": "classic"
+      },
+      {
+        "src": "app.js",
+        "mode": "classic"
+      }
+    ],
+    "admin.html": [
+      {
+        "src": "js/i18n/I18n.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/en.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/ms.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/zh-Hans.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/LanguagePreference.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/UiLocalization.js",
+        "mode": "classic"
+      },
+      {
+        "src": "career-admin.js",
+        "mode": "classic"
+      },
+      {
+        "src": "admin.js",
+        "mode": "classic"
+      }
+    ],
+    "account.html": [
+      {
+        "src": "js/i18n/I18n.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/en.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/ms.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/locales/zh-Hans.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/LanguagePreference.js",
+        "mode": "classic"
+      },
+      {
+        "src": "js/i18n/UiLocalization.js",
+        "mode": "classic"
+      },
+      {
+        "src": "account.js",
+        "mode": "classic"
+      }
+    ],
+    "all/index.html": [
+      {
+        "src": "/all/all.js",
+        "mode": "classic"
+      }
+    ],
+    "profile/index.html": [
+      {
+        "src": "/profile/profile.js",
+        "mode": "defer"
+      }
+    ],
+    "results/index.html": [
+      {
+        "src": "/js/i18n/I18n.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/js/i18n/locales/en.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/js/i18n/locales/ms.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/js/i18n/locales/zh-Hans.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/results/vendor/signalr.min.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/results/results.js",
+        "mode": "classic"
+      },
+      {
+        "src": "/results/profile-links.js",
+        "mode": "classic"
+      }
+    ]
+  },
+  "delegatedActions": [
+    "print-current-view",
+    "mark-read",
+    "save-settings",
+    "upload-asset",
+    "remove-asset",
+    "save-language",
+    "save-events",
+    "save-leaderboard",
+    "open-leaderboard",
+    "save-divisions",
+    "add-division",
+    "remove-division",
+    "create-sql-competition",
+    "refresh-stackers",
+    "show-stacker-form",
+    "add-stacker",
+    "sort-stackers",
+    "print-stacker-sheet",
+    "edit-stacker",
+    "cancel-stacker-edit",
+    "delete-stacker",
+    "cancel-delete-stacker",
+    "confirm-delete-stacker",
+    "edit-stacker-double",
+    "save-stacker-double",
+    "add-double",
+    "edit-double",
+    "cancel-double-edit",
+    "delete-double",
+    "switch-doubles-tab",
+    "add-relay",
+    "edit-relay",
+    "cancel-relay-edit",
+    "delete-relay",
+    "switch-relay-tab",
+    "save-awards",
+    "export-awards-csv",
+    "export-competition-audit-csv",
+    "paperwork",
+    "print-paper-preview",
+    "build-bracket",
+    "lookup-prelim-participant",
+    "load-missing-prelim",
+    "clear-prelim-entry",
+    "save-prelim-results",
+    "lookup-final-sheet",
+    "load-final-missing",
+    "clear-final-sheet",
+    "save-final-results",
+    "print-final-sheet",
+    "save-result",
+    "delete-result",
+    "switch-report-tab",
+    "run-finals-report",
+    "generate-qualification-snapshots",
+    "approve-qualification-snapshot",
+    "export-finals-csv",
+    "print-finals-report",
+    "run-competition-report",
+    "export-results-json",
+    "export-results-csv",
+    "print-admin-report",
+    "export-admin-csv",
+    "export-admin-excel",
+    "sort-admin-report",
+    "run-report"
+  ]
+}
