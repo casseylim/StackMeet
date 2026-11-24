@@ -9,6 +9,8 @@ const token = read("backend/StackMeet.Api/Services/SessionToken.cs");
 const tokenService = read("backend/StackMeet.Api/Services/SessionTokenService.cs");
 const auth = read("backend/StackMeet.Api/Controllers/AuthController.cs");
 const program = read("backend/StackMeet.Api/Program.cs");
+const authorization = read("backend/StackMeet.Api/Services/SessionAuthorization.cs");
+const hub = read("backend/StackMeet.Api/Hubs/ResultsHub.cs");
 
 assert.match(appUser, /long SessionVersion\s*\{\s*get;\s*set;\s*\}\s*=\s*1/);
 assert.match(db, /SessionVersion\)\.IsRequired\(\)\.HasDefaultValue\(1L\)/);
@@ -28,8 +30,11 @@ assert.match(
 assert.match(auth, /CreateForUser\([\s\S]*user\.SessionVersion/);
 assert.match(program, /AccountSessionIsCurrent\(adminSession/);
 assert.match(program, /session\.IsAccountSession[\s\S]*AccountSessionIsCurrent\(session/);
+assert.match(program, /SessionAuthorization\.CurrentAccountQuery\(database, session\)\.AnyAsync/);
+assert.match(hub, /SessionAuthorization\.CurrentAccountQuery\(database, session\)\.AnyAsync/);
+assert.match(auth, /SessionAuthorization\.CurrentAccountQuery\(database, session\)/);
 assert.match(
-    program,
+    authorization,
     /item\.IsActive[\s\S]*item\.SessionVersion == session\.SessionVersion\.Value[\s\S]*item\.IsSystemAdmin == session\.IsSystemAdmin/
 );
 

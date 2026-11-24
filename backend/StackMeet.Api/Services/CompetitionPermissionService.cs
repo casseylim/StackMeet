@@ -54,6 +54,24 @@ public sealed class CompetitionPermissionService(StackMeetDbContext database)
             .SingleOrDefaultAsync(ct);
     }
 
+    // Resource scope is distinct from mutation capability; callers still enforce write roles.
+    public async Task<bool> CanAccessCompetitionKey(SessionToken session, string competitionKey, CancellationToken ct)
+    {
+        if (!session.IsAccountSession)
+            return string.Equals(session.CompetitionId, competitionKey, StringComparison.OrdinalIgnoreCase);
+        return session.UserId is int userId
+            && CanViewCompetition(await RoleForCompetitionKey(userId, session.IsSystemAdmin, competitionKey, ct));
+    }
+
+    public async Task<bool> CanAccessCompetitionId(SessionToken session, int competitionId, CancellationToken ct)
+    {
+        if (!session.IsAccountSession)
+            return await database.Competitions.AsNoTracking().AnyAsync(item =>
+                item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
+        return session.UserId is int userId
+            && CanViewCompetition(await RoleForCompetitionId(userId, session.IsSystemAdmin, competitionId, ct));
+    }
+
     /// <summary>
     /// Checks whether a role can create or administer competitions and user access.
     /// </summary>

@@ -188,7 +188,7 @@ app.Use(async (context, next) =>
             return;
         }
 
-        if (!await SessionCanAccessPath(session, path, database, context.RequestAborted))
+        if (!await SessionCanAccessPath(session, path, context.RequestServices.GetRequiredService<CompetitionPermissionService>(), context.RequestAborted))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new { error = "Session is not valid for this competition." });
@@ -321,64 +321,23 @@ static bool IsWriteMethod(string method) =>
     && !HttpMethods.IsHead(method)
     && !HttpMethods.IsOptions(method);
 
-static async Task<bool> AccountSessionIsCurrent(
-    SessionToken session,
-    StackMeetDbContext database,
-    CancellationToken ct)
-{
-    if (!session.IsAccountSession
-        || session.UserId is null
-        || session.SessionVersion is null)
-    {
-        return false;
-    }
+static Task<bool> AccountSessionIsCurrent(SessionToken session, StackMeetDbContext database, CancellationToken ct) =>
+    SessionAuthorization.CurrentAccountQuery(database, session).AnyAsync(ct);
 
-    return await database.AppUsers
-        .AsNoTracking()
-        .AnyAsync(item =>
-            item.Id == session.UserId.Value
-            && item.IsActive
-            && item.SessionVersion == session.SessionVersion.Value
-            && item.IsSystemAdmin == session.IsSystemAdmin,
-            ct);
-}
-
-static async Task<bool> SessionCanAccessPath(SessionToken session, PathString path, StackMeetDbContext database, CancellationToken ct)
+static async Task<bool> SessionCanAccessPath(SessionToken session, PathString path, CompetitionPermissionService permissions, CancellationToken ct)
 {
     if (path.StartsWithSegments("/api/state", out var stateRemaining))
     {
         var requestedCompetition = stateRemaining.Value?.Trim('/').Split('/')[0];
         if (string.IsNullOrWhiteSpace(requestedCompetition)) return false;
-        if (!session.IsAccountSession)
-        {
-            return string.Equals(requestedCompetition, session.CompetitionId, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
-            item.IsActive
-            && item.UserId == session.UserId
-            && item.User.IsActive
-            && item.Competition.CompetitionKey == requestedCompetition,
-            ct);
+        return await permissions.CanAccessCompetitionKey(session, requestedCompetition, ct);
     }
 
     if (path.StartsWithSegments("/api/competitions", out var competitionRemaining))
     {
         var firstSegment = competitionRemaining.Value?.Trim('/').Split('/')[0];
         if (int.TryParse(firstSegment, out var competitionId))
-        {
-            if (!session.IsAccountSession)
-            {
-                return await database.Competitions.AsNoTracking().AnyAsync(item => item.Id == competitionId && item.CompetitionKey == session.CompetitionId, ct);
-            }
-
-            return session.IsSystemAdmin || await database.CompetitionUsers.AsNoTracking().AnyAsync(item =>
-                item.IsActive
-                && item.UserId == session.UserId
-                && item.User.IsActive
-                && item.CompetitionId == competitionId,
-                ct);
-        }
+            return await permissions.CanAccessCompetitionId(session, competitionId, ct);
     }
 
     return true;

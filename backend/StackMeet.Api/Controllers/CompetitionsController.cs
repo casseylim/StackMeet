@@ -18,17 +18,7 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
     public async Task<ActionResult<IEnumerable<CompetitionResponse>>> List(CancellationToken ct)
     {
         var query = database.Competitions.AsNoTracking();
-        if (HttpContext.Items["StackMeetSession"] is SessionToken session)
-        {
-            if (session.IsAccountSession && !session.IsSystemAdmin)
-            {
-                query = query.Where(item => item.CompetitionUsers.Any(access => access.IsActive && access.UserId == session.UserId));
-            }
-            else if (!session.IsAccountSession)
-            {
-                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
-            }
-        }
+        query = SessionAuthorization.ScopeCompetitions(query, HttpContext);
 
         return Ok(await query.OrderBy(x => x.CompetitionCode).Select(x => Map(x)).ToListAsync(ct));
     }
@@ -37,17 +27,7 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
     public async Task<ActionResult<CompetitionResponse>> Get(int id, CancellationToken ct)
     {
         var query = database.Competitions.AsNoTracking().Where(x => x.Id == id);
-        if (HttpContext.Items["StackMeetSession"] is SessionToken session)
-        {
-            if (session.IsAccountSession && !session.IsSystemAdmin)
-            {
-                query = query.Where(item => item.CompetitionUsers.Any(access => access.IsActive && access.UserId == session.UserId));
-            }
-            else if (!session.IsAccountSession)
-            {
-                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
-            }
-        }
+        query = SessionAuthorization.ScopeCompetitions(query, HttpContext);
 
         var item = await query.SingleOrDefaultAsync(ct);
         if (item is null) return NotFound();
@@ -59,17 +39,7 @@ public sealed class CompetitionsController(StackMeetDbContext database, Competit
     public async Task<ActionResult<CompetitionActivityResponse>> Activity(int id, CancellationToken ct)
     {
         var query = database.Competitions.AsNoTracking().Where(x => x.Id == id);
-        if (HttpContext.Items["StackMeetSession"] is SessionToken session)
-        {
-            if (session.IsAccountSession && !session.IsSystemAdmin)
-            {
-                query = query.Where(item => item.CompetitionUsers.Any(access => access.IsActive && access.UserId == session.UserId));
-            }
-            else if (!session.IsAccountSession)
-            {
-                query = query.Where(item => item.CompetitionKey == session.CompetitionId);
-            }
-        }
+        query = SessionAuthorization.ScopeCompetitions(query, HttpContext);
 
         var item = await query.SingleOrDefaultAsync(ct);
         if (item is null) return NotFound();

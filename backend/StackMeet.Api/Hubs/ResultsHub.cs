@@ -47,20 +47,9 @@ public sealed class ResultsHub(
             || string.Equals(competition.Status, "Archived", StringComparison.OrdinalIgnoreCase))
             throw new HubException("Competition subscription unavailable.");
 
-        if (session.IsAccountSession)
-        {
-            var current = await database.AppUsers.AsNoTracking().AnyAsync(item =>
-                item.Id == session.UserId && item.IsActive
-                && item.SessionVersion == session.SessionVersion
-                && item.IsSystemAdmin == session.IsSystemAdmin, ct);
-            if (!current || !CompetitionPermissionService.CanViewCompetition(
-                await permissions.RoleForCompetitionId(session.UserId!.Value, session.IsSystemAdmin, competition.Id, ct)))
-                throw new HubException("Competition subscription unavailable.");
-        }
-        else if (!string.Equals(session.CompetitionId, competition.CompetitionKey, StringComparison.OrdinalIgnoreCase))
-        {
+        if ((session.IsAccountSession && !await SessionAuthorization.CurrentAccountQuery(database, session).AnyAsync(ct))
+            || !await permissions.CanAccessCompetitionId(session, competition.Id, ct))
             throw new HubException("Competition subscription unavailable.");
-        }
 
         Subscribe(competition.CompetitionKey, session);
     }

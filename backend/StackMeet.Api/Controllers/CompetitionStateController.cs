@@ -170,7 +170,9 @@ public sealed class CompetitionStateController(
         // replace it; only Competition Manager and System Admin accounts can save configuration.
         if (HttpContext.Items["StackMeetMaintenanceApiKey"] is true) return null;
         if (HttpContext.Items["StackMeetSession"] is not SessionToken session) return Unauthorized();
-        if (!session.IsAccountSession) return null;
+        if (!session.IsAccountSession)
+            return await permissions.CanAccessCompetitionKey(session, competitionKey, ct)
+                ? null : StatusCode(StatusCodes.Status403Forbidden);
         if (session.UserId is null) return Unauthorized();
 
         var role = await permissions.RoleForCompetitionKey(session.UserId.Value, session.IsSystemAdmin, competitionKey, ct);

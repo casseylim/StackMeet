@@ -68,9 +68,8 @@ public sealed class AuthController(
             return Ok(new CurrentUserResponse(null, null, session.DisplayName, false, session.ExpiresAt, []));
         }
 
-        var user = await database.AppUsers
-            .AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == session.UserId && item.IsActive, cancellationToken);
+        var user = await SessionAuthorization.CurrentAccountQuery(database, session)
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (user is null)
         {
@@ -96,7 +95,9 @@ public sealed class AuthController(
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
         var bearerToken = BearerToken(Request.Headers.Authorization.FirstOrDefault());
-        if (tokens.TryValidate(bearerToken, out var session))
+        if (tokens.TryValidate(bearerToken, out var session)
+            && (!session.IsAccountSession
+                || await SessionAuthorization.CurrentAccountQuery(database, session).AnyAsync(cancellationToken)))
         {
             await auditLogs.Write(
                 session.IsAccountSession ? "auth.logout.account" : "auth.logout.competition",
