@@ -16,16 +16,19 @@ public sealed class PublicResultsController(StackMeetDbContext database) : Contr
         var normalized = competitionId.Trim().ToUpperInvariant();
         if (normalized.Length is < 3 or > 50) return NotFound();
 
-        var competition = await database.Competitions.AsNoTracking()
+        var matches = await database.Competitions.AsNoTracking()
             .Where(item => item.CompetitionKey == normalized || item.CompetitionCode == normalized)
             .Select(item => new
             {
                 item.Id, item.CompetitionCode, item.CompetitionKey, item.CompetitionName,
                 item.Venue, item.StartDate, item.EndDate, item.Status, item.ArchivedAt
             })
-            .SingleOrDefaultAsync(ct);
+            .Take(2).ToListAsync(ct);
 
-        if (competition is null || competition.ArchivedAt is not null
+        // A code/key collision must not select a competition arbitrarily.
+        if (matches.Count != 1) return NotFound();
+        var competition = matches[0];
+        if (competition.ArchivedAt is not null
             || string.Equals(competition.Status, "Archived", StringComparison.OrdinalIgnoreCase))
         {
             return NotFound();

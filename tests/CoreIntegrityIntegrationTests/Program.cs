@@ -356,6 +356,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
             isolated.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState { CompetitionKey = engKey, JsonData = "{\"seed\":true}", SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now });
             await isolated.SaveChangesAsync();
             await RunResultAcceptanceAsync(port, eng.Id, engKey, signingKey, isolated);
+            await RunPublicationAcceptanceAsync(port, engKey + "PUB", isolated);
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
         var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
@@ -638,4 +639,125 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     await db.SaveChangesAsync();
     Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
         && await ReadStatus(a, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B deactivated account session rejected");
+}
+
+static async Task RunPublicationAcceptanceAsync(int port, string key, StackMeetDbContext db)
+{
+    var now = DateTime.UtcNow;
+    var date = DateOnly.FromDateTime(now);
+    var competition = new StackMeet.Api.Models.Competition
+    {
+        CompetitionKey = key, CompetitionCode = key + "CODE",
+        CompetitionName = "Synthetic publication", Venue = "LocalDB", StartDate = date, EndDate = date,
+        Status = "Active", CreatedAt = now, UpdatedAt = now, IsPubliclyListed = false
+    };
+    db.Competitions.Add(competition);
+    await db.SaveChangesAsync();
+    db.CompetitionStates.Add(new StackMeet.Api.Models.CompetitionState
+    {
+        CompetitionKey = key, JsonData = "{\"settings\":{\"password\":\"synthetic-private-setting\"}}",
+        SchemaVersion = "0.9-online", StateRevision = 1, CreatedAt = now, UpdatedAt = now
+    });
+    var stacker = new StackMeet.Api.Models.Stacker
+    {
+        CompetitionId = competition.Id, StackerCode = "PUB1", FirstName = "Synthetic", LastName = "Publication",
+        Gender = "M", Country = "MY", Paid = "No", CheckedIn = "No", BirthDate = new DateOnly(2012, 4, 17),
+        Email = "synthetic-private@example.test", Phone = "0123456789", WssaId = "synthetic-private-wssa",
+        CreatedAt = now, UpdatedAt = now
+    };
+    var identity = new StackMeet.Api.Activities.SportStacking.Identity.SportStackerIdentity
+    {
+        NadiTrackId = "NDT-7K4M2PX", FirstName = "Synthetic", LastName = "Publication", Gender = "M", Country = "MY",
+        IsPublicProfile = true, CreatedAt = now, UpdatedAt = now
+    };
+    db.AddRange(stacker, identity);
+    await db.SaveChangesAsync();
+    db.StackerIdentityLinks.Add(new StackMeet.Api.Activities.SportStacking.Identity.StackerIdentityLink
+    {
+        StackerId = stacker.Id, SportStackerIdentityId = identity.Id, MatchMethod = "Synthetic",
+        ResolutionReasonCode = "SYNTHETIC_TEST", LinkedAt = now
+    });
+    await db.SaveChangesAsync();
+
+    using var viewer = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+    using var admin = new HttpClient { BaseAddress = viewer.BaseAddress };
+    admin.DefaultRequestHeaders.Add("X-StackMeet-Admin-Key", "synthetic-eng01-admin");
+    using var maintenance = new HttpClient { BaseAddress = viewer.BaseAddress };
+    maintenance.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", "phase-e-http-test-key");
+    string Results(string alias) => $"/api/public/competitions/{alias}/results";
+    string Links(string alias) => $"/api/public/competitions/{alias}/profile-links";
+    async Task<HttpStatusCode> Status(string path)
+    {
+        using var response = await viewer.GetAsync(path);
+        return response.StatusCode;
+    }
+    async Task<int> LinkCount(string alias)
+    {
+        using var response = await viewer.GetAsync(Links(alias));
+        Assert(response.StatusCode == HttpStatusCode.OK, "ENG02D profile-link response");
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("links").GetArrayLength();
+    }
+    using (var response = await viewer.GetAsync(Results(key)))
+    {
+        Assert(response.StatusCode == HttpStatusCode.OK && response.Headers.CacheControl?.NoStore == true,
+            "ENG02D unlisted direct results preserved with no-store");
+        var body = await response.Content.ReadAsStringAsync();
+        Assert(body.Contains("Synthetic Publication") && !body.Contains("synthetic-private")
+            && !body.Contains("0123456789") && !body.Contains("2012-04-17"),
+            "ENG02D results omit private contact, date of birth, external identity and settings");
+        using var json = System.Text.Json.JsonDocument.Parse(body);
+        var fields = json.RootElement.GetProperty("stackers")[0].EnumerateObject().Select(item => item.Name).ToArray();
+        Assert(fields.OrderBy(x => x).SequenceEqual(new[] { "country", "division", "gender", "id", "name", "org", "region", "special" }.OrderBy(x => x)),
+            "ENG02D public participant field allowlist");
+    }
+    Assert(await Status(Results(competition.CompetitionCode)) == HttpStatusCode.OK, "ENG02D public code alias preserved");
+    Assert(await LinkCount(key) == 0, "ENG02D unlisted competition does not expose permanent identity bridge");
+    using (var directory = await viewer.GetAsync("/api/public/competitions"))
+        Assert(directory.StatusCode == HttpStatusCode.OK && directory.Headers.CacheControl?.NoStore == true
+            && !(await directory.Content.ReadAsStringAsync()).Contains(competition.CompetitionCode),
+            "ENG02D unlisted competition absent from uncached directory");
+    competition.IsPubliclyListed = true;
+    await db.SaveChangesAsync();
+    Assert(await LinkCount(key) == 1, "ENG02D listed competition public identity bridge available");
+    identity.IsPublicProfile = false;
+    await db.SaveChangesAsync();
+    Assert(await LinkCount(key) == 0, "ENG02D private identity bridge suppressed");
+    Assert(await Status("/api/public/stackers/" + identity.NadiTrackId) == HttpStatusCode.NotFound, "ENG02D private profile is not found");
+    identity.IsPublicProfile = true;
+    await db.SaveChangesAsync();
+
+    // Existing cross-column collisions may predate this patch. Even if one is archived,
+    // never arbitrarily resolve a shared public alias to the remaining event.
+    var collision = new StackMeet.Api.Models.Competition
+    {
+        CompetitionKey = competition.CompetitionCode, CompetitionCode = key + "OTHER",
+        CompetitionName = "Synthetic legacy collision", Venue = "LocalDB", StartDate = date, EndDate = date,
+        Status = "Archived", ArchivedAt = now, CreatedAt = now, UpdatedAt = now
+    };
+    db.Add(collision);
+    await db.SaveChangesAsync();
+    Assert(await Status(Results(competition.CompetitionCode)) == HttpStatusCode.NotFound
+        && await Status(Links(competition.CompetitionCode)) == HttpStatusCode.NotFound,
+        "ENG02D ambiguous public code/key fails closed");
+    Assert(await Status(Results(key)) == HttpStatusCode.OK, "ENG02D unique alias unaffected by legacy collision");
+    using (var create = await admin.PostAsJsonAsync("/api/admin/competitions", new
+    {
+        competitionKey = key + "NEW", competitionCode = key, competitionName = "Synthetic collision",
+        venue = "LocalDB", startDate = date, endDate = date, status = "Active", password = "Synthetic-only-password"
+    }))
+        Assert(create.StatusCode == HttpStatusCode.Conflict, "ENG02D admin create rejects code colliding with existing key");
+    using (var update = await maintenance.PutAsJsonAsync($"/api/competitions/{collision.Id}", new
+    {
+        competitionCode = key, competitionName = "Synthetic collision", venue = "LocalDB",
+        startDate = date, endDate = date, status = "Archived"
+    }))
+        Assert(update.StatusCode == HttpStatusCode.Conflict, "ENG02D maintenance code update rejects existing key");
+    competition.Status = "Archived";
+    competition.ArchivedAt = now;
+    await db.SaveChangesAsync();
+    Assert(await Status(Results(key)) == HttpStatusCode.NotFound && await Status(Links(key)) == HttpStatusCode.NotFound,
+        "ENG02D archived live results and profile links unavailable");
+    Assert(await Status("/api/public/stackers/" + identity.NadiTrackId) == HttpStatusCode.OK,
+        "ENG02D public career profile remains available after competition archive");
 }
