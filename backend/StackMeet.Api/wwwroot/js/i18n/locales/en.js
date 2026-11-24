@@ -74,6 +74,7 @@
   "Review latest saved results": "Review latest saved results",
   "{participant} / {event}. Saved: {saved}. Draft: {draft}.": "{participant} / {event}. Saved: {saved}. Draft: {draft}.",
   "No saved result": "No saved result",
+  "No draft result": "No draft result",
   "Use reviewed results as the new baseline": "Use reviewed results as the new baseline",
   "Keep your draft and use these reviewed results for the next save?": "Keep your draft and use these reviewed results for the next save?",
   "Results changed again. Review the latest saved results.": "Results changed again. Review the latest saved results.",
