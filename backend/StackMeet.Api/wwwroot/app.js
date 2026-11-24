@@ -1277,10 +1277,15 @@ let competitionStateReconnectTimer = null;
 async function connectCompetitionStateUpdates() {
   if (!window.signalR || competitionStateConnection) return;
   const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/hubs/results", { headers: window.StackMeetAuth?.authHeaders?.() || {} })
+    .withUrl("/hubs/results")
     .withAutomaticReconnect([0, 1500, 5000, 10000])
     .configureLogging(signalR.LogLevel.Warning)
     .build();
+  const joinOperatorCompetition = async () => {
+    const token = window.StackMeetAuth?.readSession?.()?.token;
+    if (!token) throw new Error("Competition session unavailable.");
+    await connection.invoke("JoinOperatorCompetition", currentCompetitionKey(), token);
+  };
   const receiveChange = async update => {
     if (String(update?.competitionKey || update?.competitionId || "").toUpperCase() !== String(currentCompetitionKey()).toUpperCase()) return;
     const revision = Number(update?.revision || 0);
@@ -1314,8 +1319,13 @@ async function connectCompetitionStateUpdates() {
   connection.onreconnected(async () => {
     resultSyncDiagnostics.connectionState = connection.state;
     resultSyncDiagnostics.connectionId = connection.connectionId || null;
-    await connection.invoke("JoinCompetition", currentCompetitionKey());
-    try { await applyRemoteCompetitionState(await loadLatestCompetition()); } catch (_) { /* polling remains active */ }
+    try {
+      await joinOperatorCompetition();
+      await applyRemoteCompetitionState(await loadLatestCompetition());
+    } catch (_) {
+      // A revoked or unavailable subscription must fall back to polling.
+      await connection.stop().catch(() => undefined);
+    }
   });
   connection.onclose(() => {
     resultSyncDiagnostics.connectionState = connection.state;
@@ -1328,7 +1338,7 @@ async function connectCompetitionStateUpdates() {
   });
   try {
     await connection.start();
-    await connection.invoke("JoinCompetition", currentCompetitionKey());
+    await joinOperatorCompetition();
     competitionStateConnection = connection;
   } catch (error) {
     console.warn("Competition live updates unavailable; polling remains active.", error);
