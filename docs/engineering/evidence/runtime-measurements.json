@@ -1,0 +1,386 @@
+{
+  "baseline": "a3042efca304feab8e77f87ff20fc24675461e9c",
+  "read": [
+    {
+      "participants": 100,
+      "clients": 3,
+      "requests": 9,
+      "errors": 0,
+      "p50Ms": 36.6,
+      "p95Ms": 145.5,
+      "bytes": 28325,
+      "workingSetMiB": 127
+    },
+    {
+      "participants": 300,
+      "clients": 5,
+      "requests": 15,
+      "errors": 0,
+      "p50Ms": 126.5,
+      "p95Ms": 172.0,
+      "bytes": 84925,
+      "workingSetMiB": 150
+    },
+    {
+      "participants": 500,
+      "clients": 10,
+      "requests": 30,
+      "errors": 0,
+      "p50Ms": 128.7,
+      "p95Ms": 257.4,
+      "bytes": 141523,
+      "workingSetMiB": 163
+    },
+    {
+      "participants": 1000,
+      "clients": 20,
+      "requests": 60,
+      "errors": 0,
+      "p50Ms": 390.7,
+      "p95Ms": 601.6,
+      "bytes": 283028,
+      "workingSetMiB": 291
+    },
+    {
+      "participants": 3000,
+      "clients": 50,
+      "requests": 150,
+      "errors": 0,
+      "p50Ms": 1255.3,
+      "p95Ms": 7423.3,
+      "bytes": 855028,
+      "workingSetMiB": 330
+    },
+    {
+      "participants": 5000,
+      "clients": 100,
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 2529.7,
+      "p95Ms": 4379.7,
+      "bytes": 1427028,
+      "workingSetMiB": 722
+    }
+  ],
+  "writeFirst": [
+    {
+      "n": 100,
+      "k": 3,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 2
+      },
+      "bytes": 5407,
+      "p50": 1170.9832999999999,
+      "p95": 1183.3147
+    },
+    {
+      "n": 300,
+      "k": 5,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 4
+      },
+      "bytes": 16607,
+      "p50": 152.5710999999992,
+      "p95": 178.54759999999987
+    },
+    {
+      "n": 500,
+      "k": 10,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 9
+      },
+      "bytes": 27807,
+      "p50": 154.03690000000097,
+      "p95": 222.7541000000001
+    },
+    {
+      "n": 1000,
+      "k": 20,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 19
+      },
+      "bytes": 55807,
+      "p50": 562.0908999999992,
+      "p95": 822.5869999999995
+    },
+    {
+      "n": 3000,
+      "k": 50,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 49
+      },
+      "bytes": 171807,
+      "p50": 6358.0857,
+      "p95": 9933.3762
+    },
+    {
+      "n": 5000,
+      "k": 100,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 99
+      },
+      "bytes": 287807,
+      "p50": 11371.024700000002,
+      "p95": 24646.3733
+    }
+  ],
+  "writeRepeat": [
+    {
+      "n": 100,
+      "k": 3,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 2
+      },
+      "bytes": 5407,
+      "p50": 347.2578000000003,
+      "p95": 350.2655
+    },
+    {
+      "n": 300,
+      "k": 5,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 4
+      },
+      "bytes": 16607,
+      "p50": 35.06129999999985,
+      "p95": 44.33899999999994
+    },
+    {
+      "n": 500,
+      "k": 10,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 9
+      },
+      "bytes": 27807,
+      "p50": 48.982800000000225,
+      "p95": 74.90300000000025
+    },
+    {
+      "n": 1000,
+      "k": 20,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 19
+      },
+      "bytes": 55807,
+      "p50": 192.19939999999997,
+      "p95": 329.5771
+    },
+    {
+      "n": 3000,
+      "k": 50,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 49
+      },
+      "bytes": 171807,
+      "p50": 1994.3890999999999,
+      "p95": 3547.9336000000003
+    },
+    {
+      "n": 5000,
+      "k": 100,
+      "correct": true,
+      "statuses": {
+        "204": 1,
+        "409": 99
+      },
+      "bytes": 287807,
+      "p50": 6886.707199999999,
+      "p95": 14019.8442
+    }
+  ],
+  "browser": [
+    {
+      "width": 390,
+      "requested": "en",
+      "lang": "en",
+      "scroll": 421,
+      "focus": "A",
+      "title": "Synthetic Cup · NADITrack Results",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [
+        [
+          "SPAN",
+          "connection",
+          421
+        ],
+        [
+          "SPAN",
+          "",
+          408
+        ],
+        [
+          "A",
+          "",
+          392
+        ],
+        [
+          "A",
+          "",
+          495
+        ],
+        [
+          "A",
+          "",
+          581
+        ],
+        [
+          "A",
+          "",
+          649
+        ],
+        [
+          "A",
+          "",
+          729
+        ]
+      ],
+      "errors": [],
+      "printBytes": 2432410
+    },
+    {
+      "width": 390,
+      "requested": "ms",
+      "lang": "ms",
+      "scroll": 412,
+      "focus": "A",
+      "title": "Synthetic Cup · Keputusan NADITrack",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [
+        [
+          "SPAN",
+          "connection",
+          412
+        ],
+        [
+          "SPAN",
+          "",
+          399
+        ],
+        [
+          "A",
+          "",
+          495
+        ],
+        [
+          "A",
+          "",
+          574
+        ],
+        [
+          "A",
+          "",
+          642
+        ],
+        [
+          "A",
+          "",
+          718
+        ]
+      ],
+      "errors": [],
+      "printBytes": 2433128
+    },
+    {
+      "width": 390,
+      "requested": "zh-Hans",
+      "lang": "zh-Hans",
+      "scroll": 390,
+      "focus": "A",
+      "title": "Synthetic Cup · NADITrack 成绩",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [
+        [
+          "A",
+          "",
+          445
+        ],
+        [
+          "A",
+          "",
+          506
+        ]
+      ],
+      "errors": [],
+      "printBytes": 2512052
+    },
+    {
+      "width": 1280,
+      "requested": "en",
+      "lang": "en",
+      "scroll": 1280,
+      "focus": "A",
+      "title": "Synthetic Cup · NADITrack Results",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [],
+      "errors": [],
+      "printBytes": 2432394
+    },
+    {
+      "width": 1280,
+      "requested": "ms",
+      "lang": "ms",
+      "scroll": 1280,
+      "focus": "A",
+      "title": "Synthetic Cup · Keputusan NADITrack",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [],
+      "errors": [],
+      "printBytes": 2433128
+    },
+    {
+      "width": 1280,
+      "requested": "zh-Hans",
+      "lang": "zh-Hans",
+      "scroll": 1280,
+      "focus": "A",
+      "title": "Synthetic Cup · NADITrack 成绩",
+      "h1": [
+        "Synthetic Cup"
+      ],
+      "unnamed": [],
+      "overflow": [],
+      "errors": [],
+      "printBytes": 2512052
+    }
+  ],
+  "rowWaits": 181,
+  "rowWaitMs": 740884,
+  "sqlCommandsPerPublicRead": 5
+}
