@@ -7,6 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 const publicResults = read("backend/StackMeet.Api/Controllers/PublicResultsController.cs");
 const app = read("backend/StackMeet.Api/wwwroot/app.js");
+const repository = read("backend/StackMeet.Api/wwwroot/js/storage/Repository.js");
 
 assert.match(
   publicResults,
@@ -23,15 +24,13 @@ assert.match(
   /stackersUpdatedAt/,
   "Public Results last-updated metadata must include SQL stacker changes."
 );
-assert.match(
-  app,
-  /function legacyStateForSave\(data\)[\s\S]*legacy\.stackers\s*=\s*\[\]/,
-  "Normal CompetitionState saves must not persist SQL-owned stackers back into legacy JSON."
-);
-assert.match(
-  app,
-  /function withoutLegacyStackers\(data\)[\s\S]*legacy\.stackers\s*=\s*\[\]/,
-  "CompetitionState loads must strip legacy stackers before SQL-owned stackers are restored."
-);
+assert.match(app, /function legacyStateForSave\(data\) \{\s*return CompetitionRepository\.legacyStateForSave\(data\);/);
+assert.match(app, /function withoutLegacyStackers\(data\) \{\s*return CompetitionRepository\.withoutLegacyStackers\(data\);/);
+assert.match(repository, /static legacyStateForSave\(data\) \{\s*const legacy = structuredClone\(data\);\s*legacy\.stackers = \[\];\s*legacy\.results = \[\];\s*return legacy;/,
+  "Normal CompetitionState saves must not persist SQL-owned stackers or results back into legacy JSON.");
+assert.match(repository, /static withoutLegacyStackers\(data\) \{\s*const legacy = structuredClone\(data\);\s*legacy\.stackers = \[\];\s*return legacy;/,
+  "CompetitionState loads must strip legacy stackers before SQL-owned stackers are restored.");
+assert.match(app, /await repository\.save\(legacyStateForSave\(mergedState\)\)/,
+  "The actual queued save must apply the legacy projection.");
 
 console.log("SQL stacker authority checks passed.");

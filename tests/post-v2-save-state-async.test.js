@@ -4,6 +4,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const CompetitionRepository = require("../backend/StackMeet.Api/wwwroot/js/storage/Repository.js");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
 
@@ -31,7 +32,7 @@ function extractFunction(name) {
 
 function createHarness(repository, initialState) {
   const context = {
-    structuredClone, Map, Set, String, Array,
+    structuredClone, Map, Set, String, Array, CompetitionRepository,
     repository, state: initialState, pendingSave: Promise.resolve(), queuedSaveCount: 0,
     deletionGeneration: 0, pendingDeletedDoubles: new Map(), pendingDeletedRelays: new Map(),
     setSaveStatus() {}, applyPendingCompetitionUpdate() {}
