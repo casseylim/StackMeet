@@ -8,15 +8,14 @@ namespace StackMeet.Api.Hubs;
 public sealed class ResultsHub(
     StackMeetDbContext database,
     SessionTokenService tokens,
-    CompetitionPermissionService permissions) : Hub
+    CompetitionPermissionService permissions,
+    ResultsSubscriptionRegistry subscriptions) : Hub
 {
-    const string SubscriptionKey = "ResultsSubscription";
-
     // Anonymous push subscriptions are restricted to the public directory.
     // Direct-link public HTTP results retain their existing publication contract.
     public async Task JoinCompetition(string? competitionId)
     {
-        await LeaveCurrentSubscription();
+        subscriptions.Remove(Context.ConnectionId);
         var normalized = NormalizeCompetition(competitionId);
         var matches = await database.Competitions.AsNoTracking()
             .Where(item => item.CompetitionKey == normalized || item.CompetitionCode == normalized)
@@ -27,14 +26,14 @@ public sealed class ResultsHub(
             || string.Equals(matches[0].Status, "Archived", StringComparison.OrdinalIgnoreCase))
             throw new HubException("Competition subscription unavailable.");
 
-        await Subscribe(matches[0].CompetitionKey);
+        Subscribe(matches[0].CompetitionKey, null);
     }
 
     // The operator passes its bearer in the hub invocation, not in the URL.
     // Do not trust a claimed user identity or a client-supplied competition role.
     public async Task JoinOperatorCompetition(string? competitionId, string? token)
     {
-        await LeaveCurrentSubscription();
+        subscriptions.Remove(Context.ConnectionId);
         var normalized = NormalizeCompetition(competitionId);
         var ct = Context.ConnectionAborted;
         if (!tokens.TryValidate(token, out var session))
@@ -63,23 +62,24 @@ public sealed class ResultsHub(
             throw new HubException("Competition subscription unavailable.");
         }
 
-        await Subscribe(competition.CompetitionKey);
+        Subscribe(competition.CompetitionKey, session);
     }
 
-    async Task LeaveCurrentSubscription()
+    void Subscribe(string competitionKey, SessionToken? session)
     {
-        if (Context.Items.TryGetValue(SubscriptionKey, out var value) && value is string group)
-        {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, group, Context.ConnectionAborted);
-            Context.Items.Remove(SubscriptionKey);
-        }
+        var subscription = new ResultsSubscription(Context.ConnectionId, competitionKey,
+            session?.ExpiresAt, session?.UserId, session?.SessionVersion, session?.IsSystemAdmin ?? false);
+        Context.ConnectionAborted.ThrowIfCancellationRequested();
+        subscriptions.Set(subscription);
+        // Disconnect may race the final registration.
+        if (Context.ConnectionAborted.IsCancellationRequested)
+            subscriptions.RemoveIfCurrent(subscription);
     }
 
-    async Task Subscribe(string competitionKey)
+    public override Task OnDisconnectedAsync(Exception? exception)
     {
-        var group = GroupName(competitionKey);
-        await Groups.AddToGroupAsync(Context.ConnectionId, group, Context.ConnectionAborted);
-        Context.Items[SubscriptionKey] = group;
+        subscriptions.Remove(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
     }
 
     static string NormalizeCompetition(string? competitionId)
@@ -90,6 +90,4 @@ public sealed class ResultsHub(
         return normalized;
     }
 
-    public static string GroupName(string competitionId) =>
-        $"results:{competitionId.Trim().ToUpperInvariant()}";
 }

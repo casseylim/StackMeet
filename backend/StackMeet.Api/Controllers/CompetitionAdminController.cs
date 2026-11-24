@@ -1,7 +1,6 @@
 using System.Data;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using StackMeet.Api.Data;
 using StackMeet.Api.Dtos;
@@ -17,7 +16,7 @@ public sealed class CompetitionAdminController(
     StackMeetDbContext database,
     PasswordHashService passwords,
     AuditLogService auditLogs,
-    IHubContext<ResultsHub> resultsHub,
+    ResultsNotificationService resultsNotifications,
     ILogger<CompetitionAdminController> logger) : ControllerBase
 {
     [HttpGet]
@@ -258,7 +257,7 @@ public sealed class CompetitionAdminController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        try { await resultsNotifications.SendAsync(normalizedKey, "CompetitionChanged", change, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit admin notification failed for competition {CompetitionKey}.", normalizedKey); }
         return NoContent();
     }
@@ -379,10 +378,10 @@ public sealed class CompetitionAdminController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        try { await resultsNotifications.SendAsync(normalizedKey, "CompetitionChanged", change, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit admin notification failed for competition {CompetitionKey}.", normalizedKey); }
         var resultsChange = new { competitionKey = normalizedKey, revision = committedResultsRevision, scope = "results", type = "ResultsChanged", updatedAt = changedAt };
-        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("ResultsChanged", resultsChange, CancellationToken.None); }
+        try { await resultsNotifications.SendAsync(normalizedKey, "ResultsChanged", resultsChange, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit results notification failed for competition {CompetitionKey}.", normalizedKey); }
         return NoContent();
     }

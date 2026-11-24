@@ -2,7 +2,6 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
 using StackMeet.Api.Data;
 using StackMeet.Api.Services;
 using StackMeet.Api.Hubs;
@@ -14,7 +13,7 @@ namespace StackMeet.Api.Controllers;
 [Route("api/state")]
 public sealed class CompetitionStateController(
     StackMeetDbContext database,
-    IHubContext<ResultsHub> resultsHub,
+    ResultsNotificationService resultsNotifications,
     CompetitionPermissionService permissions,
     CompetitionTeamResultIntegrityService teamResults,
     ILogger<CompetitionStateController> logger) : ControllerBase
@@ -157,7 +156,7 @@ public sealed class CompetitionStateController(
 
         SetEtag(committedRevision);
         var change = new { competitionKey = normalizedKey, revision = committedRevision, scope = "global", type = "CompetitionChanged", updatedAt = changedAt };
-        try { await resultsHub.Clients.Group(ResultsHub.GroupName(normalizedKey)).SendAsync("CompetitionChanged", change, CancellationToken.None); }
+        try { await resultsNotifications.SendAsync(normalizedKey, "CompetitionChanged", change, CancellationToken.None); }
         catch (Exception ex) { logger.LogWarning(ex, "Post-commit state notification failed for competition {CompetitionKey}.", normalizedKey); }
 
 

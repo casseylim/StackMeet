@@ -17,6 +17,8 @@ builder.Services.AddControllers();
 builder.Services.AddNadiTrackActivityModules();
 builder.Services.AddSportStackingIdentityProfileServices();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<ResultsSubscriptionRegistry>();
+builder.Services.AddScoped<ResultsNotificationService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -546,6 +546,7 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     using (var handshake = System.Text.Json.JsonDocument.Parse(await ReceiveHub()))
         Assert(!handshake.RootElement.TryGetProperty("error", out _), "ENG02C1 hub handshake");
     var invocation = 0;
+    var deliveredChanges = 0;
     async Task<bool> JoinHub(string target, params string[] arguments)
     {
         var id = (++invocation).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -554,8 +555,11 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
         {
             using var completion = System.Text.Json.JsonDocument.Parse(await ReceiveHub());
             var root = completion.RootElement;
-            if (root.GetProperty("type").GetInt32() == 3
-                && root.GetProperty("invocationId").GetString() == id)
+            var messageType = root.GetProperty("type").GetInt32();
+            if (messageType == 1 && root.TryGetProperty("target", out var eventTarget)
+                && eventTarget.GetString() is "CompetitionChanged" or "ResultsChanged")
+                deliveredChanges++;
+            if (messageType == 3 && root.GetProperty("invocationId").GetString() == id)
                 return !root.TryGetProperty("error", out _);
         }
     }
@@ -576,25 +580,55 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     await db.SaveChangesAsync();
     var unassignedToken = tokens.CreateForUser(unassigned.Id, unassigned.Email, unassigned.DisplayName, false, unassigned.SessionVersion).ToString();
     Assert(!await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C1 unassigned account rejected");
-    db.CompetitionUsers.Add(new StackMeet.Api.Models.CompetitionUser
+    var viewerAssignment = new StackMeet.Api.Models.CompetitionUser
     {
         CompetitionId = competitionId, UserId = unassigned.Id, RoleId = 4,
         IsActive = true, AssignedAt = DateTime.UtcNow
-    });
+    };
+    db.CompetitionUsers.Add(viewerAssignment);
     await db.SaveChangesAsync();
     Assert(await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C1 assigned viewer accepted");
+
+    async Task TriggerHubChange()
+    {
+        using var snapshot = await maintenance.GetAsync($"/api/state/{key}");
+        var etag = snapshot.Headers.ETag?.Tag ?? throw new InvalidOperationException("Expected state ETag.");
+        using var response = await PostState(maintenance, key, etag, "{\"seed\":true}");
+        Assert(response.StatusCode == HttpStatusCode.NoContent, "ENG02C2 synthetic notification-triggering save");
+    }
+    var deliveredBefore = deliveredChanges;
+    await TriggerHubChange();
+    Assert(await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C2 viewer subscription barrier");
+    Assert(deliveredChanges == deliveredBefore + 1, "ENG02C2 assigned viewer receives committed change");
+    viewerAssignment.IsActive = false;
+    await db.SaveChangesAsync();
+    deliveredBefore = deliveredChanges;
+    await TriggerHubChange();
+    Assert(!await JoinHub("JoinOperatorCompetition", key, unassignedToken), "ENG02C2 removed assignment cannot rejoin");
+    Assert(deliveredChanges == deliveredBefore, "ENG02C2 already-connected removed viewer receives no change");
+
     hubCompetition.IsPubliclyListed = true;
     await db.SaveChangesAsync();
     Assert(await JoinHub("JoinCompetition", hubCompetition.CompetitionCode), "ENG02C1 listed public code resolves canonical subscription");
+    deliveredBefore = deliveredChanges;
+    await TriggerHubChange();
+    Assert(await JoinHub("JoinCompetition", key), "ENG02C2 public subscription barrier");
+    Assert(deliveredChanges == deliveredBefore + 1, "ENG02C2 listed viewer receives committed change");
     hubCompetition.IsPubliclyListed = false;
     await db.SaveChangesAsync();
+    deliveredBefore = deliveredChanges;
+    await TriggerHubChange();
     Assert(!await JoinHub("JoinCompetition", key), "ENG02C1 unlisted competition cannot be rejoined");
+    Assert(deliveredChanges == deliveredBefore, "ENG02C2 already-connected unlisted viewer receives no change");
     Assert(await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 operator can rejoin unlisted competition");
     using (var logout = await a.PostAsync("/api/auth/logout-all", null))
         Assert(logout.StatusCode == HttpStatusCode.NoContent, "ENG02B logout-all succeeds");
     Assert(await ReadStatus(a, route) == HttpStatusCode.Unauthorized
         && await ReadStatus(b, "/api/admin/competitions") == HttpStatusCode.Unauthorized, "ENG02B old token rejected by both API gates after logout-all");
+    deliveredBefore = deliveredChanges;
+    await TriggerHubChange();
     Assert(!await JoinHub("JoinOperatorCompetition", key, bearer.ToString()), "ENG02C1 revoked account token cannot rejoin");
+    Assert(deliveredChanges == deliveredBefore, "ENG02C2 already-connected revoked account receives no change");
     socket.Abort();
     await db.Entry(actor).ReloadAsync();
     var renewed = tokens.CreateForUser(actor.Id, actor.Email, actor.DisplayName, true, actor.SessionVersion);
