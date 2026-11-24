@@ -158,6 +158,12 @@
     }
   }
 
+  function publicBrandingPath(value, type, fallback) {
+    if (typeof value !== "string" || !["logo", "banner"].includes(type)) return fallback;
+    const match = /^\/api\/public\/competitions\/[1-9]\d*\/assets\/(logo|banner)$/.exec(value);
+    return match && match[0] === value && match[1] === type ? value : fallback;
+  }
+
   function render(payload) {
     show("loadingState", false);
     show("errorState", false);
@@ -165,9 +171,9 @@
     const competition = payload.competition || {};
     const branding = payload.branding || {};
     const logo = el("competitionLogo");
-    if (logo) { logo.onerror = () => { logo.onerror = null; logo.src = "/assets/stackmeet-logo.png"; }; logo.src = branding.logoUrl || "/assets/stackmeet-logo.png"; logo.alt = `${competition.name || "Competition"} logo`; logo.hidden = false; }
+    if (logo) { logo.onerror = () => { logo.onerror = null; logo.src = "/assets/stackmeet-logo.png"; }; logo.src = publicBrandingPath(branding.logoUrl, "logo", "/assets/stackmeet-logo.png"); logo.alt = `${competition.name || "Competition"} logo`; logo.hidden = false; }
     const banner = el("competitionBanner");
-    if (banner) { banner.onerror = () => { banner.onerror = null; banner.src = "/assets/competition-banner.png"; }; banner.src = branding.bannerUrl || "/assets/competition-banner.png"; banner.alt = `${competition.name || "Competition"} banner`; banner.hidden = false; }
+    if (banner) { banner.onerror = () => { banner.onerror = null; banner.src = "/assets/competition-banner.png"; }; banner.src = publicBrandingPath(branding.bannerUrl, "banner", "/assets/competition-banner.png"); banner.alt = `${competition.name || "Competition"} banner`; banner.hidden = false; }
     document.title = `${competition.name || t("Competition")} · ${t("NADITrack Results")}`;
     text("competitionName", competition.name || payload.settings?.name || "Competition Results");
     text("competitionMeta", [formatDateRange(competition.startDate, competition.endDate), competition.venue].filter(Boolean).join(" · "));

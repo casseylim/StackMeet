@@ -695,6 +695,33 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
     Assert(await ReadStatus(admin, stateRoute) == HttpStatusCode.Unauthorized,
         "ENG02E admin key alone is not an operator or maintenance credential");
 
+    using var browser = new HttpClient { BaseAddress = a.BaseAddress };
+    foreach (var page in new[] { "/index.html", "/admin.html", "/account.html", "/all/index.html",
+        $"/{key}/Results", "/Stackers/NDT-7K4M2PX" })
+    {
+        using var response = await browser.GetAsync(page);
+        Assert(response.StatusCode == HttpStatusCode.OK && response.Headers.CacheControl?.NoStore == true,
+            $"ENG02F browser shell no-store {page}");
+        Assert(response.Headers.TryGetValues("Content-Security-Policy", out var policies)
+            && policies.Any(policy => policy.Contains("script-src 'self'") && !policy.Contains("unsafe-inline")
+                && !policy.Contains("unsafe-eval") && policy.Contains("object-src 'none'")
+                && policy.Contains("base-uri 'none'") && policy.Contains("frame-ancestors 'none'")
+                && policy.Contains("form-action 'self'")),
+            $"ENG02F enforced script and embedding policy {page}");
+        Assert(response.Headers.Contains("Content-Security-Policy-Report-Only"),
+            $"ENG02F staged resource policy {page}");
+    }
+    using (var privateResponse = await roleClient.GetAsync(stateRoute))
+        Assert(privateResponse.StatusCode == HttpStatusCode.OK && privateResponse.Headers.CacheControl?.NoStore == true,
+            "ENG02F authorized state is not cacheable");
+    using (var deniedResponse = await browser.GetAsync(stateRoute))
+        Assert(deniedResponse.StatusCode == HttpStatusCode.Unauthorized && deniedResponse.Headers.CacheControl?.NoStore == true,
+            "ENG02F unauthorized API responses are not cacheable");
+    using (var scriptResponse = await browser.GetAsync("/app.js"))
+        Assert(scriptResponse.StatusCode == HttpStatusCode.OK && !scriptResponse.Headers.Contains("Content-Security-Policy"),
+            "ENG02F static script loading remains available");
+
+
 }
 
 static async Task RunPublicationAcceptanceAsync(int port, string key, StackMeetDbContext db)

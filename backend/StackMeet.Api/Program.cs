@@ -105,6 +105,25 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
     context.Response.Headers.TryAdd("Referrer-Policy", "no-referrer");
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    context.Response.OnStarting(() =>
+    {
+        var path = context.Request.Path;
+        var html = context.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true
+            || (!path.StartsWithSegments("/api") && path.Value?.EndsWith(".html", StringComparison.OrdinalIgnoreCase) == true);
+        // Apply at response start so static shells, API errors and controller responses are covered.
+        if (html || (path.StartsWithSegments("/api") && !path.StartsWithSegments("/api/public")))
+            context.Response.Headers.CacheControl = "no-store";
+        if (html)
+        {
+            // Restrict executable scripts now. Inline styles remain necessary for existing print/layout workflows.
+            context.Response.Headers.TryAdd("Content-Security-Policy",
+                "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+            // Stage additional resource restrictions for browser compatibility inspection before enforcement.
+            context.Response.Headers.TryAdd("Content-Security-Policy-Report-Only",
+                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://qrcodecat.com; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+        }
+        return Task.CompletedTask;
+    });
     await next();
 });
 
