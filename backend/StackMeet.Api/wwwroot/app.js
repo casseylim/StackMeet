@@ -1013,12 +1013,20 @@ function showResultEditorReview(editor, draft, message) {
       const normalized = normalizeResults(latest.results);
       const savedByKey = new Map(normalized.map(row => [resultLogicalKey(row), row]));
       const items = document.createElement("ul");
-      const details = draft.map(row => {
-        const saved = savedByKey.get(resultLogicalKey(row));
+      // Accepting review refreshes the entire editor baseline, including blank rows.
+      // Show every such row before allowing the operator to accept that baseline.
+      const draftByKey = new Map(draft.map(row => [resultLogicalKey(row), row]));
+      const reviewKeys = new Map(draft.map(row => [resultLogicalKey(row), row]));
+      Object.values(editor.baseline.rows).forEach(({ key }) => {
+        if (!reviewKeys.has(resultLogicalKey(key))) reviewKeys.set(resultLogicalKey(key), key);
+      });
+      const details = Array.from(reviewKeys, ([key, row]) => {
+        const saved = savedByKey.get(key);
+        const draftRow = draftByKey.get(key);
         return tf("{participant} / {event}. Saved: {saved}. Draft: {draft}.", {
           participant: row.participant, event: row.event,
           saved: saved ? resultReviewValue(saved) : t("No saved result"),
-          draft: resultReviewValue(row)
+          draft: draftRow ? resultReviewValue(draftRow) : t("No draft result")
         });
       });
       details.forEach(detail => {
