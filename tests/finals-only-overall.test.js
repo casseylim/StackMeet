@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const app = fs.readFileSync(path.join(__dirname, "../backend/StackMeet.Api/wwwroot/app.js"), "utf8");
+// Git's Windows checkout may use CRLF; normalize before locating function boundaries.
+const app = fs.readFileSync(path.join(__dirname, "../backend/StackMeet.Api/wwwroot/app.js"), "utf8").replace(/\r\n/g, "\n");
 const extract = name => {
   const start = app.indexOf("function " + name + "(");
   const end = app.indexOf("\n}\n", start);
