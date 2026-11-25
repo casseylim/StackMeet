@@ -244,6 +244,8 @@ public static class StorageReconciliation
                 if (root.ValueKind != JsonValueKind.Object || Text(root, "schemaVersion") != record.SnapshotSchemaVersion
                     || Text(root, "ruleVersion") != record.RuleVersion
                     || !root.TryGetProperty("competition", out var metadata) || metadata.ValueKind != JsonValueKind.Object
+                    || !string.Equals(Text(metadata, "competitionKey"), competition.CompetitionKey, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(Text(metadata, "competitionCode"), competition.CompetitionCode, StringComparison.OrdinalIgnoreCase)
                     || !metadata.TryGetProperty("stateRevision", out var s) || s.ValueKind != JsonValueKind.Number || !s.TryGetInt64(out var sv) || sv != record.SourceStateRevision
                     || !metadata.TryGetProperty("resultsRevision", out var r) || r.ValueKind != JsonValueKind.Number || !r.TryGetInt64(out var rv) || rv != record.SourceResultsRevision
                     || !root.TryGetProperty("finalsResults", out var finals) || finals.ValueKind != JsonValueKind.Array)
@@ -260,7 +262,12 @@ public static class StorageReconciliation
                 return;
             }
             // Only the supplied disposable fixture root and one competition directory.
-            var root = Path.GetFullPath(isolatedAssetRoot);
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(isolatedAssetRoot));
+            var temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
+            if (!string.Equals(Path.GetDirectoryName(root), temp, StringComparison.OrdinalIgnoreCase)
+                || !Path.GetFileName(root).StartsWith("StackMeet_ENG04C_", StringComparison.Ordinal)
+                || !Directory.Exists(root))
+            { Add("AUTH-07-ASSET-ROOT-NOT-FIXTURE", "Inconclusive"); return; }
             var directory = Path.Combine(root, competitionId.ToString(System.Globalization.CultureInfo.InvariantCulture));
             try
             {
