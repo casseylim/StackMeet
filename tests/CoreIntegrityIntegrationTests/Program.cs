@@ -1075,4 +1075,120 @@ static async Task RunStorageAuthorityAcceptanceAsync(int port, string key, Stack
     await db.SaveChangesAsync();
     Assert(Roster(await ReadPublic()).Length == 0, "ENG04B genuinely empty SQL and JSON roster stays empty");
     Console.WriteLine("ENG04B storage authority characterization passed; empty-roster ambiguity remains a reconciliation risk.");
+
+    // ENG-04C uses a separate SELECT-only context restricted to this generated LocalDB.
+    var connectionString = db.Database.GetConnectionString() ?? throw new InvalidOperationException("Missing fixture connection.");
+    async Task<StackMeet.Tools.StorageReconciliation.ReconciliationReport> Inspect(int id, string? root = null) =>
+        await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(connectionString, id, root);
+    bool Has(StackMeet.Tools.StorageReconciliation.ReconciliationReport report, string code, int count = 1) =>
+        report.Findings.Any(x => x.Code == code && x.Count == count);
+    var discrepancy = await Inspect(competition.Id);
+    Assert(discrepancy.Outcome == "Review"
+        && Has(discrepancy, "AUTH-02-LEGACY-ONLY-CODE")
+        && Has(discrepancy, "AUTH-02-OVERLAP-FIELD-CONFLICT")
+        && Has(discrepancy, "AUTH-03-RESULT-VALUE-CONFLICT")
+        && Has(discrepancy, "AUTH-05-QUALIFICATION-METADATA")
+        && Has(discrepancy, "AUTH-08-COMPETITION-NAME-DIFFERENCE"),
+        "ENG04C mixed storage discrepancies classified without repair");
+    Assert(!discrepancy.Findings.Any(x => x.Code.StartsWith("AUTH-06-", StringComparison.Ordinal))
+        && discrepancy.StateRevision == 7 && discrepancy.ResultsRevision == 2,
+        "ENG04C valid immutable historical evidence and observed revisions");
+    var output = System.Text.Json.JsonSerializer.Serialize(discrepancy);
+    Assert(!output.Contains("Synthetic One") && !output.Contains("private@example.test")
+        && !output.Contains("Stale Legacy Name") && !output.Contains(snapshotJson)
+        && !output.Contains(key, StringComparison.Ordinal), "ENG04C aggregate report excludes raw identity and snapshot data");
+
+    var clean = await Inspect(empty.Id);
+    Assert(clean.Outcome == "Pass" && clean.Findings.Count == 0, "ENG04C clean empty competition is not a defect");
+    emptyState.JsonData = legacyJson.Replace("\"status\":\"Approved\"", "\"status\":\"Approved\",\"participantType\":\"Individual\",\"event\":\"Cycle\"", StringComparison.Ordinal);
+    await db.SaveChangesAsync();
+    var ambiguous = await Inspect(empty.Id);
+    Assert(ambiguous.Outcome == "Review" && Has(ambiguous, "AUTH-01-EMPTY-SQL-LEGACY-ROSTER")
+        && Has(ambiguous, "AUTH-03-LEGACY-ONLY-RESULT")
+        && Has(ambiguous, "AUTH-04-TEAM-MEMBER-NOT-IN-SQL")
+        && Has(ambiguous, "AUTH-05-QUALIFICATION-REFERENCE"),
+        "ENG04C empty SQL legacy ambiguity, orphan reference and legacy-only result reported");
+    emptyState.JsonData = "{broken";
+    await db.SaveChangesAsync();
+    var malformed = await Inspect(empty.Id);
+    Assert(malformed.Outcome == "Inconclusive" && Has(malformed, "AUTH-09-STATE-MALFORMED"),
+        "ENG04C malformed JSON is inconclusive, never assumed empty");
+    emptyState.JsonData = """{"stackers":[],"results":[]}""";
+    emptyState.SchemaVersion = "unknown-fixture-schema";
+    await db.SaveChangesAsync();
+    Assert(Has(await Inspect(empty.Id), "AUTH-09-STATE-SCHEMA-UNKNOWN"), "ENG04C unknown schema is reported");
+    emptyState.SchemaVersion = "0.9-online";
+    await db.SaveChangesAsync();
+
+    var root = Path.Combine(Path.GetTempPath(), "StackMeet_ENG04C_" + Guid.NewGuid().ToString("N"));
+    var directory = Path.Combine(root, empty.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes("synthetic asset bytes");
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        var asset = new StackMeet.Api.Models.CompetitionAsset
+        {
+            CompetitionId = empty.Id, AssetType = "logo", FileName = "synthetic.png",
+            StoredFileName = "synthetic.png", ContentType = "image/png", FileSize = bytes.Length,
+            Sha256 = hash, CreatedAt = now, UpdatedAt = now
+        };
+        db.CompetitionAssets.Add(asset);
+        await db.SaveChangesAsync();
+        var assetPath = Path.Combine(directory, asset.StoredFileName);
+        Assert(Has(await Inspect(empty.Id), "AUTH-07-ASSET-BYTES-NOT-CHECKED"),
+            "ENG04C unprovided asset root explicitly inconclusive");
+        Assert(Has(await Inspect(empty.Id, root), "AUTH-07-ASSET-MISSING"),
+            "ENG04C missing asset reported");
+        await File.WriteAllBytesAsync(assetPath, bytes);
+        Assert((await Inspect(empty.Id, root)).Outcome == "Pass", "ENG04C matching asset verified");
+        await File.WriteAllTextAsync(assetPath, "corrupt synthetic bytes");
+        var orphanPath = Path.Combine(directory, "orphan.png");
+        await File.WriteAllTextAsync(orphanPath, "orphan synthetic bytes");
+        var assetReport = await Inspect(empty.Id, root);
+        Assert(Has(assetReport, "AUTH-07-ASSET-MISMATCH") && Has(assetReport, "AUTH-07-ASSET-ORPHAN"),
+            "ENG04C asset hash/length and orphan differences reported");
+        Assert(await File.ReadAllTextAsync(assetPath) == "corrupt synthetic bytes"
+            && File.Exists(orphanPath), "ENG04C asset inspection never repairs or removes files");
+    }
+    finally { Directory.Delete(root, recursive: true); }
+
+    // SQL rejects modification of captured evidence. Assert that guard, then test the
+    // same reconciliation digest evaluator using an in-memory copy, never disabling the trigger.
+    empty.Status = "Closed";
+    await db.SaveChangesAsync();
+    var emptyCaptured = await governance.CaptureFinalizedSnapshotAsync(empty.Id, null);
+    var badHash = new string('0', 64);
+    bool immutableGuard = false;
+    try
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE [dbo].[FinalsRankingGovernance] SET [SnapshotSha256] = {badHash} WHERE [CompetitionId] = {empty.Id}");
+    }
+    catch (SqlException ex) when (ex.Number == 51041) { immutableGuard = true; }
+    Assert(immutableGuard, "ENG04C SQL immutability trigger rejects attempted digest mutation");
+    var stillCaptured = await governance.GetAsync(empty.Id);
+    Assert(stillCaptured?.SnapshotSha256 == emptyCaptured.SnapshotSha256
+        && stillCaptured?.SnapshotJson == emptyCaptured.SnapshotJson, "ENG04C rejected update leaves stored evidence unchanged");
+    var alteredCopy = emptyCaptured with { SnapshotSha256 = badHash };
+    var digestFinding = StackMeet.Tools.StorageReconciliation.StorageReconciliation.SnapshotDigestFinding(alteredCopy);
+    Assert(digestFinding?.Code == "AUTH-06-SNAPSHOT-HASH-MISMATCH" && digestFinding.Count == 1,
+        "ENG04C corrupt in-memory synthetic digest detected by shared reconciliation evaluator");
+    Assert(StackMeet.Tools.StorageReconciliation.StorageReconciliation.SnapshotDigestFinding(emptyCaptured) is null,
+        "ENG04C valid synthetic digest accepted by shared reconciliation evaluator");
+
+    var afterState = await db.CompetitionStates.AsNoTracking().SingleAsync(x => x.CompetitionKey == key);
+    var afterEvidence = await governance.GetAsync(competition.Id);
+    Assert(afterState.JsonData == mixedJson && afterState.StateRevision == 7
+        && afterEvidence?.SnapshotJson == snapshotJson && afterEvidence?.SnapshotSha256 == expectedHash,
+        "ENG04C reconciliation preserves state and certified bytes/hash");
+    bool refused = false;
+    try
+    {
+        await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(
+            "Server=invalid.example;Database=Production;Integrated Security=True", 1);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("restricted", StringComparison.Ordinal)) { refused = true; }
+    Assert(refused, "ENG04C non-fixture database refused before connecting");
+    Console.WriteLine("ENG04C read-only reconciliation fixture assertions passed.");
+
 }
