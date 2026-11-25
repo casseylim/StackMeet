@@ -124,9 +124,11 @@ assert.match(client, /ALL_AROUND_EVENTS/, "All-Around must require the three con
 assert.match(client, /allAroundEventKey/, "Event labels must be normalized before calculating totals.");
 assert.match(client, /isIndividualType\(result\.type\)/, "Doubles and relay results must not enter All-Around standings.");
 assert.match(client, /every\(event => Number\.isFinite/, "A stacker must complete all three events before receiving an All-Around total.");
-assert.match(client, /group\.stage\.key === "finals"/, "Complete Final totals must take priority over Preliminary totals within a division.");
+const aggregate = client.slice(client.indexOf("function allAroundAggregateRows("), client.indexOf("const ALL_AROUND_EVENTS"));
+assert.match(aggregate, /isIndividualType\(result\.type\) && isFinalStage\(result\.stage\)/, "Overall All-Around must use Finals only.");
+assert.doesNotMatch(aggregate, /isPreliminaryStage/);
 assert.match(client, /allAroundAggregateGroups/, "All-Around must include overall, gender, and normal/special category groups.");
-assert.match(client, /allAroundAggregateRows\(payload\)/, "All-Around aggregate groups must use all complete stackers across available stages.");
+assert.match(client, /allAroundAggregateRows\(payload\)/, "All-Around aggregate groups must use complete Finals-only stackers.");
 assert.match(client, /All-Around Female \(Special\)/, "All-Around must include gender plus category sections.");
 assert.match(client, /const displayGroups = aggregateGroups/, "Aggregate All-Around groups must remain the primary standings.");
 assert.match(client, /incompleteCount/, "Public All-Around summary must show incomplete stackers.");

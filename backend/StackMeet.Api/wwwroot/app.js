@@ -64,20 +64,20 @@ const competitionReportPresets = {
   individual_prelim_div: { stage: "prelims", type: "i", division: "all-div", event: "all", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
   doubles_prelim_div: { stage: "prelims", type: "d", division: "all-div", event: "all-min", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
   relay_prelim_div: { stage: "prelims", type: "r", division: "all-div", event: "3-6-3", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
-  individual_finals_div: { stage: "all", type: "i", division: "all-div", event: "all", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
-  doubles_finals_div: { stage: "all", type: "d", division: "all-div", event: "all-min", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
-  relay_finals_div: { stage: "all", type: "r", division: "all-div", event: "3-6-3", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
+  individual_finals_div: { stage: "finals", type: "i", division: "all-div", event: "all", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
+  doubles_finals_div: { stage: "finals", type: "d", division: "all-div", event: "all-min", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
+  relay_finals_div: { stage: "finals", type: "r", division: "all-div", event: "3-6-3", limit: "0", gender: "", specialMode: "combined", highlight: "yes" },
   female_soc: { stage: "finals", type: "i", division: "all", event: "all-min", limit: "10", gender: "F", specialMode: "combined", highlight: "yes" },
   male_soc: { stage: "finals", type: "i", division: "all", event: "all-min", limit: "10", gender: "M", specialMode: "combined", highlight: "yes" },
   doubles_soc: { stage: "finals", type: "d", division: "all", event: "cycle", limit: "10", gender: "", specialMode: "combined", highlight: "yes" },
   relay_soc: { stage: "finals", type: "r", division: "all", event: "3-6-3", limit: "10", gender: "", specialMode: "combined", highlight: "yes" },
-  top3_female_allaround: { stage: "all", type: "i", division: "all", event: "all-around", limit: "3", gender: "F", specialMode: "combined", highlight: "no" },
-  top3_male_allaround: { stage: "all", type: "i", division: "all", event: "all-around", limit: "3", gender: "M", specialMode: "combined", highlight: "no" },
-  top3_doubles_cycle: { stage: "all", type: "d", division: "all", event: "cycle", limit: "3", gender: "", specialMode: "combined", highlight: "no" },
-  top3_relay_363: { stage: "all", type: "r", division: "all", event: "3-6-3", limit: "3", gender: "", specialMode: "combined", highlight: "no" },
-  ss_top3_allaround: { stage: "all", type: "i", division: "all", event: "all-around", limit: "3", gender: "", specialMode: "special", highlight: "no" },
-  ss_top3_male_allaround: { stage: "all", type: "i", division: "all", event: "all-around", limit: "3", gender: "M", specialMode: "special", highlight: "no" },
-  ss_top3_female_allaround: { stage: "all", type: "i", division: "all", event: "all-around", limit: "3", gender: "F", specialMode: "special", highlight: "no" }
+  top3_female_allaround: { stage: "finals", type: "i", division: "all", event: "all-around", limit: "3", gender: "F", specialMode: "combined", highlight: "no" },
+  top3_male_allaround: { stage: "finals", type: "i", division: "all", event: "all-around", limit: "3", gender: "M", specialMode: "combined", highlight: "no" },
+  top3_doubles_cycle: { stage: "finals", type: "d", division: "all", event: "cycle", limit: "3", gender: "", specialMode: "combined", highlight: "no" },
+  top3_relay_363: { stage: "finals", type: "r", division: "all", event: "3-6-3", limit: "3", gender: "", specialMode: "combined", highlight: "no" },
+  ss_top3_allaround: { stage: "finals", type: "i", division: "all", event: "all-around", limit: "3", gender: "", specialMode: "special", highlight: "no" },
+  ss_top3_male_allaround: { stage: "finals", type: "i", division: "all", event: "all-around", limit: "3", gender: "M", specialMode: "special", highlight: "no" },
+  ss_top3_female_allaround: { stage: "finals", type: "i", division: "all", event: "all-around", limit: "3", gender: "F", specialMode: "special", highlight: "no" }
 };
 
 const reportColumns = [
@@ -3552,7 +3552,8 @@ function finalMissingReportRows(filters) {
 function finalsReportDefinition() {
   const kind = val("finalsReportKind") || "final-results";
   const filters = finalsReportFilters();
-  const stage = val("finalsReportStage") || "Finals";
+  const stage = kind === "overall" ? "Finals" : val("finalsReportStage") || "Finals";
+  if (kind === "overall") setValue("finalsReportStage", "Finals");
   if (stage !== "Finals" || ["final-results", "overall", "division", "event", "missing", "scratch"].includes(kind)) return stageReportDefinition(stage, kind, filters);
   const limit = Number(val("finalsLimit")) || 0;
   let title = "", headers = [], rows = [], contributors = null;
@@ -4557,7 +4558,7 @@ function normalizeEventName(event) {
 function competitionStageMatches(stage) {
   const selected = val("competitionStage") || "prelims";
   const normalized = String(stage || "").toLowerCase();
-  if (selected === "all") return ["finals", "soc", "all"].includes(normalized);
+  if (selected === "all") return normalized === "finals";
   return normalized === selected;
 }
 

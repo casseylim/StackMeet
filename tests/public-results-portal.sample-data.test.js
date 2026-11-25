@@ -154,6 +154,7 @@ const metricRows = [
 assert.deepEqual(JSON.parse(JSON.stringify(portal.rankAllAroundMetric(metricRows, row => row.total).map(item => [item.rank, item.gap]))), [[1, 0], [2, 2], [2, 2]]);
 
 const availabilityPayload = {
+  stackers: [{ id: "A", name: "Alpha" }],
   results: [
     result("A", "Prelim", "Individual", "3-3-3", [5]),
     result("A", "Preliminary", "Individual", "3-6-3", [6]),
@@ -164,7 +165,19 @@ const availabilityPayload = {
 };
 assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "preliminary"), true);
 assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "finals"), false);
-assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "allaround"), true);
+assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "allaround"), false, "Prelims alone cannot publish Overall All-Around.");
+const finalOnlyPayload = { ...availabilityPayload, results: [
+  ...availabilityPayload.results,
+  result("A", "Final", "Individual", "3-3-3", [8]),
+  result("A", "Finals", "Individual", "3-6-3", [9])
+] };
+assert.equal(portal.sectionHasPublishedResults(finalOnlyPayload, "allaround"), false, "Prelims cannot fill a missing Finals event.");
+finalOnlyPayload.results.push(result("A", "Finals", "Individual", "Cycle", [10]));
+assert.equal(portal.sectionHasPublishedResults(finalOnlyPayload, "allaround"), true);
+assert.equal(portal.allAroundAggregateRows(finalOnlyPayload)[0].total, 27, "Faster preliminary times must never replace Finals times.");
+assert.equal(portal.allAroundAggregateRows(finalOnlyPayload)[0].sourceStage.key, "finals");
+const scratchPayload = { ...finalOnlyPayload, results: finalOnlyPayload.results.slice(0, -1).concat(result("A", "Final", "Individual", "Cycle", [999], 999)) };
+assert.equal(portal.sectionHasPublishedResults(scratchPayload, "allaround"), false, "Preliminary results cannot substitute for a scratch.");
 assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "doubles"), true);
 assert.equal(portal.sectionHasPublishedResults(availabilityPayload, "relay"), true);
 assert.equal(portal.sectionHasPublishedResults({ results: [] }, "medals"), false);
@@ -209,7 +222,10 @@ portal.renderAllAround({
     result("B", "Final", "Individual", "3-6-3", [6]),
     result("B", "Final", "Individual", "Cycle", [7]),
     result("C", "Final", "Individual", "3-3-3", [4]),
-    result("C", "Final", "Individual", "3-6-3", [5])
+    result("C", "Final", "Individual", "3-6-3", [5]),
+    result("C", "Prelims", "Individual", "Cycle", [1]),
+    result("A", "Prelims", "Individual", "3-3-3", [1]),
+    ...["3-3-3", "3-6-3", "Cycle"].map(event => result("D", "Prelims", "Individual", event, [1]))
   ]
 }, false);
 const allAroundRows = descendants(allAroundGroups, "tbody")[0].children;
