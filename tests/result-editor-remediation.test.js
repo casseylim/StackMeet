@@ -38,7 +38,7 @@ function fixture() {
     confirm: () => context.confirmAnswer, confirmAnswer: true, alert() {},
     URL, URLSearchParams, structuredClone, Blob, crypto: { randomUUID: () => "synthetic-id" }, window: { addEventListener() {} }
   });
-  for (const name of ["js/i18n/I18n.js", "js/storage/ApiProvider.js", "js/storage/StackerApi.js", "js/storage/Repository.js", "js/results/BestResultEngine.js", "js/reports/FinalsReportEngine.js", "js/ParticipantTeams.js", "js/results/ScoringEntry.js"]) {
+  for (const name of ["js/i18n/I18n.js", "js/storage/ApiProvider.js", "js/storage/StackerApi.js", "js/storage/Repository.js", "js/results/BestResultEngine.js", "js/reports/FinalsReportEngine.js", "js/ParticipantTeams.js", "js/results/ScoringEntry.js", "js/reports/ReportPresentation.js"]) {
     vm.runInContext(read(name), context);
   }
   const source = read("app.js").replace(/\n(?:void\s+)?initializeApplication\(\)(?:\.catch\(showBootError\))?;\s*$/, "\n");
