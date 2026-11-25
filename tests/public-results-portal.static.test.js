@@ -15,6 +15,7 @@ const styles = read("backend/StackMeet.Api/wwwroot/results/results.css");
 const adminHtml = read("backend/StackMeet.Api/wwwroot/index.html");
 const adminClient = read("backend/StackMeet.Api/wwwroot/app.js");
 const sourceAdminClient = read("backend/StackMeet.Api/wwwroot/app.js");
+const reportPresentation = read("backend/StackMeet.Api/wwwroot/js/reports/ReportPresentation.js");
 
 assert.match(program, /AddSignalR\(\)/, "SignalR must be registered.");
 assert.match(program, /MapHub<ResultsHub>\("\/hubs\/results"\)/, "The results hub must be mapped.");
@@ -250,7 +251,9 @@ assert.match(adminClient, /async function importSqlStackersFromState/, "XML impo
 assert.match(adminClient, /stackerApi\.update\(selectedSqlCompetitionId, existing\.id, runtimeStackerToSql\(stacker\)\)[\s\S]*stackerApi\.create\(selectedSqlCompetitionId, runtimeStackerToSql\(stacker\)\)/, "XML import must upsert exported stackers into SQL-native storage.");
 assert.match(adminClient, /node\("timedRelayDivision", relay\.timedRelayDivision/, "XML export must include relay timed-division overrides.");
 assert.match(adminClient, /node\("headToHeadDivision", relay\.headToHeadDivision/, "XML export must include relay head-to-head division overrides.");
-assert.match(adminClient, /<colgroup><col class="event-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><\/colgroup>/, "Time sheets must define one event column and three even attempt columns.");
+assert.match(reportPresentation, /<colgroup><col class="event-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><col class="attempt-col" \/><\/colgroup>/, "Time sheets must define one event column and three even attempt columns.");
+assert.match(adminClient, /function prelimTimeSheetHtml\(sheet\)\s*\{\s*return window\.StackMeetReportPresentation\.prelimTimeSheetHtml\(sheet, \{ esc, t, tf, brandText \}\);/, "Active time sheet wrapper must use the tested module.");
+assert.match(adminHtml, /src="js\/reports\/ReportPresentation\.js\?[^"]+"[\s\S]*src="app\.js\?/, "The tested presentation module must load before app.js.");
 assert.match(adminClient, /"finals-doubles": \{ typeKey: "2"[\s\S]*"finals-relay": \{ typeKey: "3"[\s\S]*sheets\.map\(finalTimeSheetHtml\)/, "Doubles and Relay finals must use the same final time sheet renderer as Individual finals.");
 assert.match(adminClient, /defaultChineseTranslations\["Preliminary Time Sheets"\]/, "Print Center headings must be covered by the Chinese translation pack.");
 assert.match(adminClient, /"Preliminary Time Sheets": "Borang Masa Awal"/, "Print Center headings must be covered by the Malay translation pack.");
