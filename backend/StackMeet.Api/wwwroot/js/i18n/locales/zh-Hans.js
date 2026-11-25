@@ -356,6 +356,11 @@
   "Results were rejected. Your draft was kept.": "成绩未被接受。草稿已保留。",
   "Open the result editor before saving.": "保存前请打开成绩编辑器。",
   "Results saved.": "成绩已保存。",
-  "Your draft changed. Save again to review the updated draft.": "草稿已更改。请再次点击保存以查看更新后的草稿。"
+  "Your draft changed. Save again to review the updated draft.": "草稿已更改。请再次点击保存以查看更新后的草稿。",
+  "Each total combines the best valid Finals time from 3-3-3, 3-6-3, and Cycle. Preliminary times do not count.": "总成绩由决赛 3-3-3、3-6-3 和 Cycle 的有效最佳成绩相加得出，不计入预赛成绩。",
+  "Individual division rankings use Finals times only.": "个人组别排名仅使用决赛成绩。",
+  "Finals-only three-event standings": "仅限决赛的三项综合排名",
+  "Waiting for Finals three-event totals": "等待决赛三项总成绩",
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "选手在 3-3-3、3-6-3 和 Cycle 的有效决赛成绩发布后才会列入排名。"
 });
 })(typeof window !== "undefined" ? window : globalThis);

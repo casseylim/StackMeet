@@ -89,6 +89,11 @@
   "Results were rejected. Your draft was kept.": "Results were rejected. Your draft was kept.",
   "Open the result editor before saving.": "Open the result editor before saving.",
   "Results saved.": "Results saved.",
-  "Your draft changed. Save again to review the updated draft.": "Your draft changed. Save again to review the updated draft."
+  "Your draft changed. Save again to review the updated draft.": "Your draft changed. Save again to review the updated draft.",
+  "Each total combines the best valid Finals time from 3-3-3, 3-6-3, and Cycle. Preliminary times do not count.": "Each total combines the best valid Finals time from 3-3-3, 3-6-3, and Cycle. Preliminary times do not count.",
+  "Individual division rankings use Finals times only.": "Individual division rankings use Finals times only.",
+  "Finals-only three-event standings": "Finals-only three-event standings",
+  "Waiting for Finals three-event totals": "Waiting for Finals three-event totals",
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle."
 });
 })(typeof window !== "undefined" ? window : globalThis);

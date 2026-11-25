@@ -337,28 +337,7 @@
       isFinalStage(result.stage) && isIndividualType(result.type));
     const doublesResults = results.filter(result => isDoublesType(result.type));
     const relayResults = results.filter(result => isRelayType(result.type));
-    const allAroundParticipants = new Set();
-    const allAroundGroups = new Map();
-
-    results
-      .filter(result => isIndividualType(result.type))
-      .forEach(result => {
-        const event = allAroundEventKey(result.event);
-        const best = bestTime(result);
-        if (!event || !Number.isFinite(best)) return;
-        const participant = String(result.participant || "");
-        if (!participant) return;
-        const stage = isFinalStage(result.stage) ? "finals" : isPreliminaryStage(result.stage) ? "preliminary" : "";
-        if (!stage) return;
-        const key = `${participant}::${stage}`;
-        if (!allAroundGroups.has(key)) allAroundGroups.set(key, new Set());
-        allAroundGroups.get(key).add(event);
-      });
-    allAroundGroups.forEach((events, key) => {
-      if (ALL_AROUND_EVENTS.every(event => events.has(event.key))) {
-        allAroundParticipants.add(key.split("::")[0]);
-      }
-    });
+    const allAroundCount = allAroundAggregateRows(payload).length;
 
     const finalPodiumSources = results.filter(result =>
       isFinalStage(result.stage) && Number.isFinite(bestTime(result)));
@@ -366,7 +345,7 @@
     const sections = [
       { route: "Preliminary", label: "Preliminary", description: "Division and event rankings", count: individualPreliminary.length, noun: "result" },
       { route: "Finals", label: "Finals", description: "Championship rankings and podiums", count: individualFinals.length, noun: "result" },
-      { route: "AllAround", label: "All Around", description: "Combined three-event standings", count: allAroundParticipants.size, noun: "complete stacker" },
+      { route: "AllAround", label: "All Around", description: "Finals-only three-event standings", count: allAroundCount, noun: "complete stacker" },
       { route: "Doubles", label: "Doubles", description: "Normal and child/parent teams", count: doublesResults.length, noun: "result" },
       { route: "Relay", label: "Relay", description: "Team relay standings", count: relayResults.length, noun: "result" },
       { route: "Medals", label: "Medal Table", description: "Final podiums by organization", count: finalPodiumSources.length, noun: "final entry" }
@@ -414,20 +393,7 @@
       return results.some(result => isFinalStage(result.stage) && Number.isFinite(bestTime(result)));
     }
     if (selectedSection === "allaround" || selectedSection === "all-around") {
-      const completed = new Map();
-      results
-        .filter(result => isIndividualType(result.type))
-        .forEach(result => {
-          const event = allAroundEventKey(result.event);
-          const stage = isFinalStage(result.stage) ? "finals" : isPreliminaryStage(result.stage) ? "preliminary" : "";
-          const participant = String(result.participant || "");
-          if (!event || !stage || !participant || !Number.isFinite(bestTime(result))) return;
-          const key = `${participant}::${stage}`;
-          if (!completed.has(key)) completed.set(key, new Set());
-          completed.get(key).add(event);
-        });
-      return [...completed.values()].some(events =>
-        ALL_AROUND_EVENTS.every(event => events.has(event.key)));
+      return allAroundAggregateRows(payload).length > 0;
     }
     return results.length > 0;
   }
@@ -827,59 +793,6 @@
   }
 
   function renderAllAround(payload, official) {
-    const results = Array.isArray(payload.results) ? payload.results : [];
-    const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
-    const stackerById = new Map(stackers.map(stacker => [String(stacker.id), stacker]));
-    const stages = [
-      { key: "finals", label: "Final", matches: isFinalStage },
-      { key: "preliminary", label: "Preliminary", matches: isPreliminaryStage }
-    ];
-    const rowsByStageAndDivision = new Map();
-
-    results
-      .filter(result => isIndividualType(result.type))
-      .forEach(result => {
-        const stage = stages.find(item => item.matches(result.stage));
-        const eventKey = allAroundEventKey(result.event);
-        const best = bestTime(result);
-        if (!stage || !eventKey || !Number.isFinite(best)) return;
-
-        const stacker = stackerById.get(String(result.participant)) || {};
-        const participantId = String(result.participant || "");
-        const division = String(stacker.division || "Open / Unassigned").trim();
-        const stageDivisionKey = `${stage.key}\u0000${division}`;
-        if (!rowsByStageAndDivision.has(stageDivisionKey)) {
-          rowsByStageAndDivision.set(stageDivisionKey, { stage, division, participants: new Map() });
-        }
-
-        const participants = rowsByStageAndDivision.get(stageDivisionKey).participants;
-        if (!participants.has(participantId)) {
-          participants.set(participantId, { participantId, stacker, times: {} });
-        }
-        const row = participants.get(participantId);
-        if (!Number.isFinite(row.times[eventKey]) || best < row.times[eventKey]) row.times[eventKey] = best;
-      });
-
-    const completeGroups = [...rowsByStageAndDivision.values()]
-      .map(group => ({
-        ...group,
-        rows: [...group.participants.values()]
-          .filter(row => ALL_AROUND_EVENTS.every(event => Number.isFinite(row.times[event.key])))
-          .map(row => ({
-            ...row,
-            total: ALL_AROUND_EVENTS.reduce((sum, event) => sum + row.times[event.key], 0)
-          }))
-      }))
-      .filter(group => group.rows.length);
-
-    const divisions = new Map();
-    completeGroups.forEach(group => {
-      if (!divisions.has(group.division)) divisions.set(group.division, []);
-      divisions.get(group.division).push(group);
-    });
-
-    const selectedGroups = [...divisions.values()].map(groups =>
-      groups.find(group => group.stage.key === "finals") || groups[0]);
     const aggregateRows = allAroundAggregateRows(payload);
     const aggregateGroups = allAroundAggregateGroups(aggregateRows);
     const displayGroups = aggregateGroups;
@@ -887,22 +800,17 @@
     const container = el("allAroundGroups");
     if (!container) return;
     container.replaceChildren();
-    const stackerCount = aggregateGroups[0]?.rows.length || selectedGroups.reduce((sum, group) => sum + group.rows.length, 0);
+    const stackerCount = aggregateRows.length;
     const allAroundTotalStackers = Array.isArray(payload.stackers) ? payload.stackers.length : stackerCount;
     const incompleteCount = Math.max(allAroundTotalStackers - stackerCount, 0);
-    text("allAroundSummary", displayGroups.length
-      ? `${selectedGroups.length} division${selectedGroups.length === 1 ? "" : "s"} · ${stackerCount} complete stacker${stackerCount === 1 ? "" : "s"}`
-      : "Waiting for three-event totals");
-    if (displayGroups.length) {
-      text("allAroundSummary", `${displayGroups.length} group${displayGroups.length === 1 ? "" : "s"} · ${stackerCount} complete stacker${stackerCount === 1 ? "" : "s"}`);
-    }
+    text("allAroundSummary", t("Waiting for Finals three-event totals"));
 
     if (!displayGroups.length) {
       const empty = make("section", "panel empty-state compact");
       empty.append(
         make("span", "empty-icon clock", "↗"),
         make("h2", "", "All-Around standings are not available yet"),
-        make("p", "", "A stacker appears after valid times have been published for 3-3-3, 3-6-3, and Cycle.")
+        make("p", "", "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.")
       );
       container.append(empty);
       renderAllAroundByDivision([], payload, official);
@@ -928,7 +836,7 @@
   function allAroundAggregateGroups(rows) {
     if (!rows.length) return [];
 
-    const stage = rows[0].sourceStage || { key: "all", label: "Best" };
+    const stage = rows[0].sourceStage || { key: "finals", label: "Final" };
     const definitions = [
       { key: "overall", title: "All-Around (Normal + Special)", order: 10, filter: () => true },
       { key: "female-overall", title: "All-Around Female (Normal + Special)", order: 20, filter: row => row.stacker.gender === "F" },
@@ -959,11 +867,11 @@
   function allAroundAggregateRows(payload) {
     const results = Array.isArray(payload.results) ? payload.results : [];
     const stackers = Array.isArray(payload.stackers) ? payload.stackers : [];
-    const stage = { key: "all", label: "Best" };
+    const stage = { key: "finals", label: "Final" };
     const timesByParticipant = new Map();
 
     results
-      .filter(result => isIndividualType(result.type) && (isFinalStage(result.stage) || isPreliminaryStage(result.stage)))
+      .filter(result => isIndividualType(result.type) && isFinalStage(result.stage))
       .forEach(result => {
         const eventKey = allAroundEventKey(result.event);
         const best = bestTime(result);

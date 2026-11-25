@@ -368,6 +368,11 @@
   "Results were rejected. Your draft was kept.": "Keputusan ditolak. Draf anda dikekalkan.",
   "Open the result editor before saving.": "Buka editor keputusan sebelum menyimpan.",
   "Results saved.": "Keputusan disimpan.",
-  "Your draft changed. Save again to review the updated draft.": "Draf anda telah berubah. Tekan Simpan sekali lagi untuk menyemak draf terkini."
+  "Your draft changed. Save again to review the updated draft.": "Draf anda telah berubah. Tekan Simpan sekali lagi untuk menyemak draf terkini.",
+  "Each total combines the best valid Finals time from 3-3-3, 3-6-3, and Cycle. Preliminary times do not count.": "Setiap jumlah menggabungkan masa terbaik yang sah dalam acara akhir 3-3-3, 3-6-3 dan Cycle. Masa pusingan awal tidak dikira.",
+  "Individual division rankings use Finals times only.": "Kedudukan divisyen individu menggunakan masa pusingan akhir sahaja.",
+  "Finals-only three-event standings": "Kedudukan tiga acara pusingan akhir sahaja",
+  "Waiting for Finals three-event totals": "Menunggu jumlah tiga acara pusingan akhir",
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "Peserta disenaraikan selepas masa akhir yang sah diterbitkan untuk 3-3-3, 3-6-3 dan Cycle."
 });
 })(typeof window !== "undefined" ? window : globalThis);
