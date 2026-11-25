@@ -1153,6 +1153,15 @@ static async Task RunStorageAuthorityAcceptanceAsync(int port, string key, Stack
     }
     finally { Directory.Delete(root, recursive: true); }
 
+    // Corruption injection is confined to the separate generated fixture, never the original captured evidence.
+    empty.Status = "Closed";
+    await db.SaveChangesAsync();
+    await governance.CaptureFinalizedSnapshotAsync(empty.Id, null);
+    var badHash = new string('0', 64);
+    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE [dbo].[FinalsRankingGovernance] SET [SnapshotSha256] = {badHash} WHERE [CompetitionId] = {empty.Id}");
+    Assert(Has(await Inspect(empty.Id), "AUTH-06-SNAPSHOT-HASH-MISMATCH"), "ENG04C corrupt synthetic digest reported");
+    Assert((await governance.GetAsync(empty.Id))?.SnapshotSha256 == badHash, "ENG04C corrupt evidence never silently repaired");
+
     var afterState = await db.CompetitionStates.AsNoTracking().SingleAsync(x => x.CompetitionKey == key);
     var afterEvidence = await governance.GetAsync(competition.Id);
     Assert(afterState.JsonData == mixedJson && afterState.StateRevision == 7
