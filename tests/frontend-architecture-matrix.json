@@ -79,6 +79,10 @@
         "mode": "classic"
       },
       {
+        "src": "js/ParticipantTeams.js",
+        "mode": "classic"
+      },
+      {
         "src": "app.js",
         "mode": "classic"
       }
