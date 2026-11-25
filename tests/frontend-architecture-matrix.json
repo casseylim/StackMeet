@@ -83,6 +83,10 @@
         "mode": "classic"
       },
       {
+        "src": "js/results/ScoringEntry.js",
+        "mode": "classic"
+      },
+      {
         "src": "app.js",
         "mode": "classic"
       }
