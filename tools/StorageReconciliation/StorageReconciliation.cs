@@ -227,9 +227,8 @@ public static class StorageReconciliation
             }
             if (record.SnapshotJson is null || record.SnapshotSha256 is null)
             { Add("AUTH-06-SNAPSHOT-MISSING", "Review"); return; }
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(record.SnapshotJson)));
-            if (!string.Equals(hash, record.SnapshotSha256, StringComparison.OrdinalIgnoreCase))
-                Add("AUTH-06-SNAPSHOT-HASH-MISMATCH", "Review");
+            if (SnapshotDigestFinding(record) is { } digestFinding)
+                Add(digestFinding.Code, digestFinding.Severity, digestFinding.Count);
             if (record.SnapshotSchemaVersion is not (FinalsRankingGovernanceService.LegacySnapshotSchemaVersion
                 or FinalsRankingGovernanceService.GovernedV2SnapshotSchemaVersion)
                 || FinalsRankingRuleVersions.NormalizeExplicit(record.RuleVersion) is null)
@@ -297,6 +296,16 @@ public static class StorageReconciliation
             catch (IOException) { Add("AUTH-07-ASSET-READ-FAILED", "Inconclusive"); }
             catch (UnauthorizedAccessException) { Add("AUTH-07-ASSET-READ-FAILED", "Inconclusive"); }
         }
+    }
+
+    // Pure evidence validation shared by SQL inspection and synthetic in-memory corruption tests.
+    internal static ReconciliationFinding? SnapshotDigestFinding(FinalsRankingGovernanceRecord record)
+    {
+        if (record.SnapshotJson is null || record.SnapshotSha256 is null)
+            return new("AUTH-06-SNAPSHOT-MISSING", "Review", 1);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(record.SnapshotJson)));
+        return string.Equals(hash, record.SnapshotSha256, StringComparison.OrdinalIgnoreCase)
+            ? null : new("AUTH-06-SNAPSHOT-HASH-MISMATCH", "Review", 1);
     }
 
     static bool IsReparse(string path) =>
