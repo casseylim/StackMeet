@@ -1153,14 +1153,28 @@ static async Task RunStorageAuthorityAcceptanceAsync(int port, string key, Stack
     }
     finally { Directory.Delete(root, recursive: true); }
 
-    // Corruption injection is confined to the separate generated fixture, never the original captured evidence.
+    // SQL rejects modification of captured evidence. Assert that guard, then test the
+    // same reconciliation digest evaluator using an in-memory copy, never disabling the trigger.
     empty.Status = "Closed";
     await db.SaveChangesAsync();
-    await governance.CaptureFinalizedSnapshotAsync(empty.Id, null);
+    var emptyCaptured = await governance.CaptureFinalizedSnapshotAsync(empty.Id, null);
     var badHash = new string('0', 64);
-    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE [dbo].[FinalsRankingGovernance] SET [SnapshotSha256] = {badHash} WHERE [CompetitionId] = {empty.Id}");
-    Assert(Has(await Inspect(empty.Id), "AUTH-06-SNAPSHOT-HASH-MISMATCH"), "ENG04C corrupt synthetic digest reported");
-    Assert((await governance.GetAsync(empty.Id))?.SnapshotSha256 == badHash, "ENG04C corrupt evidence never silently repaired");
+    bool immutableGuard = false;
+    try
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE [dbo].[FinalsRankingGovernance] SET [SnapshotSha256] = {badHash} WHERE [CompetitionId] = {empty.Id}");
+    }
+    catch (SqlException ex) when (ex.Number == 51041) { immutableGuard = true; }
+    Assert(immutableGuard, "ENG04C SQL immutability trigger rejects attempted digest mutation");
+    var stillCaptured = await governance.GetAsync(empty.Id);
+    Assert(stillCaptured?.SnapshotSha256 == emptyCaptured.SnapshotSha256
+        && stillCaptured?.SnapshotJson == emptyCaptured.SnapshotJson, "ENG04C rejected update leaves stored evidence unchanged");
+    var alteredCopy = emptyCaptured with { SnapshotSha256 = badHash };
+    var digestFinding = StackMeet.Tools.StorageReconciliation.StorageReconciliation.SnapshotDigestFinding(alteredCopy);
+    Assert(digestFinding?.Code == "AUTH-06-SNAPSHOT-HASH-MISMATCH" && digestFinding.Count == 1,
+        "ENG04C corrupt in-memory synthetic digest detected by shared reconciliation evaluator");
+    Assert(StackMeet.Tools.StorageReconciliation.StorageReconciliation.SnapshotDigestFinding(emptyCaptured) is null,
+        "ENG04C valid synthetic digest accepted by shared reconciliation evaluator");
 
     var afterState = await db.CompetitionStates.AsNoTracking().SingleAsync(x => x.CompetitionKey == key);
     var afterEvidence = await governance.GetAsync(competition.Id);
