@@ -35,6 +35,7 @@ function loadLegacyApp() {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "results", "BestResultEngine.js"), "utf8"), context, { filename: "BestResultEngine.js" });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "reports", "FinalsReportEngine.js"), "utf8"), context, { filename: "FinalsReportEngine.js" });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "ParticipantTeams.js"), "utf8"), context, { filename: "ParticipantTeams.js" });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "js", "results", "ScoringEntry.js"), "utf8"), context, { filename: "ScoringEntry.js" });
   let source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
   source = source.replace(/\n(?:void\s+)?initializeApplication\(\)(?:\.catch\(showBootError\))?;\s*$/, "\n");
   source += `\nglobalThis.__stackMeetHooks = {

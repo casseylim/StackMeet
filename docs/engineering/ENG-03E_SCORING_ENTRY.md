@@ -1,0 +1,11 @@
+# ENG-03E — Preliminary and Finals scoring entry boundary (draft)
+
+Base: 3900b645067f0c3eeb7531f3a108455d11ebbd92 (ENG-03E0 validated). Extract seven existing helpers into js/results/ScoringEntry.js, keeping app.js compatibility wrappers. Time parsing, compact/dotted participant entry IDs, legacy result normalization, preliminary round setting normalization, preliminary display formatting, Finals attempt display and finite-attempt selection preserve their original implementations. Preliminary display receives the existing calculateBestResult adapter explicitly; no new classifier or ranking policy.
+
+Preserve exact scratch sentinel 999, three-decimal input, compact millisecond entry, minutes/seconds notation, positive time limits, blank and invalid handling, legacy result type aliases, stages, IDs and revision values. These are existing operator conventions, not new server acceptance rules. Existing quirks (including zero display formatting and preliminary missing-result display) remain unchanged, pending rule reconciliation. Do not conflate entry limits with storage limits.
+
+Keep DOM focus, editor baselines, revision conflict review, result write and retry paths, SQL authority, qualification, Finals tie policy and historical placements unchanged. In particular ENG-03E0 Finals-only Overall and All-Around calculations remain untouched; preliminary results are not used for overall ranking. No rule decisions beyond the owner's existing clarification.
+
+Update the three full-app VM harnesses and ordered shell manifest; direct scoring-entry test covers boundaries, scratch, legacy normalization, attempts, revision preservation, existing best-result classifier and browser wrapper wiring. Normalize CRLF in source extraction tests. Hosted CI and actual browser validation pending; further editor/controller extraction and policy reconciliation remain outstanding.
+
+Mandatory deployment gate: include the new module with matching app.js and index.html in the approved coordinated static asset inventory. Never overwrite, upload, regenerate or delete existing production IIS web.config; exclude from upload/sync/rollback manifests, secure backup and identical pre/post SHA-256 required. Stop if preservation cannot be guaranteed. No master merge, schema changes or production deployment.
