@@ -1100,7 +1100,7 @@ static async Task RunStorageAuthorityAcceptanceAsync(int port, string key, Stack
 
     var clean = await Inspect(empty.Id);
     Assert(clean.Outcome == "Pass" && clean.Findings.Count == 0, "ENG04C clean empty competition is not a defect");
-    emptyState.JsonData = legacyJson;
+    emptyState.JsonData = legacyJson.Replace("\"status\":\"Approved\"", "\"status\":\"Approved\",\"participantType\":\"Individual\",\"event\":\"Cycle\"", StringComparison.Ordinal);
     await db.SaveChangesAsync();
     var ambiguous = await Inspect(empty.Id);
     Assert(ambiguous.Outcome == "Review" && Has(ambiguous, "AUTH-01-EMPTY-SQL-LEGACY-ROSTER")
