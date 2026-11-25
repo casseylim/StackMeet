@@ -357,6 +357,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
             await isolated.SaveChangesAsync();
             await RunResultAcceptanceAsync(port, eng.Id, engKey, signingKey, isolated);
             await RunPublicationAcceptanceAsync(port, engKey + "PUB", isolated);
+            await RunStorageAuthorityAcceptanceAsync(port, engKey + "ST", isolated);
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
         var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
@@ -911,4 +912,167 @@ static async Task RunPublicationAcceptanceAsync(int port, string key, StackMeetD
         "ENG02D archived live results and profile links unavailable");
     Assert(await Status("/api/public/stackers/" + identity.NadiTrackId) == HttpStatusCode.OK,
         "ENG02D public career profile remains available after competition archive");
+}
+
+// ENG-04B: characterize the existing authority contract in the disposable LocalDB HTTP harness.
+static async Task RunStorageAuthorityAcceptanceAsync(int port, string key, StackMeetDbContext db)
+{
+    var now = DateTime.UtcNow;
+    var day = new DateOnly(2026, 1, 1);
+    var competition = new StackMeet.Api.Models.Competition
+    {
+        CompetitionCode = key, CompetitionKey = key, CompetitionName = "SQL authority fixture",
+        Venue = "LocalDB", StartDate = day, EndDate = day, Status = "Active",
+        CreatedAt = now, UpdatedAt = now, ResultsRevision = 2
+    };
+    db.Competitions.Add(competition);
+    await db.SaveChangesAsync();
+    const string legacyJson = """
+    {
+      "settings":{"name":"JSON display name","advanceIndividuals":8},
+      "stackers":[{"id":"A1","name":"Synthetic One","gender":"F","org":"Independent","country":"MY","region":"","division":"U12","special":"No","email":"private@example.test"}],
+      "results":[{"id":"legacy-result","stage":"Finals","type":"Individual","participant":"A1","event":"Cycle","attempts":[1.111],"penalty":0}],
+      "doubles":[{"id":"D1","one":"A1","parentName":"External Parent","type":"child_parent"}],
+      "relays":[],
+      "finalQualificationSnapshots":[{"id":"Q1","status":"Approved","selectedQualifiers":[{"participantId":"A1"}]}]
+    }
+    """;
+    var state = new StackMeet.Api.Models.CompetitionState
+    {
+        CompetitionKey = key, JsonData = legacyJson, SchemaVersion = "0.9-online",
+        StateRevision = 7, CreatedAt = now, UpdatedAt = now
+    };
+    using var viewer = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(10) };
+    using var maintenance = new HttpClient { BaseAddress = viewer.BaseAddress, Timeout = TimeSpan.FromSeconds(10) };
+    maintenance.DefaultRequestHeaders.Add("X-StackMeet-Api-Key", "phase-e-http-test-key");
+    string route = $"/api/public/competitions/{key}/results";
+    async Task<System.Text.Json.JsonElement> ReadPublic()
+    {
+        using var response = await viewer.GetAsync(route);
+        Assert(response.StatusCode == HttpStatusCode.OK, "ENG04B public fixture read");
+        using var doc = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.Clone();
+    }
+    string[] Roster(System.Text.Json.JsonElement root) => root.GetProperty("stackers").EnumerateArray()
+        .Select(row => row.GetProperty("id").GetString() ?? "").ToArray();
+    using (var missing = await viewer.GetAsync(route))
+        Assert(missing.StatusCode == HttpStatusCode.NotFound, "ENG04B missing saved state is not a public competition projection");
+    db.CompetitionStates.Add(state);
+    await db.SaveChangesAsync();
+    var legacy = await ReadPublic();
+    Assert(Roster(legacy).SequenceEqual(new[] { "A1" }), "ENG04B legacy-only public roster fallback");
+    Assert(legacy.GetProperty("results").GetArrayLength() == 0, "ENG04B legacy-only results never become SQL results");
+    Assert(!legacy.GetRawText().Contains("private@example.test"), "ENG04B legacy roster private field excluded");
+    Assert(legacy.GetProperty("competition").GetProperty("name").GetString() == "SQL authority fixture"
+        && legacy.GetProperty("settings").GetProperty("name").GetString() == "JSON display name",
+        "ENG04B SQL competition and JSON display settings remain distinct");
+
+    var stacker = new StackMeet.Api.Models.Stacker
+    {
+        CompetitionId = competition.Id, StackerCode = "A1", FirstName = "Synthetic", LastName = "One",
+        Gender = "F", Country = "MY", CustomDivision = "U12", Paid = "No", CheckedIn = "No",
+        CreatedAt = now, UpdatedAt = now, Email = "private@example.test"
+    };
+    db.Stackers.Add(stacker);
+    await db.SaveChangesAsync();
+    var matched = await ReadPublic();
+    var before = legacy.GetProperty("stackers")[0];
+    var after = matched.GetProperty("stackers")[0];
+    foreach (var field in new[] { "id", "name", "gender", "org", "country", "region", "division", "special" })
+        Assert(before.GetProperty(field).GetString() == after.GetProperty(field).GetString(), $"ENG04B equivalent SQL/JSON public field {field}");
+
+    // Deliberately seed inconsistent legacy data directly in the disposable fixture, not through production APIs.
+    var mixedJson = legacyJson.Replace("Synthetic One", "Stale Legacy Name", StringComparison.Ordinal)
+        .Replace("\"stackers\":[", "\"stackers\":[{\"id\":\"OLD\",\"name\":\"Old Only\"},", StringComparison.Ordinal);
+    state.JsonData = mixedJson;
+    await db.SaveChangesAsync();
+    var finals = new StackMeet.Api.Models.CompetitionResult
+    {
+        CompetitionId = competition.Id, Stage = "Finals", ParticipantType = "Individual", ParticipantCode = "A1",
+        EventCode = "Cycle", AttemptsJson = "[5.123]", Penalty = 0, Revision = 2, CreatedAt = now, UpdatedAt = now
+    };
+    var prelims = new StackMeet.Api.Models.CompetitionResult
+    {
+        CompetitionId = competition.Id, Stage = "Prelims", ParticipantType = "Individual", ParticipantCode = "A1",
+        EventCode = "Cycle", AttemptsJson = "[2.123]", Penalty = 0, Revision = 1, CreatedAt = now, UpdatedAt = now
+    };
+    db.CompetitionResults.AddRange(finals, prelims);
+    await db.SaveChangesAsync();
+    var mixed = await ReadPublic();
+    Assert(Roster(mixed).SequenceEqual(new[] { "A1" })
+        && mixed.GetProperty("stackers")[0].GetProperty("name").GetString() == "Synthetic One",
+        "ENG04B nonempty SQL roster wins as a whole, no union or stale-name overwrite");
+    var rows = mixed.GetProperty("results").EnumerateArray().ToArray();
+    Assert(rows.Length == 2 && rows.Single(x => x.GetProperty("stage").GetString() == "Finals").GetProperty("attempts")[0].GetDecimal() == 5.123m
+        && rows.Single(x => x.GetProperty("stage").GetString() == "Prelims").GetProperty("attempts")[0].GetDecimal() == 2.123m,
+        "ENG04B SQL attempts win and preliminary reporting remains separately represented");
+    Assert(mixed.GetProperty("doubles")[0].GetProperty("id").GetString() == "D1"
+        && !mixed.TryGetProperty("finalQualificationSnapshots", out _), "ENG04B public team projection retained; internal qualification payload not exposed");
+    using (var internalState = await maintenance.GetAsync($"/api/state/{key}"))
+        Assert(internalState.StatusCode == HttpStatusCode.OK && internalState.Headers.ETag?.Tag == "\"7\""
+            && await internalState.Content.ReadAsStringAsync() == mixedJson,
+            "ENG04B public reads preserve approved qualification and exact saved state");
+
+    // Characterize clean modern state, then restore the intentionally mixed fixture for capture.
+    state.JsonData = """{"stackers":[],"results":[],"doubles":[],"relays":[]}""";
+    await db.SaveChangesAsync();
+    var modern = await ReadPublic();
+    Assert(Roster(modern).SequenceEqual(new[] { "A1" }) && modern.GetProperty("results").GetArrayLength() == 2,
+        "ENG04B SQL-only roster/results remain available with empty legacy arrays");
+    state.JsonData = mixedJson;
+    competition.Status = "Closed";
+    await db.SaveChangesAsync();
+    var governance = new StackMeet.Api.Activities.SportStacking.Ranking.FinalsRankingGovernanceService(db);
+    var captured = await governance.CaptureFinalizedSnapshotAsync(competition.Id, null);
+    var snapshotJson = captured.SnapshotJson ?? throw new InvalidOperationException("Missing synthetic snapshot JSON.");
+    var expectedHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(snapshotJson)));
+    Assert(captured.HasSnapshot && string.Equals(expectedHash, captured.SnapshotSha256, StringComparison.OrdinalIgnoreCase),
+        "ENG04B captured historical snapshot matches SHA-256 of exact UTF-8 bytes");
+    using (var snapshot = System.Text.Json.JsonDocument.Parse(snapshotJson))
+    {
+        var savedFinals = snapshot.RootElement.GetProperty("finalsResults");
+        Assert(savedFinals.GetArrayLength() == 1 && savedFinals[0].GetProperty("attemptsJson").GetString() == "[5.123]",
+            "ENG04B historical source captures SQL Finals only, not faster preliminary or legacy attempts");
+    }
+    await ReadPublic();
+    var reread = await governance.GetAsync(competition.Id);
+    Assert(reread?.SnapshotJson == snapshotJson && reread?.SnapshotSha256 == captured.SnapshotSha256,
+        "ENG04B public reads cannot alter immutable historical evidence");
+    bool rejected = false;
+    try { await governance.CaptureFinalizedSnapshotAsync(competition.Id, null); }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("immutable", StringComparison.OrdinalIgnoreCase)) { rejected = true; }
+    Assert(rejected, "ENG04B historical recapture rejected");
+
+    // Separate synthetic competition for deletion/empty-roster characterization; never modify the captured fixture.
+    var emptyKey = key + "EMPTY";
+    var empty = new StackMeet.Api.Models.Competition
+    {
+        CompetitionCode = emptyKey, CompetitionKey = emptyKey, CompetitionName = "Empty roster fixture",
+        Venue = "LocalDB", StartDate = day, EndDate = day, Status = "Active", CreatedAt = now, UpdatedAt = now
+    };
+    db.Competitions.Add(empty);
+    await db.SaveChangesAsync();
+    var emptyState = new StackMeet.Api.Models.CompetitionState
+    {
+        CompetitionKey = emptyKey, JsonData = legacyJson, SchemaVersion = "0.9-online", StateRevision = 1,
+        CreatedAt = now, UpdatedAt = now
+    };
+    var lastStacker = new StackMeet.Api.Models.Stacker
+    {
+        CompetitionId = empty.Id, StackerCode = "B1", FirstName = "Last", LastName = "SQL",
+        Gender = "F", Country = "MY", Paid = "No", CheckedIn = "No", CreatedAt = now, UpdatedAt = now
+    };
+    db.AddRange(emptyState, lastStacker);
+    await db.SaveChangesAsync();
+    route = $"/api/public/competitions/{emptyKey}/results";
+    Assert(Roster(await ReadPublic()).SequenceEqual(new[] { "B1" }), "ENG04B last SQL row suppresses old JSON roster");
+    db.Stackers.Remove(lastStacker);
+    await db.SaveChangesAsync();
+    var emptySql = await ReadPublic();
+    Assert(Roster(emptySql).SequenceEqual(new[] { "A1" }) && emptySql.GetProperty("results").GetArrayLength() == 0,
+        "ENG04B known risk: empty SQL roster exposes old JSON fallback, never legacy results");
+    emptyState.JsonData = """{"stackers":[],"results":[]}""";
+    await db.SaveChangesAsync();
+    Assert(Roster(await ReadPublic()).Length == 0, "ENG04B genuinely empty SQL and JSON roster stays empty");
+    Console.WriteLine("ENG04B storage authority characterization passed; empty-roster ambiguity remains a reconciliation risk.");
 }
