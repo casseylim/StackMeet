@@ -365,12 +365,13 @@
       const link = make("a", "section-status-card");
       link.href = publicUrlFor(`${resultsRoot}/${item.route}`);
       link.dataset.status = state;
-      link.setAttribute("aria-label", `${t(item.label)}: ${t(statusLabel)}. ${countLabel}.`);
       const copy = make("span", "section-status-copy");
       copy.append(make("strong", "", t(item.label)), make("span", "", t(item.description)));
       const meta = make("span", "section-status-meta");
       meta.append(make("span", `section-state ${state}`, t(statusLabel)), make("span", "section-count", countLabel));
-      link.append(copy, meta, make("span", "section-status-arrow", "→"));
+      const arrow = make("span", "section-status-arrow", "→");
+      arrow.setAttribute("aria-hidden", "true");
+      link.append(copy, meta, arrow);
       grid.append(link);
     });
   }
