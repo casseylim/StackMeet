@@ -87,6 +87,10 @@
         "mode": "classic"
       },
       {
+        "src": "js/reports/ReportPresentation.js",
+        "mode": "classic"
+      },
+      {
         "src": "app.js",
         "mode": "classic"
       }
