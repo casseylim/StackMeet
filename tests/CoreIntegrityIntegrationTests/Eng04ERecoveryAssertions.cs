@@ -59,7 +59,7 @@ internal static class Eng04ERecoveryAssertions
             const string stateJson = """{"stackers":[],"results":[],"doubles":[],"relays":[],"finalQualificationSnapshots":[{"id":"Q1","status":"Approved","participantType":"Individual","event":"Cycle","selectedQualifiers":[{"participantId":"A1"}]}]}""";
             int competitionId;
             int stackerId;
-            int identityId;
+            long identityId;
             string cipher;
             FinalsRankingGovernanceRecord snapshot;
             string[] logicalFiles;
