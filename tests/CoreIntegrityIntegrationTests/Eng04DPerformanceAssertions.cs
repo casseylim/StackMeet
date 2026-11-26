@@ -180,10 +180,8 @@ internal static class Eng04DPerformanceAssertions
     {
         await using var holder = new SqlConnection(connectionString);
         await using var waiter = new SqlConnection(connectionString);
-        await using var observer = new SqlConnection(connectionString);
         await holder.OpenAsync(ct);
         await waiter.OpenAsync(ct);
-        await observer.OpenAsync(ct);
         await using var transaction = (SqlTransaction)await holder.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         await using var lockCommand = holder.CreateCommand();
         lockCommand.Transaction = transaction;
@@ -195,37 +193,61 @@ internal static class Eng04DPerformanceAssertions
         waitCommand.CommandText = "SELECT [Id] FROM [dbo].[Competition] WITH (UPDLOCK,ROWLOCK) WHERE [Id]=@id";
         waitCommand.CommandTimeout = 12;
         waitCommand.Parameters.Add("@id", SqlDbType.Int).Value = id;
-        var waitWatch = Stopwatch.StartNew();
-        var pending = waitCommand.ExecuteScalarAsync(ct);
-        var observed = false;
+
+        // Prove actual engine-level blocking by requiring SQL error 1222 on a bounded
+        // lock timeout. Do not rely on DMV session visibility or sampling a transient wait.
+        // This is test-only session configuration; it changes no application timeout.
+        async Task SetLockTimeout(int milliseconds)
+        {
+            await using var command = waiter.CreateCommand();
+            command.CommandText = "SET LOCK_TIMEOUT " + milliseconds.ToString(CultureInfo.InvariantCulture);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+
+        bool timedOut = false;
+        double blockedMs = 0;
+        Task<object?>? pending = null;
+        Stopwatch? releaseWatch = null;
+        bool pendingBeforeRelease = false;
         try
         {
-            await using var probe = observer.CreateCommand();
-            probe.CommandText = "SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=@waiter AND blocking_session_id=@holder AND wait_type LIKE 'LCK%'";
-            probe.CommandTimeout = 5;
-            probe.Parameters.Add("@waiter", SqlDbType.Int).Value = waiter.ServerProcessId;
-            probe.Parameters.Add("@holder", SqlDbType.Int).Value = holder.ServerProcessId;
-            while (holdWatch.Elapsed < TimeSpan.FromSeconds(5) && !pending.IsCompleted)
+            await SetLockTimeout(750);
+            var blockedWatch = Stopwatch.StartNew();
+            try { await waitCommand.ExecuteScalarAsync(ct); }
+            catch (SqlException ex) when (ex.Number == 1222) { timedOut = true; }
+            finally
             {
-                if (Convert.ToInt32(await probe.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture) > 0)
-                { observed = true; break; }
-                await Task.Delay(25, ct);
+                blockedWatch.Stop();
+                blockedMs = blockedWatch.Elapsed.TotalMilliseconds;
             }
+            Check(timedOut, "SQL lock timeout 1222 proves controlled competition blocking");
+            await SetLockTimeout(10000);
+            releaseWatch = Stopwatch.StartNew();
+            pending = waitCommand.ExecuteScalarAsync(ct);
+            await Task.Delay(150, ct);
+            pendingBeforeRelease = !pending.IsCompleted;
         }
         finally
         {
             await transaction.RollbackAsync(CancellationToken.None);
             holdWatch.Stop();
         }
+
+        // A second request must wait while the holder owns the lock and succeed
+        // once it is released. Neither request modifies persisted competition data.
+        if (pending is null || releaseWatch is null)
+            throw new InvalidOperationException("ENG04D failed: missing release observation");
         var returned = await pending;
-        waitWatch.Stop();
-        Check(observed && Convert.ToInt32(returned, CultureInfo.InvariantCulture) == id,
-            "controlled SQL lock contention observed and waiter completed after release");
+        releaseWatch.Stop();
+        Check(pendingBeforeRelease && Convert.ToInt32(returned, CultureInfo.InvariantCulture) == id,
+            "blocked SQL waiter completed after holder release");
         Console.WriteLine("ENG04D_METRIC " + JsonSerializer.Serialize(new
         {
             fixtureSize = size, metric = "controlled-competition-lock", samples = 1,
             holderMs = Math.Round(holdWatch.Elapsed.TotalMilliseconds, 3),
-            waiterMs = Math.Round(waitWatch.Elapsed.TotalMilliseconds, 3), blockingObserved = observed
+            timeoutProbeMs = Math.Round(blockedMs, 3),
+            waiterMs = Math.Round(releaseWatch.Elapsed.TotalMilliseconds, 3),
+            blockingObserved = timedOut, lockTimeoutError = 1222, pendingBeforeRelease
         }));
     }
 
