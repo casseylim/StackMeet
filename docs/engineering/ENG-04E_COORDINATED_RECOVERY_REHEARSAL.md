@@ -41,3 +41,7 @@ Timing markers ENG04E_METRIC report backup/verification and restore/verification
 - The ENG-00 release preflight root/admin.html issue remains unresolved. Operational recovery point, RPO/RTO, retention, authority, production asset manifest and full restore acceptance remain owner gates.
 
 Mandatory: Overall/All-Around = Finals only; preserve certified snapshot bytes and digest; production IIS web.config explicitly excluded from upload/sync/rollback, securely backed up and verified identical before/after. No application behavior, migrations, deployment workflow, production data, master merge or deployment changes.
+
+## CI compilation correction
+
+Initial workflow [45756955095](https://github.com/casseylim/StackMeet/actions/runs/45756955095): offline reproducibility passed; Build and test and Regression evidence/API coverage failed compiling the new rehearsal (CS0266 at line 93). The recovery fixture declared identityId as int but SportStackerIdentity.Id and StackerIdentityLink.SportStackerIdentityId are long. Corrected the local variable to long, retaining exact 64-bit identity values without narrowing or changing any database model. The rehearsal did not run in the failed workflow. All restore and integrity assertions remain intact; corrected hosted execution pending.
