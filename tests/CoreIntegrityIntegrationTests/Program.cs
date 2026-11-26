@@ -358,6 +358,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
             await RunResultAcceptanceAsync(port, eng.Id, engKey, signingKey, isolated);
             await RunPublicationAcceptanceAsync(port, engKey + "PUB", isolated);
             await RunStorageAuthorityAcceptanceAsync(port, engKey + "ST", isolated);
+            await Eng04DPerformanceAssertions.RunAsync(connectionString, port, engKey + "PERF");
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
         var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
