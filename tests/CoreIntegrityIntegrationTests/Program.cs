@@ -223,6 +223,8 @@ try
         "team members cannot change while SQL results reference team");
 
     await RunHttpAcceptanceAsync(builder.ConnectionString, db);
+    // HTTP host has stopped; all fixture writers are quiescent before the coordinated backup.
+    await Eng04ERecoveryAssertions.RunAsync(builder.ConnectionString, "REC_" + Guid.NewGuid().ToString("N"));
 
     Console.WriteLine("Assertions: passed");
     Console.WriteLine("CoreIntegrity LocalDB integration harness passed.");
