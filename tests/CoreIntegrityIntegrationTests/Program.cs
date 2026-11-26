@@ -358,6 +358,7 @@ static async Task RunHttpAcceptanceAsync(string connectionString, StackMeetDbCon
             await RunResultAcceptanceAsync(port, eng.Id, engKey, signingKey, isolated);
             await RunPublicationAcceptanceAsync(port, engKey + "PUB", isolated);
             await RunStorageAuthorityAcceptanceAsync(port, engKey + "ST", isolated);
+            await Eng04DPerformanceAssertions.RunAsync(connectionString, port, engKey + "PERF");
         }
         var original = await ready.Content.ReadAsStringAsync(); var originalEtag = ready.Headers.ETag?.Tag ?? throw new InvalidOperationException("Initial ETag missing.");
         var valid = "{\"doubles\":[{\"id\":\"2.1\",\"one\":\"A1\",\"two\":\"A2\",\"parentName\":\"External Parent\"}],\"relays\":[{\"id\":\"3.1\",\"members\":[\"A1\",\"A2\",\"A3\",\"A4\"]}],\"legacy\":{\"one\":\"A1\",\"two\":\"A2\"}}";
@@ -445,13 +446,19 @@ static async Task RunResultAcceptanceAsync(int port, int competitionId, string k
             "ENG01R1 cached client omitting revision rejected with structured refresh requirement");
     }
     Assert(await Send(a, new([Upsert(0, 5)], [])) == HttpStatusCode.PreconditionRequired, "ENG01 explicit create requires dataset revision");
+    var scoringWatch = Stopwatch.StartNew();
     var creates = await Task.WhenAll(Send(a, new([Upsert(0, 5)], [], 0)), Send(b, new([Upsert(0, 6)], [], 0)));
+    scoringWatch.Stop();
+    Console.WriteLine($"ENG04D_METRIC scoring-create-pair elapsedMs={scoringWatch.Elapsed.TotalMilliseconds:F3}");
     Assert(creates.Count(x => x == HttpStatusCode.OK) == 1 && creates.Count(x => x == HttpStatusCode.Conflict) == 1,
         "ENG01 competing creates commit once");
     Assert(await Send(a, new([Upsert(null, 9)], [])) == HttpStatusCode.PreconditionRequired, "ENG01 blind overwrite rejected");
     Assert(await Send(a, new([], [Delete(null)])) == HttpStatusCode.PreconditionRequired, "ENG01 blind delete rejected");
     var revision = (await Read()).Results.Single().Revision;
+    scoringWatch.Restart();
     var updates = await Task.WhenAll(Send(a, new([Upsert(revision, 7)], [])), Send(b, new([Upsert(revision, 8)], [])));
+    scoringWatch.Stop();
+    Console.WriteLine($"ENG04D_METRIC scoring-update-pair elapsedMs={scoringWatch.Elapsed.TotalMilliseconds:F3}");
     Assert(updates.Count(x => x == HttpStatusCode.OK) == 1 && updates.Count(x => x == HttpStatusCode.Conflict) == 1,
         "ENG01 competing edits commit once");
     var after = await Read();
