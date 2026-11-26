@@ -32,16 +32,16 @@ internal static class Eng04ERecoveryAssertions
         var ct = timeout.Token;
         var masterBuilder = new SqlConnectionStringBuilder(source.ConnectionString) { InitialCatalog = "master" };
         await using var master = new SqlConnection(masterBuilder.ConnectionString);
-        var opened = false;
+        var ownsRestoreTarget = false;
         try
         {
             await master.OpenAsync(ct);
-            opened = true;
             await using (var exists = master.CreateCommand())
             {
                 exists.CommandText = "SELECT DB_ID(@name)";
                 exists.Parameters.Add("@name", SqlDbType.NVarChar, 128).Value = targetName;
                 Check(await exists.ExecuteScalarAsync(ct) is DBNull, "restore target does not exist");
+                ownsRestoreTarget = true;
             }
             var watch = Stopwatch.StartNew();
             var now = DateTime.UtcNow;
@@ -138,6 +138,7 @@ internal static class Eng04ERecoveryAssertions
             }
 
             // All fixture writers are now quiescent. Capture one coordinated backup set.
+            watch.Restart();
             var sourceDir = Path.Combine(root, "source");
             var backupDir = Path.Combine(root, "backup");
             var restoredDir = Path.Combine(root, "restored");
@@ -167,7 +168,16 @@ internal static class Eng04ERecoveryAssertions
 
             // No REPLACE and no source file path reuse. Move both files into the generated temp root.
             await Exec(master, $"RESTORE DATABASE [{targetName}] FROM DISK = {Literal(backupPath)} WITH CHECKSUM, RECOVERY, MOVE {Literal(logicalFiles[0])} TO {Literal(Path.Combine(restoredDir, "fixture.mdf"))}, MOVE {Literal(logicalFiles[1])} TO {Literal(Path.Combine(restoredDir, "fixture.ldf"))}", ct);
-            await Exec(master, $"DBCC CHECKDB ([{targetName}]) WITH NO_INFOMSGS, ALL_ERRORMSGS", ct);
+            await using (var check = master.CreateCommand())
+            {
+                check.CommandText = $"DBCC CHECKDB ([{targetName}]) WITH NO_INFOMSGS, ALL_ERRORMSGS";
+                check.CommandTimeout = 60;
+                await using var reader = await check.ExecuteReaderAsync(ct);
+                do
+                {
+                    Check(!await reader.ReadAsync(ct), "DBCC CHECKDB returned no error rows");
+                } while (await reader.NextResultAsync(ct));
+            }
             foreach (var path in paths) CopyFixture(backupDir, restoredDir, path);
             foreach (var path in paths)
                 Check(manifest[path] == Digest(await File.ReadAllBytesAsync(Path.Combine(restoredDir, path), ct)), "restored manifest entry verified");
@@ -234,7 +244,7 @@ internal static class Eng04ERecoveryAssertions
         {
             // Close only this exact generated restore target. Never drop or overwrite the source.
             SqlConnection.ClearAllPools();
-            if (opened)
+            if (ownsRestoreTarget)
             {
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 await Exec(master, $"IF DB_ID({Literal(targetName)}) IS NOT NULL BEGIN ALTER DATABASE [{targetName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{targetName}]; END", cleanup.Token);
