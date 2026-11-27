@@ -282,7 +282,7 @@ async function stateDraftReview() {
   const observation = { baseline: '"4"', etag: '"5"', state: { settings: { name: "Remote" }, stackers: [], results: [] } };
   let accepts = 0, confirmed = false, editing = true;
   const ctx = {
-    state: clone(original), queuedSaveCount: 0, stateSaveFailure: null, stateSaveGeneration: 0,
+    state: clone(original), queuedSaveCount: 0, stateSaveFailure: null, stateSaveGeneration: 0, ageCalculationMode: "actual",
     pendingRemoteCompetitionState: null, pendingResultsRefresh: false,
     pendingDeletedDoubles: new Map([["D", 1]]), pendingDeletedRelays: new Map(),
     competitionEditorActive: () => editing, competitionEntryInputActive: () => false,
