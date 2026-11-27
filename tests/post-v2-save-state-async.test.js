@@ -33,7 +33,7 @@ function extractFunction(name) {
 function createHarness(repository, initialState) {
   const context = {
     structuredClone, Map, Set, String, Array, CompetitionRepository,
-    repository, state: initialState, pendingSave: Promise.resolve(), queuedSaveCount: 0,
+    repository, state: initialState, pendingSave: Promise.resolve(), queuedSaveCount: 0, stateSaveGeneration: 0, stateSaveFailure: null,
     deletionGeneration: 0, pendingDeletedDoubles: new Map(), pendingDeletedRelays: new Map(),
     setSaveStatus() {}, applyPendingCompetitionUpdate() {}
   };
@@ -72,7 +72,7 @@ async function scenarioFailedSaveRetainsTombstone() {
   let fail = true;
   const repository = {
     load: () => Promise.resolve(structuredClone(server)),
-    save: value => fail ? Promise.reject(new Error("simulated save failure")) : (server = structuredClone(value), Promise.resolve())
+    save: value => fail ? Promise.reject(Object.assign(new Error("simulated save failure"), { status: 400 })) : (server = structuredClone(value), Promise.resolve())
   };
   const harness = createHarness(repository, { ...structuredClone(server), doubles: [{ id: "2.1" }] });
   harness.hooks.recordDeletedStateRecord("doubles", "2.2");
@@ -105,7 +105,33 @@ async function scenarioLaterGenerationSurvivesOlderSave() {
   assert.strictEqual(harness.pendingDeletedDoubles.has("2.2"), true, "A newer deletion generation was acknowledged by an older save.");
 }
 
+async function scenarioUnknownOutcomeStopsQueuedWrites() {
+  const server = { doubles: [{ id: "2.1" }, { id: "2.2" }], relays: [], notifications: [], auditLogs: [] };
+  const gate = deferred();
+  let posts = 0;
+  const repository = {
+    load: () => Promise.resolve(structuredClone(server)),
+    save: () => { posts++; return gate.promise; }
+  };
+  const harness = createHarness(repository, { ...structuredClone(server), doubles: [{ id: "2.1" }] });
+  harness.hooks.recordDeletedStateRecord("doubles", "2.2");
+  const first = harness.hooks.saveState();
+  const queued = harness.hooks.saveState();
+  const outcomes = Promise.allSettled([first, queued]);
+  gate.resolve(Promise.reject(new Error("unknown response")));
+  const rejected = await outcomes;
+  assert.strictEqual(rejected[0].status, "rejected");
+  assert.strictEqual(rejected[1].reason.outcome, "state-save-cancelled");
+  assert.strictEqual(posts, 1, "A queued save may not replay after an unknown outcome.");
+  assert.strictEqual(harness.pendingDeletedDoubles.has("2.2"), true);
+  await assert.rejects(harness.hooks.saveState(), e => e.outcome === "state-review-required");
+  assert.strictEqual(posts, 1);
+  assert.deepStrictEqual(harness.state.doubles.map(item => item.id), ["2.1"]);
+}
+
 (async () => {
+  await scenarioUnknownOutcomeStopsQueuedWrites();
+  console.log("PASS ENG05B unknown outcome cancels queued saves and retains draft");
   await scenarioDeletionWhileLoading();
   console.log("PASS ASYNC-TEAM-DELETION-RACE");
   await scenarioFailedSaveRetainsTombstone();
