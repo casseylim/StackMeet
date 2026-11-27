@@ -310,6 +310,8 @@ let pendingStateRevision = 0;
 let pendingResultRevision = 0;
 let operatorSyncInFlight = false;
 let operatorSyncRequestedAgain = false;
+let operatorStatePresentationPending = false;
+let operatorResultPresentationPending = false;
 let currentResultsRevision = 0;
 window.__resultSyncDiagnostics = window.__resultSyncDiagnostics || { build: "phase5-sync-debug-20260817", connectionState: null, connectionId: null, currentResultsRevision: 0, lastEventRevision: null, lastEventAt: null, lastAcceptedRevision: null, lastIgnoredRevision: null, lastIgnoreReason: null, pendingResultsRevision: null, lastReloadRevision: null, lastReloadCount: null, lastReloadAt: null, hasParticipant186: null, lastRenderAt: null };
 const resultSyncDiagnostics = window.__resultSyncDiagnostics;
@@ -736,6 +738,7 @@ function setSelectedSqlCompetition(competition) {
     currentResultsRevision = 0;
     pendingResultsRefresh = true;
     pendingResultRevision = 0;
+    operatorResultPresentationPending = false;
     resultSyncDiagnostics.pendingResultsRevision = null;
     state.results = [];
     prelimResultEditor = finalResultEditor = null;
@@ -854,7 +857,7 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
   if (!selectedSqlCompetitionId || stackerRefreshInFlight) return false;
   if (editingStackerId && !allowEditing) return false;
   stackerRefreshInFlight = true;
-  setSaveStatus("Saving...", "saving");
+  if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Saving...", "saving");
   try {
     const epoch = resultCompetitionEpoch;
     const records = await stackerApi.list(selectedSqlCompetitionId);
@@ -883,12 +886,12 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.
       renderReports();
     }
-    setSaveStatus("Saved", "saved");
+    if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Saved", "saved");
     return true;
   } catch (error) {
     console.error("Unable to refresh SQL-native stackers.", error);
     flashMessage = { type: "error", text: t("Save Failed: unable to refresh SQL-native stackers.") };
-    setSaveStatus("Save Failed", "failed");
+    if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Save Failed", "failed");
     if (rerender && route === "stackers") render();
     return false;
   } finally {
@@ -908,13 +911,15 @@ async function refreshSqlResults({ rerender = true, background = false } = {}) {
   resultSyncDiagnostics.lastReloadCount = payload.results.length;
   resultSyncDiagnostics.lastReloadAt = new Date().toISOString();
   resultSyncDiagnostics.hasParticipant186 = payload.results.some(result => String(result.participant || result.participantCode || "") === "1.86");
-  if (rerender && (changed || !background)) {
+  if (changed) operatorResultPresentationPending = true;
+  if (rerender && (operatorResultPresentationPending || !background)) {
     if (operatorSyncEditing()) {
       pendingResultsRefresh = true;
       resultSyncDiagnostics.pendingResultsRevision = payload.revision;
       return !background;
     }
     refreshResultsDisplayAfterSync();
+    operatorResultPresentationPending = false;
     resultSyncDiagnostics.lastRenderAt = new Date().toISOString();
   }
   return true;
@@ -1237,6 +1242,12 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
   // when a draft is being edited or a save is queued. Obsolete observations
   // (including reads started before a successful local write) are refused.
   const latest = observation.state;
+  const sameAcceptedRevision = observation.etag != null && observation.etag === observation.baseline;
+  if (!reviewed && sameAcceptedRevision && !operatorStatePresentationPending) {
+    if (!repository.acceptObservedCompetition(observation)) return false;
+    pendingRemoteCompetitionState = null;
+    return true;
+  }
   // Prepare the replacement before advancing the accepted ETag. Normalization
   // also updates ageCalculationMode, so restore that side effect until accepted.
   const previousAgeMode = ageCalculationMode;
@@ -1255,18 +1266,22 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
     pendingDeletedRelays.clear();
     setSaveStatus("Saved", "saved");
   }
-  if (JSON.stringify(legacyStateForSave(latest)) === JSON.stringify(legacyStateForSave(state))) return true;
-  const sqlOwnedStackers = state.stackers;
-  const sqlOwnedResults = state.results;
+  const changed = (reviewed || !sameAcceptedRevision)
+    && JSON.stringify(legacyStateForSave(latest)) !== JSON.stringify(legacyStateForSave(state));
   const epoch = resultCompetitionEpoch;
-  state = normalized;
-  ageCalculationMode = normalizedAgeMode;
-  // CompetitionState is transitional configuration storage. SQL owns these
-  // slices and a legacy refresh must never replace them with [] from JSON.
-  state.stackers = sqlOwnedStackers;
-  state.results = sqlOwnedResults;
-  if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: localEditing, rerender: false });
-  if (epoch !== resultCompetitionEpoch || operatorSyncEditing() || queuedSaveCount || stateSaveFailure) return true;
+  if (changed) {
+    const sqlOwnedStackers = state.stackers;
+    const sqlOwnedResults = state.results;
+    state = normalized;
+    ageCalculationMode = normalizedAgeMode;
+    // SQL owns roster and results; JSON synchronization must preserve them.
+    state.stackers = sqlOwnedStackers;
+    state.results = sqlOwnedResults;
+    operatorStatePresentationPending = true;
+  }
+  if (!operatorStatePresentationPending) return true;
+  if (changed && selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: false, rerender: false });
+  if (epoch !== resultCompetitionEpoch || operatorSyncEditing() || queuedSaveCount || stateSaveFailure) return false;
   if (!localEditing) {
     const focusedId = document.activeElement?.id || "";
     const focusedSelection = document.activeElement && "selectionStart" in document.activeElement
@@ -1286,6 +1301,7 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
     }
   }
   else setSaveStatus("Updated", "saved");
+  operatorStatePresentationPending = false;
   return true;
 }
 
