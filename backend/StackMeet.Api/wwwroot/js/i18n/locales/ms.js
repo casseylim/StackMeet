@@ -379,6 +379,7 @@
   "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "Versi yang disimpan tidak berubah. Benarkan percubaan semula secara manual untuk perubahan yang belum disimpan?",
   "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "Keadaan yang disimpan telah berubah. Buang perubahan tempatan yang belum disimpan dan muatkan versi yang disimpan? Pilih Batal untuk mengekalkan draf anda.",
   "Review saved state before retrying.": "Semak keadaan yang disimpan sebelum mencuba semula.",
-  "Earlier save failed; review before retrying.": "Simpanan sebelumnya gagal; semak sebelum mencuba semula."
+  "Earlier save failed; review before retrying.": "Simpanan sebelumnya gagal; semak sebelum mencuba semula.",
+  "The competition does not exist, is archived, or has no published results yet.": "Pertandingan tidak wujud, telah diarkibkan atau belum mempunyai keputusan yang diterbitkan."
 });
 })(typeof window !== "undefined" ? window : globalThis);
