@@ -1220,7 +1220,8 @@ function loadLatestCompetition() {
 
 async function applyRemoteCompetitionState(observation, reviewed = false) {
   if (!observation?.state) return false;
-  const localEditing = competitionEditorActive() || competitionEntryInputActive();
+  const localEditing = competitionEditorActive() || competitionEntryInputActive()
+    || Boolean(document.activeElement?.matches?.("input, select, textarea, [contenteditable='true']"));
   if (localEditing || queuedSaveCount || (stateSaveFailure && !reviewed)) {
     pendingRemoteCompetitionState = observation;
     flashMessage = { type: "info", text: t("Competition updated on another computer. Finish editing, then refresh this screen.") };
