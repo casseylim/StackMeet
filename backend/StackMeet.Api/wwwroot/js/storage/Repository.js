@@ -50,6 +50,8 @@ class Repository {
 
   load() { return this.provider.load(); }
   reloadLatestCompetition() { return this.provider.reloadLatest(); }
+  observeLatestCompetition() { return this.provider.observe(); }
+  acceptObservedCompetition(observation) { return this.provider.acceptObservation(observation); }
   save(state) { return this.provider.save(state); }
   reset() { throw new Error("Repository.reset() is not implemented."); }
   importXml(xml) { void xml; throw new Error("Repository.importXml(xml) is not implemented."); }

@@ -361,6 +361,12 @@
   "Individual division rankings use Finals times only.": "个人组别排名仅使用决赛成绩。",
   "Finals-only three-event standings": "仅限决赛的三项综合排名",
   "Waiting for Finals three-event totals": "等待决赛三项总成绩",
-  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "选手在 3-3-3、3-6-3 和 Cycle 的有效决赛成绩发布后才会列入排名。"
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "选手在 3-3-3、3-6-3 和 Cycle 的有效决赛成绩发布后才会列入排名。",
+  "Review saved state": "检查已保存的状态",
+  "Finish editing before reviewing saved state.": "请先完成编辑，再检查已保存的状态。",
+  "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "已保存的版本未更改。是否允许手动重试保存尚未保存的更改？",
+  "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "已保存的状态已更改。是否放弃本地未保存的更改并加载已保存的版本？选择取消可保留草稿。",
+  "Review saved state before retrying.": "请先检查已保存的状态，再重试。",
+  "Earlier save failed; review before retrying.": "上一次保存失败；请先检查再重试。"
 });
 })(typeof window !== "undefined" ? window : globalThis);

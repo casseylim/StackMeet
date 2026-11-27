@@ -159,6 +159,15 @@ assert.strictEqual(option.attributes.value, "Yes", "Option semantic values must 
 assert.strictEqual(domainOption.textContent, "Dashboard", "Domain option labels must not be translated");
 assert.strictEqual(domainOption.attributes.value, "Dashboard", "Domain option values must remain unchanged");
 
+// ENG-05B: recovery actions and warnings must be present in every locale.
+const stateRecoveryKeys = ["Review saved state","Finish editing before reviewing saved state.","Saved revision is unchanged. Allow a manual retry of your unsaved changes?","Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.","Review saved state before retrying.","Earlier save failed; review before retrying."];
+for (const key of stateRecoveryKeys) {
+  for (const language of ["en", "ms", "zh-Hans"]) {
+    assert.ok(Object.prototype.hasOwnProperty.call(locales[language], key), `${language} state recovery coverage for ${key}`);
+    if (language !== "en") assert.notEqual(locales[language][key], key, `${language} recovery message must be translated`);
+  }
+}
+
 const runtimeTemplates = [
   "Invalid time: {value}. Enter a time to 3 decimals or 999 for scratch.",
   "Invalid {event} time. Enter a time to 3 decimals or 999 for scratch.",
