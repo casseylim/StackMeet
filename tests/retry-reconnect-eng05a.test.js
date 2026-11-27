@@ -269,7 +269,10 @@ async function publicNotifications() {
   // Handler intentionally launches refresh without awaiting it.
   await new Promise(resolve => setImmediate(resolve));
   assert.ok(trace.indexOf("JoinCompetition") >= 0 && trace.indexOf("GET") > trace.indexOf("JoinCompetition"));
-  assert.equal(ctx.lastVersion, "v3");
+  assert.equal(ctx.currentPayload.lastUpdatedAt, "v3", "Reconnect must apply the latest authoritative payload.");
+  assert.equal(ctx.lastVersion, "v3||", "Version signature includes timestamp and both empty branding fields.");
+  assert.equal(ctx.currentPayload.results.length, 0, "Reconnect must not restore a deleted result.");
+  assert.ok(trace.includes("render:v3"), "Reconnect must render the refreshed projection.");
   console.log("PASS ENG05A public reconnect joins before authoritative refresh");
 }
 
