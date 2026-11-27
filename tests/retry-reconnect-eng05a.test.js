@@ -189,47 +189,119 @@ function hubDouble(trace) {
 async function operatorNotifications() {
   const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const trace = [], h = hubDouble(trace);
-  let failState = true, editing = false, resultReads = 0;
+  let failState = false, failResults = false, editing = false, resultReads = 0, stateReads = 0;
+  let serverStateRevision = 4, serverResultsRevision = 10;
+  let stateGate = null, resultGate = null;
   const ctx = {
     window: { signalR: h.signalR, StackMeetAuth: { readSession: () => ({ token: "synthetic" }) }, setTimeout: () => 1 },
     signalR: h.signalR, competitionStateConnection: null, competitionStateReconnectTimer: null,
     currentCompetitionKey: () => "TEST", currentCompetitionRevision: 4, currentResultsRevision: 10,
-    resultSyncDiagnostics: {}, pendingResultsRefresh: false,
-    competitionEditorActive: () => editing,
-    loadLatestCompetition: async () => { trace.push("state-read"); if (failState) throw new Error("synthetic read failure"); return {}; },
-    applyRemoteCompetitionState: async () => { trace.push("state-apply"); },
-    refreshSqlResults: async () => { resultReads++; },
+    resultSyncDiagnostics: {}, pendingResultsRefresh: false, pendingStateRefresh: false,
+    pendingStateRevision: 0, pendingResultRevision: 0, operatorSyncInFlight: false, operatorSyncRequestedAgain: false,
+    resultCompetitionEpoch: 1, queuedSaveCount: 0, stateSaveFailure: null,
+    competitionEditorActive: () => editing, competitionEntryInputActive: () => false,
+    document: { activeElement: null },
+    loadLatestCompetition: async () => {
+      stateReads++; trace.push("state-read");
+      if (failState) throw new Error("synthetic read failure");
+      if (stateGate) await stateGate.promise;
+      return { etag: '"' + serverStateRevision + '"', state: {} };
+    },
+    applyRemoteCompetitionState: async () => { trace.push("state-apply"); return !editing; },
+    refreshSqlResults: async () => {
+      resultReads++; trace.push("result-read");
+      if (failResults) throw new Error("synthetic result refresh failure");
+      if (resultGate) await resultGate.promise;
+      if (editing) return false;
+      ctx.currentResultsRevision = serverResultsRevision;
+      return true;
+    },
     console: { warn() {} }
   };
   vm.createContext(ctx);
-  vm.runInContext(extract(source, "async function connectCompetitionStateUpdates()", "// Creates a stable comparison"), ctx);
+  vm.runInContext(extract(source, "function operatorSyncEditing()", "// Creates a stable comparison"), ctx);
   await ctx.connectCompetitionStateUpdates();
-  assert.deepEqual(trace, ["start", "JoinOperatorCompetition"]);
+  assert.deepEqual(trace, ["start", "JoinOperatorCompetition", "state-read", "state-apply", "result-read"]);
   await h.events.get("ResultsChanged")({ competitionKey: "OTHER", revision: 100 });
   await h.events.get("ResultsChanged")({ competitionKey: "TEST", revision: 10 });
-  assert.equal(resultReads, 0, "Wrong competition and obsolete result revisions are ignored.");
+  assert.equal(resultReads, 1, "Wrong competition and obsolete result revisions are ignored.");
   editing = true;
+  serverResultsRevision = 12;
   await h.events.get("ResultsChanged")({ competitionKey: "TEST", revision: 12 });
   assert.equal(ctx.pendingResultsRefresh, true);
-  assert.equal(resultReads, 0, "Result notification does not interrupt an active editor.");
+  assert.equal(resultReads, 1, "Result notification does not interrupt an active editor.");
   editing = false;
-  await h.events.get("ResultsChanged")({ competitionKey: "TEST", revision: 12 });
-  assert.equal(resultReads, 1);
+  await ctx.requestOperatorRefresh();
+  assert.equal(resultReads, 2);
+  assert.equal(ctx.currentResultsRevision, 12);
+  assert.equal(ctx.pendingResultsRefresh, false);
+
+  // Replace the ENG-05A GAP-01 characterization with a positive recovery assertion.
+  serverStateRevision = 5; failState = true;
   await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 5 });
-  assert.equal(ctx.currentCompetitionRevision, 5);
+  assert.equal(ctx.currentCompetitionRevision, 4, "A failed read must not advance the applied watermark.");
+  assert.equal(ctx.pendingStateRefresh, true);
   failState = false;
   await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 5 });
-  // Known gap, not a desired contract: notification revision advances before successful apply.
-  assert.equal(trace.filter(x => x === "state-read").length, 1);
-  assert.equal(trace.includes("state-apply"), false);
-  console.log("OBSERVED ENG05A GAP-01 same state notification ignored after failed refresh");
+  assert.equal(ctx.currentCompetitionRevision, 5);
+  assert.equal(ctx.pendingStateRefresh, false);
+  const readsAfterApply = stateReads;
+  await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 5 });
+  await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 4 });
+  assert.equal(stateReads, readsAfterApply, "Applied duplicate and delayed state events must be ignored.");
+  console.log("PASS ENG05C GAP-01 failed state refresh retains watermark and retries same revision");
+
+  // Reconnect still repairs SQL results when JSON state fails or has not changed.
   trace.length = 0;
+  failState = true; serverResultsRevision = 13;
   await h.lifecycle.reconnected();
-  assert.deepEqual(trace, ["JoinOperatorCompetition", "state-read", "state-apply"]);
-  // Reconnect currently has no explicit independent result GET in the handler.
-  assert.equal(resultReads, 1);
-  console.log("OBSERVED ENG05A GAP-02 operator reconnect handler has no explicit result refresh");
-  console.log("PASS ENG05A operator subscription order and editor notification deferral");
+  assert.deepEqual(trace, ["JoinOperatorCompetition", "state-read", "result-read"]);
+  assert.equal(ctx.currentResultsRevision, 13);
+  assert.equal(ctx.pendingResultsRefresh, false);
+  assert.equal(ctx.pendingStateRefresh, true);
+  failState = false;
+  await ctx.requestOperatorRefresh({ state: true, results: true });
+  assert.equal(ctx.pendingStateRefresh, false);
+  console.log("PASS ENG05C GAP-02 reconnect joins before independent state and result refresh");
+
+  // Failed result read stays pending; successful retry cannot be acknowledged
+  // while the server snapshot is behind the notified revision.
+  failResults = true;
+  await h.events.get("ResultsChanged")({ competitionKey: "TEST", revision: 15 });
+  assert.equal(ctx.pendingResultsRefresh, true);
+  assert.equal(ctx.currentResultsRevision, 13);
+  failResults = false; serverResultsRevision = 14;
+  await ctx.requestOperatorRefresh();
+  assert.equal(ctx.pendingResultsRefresh, true);
+  serverResultsRevision = 15;
+  await ctx.requestOperatorRefresh();
+  assert.equal(ctx.pendingResultsRefresh, false);
+  assert.equal(ctx.currentResultsRevision, 15);
+
+  // Burst of notifications during one GET triggers at most a bounded trailing pass.
+  stateGate = deferred(); serverStateRevision = 6;
+  const startReads = stateReads;
+  const inFlight = h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 6 });
+  await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 7 });
+  await h.events.get("CompetitionChanged")({ competitionKey: "TEST", revision: 7 });
+  serverStateRevision = 7; stateGate.resolve(); stateGate = null;
+  await inFlight;
+  assert.equal(ctx.currentCompetitionRevision, 7);
+  assert.ok(stateReads - startReads <= 2);
+  assert.equal(ctx.pendingStateRefresh, false);
+
+  // Draft protection persists even during independent fallback result refresh.
+  ctx.stateSaveFailure = { requiresReview: true };
+  serverStateRevision = 8; serverResultsRevision = 16;
+  const beforeDraft = stateReads;
+  await ctx.requestOperatorRefresh({ state: true, results: true });
+  assert.equal(stateReads, beforeDraft);
+  assert.equal(ctx.currentResultsRevision, 16);
+  assert.equal(ctx.pendingStateRefresh, true);
+  ctx.stateSaveFailure = null;
+  await ctx.requestOperatorRefresh();
+  assert.equal(ctx.currentCompetitionRevision, 8);
+  console.log("PASS ENG05C bounded refresh, failed result recovery and draft preservation");
 }
 
 async function publicNotifications() {
@@ -289,7 +361,7 @@ async function stateDraftReview() {
     repository: { observeLatestCompetition: async () => observation, acceptObservedCompetition: () => { accepts++; return true; } },
     legacyStateForSave: value => ({ ...clone(value), stackers: [], results: [] }),
     normalizeState: value => clone(value), withoutLegacyStackers: value => clone(value),
-    selectedSqlCompetitionId: null, route: "reports", renderReports() {},
+    selectedSqlCompetitionId: null, route: "reports", renderReports() {}, resultCompetitionEpoch: 1, operatorSyncEditing: () => editing,
     document: { activeElement: null }, window: { confirm: () => confirmed, alert() {} },
     t: value => value, setSaveStatus() {}, console: { warn() {} }
   };
@@ -329,5 +401,5 @@ async function stateDraftReview() {
   await confirmedCommitFailedRefresh();
   await operatorNotifications();
   await publicNotifications();
-  console.log("ENG05A retry/reconnect characterization passed; observed gaps remain open.");
+  console.log("ENG05A/B/C retry/reconnect checks passed; public gaps remain open.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
