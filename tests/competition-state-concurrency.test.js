@@ -70,6 +70,37 @@ const response = ({ status, etag = null, body = null }) => ({
   assert.equal(provider.stateEtag, '"6"');
   assert.equal(calls.at(-1).options.headers["If-Match"], '"5"');
 
+  // A background observation may not accept revision 7, and an older
+  // in-flight observation must not undo the revision of a completed save.
+  let release;
+  global.fetch = async (url, options = {}) => {
+    if (options.method === "POST") {
+      assert.equal(options.headers["If-Match"], '"6"');
+      return response({ status: 204, etag: '"8"' });
+    }
+    return new Promise(resolve => { release = resolve; });
+  };
+  const background = provider.observe();
+  release(response({ status: 200, etag: '"7"', body: { settings: { name: "Remote" } } }));
+  const observed = await background;
+  assert.equal(provider.stateEtag, '"6"', "Observing must never adopt the revision.");
+  const other = new ApiProvider("OTHER");
+  assert.equal(other.acceptObservation(observed), false, "Observation belongs to its provider only.");
+  await provider.save({ settings: { name: "Saved" } });
+  assert.equal(provider.acceptObservation(observed), false, "Observation started before a successful write is stale.");
+  assert.equal(provider.stateEtag, '"8"');
+  global.fetch = async () => response({ status: 200, etag: '"9"', body: { settings: { name: "Latest" } } });
+  const latest = await provider.observe();
+  assert.equal(provider.stateEtag, '"8"');
+  assert.equal(provider.acceptObservation(latest), true);
+  assert.equal(provider.stateEtag, '"9"');
+  global.fetch = async () => response({ status: 200, etag: '"8"', body: {} });
+  assert.equal(provider.acceptObservation(await provider.observe()), false);
+  assert.equal(provider.stateEtag, '"9"');
+  global.fetch = async () => response({ status: 200, body: {} });
+  await assert.rejects(provider.observe(), /revision unavailable/);
+  console.log("PASS ENG05B observations cannot rebase or regress accepted revisions");
+
   const priorLocation = global.location;
   const priorLocalStorage = global.localStorage;
   const localValues = new Map();
