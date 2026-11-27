@@ -183,7 +183,7 @@ function hubDouble(trace) {
     withUrl() { return this; } withAutomaticReconnect() { return this; }
     configureLogging() { return this; } build() { return hub; }
   }
-  return { events, lifecycle, signalR: { HubConnectionBuilder: Builder, LogLevel: { Warning: 3 } } };
+  return { events, lifecycle, hub, signalR: { HubConnectionBuilder: Builder, LogLevel: { Warning: 3 } } };
 }
 
 async function operatorNotifications() {
@@ -365,8 +365,9 @@ async function publicNotifications() {
   };
   let reads = 0, active = 0, maxActive = 0;
   const responses = [];
+  let timeoutCallback = null;
   const ctx = {
-    window: { signalR: h.signalR, setTimeout, clearTimeout }, signalR: h.signalR, competitionId: "TEST", endpoint: "/synthetic",
+    window: { signalR: h.signalR, setTimeout(fn, delay) { assert.equal(delay, 10000); timeoutCallback = fn; return 1; }, clearTimeout() { timeoutCallback = null; } }, signalR: h.signalR, competitionId: "TEST", endpoint: "/synthetic",
     AbortController, refreshInFlight: false, refreshPending: false, pendingLoader: false,
     liveSubscription: false, liveJoinGeneration: 0, verifiedJoinGeneration: -1, refreshHealthy: false,
     lastVersion: "", lastPayloadSignature: "", lastErrorMessage: "", currentPayload: null,
@@ -374,7 +375,8 @@ async function publicNotifications() {
     el: node, document: { title: "" }, t: value => value,
     show(id, visible) { node(id).hidden = !visible; },
     text(id, value) { node(id).textContent = value; },
-    safeTranslations: () => ({}), applyStaticTranslations() {},
+    safeTranslations: () => ({}), applyStaticTranslations() {}, updatePublicNavigation() {},
+    i18n: { normalizeLanguageCode: value => value },
     setConnection: (state, label) => trace.push("connection:" + state + ":" + label),
     render: data => {
       trace.push("render:" + data.lastUpdatedAt);
@@ -395,7 +397,8 @@ async function publicNotifications() {
   };
   vm.createContext(ctx);
   vm.runInContext(extract(source, "async function refresh(showLoader)", "function publicBrandingPath")
-    + "\n" + extract(source, "async function connectLiveUpdates()", "function setConnection("), ctx);
+    + "\n" + extract(source, "async function connectLiveUpdates()", "function setConnection(")
+    + "\n" + extract(source, "function updatePublicLanguage(", 'el("publicLanguage")?.addEventListener'), ctx);
   responses.push(response(payload("v1", [result("A", 1)])));
   await ctx.connectLiveUpdates();
   assert.deepEqual(trace.slice(0, 2), ["start", "JoinCompetition"]);
@@ -450,6 +453,10 @@ async function publicNotifications() {
   assert.equal(node("errorState").hidden, false);
   assert.match(node("errorMessage").textContent, /does not exist/);
   assert.equal(trace.at(-1), "connection:offline:Reconnecting");
+  const renderedBeforeLanguage = renderCount();
+  ctx.updatePublicLanguage("ms", false);
+  assert.equal(renderCount(), renderedBeforeLanguage, "Language switch cannot resurrect a withdrawn payload.");
+  assert.equal(node("medals").hidden, true);
   responses.push(response(payload("v2", [result("B", 2)])));
   await ctx.refresh(false);
   assert.equal(node("medals").hidden, false);
@@ -465,9 +472,31 @@ async function publicNotifications() {
   responses.push(response(payload("v2", [])));
   await ctx.refresh(false);
   assert.equal(ctx.currentPayload.results.length, 0);
+  // A stalled request must time out and free the single-flight coordinator.
+  responses.push(signal => new Promise((resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })));
+  const stalled = ctx.refresh(false);
+  assert.equal(typeof timeoutCallback, "function");
+  timeoutCallback();
+  await stalled;
+  assert.equal(ctx.refreshInFlight, false);
+  assert.equal(ctx.currentPayload, null);
+  responses.push(response(payload("v2", [])));
+  await ctx.refresh(false);
+  assert.equal(ctx.refreshHealthy, true);
   h.lifecycle.close();
   assert.equal(trace.at(-1), "connection:offline:Auto refresh");
+  // An unlisted competition may be denied push but still have an allowed HTTP direct link.
+  const readsBeforeDeniedJoin = reads;
+  h.hub.invoke = async () => { trace.push("denied-join"); throw new Error("subscription unavailable"); };
+  await ctx.connectLiveUpdates();
+  assert.equal(reads, readsBeforeDeniedJoin, "Denied push must not create a resubscription loop.");
+  assert.equal(ctx.liveSubscription, false);
+  responses.push(response(payload("v3", [])));
+  await ctx.refresh(false);
+  assert.equal(ctx.lastVersion, "v3||");
+  assert.equal(trace.at(-1), "connection:offline:Auto refresh");
   assert.equal(responses.length, 0);
+  console.log("PASS ENG05D timeout, language switch and unlisted HTTP fallback");
   console.log("PASS ENG05D GAP-04 failed and withdrawn projections clear cache and all standings; polling recovers");
 }
 
