@@ -29,7 +29,14 @@
   const stackMeetLocale = () => activeLanguage === "ms" ? "ms-MY" : activeLanguage === "zh-Hans" ? "zh-Hans-MY" : "en-MY";
   let lastVersion = "";
   let refreshInFlight = false;
+  let refreshPending = false;
+  let pendingLoader = false;
+  let lastPayloadSignature = "";
+  let lastErrorMessage = "";
   let liveSubscription = false;
+  let liveJoinGeneration = 0;
+  let verifiedJoinGeneration = -1;
+  let refreshHealthy = false;
 
   const el = id => document.getElementById(id);
   const t = key => i18n.translate(key, activeLanguage, publicTranslations, builtInLocales);
@@ -88,6 +95,7 @@
     const selector = el("publicLanguage");
     if (selector) selector.value = activeLanguage;
     if (currentPayload) render(currentPayload);
+    else if (lastErrorMessage) renderError(lastErrorMessage);
   }
 
   el("publicLanguage")?.addEventListener("change", event => updatePublicLanguage(event.target.value));
@@ -118,44 +126,95 @@
   window.setInterval(() => void refresh(false), 15000);
 
   async function refresh(showLoader) {
+    refreshPending = true;
+    pendingLoader = pendingLoader || showLoader;
     if (refreshInFlight) return;
     refreshInFlight = true;
+    try {
+      // Coalesce concurrent events into a trailing authoritative GET. Cap each
+      // invocation at two passes; any further work remains pending for the
+      // next notification or the existing periodic poll.
+      for (let pass = 0; pass < 2 && refreshPending; pass++) {
+        const loader = pendingLoader;
+        refreshPending = false;
+        pendingLoader = false;
+        await refreshOnce(loader);
+      }
+    } finally {
+      refreshInFlight = false;
+    }
+  }
+
+  async function refreshOnce(showLoader) {
+    const joinGeneration = liveJoinGeneration;
     if (showLoader) {
       show("loadingState", true);
       show("errorState", false);
     }
-
+    const controller = new AbortController();
+    const deadline = window.setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(endpoint, {
         headers: { Accept: "application/json" },
-        cache: "no-store"
+        cache: "no-store",
+        signal: controller.signal
       });
       if (!response.ok) {
-        throw new Error(response.status === 404
-          ? "This competition does not exist, is archived, or has no published results yet."
+        throw new Error(response.status === 404 || response.status === 403 || response.status === 401 || response.status === 410
+          ? "The competition does not exist, is archived, or has no published results yet."
           : "The results service is temporarily unavailable.");
       }
 
       const payload = await response.json();
+      if (!payload || typeof payload !== "object" || !Array.isArray(payload.results)
+          || !Array.isArray(payload.stackers) || !Array.isArray(payload.doubles)
+          || !Array.isArray(payload.relays) || !payload.competition || typeof payload.competition !== "object") {
+        throw new Error("The results service is temporarily unavailable.");
+      }
+      const branding = payload.branding || {};
+      const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
+      // A deletion or metadata/status change can leave the server timestamp
+      // unchanged (or move it backwards). Compare the actual projection too.
+      const signature = JSON.stringify(payload);
+      const changed = !currentPayload || signature !== lastPayloadSignature || version !== lastVersion;
       currentPayload = payload;
       publicTranslations = safeTranslations(payload.translations);
       if (!hasExplicitLanguage) activeLanguage = isSupportedLanguage(payload.settings?.language)
         ? i18n.normalizeLanguageCode(payload.settings.language)
         : "en";
-      applyStaticTranslations();
-      const branding = payload.branding || {};
-      const version = [payload.lastUpdatedAt || "", branding.logoUrl || "", branding.bannerUrl || ""].join("|");
-      if (showLoader || version !== lastVersion) render(payload);
+      if (showLoader || changed) {
+        applyStaticTranslations();
+        render(payload);
+      }
       lastVersion = version;
-      setConnection(liveSubscription ? "live" : "offline", liveSubscription ? "Connected" : "Auto refresh");
+      lastPayloadSignature = signature;
+      lastErrorMessage = "";
+      refreshHealthy = true;
+      verifiedJoinGeneration = joinGeneration;
+      updateConnectionStatus();
     } catch (error) {
-      if (showLoader || !lastVersion) renderError(error.message === "The competition does not exist, is archived, or has no published results yet."
-        ? error.message
-        : "The results service is temporarily unavailable.");
-      setConnection("offline", "Reconnecting");
+      refreshHealthy = false;
+      verifiedJoinGeneration = -1;
+      currentPayload = null;
+      lastVersion = "";
+      lastPayloadSignature = "";
+      publicTranslations = {};
+      lastErrorMessage = error.message === "The competition does not exist, is archived, or has no published results yet."
+        ? error.message : "The results service is temporarily unavailable.";
+      // Fail closed for every failed read, including transient failures. A
+      // later language change must never rerender the last successful payload.
+      renderError(lastErrorMessage);
+      updateConnectionStatus();
     } finally {
-      refreshInFlight = false;
+      window.clearTimeout(deadline);
     }
+  }
+
+  function updateConnectionStatus() {
+    if (!refreshHealthy) return setConnection("offline", "Reconnecting");
+    if (!liveSubscription) return setConnection("offline", "Auto refresh");
+    if (verifiedJoinGeneration !== liveJoinGeneration) return setConnection("connecting", "Reconnecting");
+    return setConnection("live", "Connected");
   }
 
   function publicBrandingPath(value, type, fallback) {
@@ -167,6 +226,7 @@
   function render(payload) {
     show("loadingState", false);
     show("errorState", false);
+    show("disclaimer", true);
 
     const competition = payload.competition || {};
     const branding = payload.branding || {};
@@ -1622,7 +1682,7 @@
 
   async function connectLiveUpdates() {
     if (!window.signalR) {
-      setConnection("offline", "Auto refresh");
+      updateConnectionStatus();
       return;
     }
 
@@ -1632,35 +1692,43 @@
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
+    // Events are hints scoped by the server subscription; the public URL may
+    // be a competition code rather than the canonical event competition key.
     connection.on("CompetitionChanged", () => void refresh(false));
     connection.on("ResultsChanged", () => void refresh(false));
     connection.onreconnecting(() => {
       liveSubscription = false;
+      liveJoinGeneration++;
       setConnection("connecting", "Reconnecting");
     });
+    const joinAndRefresh = async () => {
+      await connection.invoke("JoinCompetition", competitionId);
+      liveSubscription = true;
+      liveJoinGeneration++;
+      setConnection("connecting", "Reconnecting");
+      await refresh(false);
+    };
     connection.onreconnected(async () => {
       try {
-        await connection.invoke("JoinCompetition", competitionId);
-        liveSubscription = true;
-        setConnection("live", "Connected");
-        void refresh(false);
+        await joinAndRefresh();
       } catch {
+        liveSubscription = false;
+        updateConnectionStatus();
         await connection.stop().catch(() => undefined);
       }
     });
     connection.onclose(() => {
       liveSubscription = false;
-      setConnection("offline", "Auto refresh");
+      liveJoinGeneration++;
+      updateConnectionStatus();
     });
 
     try {
       await connection.start();
-      await connection.invoke("JoinCompetition", competitionId);
-      liveSubscription = true;
-      setConnection("live", "Connected");
+      await joinAndRefresh();
     } catch {
       liveSubscription = false;
-      setConnection("offline", "Auto refresh");
+      updateConnectionStatus();
       await connection.stop().catch(() => undefined);
       // Unlisted direct links continue refreshing through the public HTTP endpoint.
       // Do not continuously reconnect a denied anonymous subscription.
@@ -1668,14 +1736,26 @@
   }
 
   function renderError(message) {
+    lastErrorMessage = message;
     show("loadingState", false);
-    show("dashboard", false);
-    show("preliminary", false);
-    show("finals", false);
-    show("allAround", false);
-    show("doubles", false);
-    show("relay", false);
-    show("comingSoon", false);
+    for (const id of ["dashboard", "preliminary", "finals", "allAround", "allAroundByDivision", "doubles", "relay", "medals", "comingSoon", "disclaimer"]) show(id, false);
+    // Remove the old rendered rows as well as hiding their sections. Keep the
+    // shell intact so the next successful read can rebuild the same route.
+    for (const id of ["sectionStatusGrid", "leaderCard", "latestResults", "stageStats",
+      "preliminaryGroups", "finalsGroups", "allAroundGroups", "allAroundDivisionGroups", "doublesGroups", "relayGroups", "medalRows"]) {
+      el(id)?.replaceChildren();
+    }
+    for (const id of ["competitionLogo", "competitionBanner"]) {
+      const image = el(id);
+      if (image) { image.onerror = null; image.removeAttribute("src"); image.alt = ""; image.hidden = true; }
+    }
+    text("competitionName", "Competition Results");
+    text("competitionMeta", "");
+    text("competitionCode", "");
+    text("lastUpdated", "Waiting for results…");
+    const status = el("resultStatus");
+    if (status) { status.textContent = t("Waiting for results"); status.className = "result-status waiting"; }
+    document.title = t("NADITrack Live Results");
     show("errorState", true);
     text("errorMessage", message);
   }
@@ -1685,7 +1765,7 @@
     if (!node) return;
     node.dataset.state = state;
     const labelNode = node.querySelector("span:last-child");
-    if (labelNode) labelNode.textContent = label;
+    if (labelNode) { labelNode.dataset.i18n = label; labelNode.textContent = t(label); }
   }
 
   function countBy(items, keySelector) {

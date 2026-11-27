@@ -74,4 +74,8 @@ assert.doesNotMatch(controller, /return root/);
 const domainValues = ["Kejuaraan ABC 2026", "Tan Wei Ming", "SJK(C) Example", "Speed Dragons", "Elite Open A", "3-6-3", "7.123", "ABC-2026"];
 for (const value of domainValues) assert.ok(!client.includes("t(" + JSON.stringify(value) + ")"), "domain value must not be translated: " + value);
 
+for (const key of ["The competition does not exist, is archived, or has no published results yet.", "The competition ID is missing from this results link.", "The results service is temporarily unavailable.", "Connecting", "Connected", "Reconnecting", "Auto refresh"]) {
+  for (const code of ["en", "ms", "zh-Hans"]) assert.ok(Object.prototype.hasOwnProperty.call(locales[code], key), code + " public recovery translation: " + key);
+}
+
 console.log("Phase 3C localization coverage tests passed.");

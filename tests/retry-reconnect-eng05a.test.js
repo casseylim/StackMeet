@@ -183,7 +183,7 @@ function hubDouble(trace) {
     withUrl() { return this; } withAutomaticReconnect() { return this; }
     configureLogging() { return this; } build() { return hub; }
   }
-  return { events, lifecycle, signalR: { HubConnectionBuilder: Builder, LogLevel: { Warning: 3 } } };
+  return { events, lifecycle, hub, signalR: { HubConnectionBuilder: Builder, LogLevel: { Warning: 3 } } };
 }
 
 async function operatorNotifications() {
@@ -349,46 +349,155 @@ async function operatorResultSnapshotRace() {
 
 async function publicNotifications() {
   const source = fs.readFileSync(path.join(root, "results/results.js"), "utf8");
-  const trace = [], h = hubDouble(trace), pending = deferred();
-  let reads = 0, next = pending.promise;
+  const trace = [], h = hubDouble(trace);
+  const payload = (time, results, official = false) => ({
+    lastUpdatedAt: time, competition: { name: "Synthetic", isOfficial: official },
+    settings: {}, results, stackers: [], doubles: [], relays: [], divisions: []
+  });
+  const nodes = new Map();
+  const node = id => {
+    if (!nodes.has(id)) nodes.set(id, { hidden: false, children: ["old"], textContent: "", dataset: {},
+      replaceChildren(...children) { this.children = children; },
+      removeAttribute(name) { delete this[name]; },
+      querySelector() { return null; }
+    });
+    return nodes.get(id);
+  };
+  let reads = 0, active = 0, maxActive = 0;
+  const responses = [];
+  let timeoutCallback = null;
   const ctx = {
-    window: { signalR: h.signalR }, signalR: h.signalR, competitionId: "TEST", endpoint: "/synthetic",
-    refreshInFlight: false, liveSubscription: false, lastVersion: "", currentPayload: null,
+    window: { signalR: h.signalR, setTimeout(fn, delay) { assert.equal(delay, 10000); timeoutCallback = fn; return 1; }, clearTimeout() { timeoutCallback = null; } }, signalR: h.signalR, competitionId: "TEST", endpoint: "/synthetic",
+    AbortController, refreshInFlight: false, refreshPending: false, pendingLoader: false,
+    liveSubscription: false, liveJoinGeneration: 0, verifiedJoinGeneration: -1, refreshHealthy: false,
+    lastVersion: "", lastPayloadSignature: "", lastErrorMessage: "", currentPayload: null,
     publicTranslations: {}, hasExplicitLanguage: true, activeLanguage: "en",
-    show() {}, text() {}, safeTranslations: () => ({}), applyStaticTranslations() {},
-    setConnection: (state) => trace.push("connection:" + state),
-    render: payload => trace.push("render:" + payload.lastUpdatedAt),
-    renderError: () => trace.push("render-error"),
-    fetch: async () => { reads++; trace.push("GET"); return next; }
+    el: node, document: { title: "" }, t: value => value,
+    show(id, visible) { node(id).hidden = !visible; },
+    text(id, value) { node(id).textContent = value; },
+    safeTranslations: () => ({}), applyStaticTranslations() {}, updatePublicNavigation() {},
+    i18n: { normalizeLanguageCode: value => value },
+    setConnection: (state, label) => trace.push("connection:" + state + ":" + label),
+    render: data => {
+      trace.push("render:" + data.lastUpdatedAt);
+      node("medals").hidden = false;
+      node("medalRows").children = data.results.map(row => row.participant);
+      node("errorState").hidden = true;
+    },
+    fetch: async (url, options) => {
+      reads++; active++; maxActive = Math.max(maxActive, active); trace.push("GET");
+      assert.equal(options.cache, "no-store");
+      assert.ok(options.signal);
+      try {
+        assert.ok(responses.length, "unexpected GET");
+        const next = responses.shift();
+        return await (typeof next === "function" ? next(options.signal) : next);
+      } finally { active--; }
+    }
   };
   vm.createContext(ctx);
   vm.runInContext(extract(source, "async function refresh(showLoader)", "function publicBrandingPath")
-    + "\n" + extract(source, "async function connectLiveUpdates()", "function renderError("), ctx);
+    + "\n" + extract(source, "async function connectLiveUpdates()", "function setConnection(")
+    + "\n" + extract(source, "function updatePublicLanguage(", 'el("publicLanguage")?.addEventListener'), ctx);
+  responses.push(response(payload("v1", [result("A", 1)])));
   await ctx.connectLiveUpdates();
   assert.deepEqual(trace.slice(0, 2), ["start", "JoinCompetition"]);
+  assert.equal(ctx.refreshHealthy, true);
+  assert.equal(trace.at(-1), "connection:live:Connected");
+
+  // Multiple hints during an in-flight GET require exactly one trailing GET.
+  const pending = deferred();
+  responses.push(pending.promise, response(payload("v1", [])));
   const first = ctx.refresh(false);
   h.events.get("ResultsChanged")();
   h.events.get("CompetitionChanged")();
-  assert.equal(reads, 1, "Current in-flight guard coalesces by dropping notifications.");
-  pending.resolve(response({ lastUpdatedAt: "v1", settings: {}, results: [result("A", 1)] }));
-  await first;
-  assert.equal(reads, 1, "Known gap: no trailing refresh after event during GET.");
-  console.log("OBSERVED ENG05A GAP-03 public in-flight notifications have no trailing refresh");
-  next = Promise.resolve(response({ lastUpdatedAt: "v2", settings: {}, results: [] }));
-  await ctx.refresh(false); // Same authoritative GET as the existing polling fallback.
-  assert.equal(ctx.currentPayload.results.length, 0);
   assert.equal(reads, 2);
+  pending.resolve(response(payload("v1", [result("A", 1)])));
+  await first;
+  assert.equal(reads, 3);
+  assert.equal(maxActive, 1);
+  assert.equal(ctx.currentPayload.results.length, 0, "Trailing GET must apply deletion even with unchanged timestamp.");
+  assert.deepEqual(node("medalRows").children, []);
+  assert.equal(ctx.refreshPending, false);
+  console.log("PASS ENG05D GAP-03 public notifications coalesce and same-timestamp deletion renders");
+
+  // Metadata/status change with same timestamp must render; unchanged data must not.
+  const renderCount = () => trace.filter(item => item.startsWith("render:")).length;
+  const before = renderCount();
+  responses.push(response(payload("v1", [], true)), response(payload("v1", [], true)));
+  await ctx.refresh(false); await ctx.refresh(false);
+  assert.equal(renderCount(), before + 1);
+  assert.equal(ctx.currentPayload.competition.isOfficial, true);
+
+  // Reconnect must rejoin, then retrieve the authoritative projection.
   trace.length = 0;
-  next = Promise.resolve(response({ lastUpdatedAt: "v3", settings: {}, results: [] }));
+  h.lifecycle.reconnecting();
+  responses.push(response(payload("v2", [result("B", 2)])));
   await h.lifecycle.reconnected();
-  // Handler intentionally launches refresh without awaiting it.
-  await new Promise(resolve => setImmediate(resolve));
   assert.ok(trace.indexOf("JoinCompetition") >= 0 && trace.indexOf("GET") > trace.indexOf("JoinCompetition"));
-  assert.equal(ctx.currentPayload.lastUpdatedAt, "v3", "Reconnect must apply the latest authoritative payload.");
-  assert.equal(ctx.lastVersion, "v3||", "Version signature includes timestamp and both empty branding fields.");
-  assert.equal(ctx.currentPayload.results.length, 0, "Reconnect must not restore a deleted result.");
-  assert.ok(trace.includes("render:v3"), "Reconnect must render the refreshed projection.");
-  console.log("PASS ENG05A public reconnect joins before authoritative refresh");
+  assert.equal(ctx.lastVersion, "v2||");
+  assert.equal(trace.at(-1), "connection:live:Connected");
+
+  // A denied/withdrawn public endpoint cannot leave previously rendered medals
+  // or cached results available for a subsequent language-triggered render.
+  responses.push(response({}, 404));
+  await ctx.refresh(false);
+  assert.equal(ctx.currentPayload, null);
+  assert.equal(ctx.lastVersion, "");
+  assert.equal(ctx.lastPayloadSignature, "");
+  assert.equal(node("medals").hidden, true);
+  assert.equal(node("dashboard").hidden, true);
+  assert.equal(node("disclaimer").hidden, true);
+  assert.deepEqual(node("medalRows").children, []);
+  assert.equal(node("competitionName").textContent, "Competition Results");
+  assert.equal(node("errorState").hidden, false);
+  assert.match(node("errorMessage").textContent, /does not exist/);
+  assert.equal(trace.at(-1), "connection:offline:Reconnecting");
+  const renderedBeforeLanguage = renderCount();
+  ctx.updatePublicLanguage("ms", false);
+  assert.equal(renderCount(), renderedBeforeLanguage, "Language switch cannot resurrect a withdrawn payload.");
+  assert.equal(node("medals").hidden, true);
+  responses.push(response(payload("v2", [result("B", 2)])));
+  await ctx.refresh(false);
+  assert.equal(node("medals").hidden, false);
+  assert.deepEqual(node("medalRows").children, ["B"]);
+  assert.equal(ctx.lastErrorMessage, "");
+  responses.push(response({}, 503));
+  await ctx.refresh(false);
+  assert.equal(ctx.currentPayload, null, "Transient failure also hides stale standings.");
+  assert.equal(node("medals").hidden, true);
+  responses.push(response({ results: [] }));
+  await ctx.refresh(false);
+  assert.equal(ctx.currentPayload, null, "Malformed success cannot be published.");
+  responses.push(response(payload("v2", [])));
+  await ctx.refresh(false);
+  assert.equal(ctx.currentPayload.results.length, 0);
+  // A stalled request must time out and free the single-flight coordinator.
+  responses.push(signal => new Promise((resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })));
+  const stalled = ctx.refresh(false);
+  assert.equal(typeof timeoutCallback, "function");
+  timeoutCallback();
+  await stalled;
+  assert.equal(ctx.refreshInFlight, false);
+  assert.equal(ctx.currentPayload, null);
+  responses.push(response(payload("v2", [])));
+  await ctx.refresh(false);
+  assert.equal(ctx.refreshHealthy, true);
+  h.lifecycle.close();
+  assert.equal(trace.at(-1), "connection:offline:Auto refresh");
+  // An unlisted competition may be denied push but still have an allowed HTTP direct link.
+  const readsBeforeDeniedJoin = reads;
+  h.hub.invoke = async () => { trace.push("denied-join"); throw new Error("subscription unavailable"); };
+  await ctx.connectLiveUpdates();
+  assert.equal(reads, readsBeforeDeniedJoin, "Denied push must not create a resubscription loop.");
+  assert.equal(ctx.liveSubscription, false);
+  responses.push(response(payload("v3", [])));
+  await ctx.refresh(false);
+  assert.equal(ctx.lastVersion, "v3||");
+  assert.equal(trace.at(-1), "connection:offline:Auto refresh");
+  assert.equal(responses.length, 0);
+  console.log("PASS ENG05D timeout, language switch and unlisted HTTP fallback");
+  console.log("PASS ENG05D GAP-04 failed and withdrawn projections clear cache and all standings; polling recovers");
 }
 
 async function stateDraftReview() {
@@ -445,5 +554,5 @@ async function stateDraftReview() {
   await operatorNotifications();
   await operatorResultSnapshotRace();
   await publicNotifications();
-  console.log("ENG05A/B/C retry/reconnect checks passed; public gaps remain open.");
+  console.log("ENG05A/B/C/D retry/reconnect checks passed; integrated runtime acceptance remains open.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

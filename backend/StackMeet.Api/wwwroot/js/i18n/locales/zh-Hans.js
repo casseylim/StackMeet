@@ -367,6 +367,7 @@
   "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "已保存的版本未更改。是否允许手动重试保存尚未保存的更改？",
   "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "已保存的状态已更改。是否放弃本地未保存的更改并加载已保存的版本？选择取消可保留草稿。",
   "Review saved state before retrying.": "请先检查已保存的状态，再重试。",
-  "Earlier save failed; review before retrying.": "上一次保存失败；请先检查再重试。"
+  "Earlier save failed; review before retrying.": "上一次保存失败；请先检查再重试。",
+  "The competition does not exist, is archived, or has no published results yet.": "比赛不存在、已归档或尚未发布成绩。"
 });
 })(typeof window !== "undefined" ? window : globalThis);
