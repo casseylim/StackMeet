@@ -1,0 +1,25 @@
+# ENG-05C — Operator synchronization candidate
+
+Base: ENG-05B c83656cfc3ddfef70ed8f0a083519862d58af8ef; [CI 45982916639](https://github.com/casseylim/StackMeet/actions/runs/45982916639) passed all three jobs. Hosted validation of this candidate pending.
+
+## Changes
+
+- Event, initial join, reconnect, pending editor and 3-second fallback poll enter one bounded operator refresh coordinator. Separate pending state/result flags and requested minimum revisions are retained on failure. Applied state watermark advances only after authoritative observation is accepted and presentation completes. A repeated notification can recover a failed read. Obsolete/wrong-competition events are ignored; no event is treated as a commit acknowledgment.
+- Authorized group join precedes initial/reconnect resync. SQL results refresh independently of JSON state even if the state read fails, state is unchanged, or state writes need review. Reconnect does not replay any POST. One active coordinator and at most one trailing pass per invocation; pending work that cannot finish remains for another event or poll. The background poll now reads both stores on relevant routes, so missing results events can be recovered without a JSON revision change.
+- Before and after awaited reads, check editor/focused input and competition epoch. Old SQL snapshots cannot populate a newly selected competition; result cache and app revision protection remain intact. Pending state is refetched rather than applying a stale stored observation after editing. State ETag observation/acceptance and failed-draft guards from ENG-05B remain.
+- Unchanged accepted state ETag does not rebuild normalized UI on every poll. Changed state or SQL results have pending presentation flags; interrupted presentation may be completed by later refresh. SQL roster read checks epoch and editor state, and must not replace failed-state save status with Saved. Preserve SQL-owned slices, report controls and active paperwork preview.
+- No new storage, schema, ranking policy, authentication privileges or deployment changes.
+
+## Regression evidence candidate
+
+Existing tests/retry-reconnect-eng05a.test.js replaces the old GAP-01 and GAP-02 characterization assertions with positive recovery assertions. Deterministic VM/hub tests cover failed state read then same event, duplicate/delayed notification, editor deferral, reconnect order and independent SQL recovery despite state failure, failed/stale SQL read remains pending, burst coalescing and failed draft blocks state but not SQL refresh. Actual extracted result refresh functions test in-flight editor activation, stale competition epoch, current authoritative snapshot and no redundant unchanged presentation. Existing ENG-05A/B provider, two-client lost-response, tombstone and explicit review tests retained; public GAP-03 remains characterized. No test skipped. New hosted CI pending.
+
+## Limits and gates
+
+This is synthetic client regression evidence, not real SignalR transport or browser acceptance. Bounded coordinator retries on later notification/poll rather than an unlimited immediate loop; active editing deliberately defers updates. Additional full SQL GETs on fallback may increase load; profile representative traffic in ENG-07. The operator coordinator uses safe-number notification watermarks; exact ETag comparison in provider remains BigInt, and very large notification revisions rely on fallback reads. Full authentication renewal, untracked DOM drafts, durable drafts, publication withdrawal, actual close-during-edit, and real two-client network fault exercises remain open. Public GAP-03/04 handled in ENG-05D; ENG-05E/F integration and completion follow. ENG-04 operational risks, browser accessibility/locale/report acceptance and release preflight remain open. No production readiness claim.
+
+Mandatory: Overall/All-Around Finals only; preliminary reporting separate; certified historical snapshot bytes and digests immutable. Never overwrite production IIS web.config in upload, synchronization or rollback: explicit exclusion, secure backup and identical pre/post SHA-256 required. No master merge or production deployment without explicit owner approval.
+
+## CI correction
+
+Initial [workflow 45990300790](https://github.com/casseylim/StackMeet/actions/runs/45990300790) passed offline DLL reproducibility but failed Build and test and Regression evidence/API coverage at prelim-save-pipeline.test.js. Save completion invoked the new coordinator with neither state nor result refresh pending; the coordinator nonetheless called currentCompetitionKey and the existing synthetic prelim fixture lacked sessionStorage. Correct the actual coordinator with an early successful no-op after recording requested work, before checking editor/context or in-flight status, when both pending flags are false. Add a regression with a deliberately throwing competition-key accessor, require no reads and no in-flight change. Existing preliminary save test unchanged. Pending state/results, revision, draft, reconnect and bounded retry assertions remain intact. Corrected hosted CI pending.

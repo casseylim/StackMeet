@@ -305,6 +305,13 @@ let competitionStatePollTimer = null;
 let pendingRemoteCompetitionState = null;
 let pendingResultsRefresh = false;
 let currentCompetitionRevision = 0;
+let pendingStateRefresh = false;
+let pendingStateRevision = 0;
+let pendingResultRevision = 0;
+let operatorSyncInFlight = false;
+let operatorSyncRequestedAgain = false;
+let operatorStatePresentationPending = false;
+let operatorResultPresentationPending = false;
 let currentResultsRevision = 0;
 window.__resultSyncDiagnostics = window.__resultSyncDiagnostics || { build: "phase5-sync-debug-20260817", connectionState: null, connectionId: null, currentResultsRevision: 0, lastEventRevision: null, lastEventAt: null, lastAcceptedRevision: null, lastIgnoredRevision: null, lastIgnoreReason: null, pendingResultsRevision: null, lastReloadRevision: null, lastReloadCount: null, lastReloadAt: null, hasParticipant186: null, lastRenderAt: null };
 const resultSyncDiagnostics = window.__resultSyncDiagnostics;
@@ -729,6 +736,10 @@ function setSelectedSqlCompetition(competition) {
     resultCompetitionEpoch++;
     resultsLoadedForEpoch = -1;
     currentResultsRevision = 0;
+    pendingResultsRefresh = true;
+    pendingResultRevision = 0;
+    operatorResultPresentationPending = false;
+    resultSyncDiagnostics.pendingResultsRevision = null;
     state.results = [];
     prelimResultEditor = finalResultEditor = null;
     activePrelimParticipantId = activePrelimParticipantType = activeFinalSheetId = "";
@@ -846,9 +857,11 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
   if (!selectedSqlCompetitionId || stackerRefreshInFlight) return false;
   if (editingStackerId && !allowEditing) return false;
   stackerRefreshInFlight = true;
-  setSaveStatus("Saving...", "saving");
+  if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Saving...", "saving");
   try {
+    const epoch = resultCompetitionEpoch;
     const records = await stackerApi.list(selectedSqlCompetitionId);
+    if (epoch !== resultCompetitionEpoch || (!allowEditing && competitionEditorActive())) return false;
     state.stackers = records.map(sqlStackerToRuntime);
     state.divisions = appendStandardImportedDivisions(
       [
@@ -873,12 +886,12 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
       // Admin reports use SQL-native participants, which are not stored in the browser state snapshot.
       renderReports();
     }
-    setSaveStatus("Saved", "saved");
+    if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Saved", "saved");
     return true;
   } catch (error) {
     console.error("Unable to refresh SQL-native stackers.", error);
     flashMessage = { type: "error", text: t("Save Failed: unable to refresh SQL-native stackers.") };
-    setSaveStatus("Save Failed", "failed");
+    if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Save Failed", "failed");
     if (rerender && route === "stackers") render();
     return false;
   } finally {
@@ -886,23 +899,27 @@ async function refreshSqlStackers({ allowEditing = false, rerender = true } = {}
   }
 }
 
-async function refreshSqlResults({ rerender = true } = {}) {
+async function refreshSqlResults({ rerender = true, background = false } = {}) {
   if (!selectedSqlCompetitionId) return false;
   const epoch = resultCompetitionEpoch;
   const payload = await resultApi.list(selectedSqlCompetitionId);
+  if (epoch !== resultCompetitionEpoch || (background && operatorSyncEditing())) return false;
+  const changed = resultsLoadedForEpoch !== epoch || payload.revision !== currentResultsRevision;
   if (!applySqlResultSnapshot(epoch, payload)) return false;
   resultSyncDiagnostics.currentResultsRevision = currentResultsRevision;
   resultSyncDiagnostics.lastReloadRevision = payload.revision;
   resultSyncDiagnostics.lastReloadCount = payload.results.length;
   resultSyncDiagnostics.lastReloadAt = new Date().toISOString();
   resultSyncDiagnostics.hasParticipant186 = payload.results.some(result => String(result.participant || result.participantCode || "") === "1.86");
-  if (rerender && route === "competition") {
-    if (competitionEditorActive()) {
+  if (changed) operatorResultPresentationPending = true;
+  if (rerender && (operatorResultPresentationPending || !background)) {
+    if (operatorSyncEditing()) {
       pendingResultsRefresh = true;
       resultSyncDiagnostics.pendingResultsRevision = payload.revision;
-      return true;
+      return !background;
     }
     refreshResultsDisplayAfterSync();
+    operatorResultPresentationPending = false;
     resultSyncDiagnostics.lastRenderAt = new Date().toISOString();
   }
   return true;
@@ -1185,18 +1202,11 @@ function syncCompetitionStatePolling() {
   competitionStatePollTimer = null;
   const syncRoutes = ["competition", "reports", "paperwork", "dashboard"];
   if (!syncRoutes.includes(route)) return;
-  competitionStatePollTimer = setInterval(async () => {
+  competitionStatePollTimer = setInterval(() => {
     if (!syncRoutes.includes(route)) return;
-    // Keep the fallback poll out of the operator's typing window. SignalR still
-    // reports changes immediately, while this fallback runs after entry/menu use.
-    if (competitionEntryInputActive()) return;
-    try {
-      const latest = await loadLatestCompetition();
-      if (!latest) return;
-      await applyRemoteCompetitionState(latest);
-    } catch (error) {
-      console.warn("Unable to refresh shared competition results.", error);
-    }
+    // Both stores are independent. Polling repairs missed events even when
+    // the JSON state has not changed.
+    void requestOperatorRefresh({ state: true, results: true });
   }, 3000);
 }
 
@@ -1232,6 +1242,12 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
   // when a draft is being edited or a save is queued. Obsolete observations
   // (including reads started before a successful local write) are refused.
   const latest = observation.state;
+  const sameAcceptedRevision = observation.etag != null && observation.etag === observation.baseline;
+  if (!reviewed && sameAcceptedRevision && !operatorStatePresentationPending) {
+    if (!repository.acceptObservedCompetition(observation)) return false;
+    pendingRemoteCompetitionState = null;
+    return true;
+  }
   // Prepare the replacement before advancing the accepted ETag. Normalization
   // also updates ageCalculationMode, so restore that side effect until accepted.
   const previousAgeMode = ageCalculationMode;
@@ -1250,16 +1266,22 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
     pendingDeletedRelays.clear();
     setSaveStatus("Saved", "saved");
   }
-  if (JSON.stringify(legacyStateForSave(latest)) === JSON.stringify(legacyStateForSave(state))) return true;
-  const sqlOwnedStackers = state.stackers;
-  const sqlOwnedResults = state.results;
-  state = normalized;
-  ageCalculationMode = normalizedAgeMode;
-  // CompetitionState is transitional configuration storage. SQL owns these
-  // slices and a legacy refresh must never replace them with [] from JSON.
-  state.stackers = sqlOwnedStackers;
-  state.results = sqlOwnedResults;
-  if (selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: localEditing, rerender: false });
+  const changed = (reviewed || !sameAcceptedRevision)
+    && JSON.stringify(legacyStateForSave(latest)) !== JSON.stringify(legacyStateForSave(state));
+  const epoch = resultCompetitionEpoch;
+  if (changed) {
+    const sqlOwnedStackers = state.stackers;
+    const sqlOwnedResults = state.results;
+    state = normalized;
+    ageCalculationMode = normalizedAgeMode;
+    // SQL owns roster and results; JSON synchronization must preserve them.
+    state.stackers = sqlOwnedStackers;
+    state.results = sqlOwnedResults;
+    operatorStatePresentationPending = true;
+  }
+  if (!operatorStatePresentationPending) return true;
+  if (changed && selectedSqlCompetitionId) await refreshSqlStackers({ allowEditing: false, rerender: false });
+  if (epoch !== resultCompetitionEpoch || operatorSyncEditing() || queuedSaveCount || stateSaveFailure) return false;
   if (!localEditing) {
     const focusedId = document.activeElement?.id || "";
     const focusedSelection = document.activeElement && "selectionStart" in document.activeElement
@@ -1279,6 +1301,7 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
     }
   }
   else setSaveStatus("Updated", "saved");
+  operatorStatePresentationPending = false;
   return true;
 }
 
@@ -1288,16 +1311,9 @@ function competitionEditorActive() {
 }
 
 function applyPendingCompetitionUpdate() {
-  if (pendingResultsRefresh && !competitionEditorActive()) {
-    pendingResultsRefresh = false;
-    resultSyncDiagnostics.pendingResultsRevision = null;
-    void refreshSqlResults({ rerender: true }).catch(error => console.warn("Unable to refresh SQL results.", error));
-  }
-  if (!pendingRemoteCompetitionState || competitionEditorActive() || competitionEntryInputActive()
-      || queuedSaveCount || stateSaveFailure) return false;
-  const latest = pendingRemoteCompetitionState;
-  pendingRemoteCompetitionState = null;
-  return applyRemoteCompetitionState(latest);
+  // Refetch instead of accepting a stored observation whose baseline may have
+  // changed while a local editor or save was active.
+  return requestOperatorRefresh({ state: Boolean(pendingRemoteCompetitionState || pendingStateRefresh), results: pendingResultsRefresh });
 }
 
 // Explicit recovery is conservative: a changed baseline is never merged with
@@ -1335,6 +1351,83 @@ async function reviewCompetitionSave() {
 let competitionStateConnection = null;
 let competitionStateReconnectTimer = null;
 
+function operatorSyncEditing() {
+  return competitionEditorActive() || competitionEntryInputActive()
+    || Boolean(document.activeElement?.matches?.("input, select, textarea, [contenteditable='true']"));
+}
+
+function operatorStateRevision(observation) {
+  const match = /^"(\d+)"$/.exec(observation?.etag || "");
+  const revision = match ? Number(match[1]) : 0;
+  return Number.isSafeInteger(revision) ? revision : 0;
+}
+
+// One coordinator for event, reconnect, pending-editor and polling requests.
+// At most one in-flight pass and one trailing pass per invocation; failures
+// stay pending for the next event/poll, rather than spinning or replaying writes.
+async function requestOperatorRefresh({ state: refreshState = false, results: refreshResults = false, stateRevision = 0, resultsRevision = 0 } = {}) {
+  if (refreshState) {
+    pendingStateRefresh = true;
+    pendingStateRevision = Math.max(pendingStateRevision, stateRevision);
+  }
+  if (refreshResults) {
+    pendingResultsRefresh = true;
+    pendingResultRevision = Math.max(pendingResultRevision, resultsRevision);
+    resultSyncDiagnostics.pendingResultsRevision = pendingResultRevision || null;
+  }
+  // Save completion can call this with no pending work. Do not inspect
+  // competition context, touch the editor or schedule another pass in that case.
+  if (!pendingStateRefresh && !pendingResultsRefresh) return true;
+  if (operatorSyncInFlight) {
+    operatorSyncRequestedAgain = true;
+    return false;
+  }
+  if (operatorSyncEditing()) return false;
+  operatorSyncInFlight = true;
+  try {
+    for (let pass = 0; pass < 2; pass++) {
+      operatorSyncRequestedAgain = false;
+      const key = currentCompetitionKey();
+      const epoch = resultCompetitionEpoch;
+      if (pendingStateRefresh && !operatorSyncEditing() && !queuedSaveCount && !stateSaveFailure) {
+        try {
+          const observation = await loadLatestCompetition();
+          const revision = operatorStateRevision(observation);
+          if (key === currentCompetitionKey() && epoch === resultCompetitionEpoch
+              && (!pendingStateRevision || revision >= pendingStateRevision)
+              && await applyRemoteCompetitionState(observation)) {
+            if (key === currentCompetitionKey() && epoch === resultCompetitionEpoch) {
+              currentCompetitionRevision = Math.max(currentCompetitionRevision, revision);
+              if (currentCompetitionRevision >= pendingStateRevision) {
+                pendingStateRefresh = false;
+                pendingStateRevision = 0;
+              }
+            }
+          }
+        } catch (error) { console.warn("Unable to apply shared competition update.", error); }
+      }
+      // A failed/deferred JSON read must not suppress independent SQL results.
+      if (key === currentCompetitionKey() && epoch === resultCompetitionEpoch
+          && pendingResultsRefresh && !operatorSyncEditing()) {
+        try {
+          if (await refreshSqlResults({ rerender: true, background: true })
+              && key === currentCompetitionKey() && epoch === resultCompetitionEpoch
+              && !operatorSyncEditing() && currentResultsRevision >= pendingResultRevision) {
+            pendingResultsRefresh = false;
+            pendingResultRevision = 0;
+            resultSyncDiagnostics.pendingResultsRevision = null;
+          }
+        } catch (error) {
+          resultSyncDiagnostics.lastIgnoreReason = `reload-error:${error?.message || "unknown"}`;
+          console.warn("Unable to refresh SQL results.", error);
+        }
+      }
+      if (!operatorSyncRequestedAgain || operatorSyncEditing()) break;
+    }
+    return !pendingStateRefresh && !pendingResultsRefresh;
+  } finally { operatorSyncInFlight = false; }
+}
+
 async function connectCompetitionStateUpdates() {
   if (!window.signalR || competitionStateConnection) return;
   const connection = new signalR.HubConnectionBuilder()
@@ -1342,53 +1435,49 @@ async function connectCompetitionStateUpdates() {
     .withAutomaticReconnect([0, 1500, 5000, 10000])
     .configureLogging(signalR.LogLevel.Warning)
     .build();
+  competitionStateConnection = connection;
+  const joinedKey = currentCompetitionKey();
   const joinOperatorCompetition = async () => {
     const token = window.StackMeetAuth?.readSession?.()?.token;
-    if (!token) throw new Error("Competition session unavailable.");
-    await connection.invoke("JoinOperatorCompetition", currentCompetitionKey(), token);
+    if (!token || joinedKey !== currentCompetitionKey()) throw new Error("Competition session unavailable.");
+    await connection.invoke("JoinOperatorCompetition", joinedKey, token);
   };
-  const receiveChange = async update => {
-    if (String(update?.competitionKey || update?.competitionId || "").toUpperCase() !== String(currentCompetitionKey()).toUpperCase()) return;
+  const activeConnection = () => competitionStateConnection === connection && joinedKey === currentCompetitionKey();
+  connection.on("CompetitionChanged", async update => {
+    if (!activeConnection() || String(update?.competitionKey || update?.competitionId || "").toUpperCase() !== String(currentCompetitionKey()).toUpperCase()) return;
     const revision = Number(update?.revision || 0);
-    if (revision && revision <= currentCompetitionRevision) return;
-    if (revision) currentCompetitionRevision = revision;
-    try { await applyRemoteCompetitionState(await loadLatestCompetition()); }
-    catch (error) { console.warn("Unable to apply shared competition update.", error); }
-  };
-  connection.on("CompetitionChanged", receiveChange);
+    if (!Number.isSafeInteger(revision) || revision < 0 || (revision && revision <= currentCompetitionRevision)) return;
+    await requestOperatorRefresh({ state: true, stateRevision: revision });
+  });
   connection.on("ResultsChanged", async update => {
+    if (!activeConnection()) return;
     const incomingCompetitionKey = String(update?.competitionKey || "").toUpperCase();
     const expectedCompetitionKey = String(currentCompetitionKey()).toUpperCase();
     const revision = Number(update?.revision || 0);
     resultSyncDiagnostics.lastEventRevision = revision;
     resultSyncDiagnostics.lastEventAt = new Date().toISOString();
     if (incomingCompetitionKey !== expectedCompetitionKey) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "wrong-competition"; return; }
-    if (!revision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "missing-revision"; return; }
+    if (!Number.isSafeInteger(revision) || revision <= 0) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "missing-revision"; return; }
     if (revision <= currentResultsRevision) { resultSyncDiagnostics.lastIgnoredRevision = revision; resultSyncDiagnostics.lastIgnoreReason = "same-or-older-revision"; return; }
-    if (competitionEditorActive()) {
-      pendingResultsRefresh = true;
-      resultSyncDiagnostics.pendingResultsRevision = revision;
-      resultSyncDiagnostics.lastAcceptedRevision = revision;
-      resultSyncDiagnostics.lastIgnoreReason = "active-entry-queued";
-      return;
-    }
     resultSyncDiagnostics.lastAcceptedRevision = revision;
-    try { await refreshSqlResults({ rerender: true }); } catch (error) { resultSyncDiagnostics.lastIgnoreReason = `reload-error:${error?.message || "unknown"}`; console.warn("Unable to refresh SQL results.", error); }
+    if (operatorSyncEditing()) resultSyncDiagnostics.lastIgnoreReason = "active-entry-queued";
+    await requestOperatorRefresh({ results: true, resultsRevision: revision });
   });
   resultSyncDiagnostics.connectionState = connection.state;
   resultSyncDiagnostics.connectionId = connection.connectionId || null;
   connection.onreconnected(async () => {
+    if (!activeConnection()) return;
     resultSyncDiagnostics.connectionState = connection.state;
     resultSyncDiagnostics.connectionId = connection.connectionId || null;
     try {
       await joinOperatorCompetition();
-      await applyRemoteCompetitionState(await loadLatestCompetition());
+      if (activeConnection()) await requestOperatorRefresh({ state: true, results: true });
     } catch (_) {
-      // A revoked or unavailable subscription must fall back to polling.
       await connection.stop().catch(() => undefined);
     }
   });
-  connection.onclose(() => {
+  const disconnected = () => {
+    if (competitionStateConnection !== connection) return;
     resultSyncDiagnostics.connectionState = connection.state;
     resultSyncDiagnostics.connectionId = connection.connectionId || null;
     competitionStateConnection = null;
@@ -1396,14 +1485,16 @@ async function connectCompetitionStateUpdates() {
       competitionStateReconnectTimer = null;
       void connectCompetitionStateUpdates();
     }, 10000);
-  });
+  };
+  connection.onclose(disconnected);
   try {
     await connection.start();
     await joinOperatorCompetition();
-    competitionStateConnection = connection;
+    if (activeConnection()) await requestOperatorRefresh({ state: true, results: true });
   } catch (error) {
     console.warn("Competition live updates unavailable; polling remains active.", error);
     await connection.stop().catch(() => undefined);
+    disconnected();
   }
 }
 
@@ -1427,7 +1518,7 @@ function refreshResultsDisplayAfterSync() {
   }
   if (route === "reports") return renderReports();
   if (route === "dashboard") return renderDashboard();
-  if (route === "paperwork") return renderPaperwork();
+  if (route === "paperwork" && !paperworkPreviewActive()) return renderPaperwork();
 }
 
 async function createSqlCompetition() {
