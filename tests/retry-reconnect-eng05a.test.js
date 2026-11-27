@@ -220,6 +220,14 @@ async function operatorNotifications() {
   };
   vm.createContext(ctx);
   vm.runInContext(extract(source, "function operatorSyncEditing()", "// Creates a stable comparison"), ctx);
+  const readKey = ctx.currentCompetitionKey;
+  ctx.currentCompetitionKey = () => { throw new Error("Empty refresh must not read competition context"); };
+  assert.equal(await ctx.requestOperatorRefresh(), true);
+  assert.equal(stateReads, 0);
+  assert.equal(resultReads, 0);
+  assert.equal(ctx.operatorSyncInFlight, false);
+  ctx.currentCompetitionKey = readKey;
+  console.log("PASS ENG05C empty refresh does not touch competition context");
   await ctx.connectCompetitionStateUpdates();
   assert.deepEqual(trace, ["start", "JoinOperatorCompetition", "state-read", "state-apply", "result-read"]);
   await h.events.get("ResultsChanged")({ competitionKey: "OTHER", revision: 100 });
