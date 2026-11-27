@@ -230,11 +230,56 @@ internal static class Eng04ERecoveryAssertions
                     && parsed.CompetitionId == key, "recovered signing key validates synthetic session");
                 Check((await db.AppSettings.AsNoTracking().SingleAsync(x => x.Key == settingKey, ct)).Value == cipher, "verification does not rewrite current-format ciphertext");
             }
+            // ENG-04F: close the measured recovery interval before cross-package verification.
             watch.Stop();
+            var recoveryMs = watch.Elapsed.TotalMilliseconds;
+            // Feed the exact source/restored fixture asset bytes through the existing ENG-04C
+            // inspector, using its own restricted temporary-root convention.
+            var sourceCheckRoot = Path.Combine(Path.GetTempPath(), "StackMeet_ENG04C_" + Guid.NewGuid().ToString("N"));
+            var restoredCheckRoot = Path.Combine(Path.GetTempPath(), "StackMeet_ENG04C_" + Guid.NewGuid().ToString("N"));
+            var checkRelative = Path.Combine(competitionId.ToString(System.Globalization.CultureInfo.InvariantCulture), "fixture.png");
+            var originalAsset = await File.ReadAllBytesAsync(Path.Combine(sourceDir, relativeAsset), ct);
+            var recoveredAsset = await File.ReadAllBytesAsync(Path.Combine(restoredDir, relativeAsset), ct);
+            try
+            {
+                WriteFixture(sourceCheckRoot, checkRelative, originalAsset);
+                WriteFixture(restoredCheckRoot, checkRelative, recoveredAsset);
+                var before = await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(
+                    source.ConnectionString, competitionId, sourceCheckRoot, ct);
+                var after = await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(
+                    target.ConnectionString, competitionId, restoredCheckRoot, ct);
+                Check(before.Outcome == "Pass" && after.Outcome == "Pass"
+                    && before.Findings.Count == 0 && after.Findings.Count == 0
+                    && before.StateRevision == 4 && after.StateRevision == before.StateRevision
+                    && before.ResultsRevision == 2 && after.ResultsRevision == before.ResultsRevision,
+                    "ENG04F source and restored recovery fixture reconciliation parity");
+
+                // Negative control: tamper only with a disposable copy, never the backup,
+                // original fixture or restored database. A detector that always passes must fail.
+                var damaged = Encoding.UTF8.GetBytes("ENG04F deliberately invalid asset copy");
+                WriteFixture(restoredCheckRoot, checkRelative, damaged);
+                var negative = await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(
+                    target.ConnectionString, competitionId, restoredCheckRoot, ct);
+                Check(negative.Outcome == "Review"
+                    && negative.Findings.Any(x => x.Code == "AUTH-07-ASSET-MISMATCH" && x.Count == 1)
+                    && (await File.ReadAllBytesAsync(Path.Combine(restoredCheckRoot, checkRelative), ct)).SequenceEqual(damaged),
+                    "ENG04F restored asset corruption detected without automatic repair");
+                var unchangedSource = await StackMeet.Tools.StorageReconciliation.StorageReconciliation.InspectAsync(
+                    source.ConnectionString, competitionId, sourceCheckRoot, ct);
+                Check(unchangedSource.Outcome == "Pass"
+                    && (await File.ReadAllBytesAsync(Path.Combine(restoredDir, relativeAsset), ct)).SequenceEqual(recoveredAsset),
+                    "ENG04F negative control isolated from authoritative source and recovered asset");
+                Console.WriteLine("PASS ENG04F reconciliation/recovery integration and negative control");
+            }
+            finally
+            {
+                if (Directory.Exists(sourceCheckRoot)) Directory.Delete(sourceCheckRoot, recursive: true);
+                if (Directory.Exists(restoredCheckRoot)) Directory.Delete(restoredCheckRoot, recursive: true);
+            }
             Console.WriteLine("ENG04E_METRIC " + JsonSerializer.Serialize(new
             {
                 backupAndVerificationMs = Math.Round(backupMs, 3),
-                restoreAndVerificationMs = Math.Round(watch.Elapsed.TotalMilliseconds, 3),
+                restoreAndVerificationMs = Math.Round(recoveryMs, 3),
                 backupBytes = new FileInfo(backupPath).Length, competitions = counts[0], stackers = counts[1], results = counts[2],
                 checks = "SQL checksum/restore/CHECKDB, asset manifest, protected keys/settings, snapshot, privacy, synthetic config exclusion"
             }));
