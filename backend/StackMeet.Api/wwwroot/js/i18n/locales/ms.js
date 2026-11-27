@@ -373,6 +373,12 @@
   "Individual division rankings use Finals times only.": "Kedudukan divisyen individu menggunakan masa pusingan akhir sahaja.",
   "Finals-only three-event standings": "Kedudukan tiga acara pusingan akhir sahaja",
   "Waiting for Finals three-event totals": "Menunggu jumlah tiga acara pusingan akhir",
-  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "Peserta disenaraikan selepas masa akhir yang sah diterbitkan untuk 3-3-3, 3-6-3 dan Cycle."
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "Peserta disenaraikan selepas masa akhir yang sah diterbitkan untuk 3-3-3, 3-6-3 dan Cycle.",
+  "Review saved state": "Semak keadaan yang disimpan",
+  "Finish editing before reviewing saved state.": "Selesaikan penyuntingan sebelum menyemak keadaan yang disimpan.",
+  "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "Versi yang disimpan tidak berubah. Benarkan percubaan semula secara manual untuk perubahan yang belum disimpan?",
+  "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "Keadaan yang disimpan telah berubah. Buang perubahan tempatan yang belum disimpan dan muatkan versi yang disimpan? Pilih Batal untuk mengekalkan draf anda.",
+  "Review saved state before retrying.": "Semak keadaan yang disimpan sebelum mencuba semula.",
+  "Earlier save failed; review before retrying.": "Simpanan sebelumnya gagal; semak sebelum mencuba semula."
 });
 })(typeof window !== "undefined" ? window : globalThis);
