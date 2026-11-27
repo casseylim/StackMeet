@@ -100,6 +100,7 @@
   "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "Saved revision is unchanged. Allow a manual retry of your unsaved changes?",
   "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.",
   "Review saved state before retrying.": "Review saved state before retrying.",
-  "Earlier save failed; review before retrying.": "Earlier save failed; review before retrying."
+  "Earlier save failed; review before retrying.": "Earlier save failed; review before retrying.",
+  "The competition does not exist, is archived, or has no published results yet.": "The competition does not exist, is archived, or has no published results yet."
 });
 })(typeof window !== "undefined" ? window : globalThis);
