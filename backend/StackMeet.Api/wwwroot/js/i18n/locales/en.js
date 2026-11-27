@@ -94,6 +94,12 @@
   "Individual division rankings use Finals times only.": "Individual division rankings use Finals times only.",
   "Finals-only three-event standings": "Finals-only three-event standings",
   "Waiting for Finals three-event totals": "Waiting for Finals three-event totals",
-  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle."
+  "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.": "A stacker appears after valid Finals times have been published for 3-3-3, 3-6-3, and Cycle.",
+  "Review saved state": "Review saved state",
+  "Finish editing before reviewing saved state.": "Finish editing before reviewing saved state.",
+  "Saved revision is unchanged. Allow a manual retry of your unsaved changes?": "Saved revision is unchanged. Allow a manual retry of your unsaved changes?",
+  "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.": "Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft.",
+  "Review saved state before retrying.": "Review saved state before retrying.",
+  "Earlier save failed; review before retrying.": "Earlier save failed; review before retrying."
 });
 })(typeof window !== "undefined" ? window : globalThis);
