@@ -304,6 +304,41 @@ async function operatorNotifications() {
   console.log("PASS ENG05C bounded refresh, failed result recovery and draft preservation");
 }
 
+async function operatorResultSnapshotRace() {
+  const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  let gate = deferred(), editing = false, renderCount = 0;
+  const ctx = {
+    selectedSqlCompetitionId: 7, resultCompetitionEpoch: 1, resultsLoadedForEpoch: 1,
+    currentResultsRevision: 10, state: { results: [result("A", 10)] },
+    resultSyncDiagnostics: {}, pendingResultsRefresh: false, operatorResultPresentationPending: false,
+    operatorSyncEditing: () => editing, normalizeResults: clone,
+    resultApi: { list: () => gate.promise },
+    refreshResultsDisplayAfterSync: () => { renderCount++; }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(extract(source, "async function refreshSqlResults(", "async function saveSqlResults("), ctx);
+  const old = ctx.refreshSqlResults({ background: true });
+  ctx.resultCompetitionEpoch = 2; ctx.selectedSqlCompetitionId = 8;
+  ctx.currentResultsRevision = 0; ctx.state.results = [];
+  gate.resolve({ revision: 11, results: [result("OLD", 11)] });
+  assert.equal(await old, false);
+  assert.equal(ctx.state.results.length, 0, "Old competition response must not repopulate results.");
+  gate = deferred();
+  const interrupted = ctx.refreshSqlResults({ background: true });
+  editing = true;
+  gate.resolve({ revision: 2, results: [result("NEW", 2)] });
+  assert.equal(await interrupted, false);
+  assert.equal(ctx.state.results.length, 0, "Editor opened during GET must remain untouched.");
+  assert.equal(renderCount, 0);
+  editing = false;
+  assert.equal(await ctx.refreshSqlResults({ background: true }), true);
+  assert.equal(ctx.state.results[0].participant, "NEW");
+  assert.equal(renderCount, 1);
+  assert.equal(await ctx.refreshSqlResults({ background: true }), true);
+  assert.equal(renderCount, 1, "Unchanged polling snapshot must not rebuild the interface.");
+  console.log("PASS ENG05C real result refresh guards epoch, editor race and unchanged presentation");
+}
+
 async function publicNotifications() {
   const source = fs.readFileSync(path.join(root, "results/results.js"), "utf8");
   const trace = [], h = hubDouble(trace), pending = deferred();
@@ -361,7 +396,7 @@ async function stateDraftReview() {
     repository: { observeLatestCompetition: async () => observation, acceptObservedCompetition: () => { accepts++; return true; } },
     legacyStateForSave: value => ({ ...clone(value), stackers: [], results: [] }),
     normalizeState: value => clone(value), withoutLegacyStackers: value => clone(value),
-    selectedSqlCompetitionId: null, route: "reports", renderReports() {}, resultCompetitionEpoch: 1, operatorSyncEditing: () => editing,
+    selectedSqlCompetitionId: null, route: "reports", renderReports() {}, resultCompetitionEpoch: 1, operatorSyncEditing: () => editing, operatorStatePresentationPending: false,
     document: { activeElement: null }, window: { confirm: () => confirmed, alert() {} },
     t: value => value, setSaveStatus() {}, console: { warn() {} }
   };
@@ -400,6 +435,7 @@ async function stateDraftReview() {
   await lateSnapshotAfterDelete();
   await confirmedCommitFailedRefresh();
   await operatorNotifications();
+  await operatorResultSnapshotRace();
   await publicNotifications();
   console.log("ENG05A/B/C retry/reconnect checks passed; public gaps remain open.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
