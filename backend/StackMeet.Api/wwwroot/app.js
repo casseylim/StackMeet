@@ -1230,8 +1230,18 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
   // The revision and the corresponding state are accepted together, never
   // when a draft is being edited or a save is queued. Obsolete observations
   // (including reads started before a successful local write) are refused.
-  if (!repository.acceptObservedCompetition(observation)) return false;
   const latest = observation.state;
+  // Prepare the replacement before advancing the accepted ETag. Normalization
+  // also updates ageCalculationMode, so restore that side effect until accepted.
+  const previousAgeMode = ageCalculationMode;
+  let normalized, normalizedAgeMode;
+  try {
+    normalized = normalizeState(withoutLegacyStackers(latest));
+    normalizedAgeMode = ageCalculationMode;
+  } finally {
+    ageCalculationMode = previousAgeMode;
+  }
+  if (!repository.acceptObservedCompetition(observation)) return false;
   pendingRemoteCompetitionState = null;
   if (reviewed) {
     stateSaveFailure = null;
@@ -1242,7 +1252,8 @@ async function applyRemoteCompetitionState(observation, reviewed = false) {
   if (JSON.stringify(legacyStateForSave(latest)) === JSON.stringify(legacyStateForSave(state))) return true;
   const sqlOwnedStackers = state.stackers;
   const sqlOwnedResults = state.results;
-  state = normalizeState(withoutLegacyStackers(latest));
+  state = normalized;
+  ageCalculationMode = normalizedAgeMode;
   // CompetitionState is transitional configuration storage. SQL owns these
   // slices and a legacy refresh must never replace them with [] from JSON.
   state.stackers = sqlOwnedStackers;
