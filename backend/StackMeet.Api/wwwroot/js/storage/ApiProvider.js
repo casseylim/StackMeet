@@ -32,6 +32,32 @@ class ApiProvider {
     return this.load({ acceptRevision: true });
   }
 
+  // Background reads must never rebase a draft. Return an opaque observation
+  // tied to the exact accepted baseline at the time the read started.
+  async observe() {
+    const baseline = this.stateEtag;
+    if (this.#useLocalStorage()) return { owner: this, baseline, etag: null, state: await this.load() };
+    const response = await fetch(this.#stateUrl(), {
+      headers: { Accept: "application/json", ...this.#authHeaders() }
+    });
+    if (!response.ok) throw await this.#requestError(response);
+    const etag = response.headers?.get?.("ETag");
+    if (!/^"\d+"$/.test(etag || "")) throw new Error("State refresh revision unavailable.");
+    const state = await response.json();
+    if (!state || typeof state !== "object" || Array.isArray(state)) throw new Error("Invalid competition state.");
+    return { owner: this, baseline, etag, state };
+  }
+
+  acceptObservation(observation) {
+    if (!observation || observation.owner !== this || observation.baseline !== this.stateEtag) return false;
+    if (this.#useLocalStorage()) return observation.etag === null;
+    const revision = value => /^"\d+"$/.test(value || "") ? BigInt(value.slice(1, -1)) : null;
+    const next = revision(observation.etag), current = revision(this.stateEtag);
+    if (next === null || (current !== null && next < current)) return false;
+    this.stateEtag = observation.etag;
+    return true;
+  }
+
   async save(state) {
     if (this.#useLocalStorage()) {
       localStorage.setItem(this.#localFileKey(), JSON.stringify(state));
