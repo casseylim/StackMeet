@@ -276,7 +276,53 @@ async function publicNotifications() {
   console.log("PASS ENG05A public reconnect joins before authoritative refresh");
 }
 
+async function stateDraftReview() {
+  const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const original = { settings: { name: "Draft" }, stackers: [{ id: "S" }], results: [{ id: "R" }] };
+  const observation = { baseline: '"4"', etag: '"5"', state: { settings: { name: "Remote" }, stackers: [], results: [] } };
+  let accepts = 0, confirmed = false, editing = true;
+  const ctx = {
+    state: clone(original), queuedSaveCount: 0, stateSaveFailure: null, stateSaveGeneration: 0,
+    pendingRemoteCompetitionState: null, pendingResultsRefresh: false,
+    pendingDeletedDoubles: new Map([["D", 1]]), pendingDeletedRelays: new Map(),
+    competitionEditorActive: () => editing, competitionEntryInputActive: () => false,
+    repository: { observeLatestCompetition: async () => observation, acceptObservedCompetition: () => { accepts++; return true; } },
+    legacyStateForSave: value => ({ ...clone(value), stackers: [], results: [] }),
+    normalizeState: value => clone(value), withoutLegacyStackers: value => clone(value),
+    selectedSqlCompetitionId: null, route: "reports", renderReports() {},
+    document: { activeElement: null }, window: { confirm: () => confirmed, alert() {} },
+    t: value => value, setSaveStatus() {}, console: { warn() {} }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(extract(source, "async function applyRemoteCompetitionState(", "function competitionEditorActive()")
+    + "\n" + extract(source, "async function reviewCompetitionSave()", "let competitionStateConnection"), ctx);
+  assert.equal(await ctx.applyRemoteCompetitionState(observation), false);
+  assert.equal(accepts, 0);
+  assert.equal(ctx.state.settings.name, "Draft");
+  editing = false;
+  ctx.queuedSaveCount = 1;
+  assert.equal(await ctx.applyRemoteCompetitionState(observation), false);
+  assert.equal(accepts, 0);
+  ctx.queuedSaveCount = 0;
+  ctx.stateSaveFailure = { requiresReview: true };
+  assert.equal(await ctx.applyRemoteCompetitionState(observation), false);
+  assert.equal(await ctx.reviewCompetitionSave(), false, "Cancelled review retains the draft.");
+  assert.equal(ctx.state.settings.name, "Draft");
+  assert.equal(accepts, 0);
+  assert.equal(ctx.pendingDeletedDoubles.has("D"), true);
+  confirmed = true;
+  assert.equal(await ctx.reviewCompetitionSave(), true);
+  assert.equal(accepts, 1);
+  assert.equal(ctx.state.settings.name, "Remote");
+  assert.equal(ctx.state.results[0].id, "R");
+  assert.equal(ctx.state.stackers[0].id, "S");
+  assert.equal(ctx.stateSaveFailure, null);
+  assert.equal(ctx.pendingDeletedDoubles.size, 0);
+  console.log("PASS ENG05B active/queued/failed draft deferral and explicit reviewed replacement");
+}
+
 (async () => {
+  await stateDraftReview();
   await stateResponseLost();
   await resultResponseLost();
   await lateSnapshotAfterDelete();
