@@ -9,8 +9,9 @@ const CompetitionRepository = require("../backend/StackMeet.Api/wwwroot/js/stora
 const source = fs.readFileSync(path.join(__dirname, "..", "backend", "StackMeet.Api", "wwwroot", "app.js"), "utf8");
 
 function extractFunction(name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notStrictEqual(start, -1, `Unable to find ${name}`);
+  const functionStart = source.indexOf(`function ${name}(`);
+  assert.notStrictEqual(functionStart, -1, `Unable to find ${name}`);
+  const start = source.slice(functionStart - 6, functionStart) === "async " ? functionStart - 6 : functionStart;
   const braceStart = source.indexOf("{", start);
   let depth = 0;
   let quote = null;
@@ -124,7 +125,9 @@ async function scenarioUnknownOutcomeStopsQueuedWrites() {
   assert.strictEqual(rejected[1].reason.outcome, "state-save-cancelled");
   assert.strictEqual(posts, 1, "A queued save may not replay after an unknown outcome.");
   assert.strictEqual(harness.pendingDeletedDoubles.has("2.2"), true);
-  await assert.rejects(harness.hooks.saveState(), e => e.outcome === "state-review-required");
+  const blocked = harness.hooks.saveState();
+  assert.equal(typeof blocked?.then, "function", "The extracted async function must return a promise.");
+  await assert.rejects(blocked, e => e.outcome === "state-review-required");
   assert.strictEqual(posts, 1);
   assert.deepStrictEqual(harness.state.doubles.map(item => item.id), ["2.1"]);
 }
