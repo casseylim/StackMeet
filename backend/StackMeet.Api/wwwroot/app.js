@@ -678,10 +678,12 @@ async function saveState() {
       await repository.save(legacyStateForSave(mergedState));
       // Do not replace edits made while the request was in flight, or SQL-owned
       // slices refreshed independently of this JSON state save.
-      if (latestState && JSON.stringify(legacyStateForSave(state)) === localSignature)
+      const unchanged = JSON.stringify(legacyStateForSave(state)) === localSignature;
+      if (latestState && unchanged)
         state = { ...state, ...mergedState, stackers: state.stackers, results: state.results };
       acknowledgeDeletedStateRecords(deletedSnapshot);
-      stateSaveFailure = null;
+      // A successful earlier write does not acknowledge newer local edits.
+      stateSaveFailure = unchanged ? null : { requiresReview: false };
     });
 
   pendingSave = queuedSave;
@@ -689,8 +691,8 @@ async function saveState() {
     () => {
       queuedSaveCount -= 1;
       if (!queuedSaveCount) {
-        setSaveStatus("Saved", "saved");
-        applyPendingCompetitionUpdate();
+        setSaveStatus(stateSaveFailure ? "Save Failed" : "Saved", stateSaveFailure ? "failed" : "saved");
+        if (!stateSaveFailure) applyPendingCompetitionUpdate();
       }
     },
     error => {
