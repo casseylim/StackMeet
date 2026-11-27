@@ -286,6 +286,8 @@ let ageCalculationMode = "actual";
 let state = createInitialState();
 let pendingSave = Promise.resolve();
 let queuedSaveCount = 0;
+let stateSaveGeneration = 0;
+let stateSaveFailure = null;
 let deletionGeneration = 0;
 const pendingDeletedDoubles = new Map();
 const pendingDeletedRelays = new Map();
@@ -652,12 +654,19 @@ function acknowledgeDeletedStateRecords(snapshot) {
 }
 
 async function saveState() {
+  if (stateSaveFailure?.requiresReview) {
+    setSaveStatus("Save Failed", "failed");
+    throw Object.assign(new Error("Review saved state before retrying."), { outcome: "state-review-required" });
+  }
+  const generation = stateSaveGeneration;
   queuedSaveCount += 1;
   setSaveStatus("Saving...", "saving");
 
   const queuedSave = pendingSave
     .catch(() => undefined)
     .then(async () => {
+      if (generation !== stateSaveGeneration || stateSaveFailure?.requiresReview)
+        throw Object.assign(new Error("Earlier save failed; review before retrying."), { outcome: "state-save-cancelled" });
       const latestState = await repository.load();
       const deletedSnapshot = snapshotDeletedStateRecords();
       const localState = structuredClone(state);
@@ -665,9 +674,14 @@ async function saveState() {
         doubles: new Set(deletedSnapshot.doubles.keys()),
         relays: new Set(deletedSnapshot.relays.keys())
       }) : localState;
-      if (latestState) state = { ...state, ...mergedState };
+      const localSignature = JSON.stringify(legacyStateForSave(localState));
       await repository.save(legacyStateForSave(mergedState));
+      // Do not replace edits made while the request was in flight, or SQL-owned
+      // slices refreshed independently of this JSON state save.
+      if (latestState && JSON.stringify(legacyStateForSave(state)) === localSignature)
+        state = { ...state, ...mergedState, stackers: state.stackers, results: state.results };
       acknowledgeDeletedStateRecords(deletedSnapshot);
+      stateSaveFailure = null;
     });
 
   pendingSave = queuedSave;
@@ -681,6 +695,12 @@ async function saveState() {
     },
     error => {
       queuedSaveCount -= 1;
+      if (error.outcome !== "state-save-cancelled") {
+        stateSaveGeneration++;
+        // A known 400 validation rejection may be corrected manually. Unknown,
+        // stale or authorization outcomes require a deliberate review first.
+        stateSaveFailure = { requiresReview: error.status !== 400 };
+      }
       setSaveStatus("Save Failed", "failed");
       throw error;
     }
@@ -692,6 +712,8 @@ function setSaveStatus(message, stateName) {
   if (!indicator) return;
   indicator.textContent = t(message);
   indicator.dataset.state = stateName;
+  const review = document.getElementById("stateSaveReviewBtn");
+  if (review) review.hidden = !stateSaveFailure;
 }
 
 function sqlCompetitionIdFromUrl() {
@@ -1191,18 +1213,31 @@ function competitionStateSyncSignature(value) {
 }
 
 function loadLatestCompetition() {
-  return typeof repository.reloadLatestCompetition === "function" ? repository.reloadLatestCompetition() : repository.load();
+  return repository.observeLatestCompetition();
 }
 
-async function applyRemoteCompetitionState(latest) {
-  if (!latest || competitionStateSyncSignature(latest) === competitionStateSyncSignature(state)) return false;
-  const localEditing = competitionEditorActive();
-  if (localEditing) {
-    pendingRemoteCompetitionState = latest;
+async function applyRemoteCompetitionState(observation, reviewed = false) {
+  if (!observation?.state) return false;
+  const localEditing = competitionEditorActive() || competitionEntryInputActive();
+  if (localEditing || queuedSaveCount || (stateSaveFailure && !reviewed)) {
+    pendingRemoteCompetitionState = observation;
     flashMessage = { type: "info", text: t("Competition updated on another computer. Finish editing, then refresh this screen.") };
-    setSaveStatus("Update waiting", "saving");
+    if (!stateSaveFailure && !queuedSaveCount) setSaveStatus("Update waiting", "saving");
     return false;
   }
+  // The revision and the corresponding state are accepted together, never
+  // when a draft is being edited or a save is queued. Obsolete observations
+  // (including reads started before a successful local write) are refused.
+  if (!repository.acceptObservedCompetition(observation)) return false;
+  const latest = observation.state;
+  pendingRemoteCompetitionState = null;
+  if (reviewed) {
+    stateSaveFailure = null;
+    pendingDeletedDoubles.clear();
+    pendingDeletedRelays.clear();
+    setSaveStatus("Saved", "saved");
+  }
+  if (JSON.stringify(legacyStateForSave(latest)) === JSON.stringify(legacyStateForSave(state))) return true;
   const sqlOwnedStackers = state.stackers;
   const sqlOwnedResults = state.results;
   state = normalizeState(withoutLegacyStackers(latest));
@@ -1244,10 +1279,43 @@ function applyPendingCompetitionUpdate() {
     resultSyncDiagnostics.pendingResultsRevision = null;
     void refreshSqlResults({ rerender: true }).catch(error => console.warn("Unable to refresh SQL results.", error));
   }
-  if (!pendingRemoteCompetitionState || competitionEditorActive()) return false;
+  if (!pendingRemoteCompetitionState || competitionEditorActive() || competitionEntryInputActive()
+      || queuedSaveCount || stateSaveFailure) return false;
   const latest = pendingRemoteCompetitionState;
   pendingRemoteCompetitionState = null;
   return applyRemoteCompetitionState(latest);
+}
+
+// Explicit recovery is conservative: a changed baseline is never merged with
+// an unreviewed draft. Keep the draft in memory unless the operator confirms
+// replacing it with the authoritative state. A matching baseline permits a
+// manual retry, not an automatic replay.
+async function reviewCompetitionSave() {
+  if (!stateSaveFailure || queuedSaveCount || competitionEditorActive() || competitionEntryInputActive()) {
+    window.alert(t("Finish editing before reviewing saved state."));
+    return false;
+  }
+  const generation = stateSaveGeneration;
+  const draftSignature = JSON.stringify(legacyStateForSave(state));
+  try {
+    const observation = await repository.observeLatestCompetition();
+    if (!stateSaveFailure || generation !== stateSaveGeneration || queuedSaveCount
+        || competitionEditorActive() || competitionEntryInputActive()
+        || JSON.stringify(legacyStateForSave(state)) !== draftSignature) return false;
+    if (observation.etag === observation.baseline) {
+      if (!window.confirm(t("Saved revision is unchanged. Allow a manual retry of your unsaved changes?"))) return false;
+      stateSaveFailure = { requiresReview: false };
+      setSaveStatus("Save Failed", "failed");
+      return true;
+    }
+    if (JSON.stringify(legacyStateForSave(observation.state)) !== draftSignature
+        && !window.confirm(t("Saved state has changed. Discard local unsaved state and load the saved version? Cancel to keep your draft."))) return false;
+    return await applyRemoteCompetitionState(observation, true);
+  } catch (error) {
+    console.warn("Unable to review saved state.", error);
+    setSaveStatus("Save Failed", "failed");
+    return false;
+  }
 }
 
 let competitionStateConnection = null;
@@ -6890,6 +6958,10 @@ async function initializeApplication() {
   const session = await window.StackMeetAuth.requireLogin();
   repository.setCompetitionKey(session.competitionId);
   state = await loadState();
+  document.getElementById("stateSaveReviewBtn")?.addEventListener("click", () => void reviewCompetitionSave());
+  window.addEventListener("beforeunload", event => {
+    if (queuedSaveCount || stateSaveFailure) { event.preventDefault(); event.returnValue = ""; }
+  });
   const initialLanguage = window.StackMeetLanguagePreference?.getPreferredLanguage() || state.settings?.language || "en";
   window.StackMeetI18n?.setDocumentLanguage(initialLanguage);
   syncOperatorLanguageControl();
