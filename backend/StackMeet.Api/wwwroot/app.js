@@ -1375,6 +1375,9 @@ async function requestOperatorRefresh({ state: refreshState = false, results: re
     pendingResultRevision = Math.max(pendingResultRevision, resultsRevision);
     resultSyncDiagnostics.pendingResultsRevision = pendingResultRevision || null;
   }
+  // Save completion can call this with no pending work. Do not inspect
+  // competition context, touch the editor or schedule another pass in that case.
+  if (!pendingStateRefresh && !pendingResultsRefresh) return true;
   if (operatorSyncInFlight) {
     operatorSyncRequestedAgain = true;
     return false;
