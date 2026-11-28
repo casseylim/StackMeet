@@ -67,6 +67,47 @@ try {
     [provider, api + "wwwroot/js/storage/Repository.js", api + "Models/CompetitionState.cs", api + "Controllers/CompetitionStateController.cs"],
     () => mutate(provider, "if (acceptRevision) this.#captureEtag(response);", "this.#captureEtag(response);"),
     /ordinary load must not accept a remote revision/);
+  // Exercise the actual independent evidence validator as a child process.
+  // The synthetic ledger proves that a nonzero recorded suite propagates
+  // to the CLI exit code and a retained failure report.
+  const validator = "tests/Validate-RegressionEvidence.js";
+  const inventoryPath = "docs/engineering/evidence/eng-06a-suite-inventory.json";
+  copy(validator);
+  copy(inventoryPath);
+  const manifest = require(path.join(temp, inventoryPath));
+  const { expectedEntries } = require(path.join(temp, validator));
+  const commit = "a".repeat(40);
+  const evidence = path.join(temp, "synthetic-evidence");
+  const metadata = { schemaVersion: 1, commit, sdk: "8.0.100", node: process.version, os: "Synthetic" };
+  const parent = { ...metadata, suites: expectedEntries(manifest, { suite: "All", coverage: true }).map(row => ({ ...row, exitCode: 0, durationMs: 1 })) };
+  const child = { ...metadata, suites: expectedEntries(manifest, { suite: "DotNet", noBuild: true }).map(row => ({ ...row, exitCode: 0, durationMs: 1 })) };
+  const write = (relative, data) => {
+    const target = path.join(evidence, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, typeof data === "string" ? data : JSON.stringify(data));
+  };
+  for (const entry of parent.suites) write(entry.log, "synthetic execution log");
+  write("results.json", parent);
+  write("covered/results.json", child);
+  write("api-coverage.json", { schemaVersion: 1, sourceSha: commit, package: "StackMeet.Api",
+    countingUnit: "Cobertura class-level line entries", lines: { covered: 2, total: 4, reportedRate: 0.5 },
+    branches: { covered: 1, total: 4, reportedRate: 0.25 } });
+  function validateCli(status) {
+    const result = spawnSync(process.execPath, [path.join(temp, validator), evidence, commit], { cwd: temp, encoding: "utf8", timeout: 30000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, status, result.stdout + result.stderr);
+    const report = JSON.parse(fs.readFileSync(path.join(evidence, "validation.json"), "utf8"));
+    assert.equal(report.status, status === 0 ? "passed" : "failed");
+    return report;
+  }
+  validateCli(0);
+  parent.suites.find(row => row.kind === "Node").exitCode = 1;
+  write("results.json", parent);
+  assert.ok(validateCli(1).errors.some(message => /Nonzero or invalid exit/.test(message)));
+  parent.suites.find(row => row.kind === "Node").exitCode = 0;
+  write("results.json", parent);
+  validateCli(0);
+  console.log("PASS ENG06C actual validator CLI propagates failure and retains verdict");
   for (const [relative, digest] of original) {
     assert.equal(hash(fs.readFileSync(path.join(root, relative))), digest, "Original source changed: " + relative);
   }
