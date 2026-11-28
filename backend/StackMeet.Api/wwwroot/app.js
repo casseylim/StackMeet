@@ -991,6 +991,18 @@ function canReplaceResultEditor(editor) {
   return confirm(t("Discard the current result draft?"));
 }
 
+// Browser close/reload uses the same dirty/review criteria as route changes.
+function protectUnsavedCompetitionWork(event) {
+  const hasResultDraft = [prelimResultEditor, finalResultEditor].some(editor =>
+    editor && (editor.saving || editor.reviewRequired || editor.initialInput !== editorInputSnapshot(editor)));
+  if (queuedSaveCount || stateSaveFailure || hasResultDraft) {
+    event.preventDefault();
+    event.returnValue = "";
+    return true;
+  }
+  return false;
+}
+
 function leaveResultEditors(nextRoute) {
   if (nextRoute === "competition") return true;
   if (!canReplaceResultEditor(prelimResultEditor) || !canReplaceResultEditor(finalResultEditor)) return false;
@@ -7064,9 +7076,7 @@ async function initializeApplication() {
   repository.setCompetitionKey(session.competitionId);
   state = await loadState();
   document.getElementById("stateSaveReviewBtn")?.addEventListener("click", () => void reviewCompetitionSave());
-  window.addEventListener("beforeunload", event => {
-    if (queuedSaveCount || stateSaveFailure) { event.preventDefault(); event.returnValue = ""; }
-  });
+  window.addEventListener("beforeunload", protectUnsavedCompetitionWork);
   const initialLanguage = window.StackMeetLanguagePreference?.getPreferredLanguage() || state.settings?.language || "en";
   window.StackMeetI18n?.setDocumentLanguage(initialLanguage);
   syncOperatorLanguageControl();
