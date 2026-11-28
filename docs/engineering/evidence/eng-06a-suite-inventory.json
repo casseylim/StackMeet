@@ -55,6 +55,7 @@
       "tests/email-confirmation-default.static.test.js",
       "tests/eng05e-integrated-network-failure.test.js",
       "tests/eng06a-suite-inventory.test.js",
+      "tests/eng06b-evidence-validator.test.js",
       "tests/finals-only-overall.test.js",
       "tests/frontend-architecture.test.js",
       "tests/frontend-integration-eng03g.test.js",
