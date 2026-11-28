@@ -59,6 +59,10 @@ try {
   const privacyTest = "tests/public-results-portal.static.test.js";
   const privacySource = fs.readFileSync(path.join(root, privacyTest), "utf8");
   const privacyFiles = [...new Set([...privacySource.matchAll(/\bread\("([^"]+)"\)/g)].map(match => match[1]))];
+  // The static portal gate also executes its sample-data suite through require().
+  // Copy the dependency, not a stub: the clean/restored probes must execute
+  // the entire original gate including its actual ranking fixtures.
+  privacyFiles.push("tests/public-results-portal.sample-data.test.js");
   assert.ok(privacyFiles.includes(publicController));
   probe("public privacy", privacyTest, privacyFiles,
     () => mutate(publicController, "            results = resultRows,", '            email = "fixture@example.test",\n            results = resultRows,'),
