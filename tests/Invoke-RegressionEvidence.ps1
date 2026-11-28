@@ -87,43 +87,7 @@ try {
             if ($hits -gt 0) { $lineHits++ }
             if ($line.GetAttribute('branch') -ieq 'true') {
                 $condition = $line.GetAttribute('condition-coverage')
-                if ($condition -notmatch '\((\d+)/(\d+)\)\s*
-        foreach ($record in $covered.suites) {
-            $record.log = "covered/$($record.log)"
-            $records.Add($record)
-        }
-    } else {
-        foreach ($project in $projects) {
-            if (!$blocked.Contains($project.BaseName)) {
-                $dll = Join-Path $project.DirectoryName "bin/Release/net8.0/$($project.BaseName).dll"
-                $null = Invoke-SuiteCommand $project.BaseName DotNet dotnet @($dll)
-            }
-        }
-    }
-
-    if ($Suite -eq 'All') {
-        foreach ($test in Get-ChildItem tests -Filter *.test.js | Sort-Object Name) {
-            $null = Invoke-SuiteCommand $test.Name Node node @($test.FullName)
-        }
-        $null = Invoke-SuiteCommand 'storage-smoke' Node node @('backend/StackMeet.Api/wwwroot/js/storage/storage-smoke.test.js')
-        $null = Invoke-SuiteCommand 'release-safety' PowerShell pwsh @('-NoProfile', '-File', 'tests/naditrack-application-release.tests.ps1')
-    }
-} catch {
-    $records.Add([ordered]@{ name = 'runner'; kind = 'Infrastructure'; exitCode = 1; error = $_.Exception.Message })
-} finally {
-    $report = [ordered]@{
-        schemaVersion = 1
-        commit = $commit
-        sdk = $sdk
-        node = $nodeVersion
-        os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
-        suites = @($records.ToArray())
-    }
-    $report | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $outputPath 'results.json') -Encoding utf8NoBOM
-    Pop-Location
-}
-if ($records.Where({ $_.exitCode -ne 0 }).Count) { exit 1 }
-) { throw 'Invalid API branch counts.' }
+                if ($condition -notmatch '\((\d+)/(\d+)\)\s*$') { throw 'Invalid API branch counts.' }
                 $hit = [long]$Matches[1]
                 $total = [long]$Matches[2]
                 if ($total -le 0 -or $hit -gt $total) { throw 'Invalid API branch denominator.' }
