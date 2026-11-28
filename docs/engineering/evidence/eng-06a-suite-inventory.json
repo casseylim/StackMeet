@@ -170,5 +170,16 @@
       "mode": "pinned-source-offline",
       "reason": "Existing separately governed exact-source job; not current-head coverage."
     }
-  ]
+  ],
+  "browser": {
+    "entrypoint": "tests/Invoke-EdgeBrowserEvidence.js",
+    "helpers": [
+      "tests/edge-browser-fixture.js",
+      "tests/edge-cdp.js"
+    ],
+    "mode": "isolated-loopback-edge",
+    "artifact": "edge-browser-evidence",
+    "expectedCases": 26,
+    "reason": "Separate browser execution and layout evidence; excluded from API coverage and the Node suite ledger."
+  }
 }
