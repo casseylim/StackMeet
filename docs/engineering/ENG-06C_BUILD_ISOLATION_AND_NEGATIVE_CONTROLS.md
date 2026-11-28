@@ -17,3 +17,7 @@ Base: ENG-06B 6e3462bbb8f13fcb95912133ea348a27f18c8c2a, [CI 46115743170](https:/
 Confirm the isolated worktree and all four negative-control probes on hosted Windows CI, including exact SHA, coverage extraction and 151/151 ledger records. Full browser-based, network, accessibility, print and locale evidence remains ENG-06D. Complete operational evidence and thresholds remain ENG-06E. No claim that mutation probes exhaust rule/privacy/concurrency risks.
 
 Production IIS web.config must never be overwritten, deleted or replaced; explicit exclusion, secure backup and identical pre/post SHA-256 required during deployment and rollback. Preserve Finals-only Overall/All-Around, separate preliminary reports, immutable certified historical snapshots. No application runtime, schema or production deployment workflow changes; no master merge or production deployment without explicit owner approval. Previous operational release gates carry forward.
+
+## Hosted CI correction
+
+Run 46116863591: offline reviewed-source reproducibility passed. Build/test and evidence failed at the privacy probe clean baseline (MODULE_NOT_FOUND for public-results-portal.sample-data.test.js). Finals-only mutation already passed. Independent validation correctly rejected the nonzero Node record despite all 151/151 records being present. The disposable fixture now includes the original required sample-data suite, which reads the already copied results.js. No test stub, skipped assertion, policy change, or production modification. Corrected CI pending.
