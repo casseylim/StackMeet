@@ -61,7 +61,7 @@ try {
   const privacyFiles = [...new Set([...privacySource.matchAll(/\bread\("([^"]+)"\)/g)].map(match => match[1]))];
   assert.ok(privacyFiles.includes(publicController));
   probe("public privacy", privacyTest, privacyFiles,
-    () => { const target = path.join(temp, publicController); fs.appendFileSync(target, "\n// Synthetic negative control: email = \"fixture@example.test\"\n"); },
+    () => mutate(publicController, "            results = resultRows,", '            email = "fixture@example.test",\n            results = resultRows,'),
     /Public responses must not expose email addresses/);
   probe("stale-write baseline", "tests/competition-state-concurrency.test.js",
     [provider, api + "wwwroot/js/storage/Repository.js", api + "Models/CompetitionState.cs", api + "Controllers/CompetitionStateController.cs"],
