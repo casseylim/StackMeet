@@ -247,9 +247,21 @@ jobs:
           dotnet tool install dotnet-coverage --version 18.12.0 --tool-path "$env:RUNNER_TEMP/eng-tools" --configfile NuGet.Config
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           SqlLocalDB.exe start MSSQLLocalDB
+      - name: Prepare isolated current-source evidence workspace
+        shell: pwsh
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "eng-evidence-source"
+          if (Test-Path $workspace) { throw 'Evidence workspace must be fresh.' }
+          git worktree add --detach $workspace $env:GITHUB_SHA
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $actual = (git -C $workspace rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -or $actual -cne $env:GITHUB_SHA) { throw 'Evidence checkout SHA mismatch.' }
       - name: Run existing suites and collect evidence
         shell: pwsh
-        run: ./tests/Invoke-RegressionEvidence.ps1 -OutputDirectory "$env:RUNNER_TEMP/eng-evidence" -CoverageExecutable "$env:RUNNER_TEMP/eng-tools/dotnet-coverage.exe"
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "eng-evidence-source"
+          & (Join-Path $workspace "tests/Invoke-RegressionEvidence.ps1") -OutputDirectory "$env:RUNNER_TEMP/eng-evidence" -CoverageExecutable "$env:RUNNER_TEMP/eng-tools/dotnet-coverage.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Independently validate complete executed-suite evidence
         if: ${{ always() }}
         shell: pwsh
