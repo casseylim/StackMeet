@@ -250,6 +250,10 @@ jobs:
       - name: Run existing suites and collect evidence
         shell: pwsh
         run: ./tests/Invoke-RegressionEvidence.ps1 -OutputDirectory "$env:RUNNER_TEMP/eng-evidence" -CoverageExecutable "$env:RUNNER_TEMP/eng-tools/dotnet-coverage.exe"
+      - name: Independently validate complete executed-suite evidence
+        if: ${{ always() }}
+        shell: pwsh
+        run: node tests/Validate-RegressionEvidence.js "$env:RUNNER_TEMP/eng-evidence" "$env:GITHUB_SHA"
       - name: Upload regression ledger and coverage
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
