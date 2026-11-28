@@ -223,5 +223,40 @@ function closeAttempt(ctx, expected) {
   assert.equal(server.requests.filter(item => item.method === "POST").length, 4, "No automatic duplicate POST.");
   console.log("PASS ENG05E two operators and public converge after lost response, stale rejection, deletion and withdrawal");
   console.log("PASS ENG05E close guard warns for failed state and dirty/review-required scoring draft");
+  // ENG-05F: no event at all after a new committed result. The same
+  // authoritative refresh paths used by periodic polling must recover it.
+  const beforeRecovery = server.requests.filter(item => item.method === "POST").length;
+  await b.resultApi.saveBatch(7, edit("A", 11, 6.75));
+  const saved = canonical(server.rows);
+  assert.notEqual(canonical(a.state.results), saved, "Negative control: missing notification leaves A stale.");
+  assert.notEqual(canonical(p.currentPayload.results), saved, "Negative control: missing notification leaves viewer stale.");
+  await Promise.all([
+    a.requestOperatorRefresh({ state: true, results: true }),
+    b.requestOperatorRefresh({ state: true, results: true }),
+    p.refresh(false)
+  ]);
+  assert.equal(canonical(a.state.results), saved);
+  assert.equal(canonical(b.state.results), saved);
+  assert.equal(canonical(p.currentPayload.results), saved);
+  assert.equal(server.requests.filter(item => item.method === "POST").length, beforeRecovery + 1,
+    "Read-only recovery must never replay the committed write.");
+  assert.equal(server.resultCommits, 3);
+  console.log("PASS ENG05F missing-notification recovery and stale-projection negative controls");
+
+  // Verify both scoring editor types, including an in-flight save with
+  // otherwise unchanged input; clean close must remain unblocked.
+  a.inputs[0].value = "6.75";
+  a.finalResultEditor = { kind: "final", initialInput: '["6.75"]', saving: true, reviewRequired: false };
+  closeAttempt(a, true);
+  a.finalResultEditor.saving = false;
+  closeAttempt(a, false);
+  a.inputs[0].value = "7";
+  closeAttempt(a, true);
+  a.finalResultEditor = null;
+  a.queuedSaveCount = 1;
+  closeAttempt(a, true);
+  a.queuedSaveCount = 0;
+  closeAttempt(a, false);
+  console.log("PASS ENG05F close guard saving/dirty/clean final editor and queued-state controls");
   console.log("ENG05E synthetic shared-authority integration passed; real browser/authentication and transport remain open.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
