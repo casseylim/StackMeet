@@ -62,7 +62,7 @@ async function printSheet(cdp, type, cssClass, landscape) {
       await cdp.size(width);
       for (const locale of ["en", "ms", "zh-Hans"]) {
         await cdp.navigate(base + "/ENG06D/Results/AllAround?lang=" + locale);
-        await cdp.wait("document.getElementById('competitionName')?.textContent === " + JSON.stringify(name) + " && !!document.querySelector('#allaround-overall tbody tr')", "public results " + locale);
+        await cdp.wait("document.readyState === 'complete' && new URLSearchParams(location.search).get('lang') === " + JSON.stringify(locale) + " && document.getElementById('competitionName')?.textContent === " + JSON.stringify(name) + " && !!document.querySelector('#allaround-overall tbody tr')", "public results " + locale);
         const standings = await cdp.eval("document.querySelector('#allaround-overall tbody').innerText");
         assert.match(standings, /Alpha Fixture/);
         assert.match(standings, /18[.,]000/);
@@ -84,7 +84,7 @@ async function printSheet(cdp, type, cssClass, landscape) {
     info.empty = false;
     report.cases.push({ name: "public-language-withdrawal-empty-recovery", status: "passed" });
     await cdp.navigate(base + "/");
-    await cdp.wait("!!document.getElementById('loginEmail') && document.body.classList.contains('auth-pending')", "login shell");
+    await cdp.wait("document.readyState === 'complete' && !!window.StackMeetAuth && !!document.getElementById('loginEmail') && document.body.classList.contains('auth-pending')", "login shell");
     // Submit ordinary login form to the local fixture, not a live auth service.
     await cdp.eval("document.getElementById('loginEmail').value='operator@example.test'; document.getElementById('loginPassword').value='fixture-only'; document.getElementById('loginForm').requestSubmit()");
     await cdp.wait("!document.getElementById('loginCompetitionStep').hidden && document.getElementById('loginCompetitionSelect').options.length > 0", "competition selection");
@@ -112,6 +112,7 @@ async function printSheet(cdp, type, cssClass, landscape) {
     report.cases.push({ name: "keyboard-focus-tab", status: "passed" });
     assert.deepEqual(info.unexpected, [], "Unexpected API calls");
     assert.deepEqual(cdp.exceptions, [], "Uncaught browser exceptions");
+    assert.equal(report.cases.length, 26, "Browser evidence case count");
     report.status = "passed";
   } catch (error) {
     report.error = error.stack || String(error); console.error(report.error); process.exitCode = 1;
