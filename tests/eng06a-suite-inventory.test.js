@@ -52,6 +52,12 @@ for (const item of inventory.separate.filter(item => item.mode.startsWith("isola
   assert.ok(!workflow.includes(item.path) && !collector.includes(item.path), "Credentialed script must not be automatically invoked: " + item.path);
   assert.ok(item.reason, "Missing classification reason");
 }
+assert.equal(inventory.browser.mode, "isolated-loopback-edge");
+for (const file of [inventory.browser.entrypoint, ...inventory.browser.helpers])
+  assert.ok(fs.statSync(path.join(root, file)).isFile(), "Missing browser evidence source: " + file);
+assert.ok(workflow.includes(inventory.browser.entrypoint), "Browser evidence execution missing");
+assert.ok(workflow.includes(inventory.browser.artifact), "Separate browser artifact missing");
+assert.ok(!collector.includes(inventory.browser.entrypoint), "Browser evidence must not be included in API coverage");
 // The historical evidence is a floor, not a frozen test count. Preserve its
 // known suites; the reviewed inventory must explicitly classify any new suite.
 for (const entry of historical.suites) {

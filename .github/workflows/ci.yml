@@ -266,6 +266,17 @@ jobs:
         if: ${{ always() }}
         shell: pwsh
         run: node tests/Validate-RegressionEvidence.js "$env:RUNNER_TEMP/eng-evidence" "$env:GITHUB_SHA"
+      - name: Run isolated Microsoft Edge browser evidence
+        shell: pwsh
+        run: node tests/Invoke-EdgeBrowserEvidence.js "$env:RUNNER_TEMP/eng-browser-evidence" "$env:GITHUB_SHA"
+      - name: Upload browser screenshots, PDF previews and separate evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-browser-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/eng-browser-evidence
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload regression ledger and coverage
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
